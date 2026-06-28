@@ -54,8 +54,8 @@ export const gatherTargets: Record<GatherTargetId, GatherTarget> = {
 export const machines: Record<MachineId, Machine> = {
   workbench: {
     id: 'workbench',
-    name: 'Block Bench',
-    description: 'A scarred table for early hand work.',
+    name: 'Crafting Table',
+    description: 'A blocky work surface that opens the full crafting grid.',
     tier: 'manual',
   },
   furnace: {
@@ -134,7 +134,7 @@ export const recipes: Recipe[] = [
   {
     id: 'craft_wooden_axe',
     name: 'Craft Wooden Axe',
-    description: 'A first tool. Not fancy, but the tree will notice.',
+    description: 'A first table-made tool. Not fancy, but the tree will notice.',
     tier: 'manual',
     durationMs: 1400,
     inputs: [
@@ -142,6 +142,7 @@ export const recipes: Recipe[] = [
       { id: 'stick', amount: 2 },
     ],
     outputs: [{ id: 'woodenAxe', amount: 1 }],
+    requiredMachine: 'workbench',
     unlockedBy: 'craftSticks',
   },
   {
@@ -156,11 +157,11 @@ export const recipes: Recipe[] = [
   },
   {
     id: 'build_workbench',
-    name: 'Build Block Bench',
-    description: 'The first proper crafting surface.',
+    name: 'Build Crafting Table',
+    description: 'Four planks become the work surface for 3x3 recipes.',
     tier: 'manual',
     durationMs: 2500,
-    inputs: [{ id: 'stone', amount: 12 }],
+    inputs: [{ id: 'plank', amount: 4 }],
     outputs: [],
     machineOutputs: [{ id: 'workbench', amount: 1 }],
     unlockedBy: 'firstDirt',

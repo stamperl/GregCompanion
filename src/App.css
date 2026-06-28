@@ -130,6 +130,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.page-tabs.wide-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .page-tabs button {
   align-items: center;
   background: var(--field);
@@ -143,6 +147,7 @@
   gap: 8px;
   justify-content: center;
   min-height: 46px;
+  min-width: 0;
   padding: 9px;
 }
 
@@ -150,6 +155,11 @@
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
+}
+
+.page-tabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .mine-face {
@@ -281,6 +291,7 @@
 .hit-button,
 .craft-actions button,
 .craft-inventory button,
+.recipe-hint button,
 .guide-card button {
   align-items: center;
   background: var(--ink);
@@ -303,6 +314,7 @@
 
 .craft-actions button:disabled,
 .craft-inventory button:disabled,
+.recipe-hint button:disabled,
 .guide-card button:disabled {
   background: var(--field);
   color: var(--muted);
@@ -405,6 +417,15 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.craft-grid.two-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 230px;
+}
+
+.craft-grid.three-grid {
+  max-width: 330px;
+}
+
 .craft-slot {
   align-items: center;
   aspect-ratio: 1;
@@ -500,6 +521,47 @@
 .recipe-hint p {
   color: var(--muted);
   margin: 4px 0 0;
+}
+
+.recipe-hint > button {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.recipe-hint .section-title {
+  align-items: start;
+}
+
+.recipe-hint .section-title > strong {
+  color: var(--copper);
+  font-size: 0.82rem;
+  line-height: 1.1;
+  max-width: 36%;
+  text-align: right;
+}
+
+.recipe-search {
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 850;
+  margin-top: 12px;
+  min-height: 48px;
+  padding: 10px;
+  width: 100%;
+}
+
+.recipe-notice,
+.missing-line {
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 850;
+  margin: 10px 0 0;
+  padding: 9px;
 }
 
 .guide-card.completed svg {
@@ -605,6 +667,14 @@
 @media (max-width: 430px) {
   .status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .page-tabs.wide-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-tabs button {
+    justify-content: start;
   }
 
   .tap-grid {

@@ -38,27 +38,43 @@ describe('game engine', () => {
     expect(state.gatherProgress.tree).toBe(0)
   })
 
-  it('crafts planks, sticks, and a wooden axe with the right ratios', () => {
+  it('crafts planks, a crafting table, sticks, and a wooden axe with the right ratios', () => {
     let state = createInitialState(1000)
-    state.resources.log = 2
+    state.resources.log = 3
 
     const planks = recipes.find((recipe) => recipe.id === 'craft_planks')!
     expect(canCraft(state, planks)).toBe(true)
     state = tickGame(startCraft(state, planks.id, 1000), planks.durationMs).state
     state = tickGame(startCraft(state, planks.id, 2000), planks.durationMs).state
+    state = tickGame(startCraft(state, planks.id, 3000), planks.durationMs).state
     expect(state.resources.log).toBe(0)
+    expect(state.resources.plank).toBe(12)
+
+    const table = recipes.find((recipe) => recipe.id === 'build_workbench')!
+    expect(canCraft(state, table)).toBe(true)
+    state = tickGame(startCraft(state, table.id, 4000), table.durationMs).state
     expect(state.resources.plank).toBe(8)
+    expect(state.machines.workbench).toBe(1)
 
     const sticks = recipes.find((recipe) => recipe.id === 'craft_sticks')!
-    state = tickGame(startCraft(state, sticks.id, 3000), sticks.durationMs).state
+    state = tickGame(startCraft(state, sticks.id, 5000), sticks.durationMs).state
     expect(state.resources.plank).toBe(6)
     expect(state.resources.stick).toBe(4)
 
     const axe = recipes.find((recipe) => recipe.id === 'craft_wooden_axe')!
-    state = tickGame(startCraft(state, axe.id, 4000), axe.durationMs).state
+    state = tickGame(startCraft(state, axe.id, 6000), axe.durationMs).state
     expect(state.resources.plank).toBe(3)
     expect(state.resources.stick).toBe(2)
     expect(state.resources.woodenAxe).toBe(1)
+  })
+
+  it('does not craft a wooden axe before the crafting table exists', () => {
+    const state = createInitialState(1000)
+    state.resources.plank = 3
+    state.resources.stick = 2
+
+    const axe = recipes.find((recipe) => recipe.id === 'craft_wooden_axe')!
+    expect(canCraft(state, axe)).toBe(false)
   })
 
   it('does not require quests to unlock wood crafting', () => {

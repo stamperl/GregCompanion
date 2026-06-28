@@ -6,7 +6,7 @@ This repo is the current mobile-first idle/clicker prototype that grew out of th
 
 - Working title: `Click Foundry`.
 - Core feel: early survival gathering, grid-based inventory crafting, slow industrial progression, satisfying small milestones.
-- Opening loop: hit a tree several times, get logs, craft planks, craft sticks, craft a wooden axe, then chop faster.
+- Opening loop: hit a tree several times, get logs, use the inventory 2x2 grid to craft planks, craft a crafting table, then use the 3x3 table and recipe book to reach sticks and the wooden axe.
 - Quests should guide and reward the player, but must not lock progression.
 - Progression should eventually move through stone, ore, steam, low voltage, and beyond.
 - Saves are local-only through `localStorage`.
@@ -27,7 +27,9 @@ Implemented systems:
 - Inventory resources with unlimited stacks.
 - Tree gather target with per-target hit progress.
 - Tool lookup with bare hand by default and wooden axe upgrade.
-- Minecraft-like 3x3 hand crafting grid that matches recipe ingredient counts.
+- Minecraft-like inventory crafting with a 2x2 starter grid.
+- Crafting table recipe from four planks; owning the table unlocks the 3x3 crafting page.
+- Recipe book search that can load recipes into the right grid or show missing materials/stations.
 - Timed crafting queue after a matched craft is started.
 - Machine data and slow machine tick support.
 - Quest guide page with claimable rewards.
@@ -39,7 +41,8 @@ Important recent decision:
 - Quests are optional guide/reward content only.
 - Crafting visibility and crafting ability are based on inventory and machine requirements, not completed quests.
 - Crafting should feel tactile: tap inventory items into the grid, tap grid slots to remove them, then craft the matched output.
-- The Play page should stay playable without visiting the Guide page.
+- The recipe book should support the material loop: if the player searches for sticks but lacks planks, it should tell them to get planks rather than hiding the recipe.
+- Gather, Inventory, Recipes, Table, and Guide are separate pages; progression should never require visiting Guide.
 
 ## Current GitHub Repo
 
@@ -79,9 +82,11 @@ Browser smoke test also passed:
 - Reset save.
 - Hit tree until one log drops.
 - Confirmed `Split Log into Planks` appears before claiming any quest.
-- Put one log into the crafting grid and confirmed output preview changed to `4 Plank`.
-- Crafted the matched recipe and confirmed planks arrived after the timed queue.
-- Confirmed Guide page is separate from Play page.
+- Confirmed clean start has Gather, Inventory, Recipes, Guide, and a locked Table page.
+- Gathered logs, used the 2x2 inventory grid to craft planks, then used four planks to craft the crafting table.
+- Confirmed the Table page unlocks after the crafting table finishes.
+- Searched `stick` in the recipe book and confirmed it shows `Carve Sticks` plus `Missing 2 Plank` when planks are unavailable.
+- Confirmed Guide page is separate from the playable Gather/Inventory/Crafting pages.
 - Confirmed 390px mobile viewport has no horizontal overflow.
 
 ## Good Next Steps
@@ -95,9 +100,10 @@ Browser smoke test also passed:
    - Keep recipes hidden until the player has seen at least one relevant input/output.
    - Avoid using quests as recipe gates.
 
-3. Add a proper inventory/crafting page:
-   - The Play page can stay focused on gathering.
-   - Crafting could become its own page once the recipe list grows.
+3. Improve the current inventory/crafting pages:
+   - Keep Gather focused on block breaking.
+   - Keep Inventory focused on stacks and 2x2 starter crafting.
+   - Let Recipes explain missing material chains and load known crafts into the right grid.
 
 4. Add better feedback:
    - Stronger hit animation.

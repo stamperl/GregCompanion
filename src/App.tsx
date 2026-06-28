@@ -25,8 +25,9 @@ type FloatText = {
   label: string
 }
 
-type Page = 'play' | 'guide'
+type Page = 'gather' | 'inventory' | 'craft' | 'recipes' | 'guide'
 type CraftSlot = ResourceId | null
+type GridKind = 'inventory' | 'table'
 
 const featuredResources: ResourceId[] = [
   'log',
@@ -78,14 +79,14 @@ function countGridItems(grid: CraftSlot[]) {
       if (id) counts[id] = (counts[id] ?? 0) + 1
       return counts
     },
-    {} as Record<ResourceId, number>,
+    {} as Partial<Record<ResourceId, number>>,
   )
 }
 
 function gridAmounts(grid: CraftSlot[]): ResourceAmount[] {
   return Object.entries(countGridItems(grid))
-    .filter(([, amount]) => amount > 0)
-    .map(([id, amount]) => ({ id: id as ResourceId, amount }))
+    .filter(([, amount]) => (amount ?? 0) > 0)
+    .map(([id, amount]) => ({ id: id as ResourceId, amount: amount ?? 0 }))
 }
 
 function ingredientKey(amounts: ResourceAmount[]) {
@@ -96,10 +97,49 @@ function ingredientKey(amounts: ResourceAmount[]) {
     .join('|')
 }
 
-function findGridRecipe(grid: CraftSlot[], availableRecipes: Recipe[]) {
+function recipeInputTotal(recipe: Recipe) {
+  return recipe.inputs.reduce((sum, amount) => sum + amount.amount, 0)
+}
+
+function recipeFitsGrid(recipe: Recipe, kind: GridKind) {
+  if (recipe.machineInputs?.length) return false
+  if (kind === 'inventory') return !recipe.requiredMachine && recipeInputTotal(recipe) <= 4
+  return recipeInputTotal(recipe) <= 9
+}
+
+function findGridRecipe(grid: CraftSlot[], availableRecipes: Recipe[], kind: GridKind) {
   const currentKey = ingredientKey(gridAmounts(grid))
   if (!currentKey) return undefined
-  return availableRecipes.find((recipe) => ingredientKey(recipe.inputs) === currentKey)
+  return availableRecipes
+    .filter((recipe) => recipeFitsGrid(recipe, kind))
+    .find((recipe) => ingredientKey(recipe.inputs) === currentKey)
+}
+
+function missingForRecipe(state: GameState, recipe: Recipe) {
+  const missingResources = recipe.inputs
+    .map((amount) => ({ ...amount, amount: Math.max(0, amount.amount - state.resources[amount.id]) }))
+    .filter((amount) => amount.amount > 0)
+  const missingMachines = [
+    ...(recipe.requiredMachine && state.machines[recipe.requiredMachine] < 1 ? [{ id: recipe.requiredMachine, amount: 1 }] : []),
+    ...(recipe.machineInputs ?? []).filter((amount) => state.machines[amount.id] < amount.amount),
+  ]
+  return { missingResources, missingMachines }
+}
+
+function makeGridForRecipe(recipe: Recipe, size: number): CraftSlot[] {
+  const slots: CraftSlot[] = []
+  for (const input of recipe.inputs) {
+    for (let index = 0; index < input.amount; index += 1) slots.push(input.id)
+  }
+  while (slots.length < size) slots.push(null)
+  return slots.slice(0, size)
+}
+
+function recipeOutputLabel(recipe: Recipe) {
+  if (recipe.outputs.length > 0) {
+    return recipe.outputs.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`).join(', ')
+  }
+  return recipe.machineOutputs?.map((amount) => `${amount.amount} ${machines[amount.id].name}`).join(', ') ?? 'No output'
 }
 
 function CraftProgress({ craft, recipe }: { craft: ActiveCraft; recipe: Recipe }) {
@@ -175,8 +215,11 @@ function QuestCard({
 function App() {
   const [state, setState] = useState<GameState>(() => loadGame(localStorage.getItem(saveKey)))
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
-  const [page, setPage] = useState<Page>('play')
-  const [craftGrid, setCraftGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
+  const [page, setPage] = useState<Page>('gather')
+  const [inventoryGrid, setInventoryGrid] = useState<CraftSlot[]>(() => Array.from({ length: 4 }, () => null))
+  const [tableGrid, setTableGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
+  const [recipeSearch, setRecipeSearch] = useState('')
+  const [recipeNotice, setRecipeNotice] = useState('')
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -196,9 +239,12 @@ function App() {
     const isWoodLoop = id === 'log' || id === 'plank' || id === 'stick' || id === 'woodenAxe'
     return isWoodLoop || state.resources[id] > 0
   })
+  const inventoryCounts = countGridItems(inventoryGrid)
+  const tableCounts = countGridItems(tableGrid)
+  const inventoryMatch = findGridRecipe(inventoryGrid, unlockedRecipes, 'inventory')
+  const tableMatch = findGridRecipe(tableGrid, unlockedRecipes, 'table')
+  const hasCraftingTable = state.machines.workbench > 0
   const activeQuest = nextQuest(state)
-  const gridCounts = countGridItems(craftGrid)
-  const matchingRecipe = findGridRecipe(craftGrid, unlockedRecipes)
   const tree = gatherTargets.tree
   const currentTool = getBestToolForTarget(state, 'tree')
   const treeProgress = state.gatherProgress.tree ?? 0
@@ -206,6 +252,15 @@ function App() {
   const totalMachines = machineOrder.reduce((sum, id) => sum + state.machines[id], 0)
   const steamUnlocked = state.completedQuests.includes('pressureProgress')
   const lvUnlocked = state.completedQuests.includes('firstCurrent')
+  const searchableRecipes = recipes.filter((recipe) => {
+    const query = recipeSearch.trim().toLowerCase()
+    if (!query) return true
+    return (
+      recipe.name.toLowerCase().includes(query) ||
+      recipe.description.toLowerCase().includes(query) ||
+      [...recipe.inputs, ...recipe.outputs].some((amount) => resourceLabels[amount.id].toLowerCase().includes(query))
+    )
+  })
 
   const addFloatText = (label: string) => {
     const id = Date.now() + Math.random()
@@ -229,40 +284,78 @@ function App() {
     })
   }
 
-  const handleCraft = (recipeId: string) => {
-    const recipe = recipes.find((candidate) => candidate.id === recipeId)
-    if (recipe) addFloatText(recipe.id === 'craft_wooden_axe' ? 'axe equipped soon' : recipe.machineOutputs ? 'building...' : 'crafting...')
-    setState((current) => startCraft(current, recipeId))
+  const handleCraft = (recipe: Recipe) => {
+    addFloatText(recipe.id === 'craft_wooden_axe' ? 'axe equipped soon' : recipe.machineOutputs ? 'building...' : 'crafting...')
+    setState((current) => startCraft(current, recipe.id))
   }
 
-  const handleAddToCraftGrid = (resourceId: ResourceId) => {
-    const used = gridCounts[resourceId] ?? 0
+  const handleAddToGrid = (resourceId: ResourceId, kind: GridKind) => {
+    const grid = kind === 'inventory' ? inventoryGrid : tableGrid
+    const counts = kind === 'inventory' ? inventoryCounts : tableCounts
+    const used = counts[resourceId] ?? 0
     if (state.resources[resourceId] - used < 1) {
       addFloatText('none left')
       return
     }
 
-    const emptySlot = craftGrid.findIndex((slot) => slot === null)
+    const emptySlot = grid.findIndex((slot) => slot === null)
     if (emptySlot === -1) {
       addFloatText('grid full')
       return
     }
 
-    setCraftGrid((current) => current.map((slot, index) => (index === emptySlot ? resourceId : slot)))
+    const updateGrid = (current: CraftSlot[]) => current.map((slot, index) => (index === emptySlot ? resourceId : slot))
+    if (kind === 'inventory') setInventoryGrid(updateGrid)
+    else setTableGrid(updateGrid)
   }
 
-  const handleRemoveCraftSlot = (slotIndex: number) => {
-    setCraftGrid((current) => current.map((slot, index) => (index === slotIndex ? null : slot)))
+  const handleRemoveCraftSlot = (slotIndex: number, kind: GridKind) => {
+    const updateGrid = (current: CraftSlot[]) => current.map((slot, index) => (index === slotIndex ? null : slot))
+    if (kind === 'inventory') setInventoryGrid(updateGrid)
+    else setTableGrid(updateGrid)
   }
 
-  const handleClearCraftGrid = () => {
-    setCraftGrid(Array.from({ length: 9 }, () => null))
+  const handleClearGrid = (kind: GridKind) => {
+    if (kind === 'inventory') setInventoryGrid(Array.from({ length: 4 }, () => null))
+    else setTableGrid(Array.from({ length: 9 }, () => null))
   }
 
-  const handleCraftFromGrid = () => {
-    if (!matchingRecipe || !canCraft(state, matchingRecipe)) return
-    handleCraft(matchingRecipe.id)
-    handleClearCraftGrid()
+  const handleCraftFromGrid = (kind: GridKind) => {
+    const recipe = kind === 'inventory' ? inventoryMatch : tableMatch
+    if (!recipe || !canCraft(state, recipe)) return
+    handleCraft(recipe)
+    handleClearGrid(kind)
+  }
+
+  const handleLoadRecipe = (recipe: Recipe) => {
+    const missing = missingForRecipe(state, recipe)
+    if (missing.missingResources.length > 0 || missing.missingMachines.length > 0) {
+      const resources = missing.missingResources.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`)
+      const machineNames = missing.missingMachines.map((amount) => machines[amount.id].name)
+      setRecipeNotice(`Missing ${[...resources, ...machineNames].join(', ')}`)
+      return
+    }
+
+    if (recipeFitsGrid(recipe, 'inventory')) {
+      setInventoryGrid(makeGridForRecipe(recipe, 4))
+      setRecipeNotice(`${recipe.name} loaded into inventory crafting.`)
+      setPage('inventory')
+      return
+    }
+
+    if (!hasCraftingTable) {
+      setRecipeNotice(`Missing ${machines.workbench.name}`)
+      return
+    }
+
+    if (recipeFitsGrid(recipe, 'table')) {
+      setTableGrid(makeGridForRecipe(recipe, 9))
+      setRecipeNotice(`${recipe.name} loaded into the crafting table.`)
+      setPage('craft')
+      return
+    }
+
+    setRecipeNotice('This recipe needs a later machine.')
   }
 
   const handleCompleteQuest = (questId: string) => {
@@ -273,9 +366,67 @@ function App() {
   const handleReset = () => {
     localStorage.removeItem(saveKey)
     setState(loadGame(null))
-    handleClearCraftGrid()
-    setPage('play')
+    handleClearGrid('inventory')
+    handleClearGrid('table')
+    setRecipeNotice('')
+    setRecipeSearch('')
+    setPage('gather')
     addFloatText('fresh save')
+  }
+
+  const renderCraftingBench = (kind: GridKind) => {
+    const isInventory = kind === 'inventory'
+    const grid = isInventory ? inventoryGrid : tableGrid
+    const counts = isInventory ? inventoryCounts : tableCounts
+    const match = isInventory ? inventoryMatch : tableMatch
+    const sizeClass = isInventory ? 'two-grid' : 'three-grid'
+
+    return (
+      <div className="crafting-bench">
+        <div className={`craft-grid ${sizeClass}`} aria-label={isInventory ? 'Inventory crafting grid' : 'Crafting table grid'}>
+          {grid.map((slot, index) => (
+            <button
+              type="button"
+              className={slot ? 'craft-slot filled' : 'craft-slot'}
+              aria-label={slot ? `Remove ${resourceLabels[slot]}` : `Empty crafting slot ${index + 1}`}
+              onClick={() => handleRemoveCraftSlot(index, kind)}
+              key={`${slot ?? 'empty'}-${index}`}
+            >
+              {slot ? resourceLabels[slot] : ''}
+            </button>
+          ))}
+        </div>
+
+        <div className="craft-output" aria-live="polite">
+          <span>Output</span>
+          <strong>{match ? recipeOutputLabel(match) : 'No match'}</strong>
+          {match && <small>{formatMs(match.durationMs)}</small>}
+        </div>
+
+        <div className="craft-actions">
+          <button type="button" onClick={() => handleClearGrid(kind)}>
+            Clear
+          </button>
+          <button type="button" disabled={!match || !canCraft(state, match)} onClick={() => handleCraftFromGrid(kind)}>
+            Craft match
+          </button>
+        </div>
+
+        <div className="craft-inventory" aria-label={isInventory ? 'Inventory items' : 'Crafting table inventory'}>
+          {visibleInventoryResources
+            .filter((id) => state.resources[id] > 0)
+            .map((id) => {
+              const available = state.resources[id] - (counts[id] ?? 0)
+              return (
+                <button type="button" disabled={available < 1} onClick={() => handleAddToGrid(id, kind)} key={id}>
+                  <span>{resourceLabels[id]}</span>
+                  <strong>{formatAmount(available)}</strong>
+                </button>
+              )
+            })}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -308,10 +459,22 @@ function App() {
         </div>
       </section>
 
-      <section className="page-tabs" aria-label="Game pages">
-        <button type="button" className={page === 'play' ? 'active' : ''} onClick={() => setPage('play')}>
+      <section className="page-tabs wide-tabs" aria-label="Game pages">
+        <button type="button" className={page === 'gather' ? 'active' : ''} onClick={() => setPage('gather')}>
           <Pickaxe size={18} />
-          Play
+          Gather
+        </button>
+        <button type="button" className={page === 'inventory' ? 'active' : ''} onClick={() => setPage('inventory')}>
+          <Hammer size={18} />
+          Inventory
+        </button>
+        <button type="button" className={page === 'craft' ? 'active' : ''} disabled={!hasCraftingTable} onClick={() => setPage('craft')}>
+          <Anvil size={18} />
+          Table
+        </button>
+        <button type="button" className={page === 'recipes' ? 'active' : ''} onClick={() => setPage('recipes')}>
+          <BookOpen size={18} />
+          Recipes
         </button>
         <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => setPage('guide')}>
           <BookOpen size={18} />
@@ -319,166 +482,182 @@ function App() {
         </button>
       </section>
 
-      {page === 'play' ? (
-        <>
-          <section className="resource-bar" aria-label="Resources">
-            {visibleInventoryResources.map((id) => (
-              <div className={state.resources[id] > 0 ? 'resource-cell stocked' : 'resource-cell'} key={id}>
-                <span>{resourceLabels[id]}</span>
-                <strong>{formatAmount(state.resources[id])}</strong>
-              </div>
-            ))}
-          </section>
+      {page === 'gather' && (
+        <section className="tap-panel" aria-label="Manual gathering">
+          <div className="mine-face">
+            <div className="block-sprite" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+            <div>
+              <h2>{tree.name}</h2>
+              <p>{tree.description}</p>
+            </div>
+            <div className="float-layer" aria-live="polite">
+              {floatTexts.map((floatText) => (
+                <span key={floatText.id}>{floatText.label}</span>
+              ))}
+            </div>
+          </div>
 
-          <section className="tap-panel" aria-label="Manual gathering">
-            <div className="mine-face">
-              <div className="block-sprite" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
+          <div className="break-panel">
+            <div className="break-stats">
+              <span>Tool: <strong>{currentTool.name}</strong></span>
+              <span>Drop: <strong>{tree.drops.map((drop) => `${drop.amount} ${resourceLabels[drop.id]}`).join(', ')}</strong></span>
+              <span>Hit: <strong>{currentTool.damageByTarget.tree ?? 1}/{tree.hardness}</strong></span>
+            </div>
+            <div className="progress-track">
+              <span style={{ width: `${treeProgressPercent}%` }} />
+            </div>
+            <button type="button" className="hit-button" onClick={handleHitTree}>
+              <Axe size={20} />
+              Hit tree
+            </button>
+          </div>
+        </section>
+      )}
+
+      {page === 'inventory' && (
+        <section className="workshop-grid">
+          <div className="panel">
+            <div className="section-title">
               <div>
-                <h2>{tree.name}</h2>
-                <p>{tree.description}</p>
+                <p className="eyebrow">Inventory crafting</p>
+                <h2>2x2 grid</h2>
               </div>
-              <div className="float-layer" aria-live="polite">
-                {floatTexts.map((floatText) => (
-                  <span key={floatText.id}>{floatText.label}</span>
-                ))}
+              <Hammer size={22} />
+            </div>
+            {renderCraftingBench('inventory')}
+          </div>
+
+          <div className="panel">
+            <div className="section-title">
+              <div>
+                <p className="eyebrow">Inventory</p>
+                <h2>Stacks</h2>
               </div>
+              <Factory size={22} />
+            </div>
+            <section className="resource-bar inventory-list" aria-label="Resources">
+              {visibleInventoryResources.map((id) => (
+                <div className={state.resources[id] > 0 ? 'resource-cell stocked' : 'resource-cell'} key={id}>
+                  <span>{resourceLabels[id]}</span>
+                  <strong>{formatAmount(state.resources[id])}</strong>
+                </div>
+              ))}
+            </section>
+          </div>
+        </section>
+      )}
+
+      {page === 'craft' && (
+        <section className="workshop-grid">
+          <div className="panel">
+            <div className="section-title">
+              <div>
+                <p className="eyebrow">Crafting table</p>
+                <h2>3x3 grid</h2>
+              </div>
+              <Anvil size={22} />
+            </div>
+            {renderCraftingBench('table')}
+          </div>
+
+          <div className="panel">
+            <div className="section-title">
+              <div>
+                <p className="eyebrow">Built</p>
+                <h2>Stations</h2>
+              </div>
+              <Factory size={22} />
             </div>
 
-            <div className="break-panel">
-              <div className="break-stats">
-                <span>Tool: <strong>{currentTool.name}</strong></span>
-                <span>Drop: <strong>{tree.drops.map((drop) => `${drop.amount} ${resourceLabels[drop.id]}`).join(', ')}</strong></span>
-                <span>Hit: <strong>{currentTool.damageByTarget.tree ?? 1}/{tree.hardness}</strong></span>
-              </div>
-              <div className="progress-track">
-                <span style={{ width: `${treeProgressPercent}%` }} />
-              </div>
-              <button type="button" className="hit-button" onClick={handleHitTree}>
-                <Axe size={20} />
-                Hit tree
-              </button>
+            <div className="machine-list">
+              {machineOrder.map((id) => {
+                const machine = machines[id]
+                const count = state.machines[id]
+                const progress = machine.intervalMs ? ((state.machineProgress[id] ?? 0) / machine.intervalMs) * 100 : 0
+
+                return (
+                  <article className={count > 0 ? 'machine-card online' : 'machine-card'} key={id}>
+                    <div>
+                      <h3>{machine.name}</h3>
+                      <p>{machine.description}</p>
+                    </div>
+                    <strong>x{count}</strong>
+                    {machine.intervalMs && count > 0 && (
+                      <div className="progress-track">
+                        <span style={{ width: `${progress}%` }} />
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
             </div>
-          </section>
+          </div>
+        </section>
+      )}
 
-          <section className="workshop-grid">
-            <div className="panel">
-              <div className="section-title">
-                <div>
-                  <p className="eyebrow">Hand crafting</p>
-                  <h2>Crafting grid</h2>
-                </div>
-                <Hammer size={22} />
-              </div>
+      {page === 'recipes' && (
+        <section className="guide-page" aria-label="Recipe book">
+          <div className="section-title">
+            <div>
+              <p className="eyebrow">Recipe book</p>
+              <h2>Search and load</h2>
+            </div>
+            <BookOpen size={22} />
+          </div>
 
-              <div className="crafting-bench">
-                <div className="craft-grid" aria-label="Crafting grid">
-                  {craftGrid.map((slot, index) => (
-                    <button
-                      type="button"
-                      className={slot ? 'craft-slot filled' : 'craft-slot'}
-                      aria-label={slot ? `Remove ${resourceLabels[slot]}` : `Empty crafting slot ${index + 1}`}
-                      onClick={() => handleRemoveCraftSlot(index)}
-                      key={`${slot ?? 'empty'}-${index}`}
-                    >
-                      {slot ? resourceLabels[slot] : ''}
-                    </button>
-                  ))}
-                </div>
+          <input
+            className="recipe-search"
+            type="search"
+            placeholder="Search recipes or materials"
+            value={recipeSearch}
+            onChange={(event) => setRecipeSearch(event.target.value)}
+          />
+          {recipeNotice && <p className="recipe-notice">{recipeNotice}</p>}
 
-                <div className="craft-output" aria-live="polite">
-                  <span>Output</span>
-                  <strong>
-                    {matchingRecipe
-                      ? matchingRecipe.outputs.length > 0
-                        ? matchingRecipe.outputs.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`).join(', ')
-                        : matchingRecipe.machineOutputs?.map((amount) => `${amount.amount} ${machines[amount.id].name}`).join(', ')
-                      : 'No match'}
-                  </strong>
-                  {matchingRecipe && <small>{formatMs(matchingRecipe.durationMs)}</small>}
-                </div>
-
-                <div className="craft-actions">
-                  <button type="button" onClick={handleClearCraftGrid}>
-                    Clear
+          <div className="recipe-hints">
+            {searchableRecipes.map((recipe) => {
+              const missing = missingForRecipe(state, recipe)
+              const hasMissing = missing.missingResources.length > 0 || missing.missingMachines.length > 0
+              return (
+                <article className={hasMissing ? 'recipe-hint' : 'recipe-hint matched'} key={recipe.id}>
+                  <div className="section-title">
+                    <div>
+                      <h3>{recipe.name}</h3>
+                      <p>{recipe.description}</p>
+                    </div>
+                    <strong>{recipeOutputLabel(recipe)}</strong>
+                  </div>
+                  <div className="requirement-list">
+                    {recipe.inputs.map((amount) => (
+                      <ResourcePill amount={amount} key={amount.id} />
+                    ))}
+                    {recipe.requiredMachine && <span className="resource-pill">{machines[recipe.requiredMachine].name}</span>}
+                  </div>
+                  {hasMissing && (
+                    <p className="missing-line">
+                      Missing{' '}
+                      {[
+                        ...missing.missingResources.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`),
+                        ...missing.missingMachines.map((amount) => machines[amount.id].name),
+                      ].join(', ')}
+                    </p>
+                  )}
+                  <button type="button" onClick={() => handleLoadRecipe(recipe)}>
+                    {hasMissing ? 'Show missing' : 'Load recipe'}
                   </button>
-                  <button type="button" disabled={!matchingRecipe || !canCraft(state, matchingRecipe)} onClick={handleCraftFromGrid}>
-                    Craft match
-                  </button>
-                </div>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
-                <div className="craft-inventory" aria-label="Crafting inventory">
-                  {visibleInventoryResources
-                    .filter((id) => state.resources[id] > 0)
-                    .map((id) => {
-                      const available = state.resources[id] - (gridCounts[id] ?? 0)
-                      return (
-                        <button type="button" disabled={available < 1} onClick={() => handleAddToCraftGrid(id)} key={id}>
-                          <span>{resourceLabels[id]}</span>
-                          <strong>{formatAmount(available)}</strong>
-                        </button>
-                      )
-                    })}
-                </div>
-
-                <div className="recipe-hints" aria-label="Recipe hints">
-                  {unlockedRecipes.map((recipe) => (
-                    <article className={matchingRecipe?.id === recipe.id ? 'recipe-hint matched' : 'recipe-hint'} key={recipe.id}>
-                      <div>
-                        <h3>{recipe.name}</h3>
-                        <p>{recipe.description}</p>
-                      </div>
-                      <div className="requirement-list">
-                        {recipe.inputs.map((amount) => (
-                          <ResourcePill amount={amount} key={amount.id} />
-                        ))}
-                        {recipe.requiredMachine && <span className="resource-pill">{machines[recipe.requiredMachine].name}</span>}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="panel">
-              <div className="section-title">
-                <div>
-                  <p className="eyebrow">Machines</p>
-                  <h2>Workshop</h2>
-                </div>
-                <Anvil size={22} />
-              </div>
-
-              <div className="machine-list">
-                {machineOrder.map((id) => {
-                  const machine = machines[id]
-                  const count = state.machines[id]
-                  const progress = machine.intervalMs ? ((state.machineProgress[id] ?? 0) / machine.intervalMs) * 100 : 0
-
-                  return (
-                    <article className={count > 0 ? 'machine-card online' : 'machine-card'} key={id}>
-                      <div>
-                        <h3>{machine.name}</h3>
-                        <p>{machine.description}</p>
-                      </div>
-                      <strong>x{count}</strong>
-                      {machine.intervalMs && count > 0 && (
-                        <div className="progress-track">
-                          <span style={{ width: `${progress}%` }} />
-                        </div>
-                      )}
-                    </article>
-                  )
-                })}
-              </div>
-            </div>
-          </section>
-        </>
-      ) : (
+      {page === 'guide' && (
         <section className="guide-page" aria-label="Quest guide">
           <div className="section-title">
             <div>
