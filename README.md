@@ -1,6 +1,6 @@
 # Click Foundry
 
-Click Foundry is a mobile-first block-tech idle prototype. It starts with survival-style block breaking, inventory crafting, quest gates, steam machines, and a first low-voltage milestone.
+Click Foundry is a mobile-first block-tech idle prototype. It starts with survival-style block breaking, inventory crafting, optional guide quests, steam machines, and a first low-voltage milestone.
 
 The game uses original names and presentation while following the spirit of long industrial progression: small inputs, many intermediates, satisfying gates, and deliberately slow early automation.
 
@@ -18,7 +18,7 @@ npm run lint
 - Tree breaking with per-block hit progress, log drops, planks, sticks, and a wooden axe speed upgrade.
 - Unlimited inventory stacks shown as item counts.
 - Crafting queue with timed recipes and machine requirements.
-- Quest chapters that unlock bronze, steam, and LV progression.
+- Quest chapters that guide and reward progression without locking crafting.
 - Local save/load through `localStorage`.
 - Slow late-LV automation teaser after the first dynamo.
 
