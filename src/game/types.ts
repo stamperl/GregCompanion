@@ -3,7 +3,9 @@ export type ResourceId =
   | 'plank'
   | 'stick'
   | 'woodenAxe'
+  | 'woodenPickaxe'
   | 'stone'
+  | 'cobblestone'
   | 'crushedStone'
   | 'copperOre'
   | 'tinOre'
@@ -47,9 +49,22 @@ export type QuestId =
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
 
-export type ToolId = 'bareHand' | 'woodenAxe'
+export type StationType = 'hand' | 'craftingTable' | 'furnace' | 'steam' | 'lv'
 
-export type GatherTargetId = 'tree'
+export type RecipeType = 'crafting' | 'processing' | 'machine'
+
+export type ToolId = 'bareHand' | 'woodenAxe' | 'woodenPickaxe'
+
+export type GatherTargetId = 'tree' | 'stone'
+
+export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | 'axe' | 'shovel' | 'pickaxe' | 'weapon'
+
+export type EquipmentState = Record<EquipmentSlotId, ResourceId | null>
+
+export type CraftSlot = {
+  id: ResourceId
+  ghost?: boolean
+} | null
 
 export type ResourceAmount = {
   id: ResourceId
@@ -66,6 +81,9 @@ export type Recipe = {
   name: string
   description: string
   tier: Tier
+  stationType?: StationType
+  recipeType?: RecipeType
+  pattern?: (ResourceId | null)[]
   durationMs: number
   inputs: ResourceAmount[]
   outputs: ResourceAmount[]
@@ -113,16 +131,9 @@ export type GatherTarget = {
   id: GatherTargetId
   name: string
   description: string
-  hardness: number
+  maxHp: number
   drops: ResourceAmount[]
   preferredTool: ToolId
-}
-
-export type ActiveCraft = {
-  recipeId: string
-  startedAt: number
-  remainingMs: number
-  durationMs: number
 }
 
 export type GameState = {
@@ -131,7 +142,7 @@ export type GameState = {
   machines: Record<MachineId, number>
   completedQuests: QuestId[]
   unlockedQuests: QuestId[]
-  activeCrafts: ActiveCraft[]
+  equipment: EquipmentState
   gatherProgress: Partial<Record<GatherTargetId, number>>
   machineProgress: Partial<Record<MachineId, number>>
   lastSavedAt: number
@@ -139,6 +150,5 @@ export type GameState = {
 
 export type TickResult = {
   state: GameState
-  completedCrafts: string[]
   machineOutputs: ResourceAmount[]
 }

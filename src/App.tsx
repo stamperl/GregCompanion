@@ -1,49 +1,77 @@
-import { Anvil, Axe, BookOpen, Check, Factory, Flame, Hammer, Pickaxe, RotateCcw, Sparkles, Zap } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  Axe,
+  BookOpen,
+  Check,
+  Database,
+  Factory,
+  Pickaxe,
+  RotateCcw,
+  Trash2,
+  Undo2,
+  X,
+} from 'lucide-react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import './App.css'
-import { gatherTargets, machines, recipes, resourceLabels } from './game/content'
+import { gatherTargets, machines, recipes, resourceLabels, tools } from './game/content'
 import {
   canCompleteQuest,
   canCraft,
   completeQuest,
+  craftableQuantity,
+  craftRecipeInstant,
+  equipResource,
+  equipmentSlotAccepts,
+  findGridRecipe,
   getBestToolForTarget,
   hitGatherTarget,
   loadGame,
-  nextQuest,
+  makeGridForRecipe,
+  missingForQuantity,
+  missingForRecipe,
   questProgress,
+  recipeFitsTerminalGrid,
+  recipesUsingInput,
   saveGame,
   saveKey,
-  startCraft,
+  searchTerminalRecipes,
+  terminalAvailableAmount,
   tickGame,
+  unequipSlot,
   visibleQuests,
   visibleRecipes,
 } from './game/engine'
-import type { ActiveCraft, GameState, MachineId, Quest, Recipe, ResourceAmount, ResourceId } from './game/types'
+import type {
+  CraftSlot,
+  EquipmentSlotId,
+  GatherTargetId,
+  GameState,
+  MachineId,
+  Quest,
+  Recipe,
+  ResourceAmount,
+  ResourceId,
+} from './game/types'
 
 type FloatText = {
   id: number
   label: string
 }
 
-type Page = 'gather' | 'inventory' | 'craft' | 'recipes' | 'guide'
-type CraftSlot = ResourceId | null
-type GridKind = 'inventory' | 'table'
+type Page = 'gather' | 'terminal' | 'guide'
+type TerminalMode = 'recipes' | 'uses'
+type DragPreview = { id: ResourceId; x: number; y: number }
 
-const featuredResources: ResourceId[] = [
-  'log',
-  'plank',
-  'stick',
-  'woodenAxe',
-  'stone',
-  'copperOre',
-  'tinOre',
-  'coal',
-  'clay',
-  'sand',
-  'rubberSap',
-  'water',
-  'primitiveCircuit',
-]
+type RecipeDisplayOutput =
+  | { kind: 'resource'; id: ResourceId; amount: number; label: string }
+  | { kind: 'machine'; id: MachineId; amount: number; label: string }
 
 const machineOrder: MachineId[] = [
   'workbench',
@@ -56,83 +84,85 @@ const machineOrder: MachineId[] = [
   'slowOreTap',
 ]
 
+const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
+
+const gatherTargetOrder: GatherTargetId[] = ['tree', 'stone']
+const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
+  tree: 'log',
+  stone: 'cobblestone',
+}
+
+const armourEquipmentSlots: EquipmentSlotId[] = ['helmet', 'chestplate', 'leggings', 'boots']
+const toolEquipmentSlots: EquipmentSlotId[] = ['axe', 'shovel', 'pickaxe', 'weapon']
+const equipmentLabels: Record<EquipmentSlotId, string> = {
+  helmet: 'Helmet',
+  chestplate: 'Chest',
+  leggings: 'Legs',
+  boots: 'Boots',
+  axe: 'Axe',
+  shovel: 'Shovel',
+  pickaxe: 'Pickaxe',
+  weapon: 'Attack',
+}
+
+function isResourceId(value: string): value is ResourceId {
+  return value in resourceLabels
+}
+
 function formatAmount(amount: number) {
   if (amount >= 1000) return amount.toLocaleString()
   return Number.isInteger(amount) ? `${amount}` : amount.toFixed(1)
 }
 
-function formatMs(ms: number) {
-  return `${Math.max(0, ms / 1000).toFixed(1)}s`
+function PixelIcon({ id }: { id: ResourceId }) {
+  return (
+    <span className={`pixel-icon pixel-${id}`} aria-hidden="true">
+      <span />
+    </span>
+  )
+}
+
+function MachineGlyph({ id }: { id: MachineId }) {
+  return (
+    <span className={`machine-glyph machine-${id}`} aria-hidden="true">
+      <span />
+    </span>
+  )
+}
+
+function ItemSlot({
+  amount,
+  className = '',
+  disabled = false,
+}: {
+  amount: ResourceAmount
+  className?: string
+  disabled?: boolean
+}) {
+  return (
+    <span className={disabled ? `mini-slot muted ${className}` : `mini-slot ${className}`} title={resourceLabels[amount.id]}>
+      <PixelIcon id={amount.id} />
+      <span className="item-count">{formatAmount(amount.amount)}</span>
+    </span>
+  )
+}
+
+function MachineSlot({ id, amount = 1, muted = false }: { id: MachineId; amount?: number; muted?: boolean }) {
+  return (
+    <span className={muted ? 'mini-slot machine-slot muted' : 'mini-slot machine-slot'} title={machines[id].name}>
+      <MachineGlyph id={id} />
+      <span className="item-count">{formatAmount(amount)}</span>
+    </span>
+  )
 }
 
 function ResourcePill({ amount }: { amount: ResourceAmount }) {
   return (
     <span className="resource-pill">
-      {resourceLabels[amount.id]} <strong>{formatAmount(amount.amount)}</strong>
+      <ItemSlot amount={amount} />
+      <span>{resourceLabels[amount.id]}</span>
     </span>
   )
-}
-
-function countGridItems(grid: CraftSlot[]) {
-  return grid.reduce(
-    (counts, id) => {
-      if (id) counts[id] = (counts[id] ?? 0) + 1
-      return counts
-    },
-    {} as Partial<Record<ResourceId, number>>,
-  )
-}
-
-function gridAmounts(grid: CraftSlot[]): ResourceAmount[] {
-  return Object.entries(countGridItems(grid))
-    .filter(([, amount]) => (amount ?? 0) > 0)
-    .map(([id, amount]) => ({ id: id as ResourceId, amount: amount ?? 0 }))
-}
-
-function ingredientKey(amounts: ResourceAmount[]) {
-  return amounts
-    .filter((amount) => amount.amount > 0)
-    .map((amount) => `${amount.id}:${amount.amount}`)
-    .sort()
-    .join('|')
-}
-
-function recipeInputTotal(recipe: Recipe) {
-  return recipe.inputs.reduce((sum, amount) => sum + amount.amount, 0)
-}
-
-function recipeFitsGrid(recipe: Recipe, kind: GridKind) {
-  if (recipe.machineInputs?.length) return false
-  if (kind === 'inventory') return !recipe.requiredMachine && recipeInputTotal(recipe) <= 4
-  return recipeInputTotal(recipe) <= 9
-}
-
-function findGridRecipe(grid: CraftSlot[], availableRecipes: Recipe[], kind: GridKind) {
-  const currentKey = ingredientKey(gridAmounts(grid))
-  if (!currentKey) return undefined
-  return availableRecipes
-    .filter((recipe) => recipeFitsGrid(recipe, kind))
-    .find((recipe) => ingredientKey(recipe.inputs) === currentKey)
-}
-
-function missingForRecipe(state: GameState, recipe: Recipe) {
-  const missingResources = recipe.inputs
-    .map((amount) => ({ ...amount, amount: Math.max(0, amount.amount - state.resources[amount.id]) }))
-    .filter((amount) => amount.amount > 0)
-  const missingMachines = [
-    ...(recipe.requiredMachine && state.machines[recipe.requiredMachine] < 1 ? [{ id: recipe.requiredMachine, amount: 1 }] : []),
-    ...(recipe.machineInputs ?? []).filter((amount) => state.machines[amount.id] < amount.amount),
-  ]
-  return { missingResources, missingMachines }
-}
-
-function makeGridForRecipe(recipe: Recipe, size: number): CraftSlot[] {
-  const slots: CraftSlot[] = []
-  for (const input of recipe.inputs) {
-    for (let index = 0; index < input.amount; index += 1) slots.push(input.id)
-  }
-  while (slots.length < size) slots.push(null)
-  return slots.slice(0, size)
 }
 
 function recipeOutputLabel(recipe: Recipe) {
@@ -142,20 +172,36 @@ function recipeOutputLabel(recipe: Recipe) {
   return recipe.machineOutputs?.map((amount) => `${amount.amount} ${machines[amount.id].name}`).join(', ') ?? 'No output'
 }
 
-function CraftProgress({ craft, recipe }: { craft: ActiveCraft; recipe: Recipe }) {
-  const progress = Math.min(100, ((craft.durationMs - craft.remainingMs) / craft.durationMs) * 100)
+function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
+  const resourceOutput = recipe.outputs[0]
+  if (resourceOutput) {
+    return {
+      kind: 'resource',
+      id: resourceOutput.id,
+      amount: resourceOutput.amount,
+      label: resourceLabels[resourceOutput.id],
+    }
+  }
 
-  return (
-    <div className="active-craft">
-      <div>
-        <strong>{recipe.name}</strong>
-        <span>{formatMs(craft.remainingMs)}</span>
-      </div>
-      <div className="progress-track" aria-label={`${recipe.name} progress`}>
-        <span style={{ width: `${progress}%` }} />
-      </div>
-    </div>
-  )
+  const machineOutput = recipe.machineOutputs?.[0]
+  if (machineOutput) {
+    return {
+      kind: 'machine',
+      id: machineOutput.id,
+      amount: machineOutput.amount,
+      label: machines[machineOutput.id].name,
+    }
+  }
+
+  return { kind: 'machine', id: 'workbench', amount: 0, label: 'No output' }
+}
+
+function missingLine(state: GameState, recipe: Recipe) {
+  const missing = missingForRecipe(state, recipe)
+  return [
+    ...missing.missingResources.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`),
+    ...missing.missingMachines.map((amount) => machines[amount.id].name),
+  ].join(', ')
 }
 
 function QuestCard({
@@ -188,7 +234,8 @@ function QuestCard({
         ))}
         {(quest.requirements.machines ?? []).map((amount) => (
           <span className="resource-pill" key={amount.id}>
-            {machines[amount.id].name} <strong>{amount.amount}</strong>
+            <MachineSlot id={amount.id} amount={amount.amount} muted={state.machines[amount.id] < amount.amount} />
+            <span>{machines[amount.id].name}</span>
           </span>
         ))}
       </div>
@@ -200,7 +247,8 @@ function QuestCard({
           ))}
           {(quest.rewards.machines ?? []).map((amount) => (
             <span className="resource-pill" key={amount.id}>
-              {machines[amount.id].name} <strong>{amount.amount}</strong>
+              <MachineSlot id={amount.id} amount={amount.amount} />
+              <span>{machines[amount.id].name}</span>
             </span>
           ))}
         </div>
@@ -216,10 +264,25 @@ function App() {
   const [state, setState] = useState<GameState>(() => loadGame(localStorage.getItem(saveKey)))
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
   const [page, setPage] = useState<Page>('gather')
-  const [inventoryGrid, setInventoryGrid] = useState<CraftSlot[]>(() => Array.from({ length: 4 }, () => null))
-  const [tableGrid, setTableGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
+  const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
+  const [terminalSearch, setTerminalSearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
-  const [recipeNotice, setRecipeNotice] = useState('')
+  const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
+  const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
+  const [selectedGatherTarget, setSelectedGatherTarget] = useState<GatherTargetId>('tree')
+  const [terminalNotice, setTerminalNotice] = useState('')
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
+  const [batchQuantity, setBatchQuantity] = useState(1)
+  const [missingBatch, setMissingBatch] = useState<{
+    recipeName: string
+    quantity: number
+    missingResources: ResourceAmount[]
+    missingSetup: string
+  } | null>(null)
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
+  const pointerDragRef = useRef<{ id: ResourceId; startX: number; startY: number; dragged: boolean } | null>(null)
+  const suppressClickRef = useRef(false)
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -233,34 +296,34 @@ function App() {
     localStorage.setItem(saveKey, saveGame(state))
   }, [state])
 
+  useEffect(() => {
+    if (selectedResource && terminalAvailableAmount(state, terminalGrid, selectedResource) < 1) {
+      setSelectedResource(null)
+    }
+  }, [selectedResource, state, terminalGrid])
+
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
   const guideQuests = useMemo(() => visibleQuests(state), [state])
-  const visibleInventoryResources = featuredResources.filter((id) => {
-    const isWoodLoop = id === 'log' || id === 'plank' || id === 'stick' || id === 'woodenAxe'
-    return isWoodLoop || state.resources[id] > 0
-  })
-  const inventoryCounts = countGridItems(inventoryGrid)
-  const tableCounts = countGridItems(tableGrid)
-  const inventoryMatch = findGridRecipe(inventoryGrid, unlockedRecipes, 'inventory')
-  const tableMatch = findGridRecipe(tableGrid, unlockedRecipes, 'table')
-  const hasCraftingTable = state.machines.workbench > 0
-  const activeQuest = nextQuest(state)
-  const tree = gatherTargets.tree
-  const currentTool = getBestToolForTarget(state, 'tree')
-  const treeProgress = state.gatherProgress.tree ?? 0
-  const treeProgressPercent = Math.min(100, (treeProgress / tree.hardness) * 100)
+  const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
+  const currentTarget = gatherTargets[selectedGatherTarget]
+  const currentTool = getBestToolForTarget(state, selectedGatherTarget)
+  const currentDamage = currentTool.damageByTarget[selectedGatherTarget] ?? 0
+  const targetProgress = state.gatherProgress[selectedGatherTarget] ?? 0
+  const targetRemainingHp = Math.max(0, currentTarget.maxHp - targetProgress)
+  const targetProgressPercent = Math.min(100, (targetProgress / currentTarget.maxHp) * 100)
   const totalMachines = machineOrder.reduce((sum, id) => sum + state.machines[id], 0)
-  const steamUnlocked = state.completedQuests.includes('pressureProgress')
-  const lvUnlocked = state.completedQuests.includes('firstCurrent')
-  const searchableRecipes = recipes.filter((recipe) => {
-    const query = recipeSearch.trim().toLowerCase()
+  const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
+  const filteredResources = inventoryResources.filter((id) => {
+    const query = terminalSearch.trim().toLowerCase()
     if (!query) return true
-    return (
-      recipe.name.toLowerCase().includes(query) ||
-      recipe.description.toLowerCase().includes(query) ||
-      [...recipe.inputs, ...recipe.outputs].some((amount) => resourceLabels[amount.id].toLowerCase().includes(query))
-    )
+    return id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
   })
+  const recipeCandidates = recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipes) : recipes
+  const selectedResourceForRecipes = selectedResource ?? 'log'
+  const usageRecipes = recipesUsingInput(selectedResourceForRecipes, recipes)
+  const listedRecipes = terminalMode === 'recipes' ? recipeCandidates : usageRecipes
+  const selectedRecipe = listedRecipes.find((recipe) => recipe.id === selectedRecipeId) ?? listedRecipes[0]
+  const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
 
   const addFloatText = (label: string) => {
     const id = Date.now() + Math.random()
@@ -270,92 +333,261 @@ function App() {
     }, 850)
   }
 
-  const handleHitTree = () => {
+  const handleGatherTarget = () => {
+    if (currentDamage < 1) {
+      addFloatText(`Need ${tools[currentTarget.preferredTool].name}`)
+      return
+    }
+
     setState((current) => {
-      const result = hitGatherTarget(current, 'tree')
+      const result = hitGatherTarget(current, selectedGatherTarget)
       if (result.completed) {
-        addFloatText('Log gained')
+        addFloatText(`${result.drops.map((drop) => resourceLabels[drop.id]).join(', ')} gained`)
       } else if (result.tool.id === 'woodenAxe') {
         addFloatText('Axe bites')
+      } else if (result.tool.id === 'woodenPickaxe') {
+        addFloatText('Pick chips')
       } else {
-        addFloatText('Tree cracked')
+        addFloatText(`${currentTarget.name} damaged`)
       }
       return result.state
     })
   }
 
   const handleCraft = (recipe: Recipe) => {
-    addFloatText(recipe.id === 'craft_wooden_axe' ? 'axe equipped soon' : recipe.machineOutputs ? 'building...' : 'crafting...')
-    setState((current) => startCraft(current, recipe.id))
+    addFloatText(recipe.id === 'craft_wooden_axe' ? 'axe crafted' : recipe.machineOutputs ? 'built' : 'crafted')
+    setState((current) => craftRecipeInstant(current, recipe, 1))
   }
 
-  const handleAddToGrid = (resourceId: ResourceId, kind: GridKind) => {
-    const grid = kind === 'inventory' ? inventoryGrid : tableGrid
-    const counts = kind === 'inventory' ? inventoryCounts : tableCounts
-    const used = counts[resourceId] ?? 0
-    if (state.resources[resourceId] - used < 1) {
+  const placeResourceInGridAt = (resourceId: ResourceId, slotIndex: number) => {
+    const targetSlot = terminalGrid[slotIndex]
+    const replacingSameResource = targetSlot?.id === resourceId && !targetSlot.ghost
+    const available = terminalAvailableAmount(state, terminalGrid, resourceId) + (replacingSameResource ? 1 : 0)
+    if (available < 1) {
       addFloatText('none left')
       return
     }
 
-    const emptySlot = grid.findIndex((slot) => slot === null)
-    if (emptySlot === -1) {
-      addFloatText('grid full')
+    setTerminalGrid((current) => current.map((slot, index) => (index === slotIndex ? { id: resourceId } : slot)))
+  }
+
+  const handleInventorySlotPress = (resourceId: ResourceId) => {
+    setSelectedResource(resourceId)
+  }
+
+  const handleInventorySlotClick = (event: ReactMouseEvent<HTMLButtonElement>, resourceId: ResourceId) => {
+    if (suppressClickRef.current) {
+      event.preventDefault()
       return
     }
 
-    const updateGrid = (current: CraftSlot[]) => current.map((slot, index) => (index === emptySlot ? resourceId : slot))
-    if (kind === 'inventory') setInventoryGrid(updateGrid)
-    else setTableGrid(updateGrid)
+    handleInventorySlotPress(resourceId)
   }
 
-  const handleRemoveCraftSlot = (slotIndex: number, kind: GridKind) => {
-    const updateGrid = (current: CraftSlot[]) => current.map((slot, index) => (index === slotIndex ? null : slot))
-    if (kind === 'inventory') setInventoryGrid(updateGrid)
-    else setTableGrid(updateGrid)
+  const handleCraftSlotPress = (slotIndex: number) => {
+    if (selectedResource) {
+      placeResourceInGridAt(selectedResource, slotIndex)
+      return
+    }
+
+    setTerminalGrid((current) => current.map((slot, index) => (index === slotIndex ? null : slot)))
   }
 
-  const handleClearGrid = (kind: GridKind) => {
-    if (kind === 'inventory') setInventoryGrid(Array.from({ length: 4 }, () => null))
-    else setTableGrid(Array.from({ length: 9 }, () => null))
+  const handleInventoryDragStart = (event: DragEvent<HTMLButtonElement>, resourceId: ResourceId) => {
+    setSelectedResource(resourceId)
+    event.dataTransfer.effectAllowed = 'copy'
+    event.dataTransfer.setData('text/plain', resourceId)
   }
 
-  const handleCraftFromGrid = (kind: GridKind) => {
-    const recipe = kind === 'inventory' ? inventoryMatch : tableMatch
-    if (!recipe || !canCraft(state, recipe)) return
-    handleCraft(recipe)
-    handleClearGrid(kind)
+  const handleCraftSlotDragOver = (event: DragEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleDropOnCraftSlot = (event: DragEvent<HTMLButtonElement>, slotIndex: number) => {
+    event.preventDefault()
+    const resourceId = event.dataTransfer.getData('text/plain')
+    if (!isResourceId(resourceId)) return
+    setSelectedResource(resourceId)
+    placeResourceInGridAt(resourceId, slotIndex)
+  }
+
+  const handleEquipResource = (slotId: EquipmentSlotId, resourceId: ResourceId) => {
+    if (!equipmentSlotAccepts(slotId, resourceId)) {
+      setTerminalNotice(`${resourceLabels[resourceId]} does not fit ${equipmentLabels[slotId]}.`)
+      return
+    }
+
+    if (terminalAvailableAmount(state, terminalGrid, resourceId) < 1) {
+      setTerminalNotice(`${resourceLabels[resourceId]} is already reserved.`)
+      return
+    }
+
+    setState((current) => equipResource(current, slotId, resourceId))
+    setSelectedResource(null)
+    setTerminalNotice(`${resourceLabels[resourceId]} equipped.`)
+  }
+
+  const handleEquipmentSlotPress = (slotId: EquipmentSlotId) => {
+    if (selectedResource) {
+      handleEquipResource(slotId, selectedResource)
+      return
+    }
+
+    const equipped = state.equipment[slotId]
+    if (!equipped) return
+
+    setState((current) => unequipSlot(current, slotId))
+    setTerminalNotice(`${resourceLabels[equipped]} unequipped.`)
+  }
+
+  const handleEquipmentSlotDragOver = (event: DragEvent<HTMLButtonElement>, slotId: EquipmentSlotId) => {
+    const resourceId = event.dataTransfer.getData('text/plain')
+    event.preventDefault()
+    event.dataTransfer.dropEffect = isResourceId(resourceId) && equipmentSlotAccepts(slotId, resourceId) ? 'copy' : 'none'
+  }
+
+  const handleDropOnEquipmentSlot = (event: DragEvent<HTMLButtonElement>, slotId: EquipmentSlotId) => {
+    event.preventDefault()
+    const resourceId = event.dataTransfer.getData('text/plain')
+    if (!isResourceId(resourceId)) return
+    handleEquipResource(slotId, resourceId)
+  }
+
+  const handleInventoryPointerDown = (event: ReactPointerEvent<HTMLButtonElement>, resourceId: ResourceId) => {
+    if (event.button !== 0 || terminalAvailableAmount(state, terminalGrid, resourceId) < 1) return
+
+    pointerDragRef.current = {
+      id: resourceId,
+      startX: event.clientX,
+      startY: event.clientY,
+      dragged: false,
+    }
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const drag = pointerDragRef.current
+      if (!drag) return
+
+      const distance = Math.hypot(moveEvent.clientX - drag.startX, moveEvent.clientY - drag.startY)
+      if (distance < 8 && !drag.dragged) return
+
+      drag.dragged = true
+      setSelectedResource(drag.id)
+      setDragPreview({ id: drag.id, x: moveEvent.clientX, y: moveEvent.clientY })
+    }
+
+    const finishDrag = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', finishDrag)
+      window.removeEventListener('pointercancel', cancelDrag)
+
+      const drag = pointerDragRef.current
+      pointerDragRef.current = null
+      setDragPreview(null)
+      if (!drag?.dragged) return
+
+      suppressClickRef.current = true
+      window.setTimeout(() => {
+        suppressClickRef.current = false
+      }, 0)
+
+      const element = document.elementFromPoint(upEvent.clientX, upEvent.clientY)
+      const equipmentSlotElement = element?.closest<HTMLElement>('[data-equipment-slot]')
+      const equipmentSlot = equipmentSlotElement?.dataset.equipmentSlot
+      if (equipmentSlot && equipmentSlot in equipmentLabels) {
+        handleEquipResource(equipmentSlot as EquipmentSlotId, drag.id)
+        return
+      }
+
+      const slotElement = element?.closest<HTMLElement>('[data-craft-slot]')
+      const slotIndex = slotElement ? Number(slotElement.dataset.craftSlot) : Number.NaN
+      if (!Number.isInteger(slotIndex)) return
+
+      setSelectedResource(drag.id)
+      placeResourceInGridAt(drag.id, slotIndex)
+    }
+
+    const cancelDrag = () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', finishDrag)
+      window.removeEventListener('pointercancel', cancelDrag)
+      pointerDragRef.current = null
+      setDragPreview(null)
+    }
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', finishDrag)
+    window.addEventListener('pointercancel', cancelDrag)
+  }
+
+  const handleClearGrid = () => {
+    setTerminalGrid(Array.from({ length: 9 }, () => null))
+  }
+
+  const handleReturnRealItems = () => {
+    setTerminalGrid((current) => current.map((slot) => (slot?.ghost ? slot : null)))
+  }
+
+  const handleCraftFromGrid = () => {
+    if (!terminalMatch || !canCraft(state, terminalMatch)) return
+    handleCraft(terminalMatch)
+    handleClearGrid()
+  }
+
+  const handleAdjustBatchQuantity = (delta: number) => {
+    setBatchQuantity((current) => Math.max(1, current + delta))
+  }
+
+  const showMissingBatch = (recipe: Recipe, quantity: number) => {
+    const missingResources = missingForQuantity(state, recipe, quantity, terminalGrid)
+    const missingRecipe = missingForRecipe(state, recipe)
+    setMissingBatch({
+      recipeName: recipe.name,
+      quantity,
+      missingResources,
+      missingSetup: missingRecipe.missingMachines
+        .map((amount) => `${machines[amount.id].name} x${formatAmount(amount.amount)}`)
+        .join(', '),
+    })
+  }
+
+  const handleCraftBatch = (quantity: number) => {
+    if (!terminalMatch) return
+
+    const requestedQuantity = Math.max(1, Math.floor(quantity))
+    if (craftableQuantity(state, terminalMatch, terminalGrid) < requestedQuantity) {
+      showMissingBatch(terminalMatch, requestedQuantity)
+      return
+    }
+
+    setState((current) => craftRecipeInstant(current, terminalMatch, requestedQuantity))
+    handleClearGrid()
+    setTerminalNotice(`${terminalMatch.name} x${formatAmount(requestedQuantity)} crafted.`)
+    addFloatText(`crafted x${formatAmount(requestedQuantity)}`)
+  }
+
+  const handleCraftMax = () => {
+    if (!terminalMatch) return
+
+    const quantity = craftableQuantity(state, terminalMatch, terminalGrid)
+    if (quantity < 1) {
+      showMissingBatch(terminalMatch, 1)
+      return
+    }
+
+    handleCraftBatch(quantity)
   }
 
   const handleLoadRecipe = (recipe: Recipe) => {
-    const missing = missingForRecipe(state, recipe)
-    if (missing.missingResources.length > 0 || missing.missingMachines.length > 0) {
-      const resources = missing.missingResources.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`)
-      const machineNames = missing.missingMachines.map((amount) => machines[amount.id].name)
-      setRecipeNotice(`Missing ${[...resources, ...machineNames].join(', ')}`)
+    if (!recipeFitsTerminalGrid(recipe)) {
+      setTerminalNotice('This recipe needs a later station.')
       return
     }
 
-    if (recipeFitsGrid(recipe, 'inventory')) {
-      setInventoryGrid(makeGridForRecipe(recipe, 4))
-      setRecipeNotice(`${recipe.name} loaded into inventory crafting.`)
-      setPage('inventory')
-      return
-    }
-
-    if (!hasCraftingTable) {
-      setRecipeNotice(`Missing ${machines.workbench.name}`)
-      return
-    }
-
-    if (recipeFitsGrid(recipe, 'table')) {
-      setTableGrid(makeGridForRecipe(recipe, 9))
-      setRecipeNotice(`${recipe.name} loaded into the crafting table.`)
-      setPage('craft')
-      return
-    }
-
-    setRecipeNotice('This recipe needs a later machine.')
+    setTerminalGrid(makeGridForRecipe(recipe, state))
+    setTerminalNotice(missingLine(state, recipe) ? `Missing ${missingLine(state, recipe)}` : `${recipe.name} loaded.`)
+    setIsRecipeModalOpen(false)
+    setPage('terminal')
   }
 
   const handleCompleteQuest = (questId: string) => {
@@ -366,66 +598,51 @@ function App() {
   const handleReset = () => {
     localStorage.removeItem(saveKey)
     setState(loadGame(null))
-    handleClearGrid('inventory')
-    handleClearGrid('table')
-    setRecipeNotice('')
+    handleClearGrid()
+    setTerminalNotice('')
+    setTerminalSearch('')
     setRecipeSearch('')
+    setSelectedResource(null)
+    setSelectedGatherTarget('tree')
+    setBatchQuantity(1)
+    setMissingBatch(null)
+    setIsRecipeModalOpen(false)
+    setSelectedRecipeId(null)
     setPage('gather')
     addFloatText('fresh save')
   }
 
-  const renderCraftingBench = (kind: GridKind) => {
-    const isInventory = kind === 'inventory'
-    const grid = isInventory ? inventoryGrid : tableGrid
-    const counts = isInventory ? inventoryCounts : tableCounts
-    const match = isInventory ? inventoryMatch : tableMatch
-    const sizeClass = isInventory ? 'two-grid' : 'three-grid'
+  const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
+  const outputResource = terminalMatch?.outputs[0]?.id
+  const selectedRecipeMissing = selectedRecipe ? missingForRecipe(state, selectedRecipe) : undefined
+  const selectedRecipeMissingLine = selectedRecipe ? missingLine(state, selectedRecipe) : ''
+  const selectedRecipeOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
+  const renderEquipmentSlot = (slotId: EquipmentSlotId) => {
+    const equipped = state.equipment[slotId]
+    const selectedFits = Boolean(selectedResource && equipmentSlotAccepts(slotId, selectedResource))
+    const className = [
+      'equipment-slot',
+      equipped ? 'filled' : 'empty',
+      selectedFits ? 'accepts-selected' : '',
+    ].join(' ')
 
     return (
-      <div className="crafting-bench">
-        <div className={`craft-grid ${sizeClass}`} aria-label={isInventory ? 'Inventory crafting grid' : 'Crafting table grid'}>
-          {grid.map((slot, index) => (
-            <button
-              type="button"
-              className={slot ? 'craft-slot filled' : 'craft-slot'}
-              aria-label={slot ? `Remove ${resourceLabels[slot]}` : `Empty crafting slot ${index + 1}`}
-              onClick={() => handleRemoveCraftSlot(index, kind)}
-              key={`${slot ?? 'empty'}-${index}`}
-            >
-              {slot ? resourceLabels[slot] : ''}
-            </button>
-          ))}
-        </div>
-
-        <div className="craft-output" aria-live="polite">
-          <span>Output</span>
-          <strong>{match ? recipeOutputLabel(match) : 'No match'}</strong>
-          {match && <small>{formatMs(match.durationMs)}</small>}
-        </div>
-
-        <div className="craft-actions">
-          <button type="button" onClick={() => handleClearGrid(kind)}>
-            Clear
-          </button>
-          <button type="button" disabled={!match || !canCraft(state, match)} onClick={() => handleCraftFromGrid(kind)}>
-            Craft match
-          </button>
-        </div>
-
-        <div className="craft-inventory" aria-label={isInventory ? 'Inventory items' : 'Crafting table inventory'}>
-          {visibleInventoryResources
-            .filter((id) => state.resources[id] > 0)
-            .map((id) => {
-              const available = state.resources[id] - (counts[id] ?? 0)
-              return (
-                <button type="button" disabled={available < 1} onClick={() => handleAddToGrid(id, kind)} key={id}>
-                  <span>{resourceLabels[id]}</span>
-                  <strong>{formatAmount(available)}</strong>
-                </button>
-              )
-            })}
-        </div>
-      </div>
+      <button
+        type="button"
+        className={className}
+        aria-label={equipped ? `Unequip ${resourceLabels[equipped]} from ${equipmentLabels[slotId]}` : `Empty ${equipmentLabels[slotId]} slot`}
+        title={equipped ? resourceLabels[equipped] : equipmentLabels[slotId]}
+        data-equipment-slot={slotId}
+        onClick={() => handleEquipmentSlotPress(slotId)}
+        onDragOver={(event) => handleEquipmentSlotDragOver(event, slotId)}
+        onDrop={(event) => handleDropOnEquipmentSlot(event, slotId)}
+        key={slotId}
+      >
+        <span className="equipment-label">{equipmentLabels[slotId]}</span>
+        <span className="equipment-slot-box">
+          {equipped ? <PixelIcon id={equipped} /> : <span className={`equipment-placeholder equipment-${slotId}`} aria-hidden="true" />}
+        </span>
+      </button>
     )
   }
 
@@ -441,40 +658,14 @@ function App() {
         </button>
       </header>
 
-      <section className="status-grid" aria-label="Progress summary">
-        <div>
-          <Sparkles size={18} />
-          <span>Guide</span>
-          <strong>{activeQuest?.chapter ?? 'Complete'}</strong>
-        </div>
-        <div>
-          <Factory size={18} />
-          <span>Machines</span>
-          <strong>{totalMachines}</strong>
-        </div>
-        <div>
-          <Zap size={18} />
-          <span>Era</span>
-          <strong>{lvUnlocked ? 'LV' : steamUnlocked ? 'Steam' : 'Manual'}</strong>
-        </div>
-      </section>
-
-      <section className="page-tabs wide-tabs" aria-label="Game pages">
+      <section className="page-tabs" aria-label="Game pages">
         <button type="button" className={page === 'gather' ? 'active' : ''} onClick={() => setPage('gather')}>
           <Pickaxe size={18} />
           Gather
         </button>
-        <button type="button" className={page === 'inventory' ? 'active' : ''} onClick={() => setPage('inventory')}>
-          <Hammer size={18} />
-          Inventory
-        </button>
-        <button type="button" className={page === 'craft' ? 'active' : ''} disabled={!hasCraftingTable} onClick={() => setPage('craft')}>
-          <Anvil size={18} />
-          Table
-        </button>
-        <button type="button" className={page === 'recipes' ? 'active' : ''} onClick={() => setPage('recipes')}>
-          <BookOpen size={18} />
-          Recipes
+        <button type="button" className={page === 'terminal' ? 'active' : ''} onClick={() => setPage('terminal')}>
+          <Database size={18} />
+          Terminal
         </button>
         <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => setPage('guide')}>
           <BookOpen size={18} />
@@ -484,16 +675,32 @@ function App() {
 
       {page === 'gather' && (
         <section className="tap-panel" aria-label="Manual gathering">
+          <div className="gather-targets" aria-label="Gather targets">
+            {gatherTargetOrder.map((targetId) => {
+              const target = gatherTargets[targetId]
+              const progress = state.gatherProgress[targetId] ?? 0
+              return (
+                <button
+                  type="button"
+                  className={selectedGatherTarget === targetId ? 'gather-target selected' : 'gather-target'}
+                  onClick={() => setSelectedGatherTarget(targetId)}
+                  key={targetId}
+                >
+                  <PixelIcon id={gatherTargetIcons[targetId]} />
+                  <span>{target.name}</span>
+                  <strong>{Math.max(0, target.maxHp - progress)}/{target.maxHp}</strong>
+                </button>
+              )
+            })}
+          </div>
+
           <div className="mine-face">
-            <div className="block-sprite" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
+            <div className="gather-block" aria-hidden="true">
+              <PixelIcon id={gatherTargetIcons[selectedGatherTarget]} />
             </div>
             <div>
-              <h2>{tree.name}</h2>
-              <p>{tree.description}</p>
+              <h2>{currentTarget.name}</h2>
+              <p>{currentTarget.description}</p>
             </div>
             <div className="float-layer" aria-live="polite">
               {floatTexts.map((floatText) => (
@@ -504,77 +711,195 @@ function App() {
 
           <div className="break-panel">
             <div className="break-stats">
-              <span>Tool: <strong>{currentTool.name}</strong></span>
-              <span>Drop: <strong>{tree.drops.map((drop) => `${drop.amount} ${resourceLabels[drop.id]}`).join(', ')}</strong></span>
-              <span>Hit: <strong>{currentTool.damageByTarget.tree ?? 1}/{tree.hardness}</strong></span>
+              <span>
+                Tool <strong>{currentTool.name}</strong>
+              </span>
+              <span>
+                Drop <strong>{currentTarget.drops.map((drop) => `${drop.amount} ${resourceLabels[drop.id]}`).join(', ')}</strong>
+              </span>
+              <span>
+                HP <strong>{targetRemainingHp}/{currentTarget.maxHp}</strong>
+              </span>
+              <span>
+                Damage <strong>{currentDamage}</strong>
+              </span>
             </div>
             <div className="progress-track">
-              <span style={{ width: `${treeProgressPercent}%` }} />
+              <span style={{ width: `${targetProgressPercent}%` }} />
             </div>
-            <button type="button" className="hit-button" onClick={handleHitTree}>
-              <Axe size={20} />
-              Hit tree
+            {currentDamage < 1 && <p className="gather-warning">Requires {tools[currentTarget.preferredTool].name}</p>}
+            <button type="button" className="hit-button" disabled={currentDamage < 1} onClick={handleGatherTarget}>
+              {currentTool.id === 'woodenPickaxe' ? <Pickaxe size={20} /> : <Axe size={20} />}
+              Mine {currentTarget.name}
             </button>
           </div>
         </section>
       )}
 
-      {page === 'inventory' && (
-        <section className="workshop-grid">
-          <div className="panel">
-            <div className="section-title">
-              <div>
-                <p className="eyebrow">Inventory crafting</p>
-                <h2>2x2 grid</h2>
-              </div>
-              <Hammer size={22} />
+      {page === 'terminal' && (
+        <section className="terminal-panel" aria-label="Crafting terminal">
+          <div className="terminal-topline">
+            <div>
+              <p className="eyebrow">Stored items</p>
+              <h2>Terminal</h2>
             </div>
-            {renderCraftingBench('inventory')}
+            <input
+              className="terminal-search"
+              type="search"
+              placeholder="Search"
+              value={terminalSearch}
+              onChange={(event) => setTerminalSearch(event.target.value)}
+              aria-label="Search stored items"
+            />
           </div>
 
-          <div className="panel">
-            <div className="section-title">
-              <div>
-                <p className="eyebrow">Inventory</p>
-                <h2>Stacks</h2>
-              </div>
-              <Factory size={22} />
-            </div>
-            <section className="resource-bar inventory-list" aria-label="Resources">
-              {visibleInventoryResources.map((id) => (
-                <div className={state.resources[id] > 0 ? 'resource-cell stocked' : 'resource-cell'} key={id}>
-                  <span>{resourceLabels[id]}</span>
-                  <strong>{formatAmount(state.resources[id])}</strong>
-                </div>
-              ))}
-            </section>
-          </div>
-        </section>
-      )}
-
-      {page === 'craft' && (
-        <section className="workshop-grid">
-          <div className="panel">
-            <div className="section-title">
-              <div>
-                <p className="eyebrow">Crafting table</p>
-                <h2>3x3 grid</h2>
-              </div>
-              <Anvil size={22} />
-            </div>
-            {renderCraftingBench('table')}
+          <div className="terminal-items" aria-label="Stored items">
+            {filteredResources.length > 0 ? (
+              filteredResources.map((id) => {
+                const available = terminalAvailableAmount(state, terminalGrid, id)
+                return (
+                  <button
+                    type="button"
+                    className={selectedResource === id ? 'item-slot selected' : 'item-slot'}
+                    aria-label={`${resourceLabels[id]} ${formatAmount(available)}`}
+                    title={resourceLabels[id]}
+                    draggable
+                    onClick={(event) => handleInventorySlotClick(event, id)}
+                    onDragStart={(event) => handleInventoryDragStart(event, id)}
+                    onPointerDown={(event) => handleInventoryPointerDown(event, id)}
+                    key={id}
+                  >
+                    <PixelIcon id={id} />
+                    <span className="item-count">{formatAmount(available)}</span>
+                  </button>
+                )
+              })
+            ) : (
+              <p className="empty-storage">No stored items</p>
+            )}
           </div>
 
-          <div className="panel">
-            <div className="section-title">
-              <div>
-                <p className="eyebrow">Built</p>
-                <h2>Stations</h2>
+          {selectedResource && (
+            <div className="item-tooltip" role="status">
+              <strong>{resourceLabels[selectedResource]}</strong>
+              <span>x{formatAmount(Math.max(0, selectedAvailable))}</span>
+            </div>
+          )}
+
+          <div className="terminal-crafting-compact">
+            <div className="terminal-craft-stack">
+              <p className="terminal-subtitle">Crafting Terminal</p>
+              <div className="craft-grid three-grid pixel-grid" aria-label="Terminal crafting grid">
+                {terminalGrid.map((slot, index) => (
+                  <button
+                    type="button"
+                    className={slot ? (slot.ghost ? 'craft-slot ghost' : 'craft-slot filled') : 'craft-slot'}
+                    aria-label={slot ? `Remove ${resourceLabels[slot.id]}` : `Empty crafting slot ${index + 1}`}
+                    data-craft-slot={index}
+                    onClick={() => handleCraftSlotPress(index)}
+                    onDragOver={handleCraftSlotDragOver}
+                    onDrop={(event) => handleDropOnCraftSlot(event, index)}
+                    key={`${slot?.id ?? 'empty'}-${slot?.ghost ? 'ghost' : 'real'}-${index}`}
+                  >
+                    {slot && <PixelIcon id={slot.id} />}
+                  </button>
+                ))}
               </div>
-              <Factory size={22} />
+              <button type="button" className="recipe-open-button" onClick={() => setIsRecipeModalOpen(true)}>
+                <BookOpen size={16} />
+                Recipes
+              </button>
             </div>
 
-            <div className="machine-list">
+            <div className="terminal-output-column">
+              <div className="output-row">
+                <span className="craft-arrow" aria-hidden="true" />
+                <button
+                  type="button"
+                  className={terminalMatch ? 'output-slot matched' : 'output-slot'}
+                  disabled={!terminalMatch || !canCraft(state, terminalMatch)}
+                  aria-label={terminalMatch ? `Craft ${recipeOutputLabel(terminalMatch)}` : 'No craft output'}
+                  onClick={handleCraftFromGrid}
+                >
+                  {outputResource ? <PixelIcon id={outputResource} /> : <span className="empty-output" />}
+                  {terminalMatch && <span className="item-count output-count">{formatAmount(terminalMatch.outputs[0]?.amount ?? 1)}</span>}
+                </button>
+              </div>
+            </div>
+
+            <div className="batch-controls" aria-label="Batch crafting controls">
+              <div className="batch-step-row" aria-label="Increase quantity">
+                {[1, 10, 100].map((amount) => (
+                  <button type="button" onClick={() => handleAdjustBatchQuantity(amount)} key={`plus-${amount}`}>
+                    +{amount}
+                  </button>
+                ))}
+              </div>
+              <div className="batch-quantity" aria-live="polite">
+                <span>Qty</span>
+                <strong>{formatAmount(batchQuantity)}</strong>
+                <small>Max {formatAmount(maxBatchQuantity)}</small>
+              </div>
+              <div className="batch-step-row" aria-label="Decrease quantity">
+                {[-1, -10, -100].map((amount) => (
+                  <button type="button" onClick={() => handleAdjustBatchQuantity(amount)} key={`minus-${amount}`}>
+                    {amount}
+                  </button>
+                ))}
+              </div>
+              <div className="batch-action-row">
+                <button type="button" disabled={!terminalMatch} onClick={() => handleCraftBatch(batchQuantity)}>
+                  Craft x{formatAmount(batchQuantity)}
+                </button>
+                <button type="button" disabled={!terminalMatch} onClick={handleCraftMax}>
+                  Max
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="compact-actions">
+            <button type="button" onClick={handleClearGrid}>
+              <Trash2 size={16} />
+              Clear
+            </button>
+            <button type="button" onClick={handleReturnRealItems}>
+              <Undo2 size={16} />
+              Return
+            </button>
+          </div>
+
+          <details className="equipment-drawer">
+            <summary>
+              <Axe size={16} />
+              Player Equipment
+            </summary>
+            <div className="equipment-layout" aria-label="Player equipment">
+              <div className="equipment-column armour-column" aria-label="Armour slots">
+                {armourEquipmentSlots.map(renderEquipmentSlot)}
+              </div>
+              <div className="player-preview" aria-hidden="true">
+                <span className="player-head" />
+                <span className="player-body" />
+                <span className="player-arm left" />
+                <span className="player-arm right" />
+                <span className="player-leg left" />
+                <span className="player-leg right" />
+              </div>
+              <div className="equipment-column tool-column" aria-label="Tool slots">
+                {toolEquipmentSlots.map(renderEquipmentSlot)}
+              </div>
+            </div>
+          </details>
+
+          {terminalNotice && <p className="recipe-notice">{terminalNotice}</p>}
+
+          <details className="machine-drawer">
+            <summary>
+              <Factory size={16} />
+              Machines x{totalMachines}
+            </summary>
+            <div className="machine-list compact-machines">
               {machineOrder.map((id) => {
                 const machine = machines[id]
                 const count = state.machines[id]
@@ -596,64 +921,174 @@ function App() {
                 )
               })}
             </div>
-          </div>
-        </section>
-      )}
+          </details>
 
-      {page === 'recipes' && (
-        <section className="guide-page" aria-label="Recipe book">
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Recipe book</p>
-              <h2>Search and load</h2>
-            </div>
-            <BookOpen size={22} />
-          </div>
-
-          <input
-            className="recipe-search"
-            type="search"
-            placeholder="Search recipes or materials"
-            value={recipeSearch}
-            onChange={(event) => setRecipeSearch(event.target.value)}
-          />
-          {recipeNotice && <p className="recipe-notice">{recipeNotice}</p>}
-
-          <div className="recipe-hints">
-            {searchableRecipes.map((recipe) => {
-              const missing = missingForRecipe(state, recipe)
-              const hasMissing = missing.missingResources.length > 0 || missing.missingMachines.length > 0
-              return (
-                <article className={hasMissing ? 'recipe-hint' : 'recipe-hint matched'} key={recipe.id}>
-                  <div className="section-title">
-                    <div>
-                      <h3>{recipe.name}</h3>
-                      <p>{recipe.description}</p>
-                    </div>
-                    <strong>{recipeOutputLabel(recipe)}</strong>
+          {isRecipeModalOpen && (
+            <div className="modal-backdrop" role="presentation" onClick={() => setIsRecipeModalOpen(false)}>
+              <section
+                className="recipe-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Recipe browser"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <div>
+                    <p className="eyebrow">Recipe browser</p>
+                    <h2>{terminalMode === 'recipes' ? 'Recipes' : `Uses: ${resourceLabels[selectedResourceForRecipes]}`}</h2>
                   </div>
-                  <div className="requirement-list">
-                    {recipe.inputs.map((amount) => (
-                      <ResourcePill amount={amount} key={amount.id} />
-                    ))}
-                    {recipe.requiredMachine && <span className="resource-pill">{machines[recipe.requiredMachine].name}</span>}
-                  </div>
-                  {hasMissing && (
-                    <p className="missing-line">
-                      Missing{' '}
-                      {[
-                        ...missing.missingResources.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`),
-                        ...missing.missingMachines.map((amount) => machines[amount.id].name),
-                      ].join(', ')}
-                    </p>
-                  )}
-                  <button type="button" onClick={() => handleLoadRecipe(recipe)}>
-                    {hasMissing ? 'Show missing' : 'Load recipe'}
+                  <button type="button" className="icon-button" aria-label="Close recipes" onClick={() => setIsRecipeModalOpen(false)}>
+                    <X size={18} />
                   </button>
-                </article>
-              )
-            })}
-          </div>
+                </div>
+
+                <input
+                  className="recipe-search"
+                  type="search"
+                  placeholder="Search recipes"
+                  value={recipeSearch}
+                  onChange={(event) => setRecipeSearch(event.target.value)}
+                />
+
+                <div className="mode-tabs" aria-label="Recipe browser mode">
+                  <button type="button" className={terminalMode === 'recipes' ? 'active' : ''} onClick={() => setTerminalMode('recipes')}>
+                    Recipes
+                  </button>
+                  <button type="button" className={terminalMode === 'uses' ? 'active' : ''} onClick={() => setTerminalMode('uses')}>
+                    Uses
+                  </button>
+                </div>
+
+                <div className="recipe-modal-body">
+                  <div className="recipe-icon-grid" aria-label="Recipe results">
+                  {listedRecipes.map((recipe) => {
+                    const output = recipePrimaryOutput(recipe)
+                    const missing = missingLine(state, recipe)
+                    return (
+                      <button
+                        type="button"
+                        className={[
+                          'recipe-icon-button',
+                          recipe.id === selectedRecipe?.id ? 'selected' : '',
+                          missing ? 'missing' : 'ready',
+                        ].join(' ')}
+                        aria-label={recipe.name}
+                        title={recipe.name}
+                        onClick={() => setSelectedRecipeId(recipe.id)}
+                        key={recipe.id}
+                      >
+                        {output.kind === 'resource' ? <PixelIcon id={output.id} /> : <MachineGlyph id={output.id} />}
+                        <span className="item-count">{formatAmount(output.amount)}</span>
+                      </button>
+                    )
+                  })}
+                  </div>
+
+                  {selectedRecipe && selectedRecipeOutput && selectedRecipeMissing && (
+                    <aside className="recipe-detail" aria-label={`${selectedRecipe.name} details`}>
+                      <div className="recipe-detail-head">
+                        <div>
+                          <p className="eyebrow">{selectedRecipe.tier}</p>
+                          <h3>{selectedRecipe.name}</h3>
+                        </div>
+                        <span className={selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
+                          {selectedRecipeOutput.kind === 'resource' ? (
+                            <PixelIcon id={selectedRecipeOutput.id} />
+                          ) : (
+                            <MachineGlyph id={selectedRecipeOutput.id} />
+                          )}
+                          <span className="item-count">{formatAmount(selectedRecipeOutput.amount)}</span>
+                        </span>
+                      </div>
+
+                      <div className="recipe-slot-section">
+                        <span>Inputs</span>
+                        <div className="recipe-slot-row">
+                          {selectedRecipe.inputs.map((amount) => {
+                            const missing = selectedRecipeMissing.missingResources.some((item) => item.id === amount.id)
+                            return <ItemSlot amount={amount} disabled={missing} key={amount.id} />
+                          })}
+                          {selectedRecipe.requiredMachine && (
+                            <MachineSlot
+                              id={selectedRecipe.requiredMachine}
+                              muted={state.machines[selectedRecipe.requiredMachine] < 1}
+                            />
+                          )}
+                          {selectedRecipe.machineInputs?.map((amount) => (
+                            <MachineSlot
+                              id={amount.id}
+                              amount={amount.amount}
+                              muted={state.machines[amount.id] < amount.amount}
+                              key={amount.id}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="recipe-slot-section">
+                        <span>Outputs</span>
+                        <div className="recipe-slot-row">
+                          {selectedRecipe.outputs.map((amount) => (
+                            <ItemSlot amount={amount} key={amount.id} />
+                          ))}
+                          {selectedRecipe.machineOutputs?.map((amount) => (
+                            <MachineSlot id={amount.id} amount={amount.amount} key={amount.id} />
+                          ))}
+                        </div>
+                      </div>
+
+                      {selectedRecipeMissingLine && <p className="missing-line">Missing {selectedRecipeMissingLine}</p>}
+                      <button
+                        type="button"
+                        className="load-recipe-button"
+                        disabled={!recipeFitsTerminalGrid(selectedRecipe)}
+                        onClick={() => handleLoadRecipe(selectedRecipe)}
+                      >
+                        {recipeFitsTerminalGrid(selectedRecipe) ? 'Load recipe' : 'Station recipe'}
+                      </button>
+                    </aside>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {missingBatch && (
+            <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setMissingBatch(null)}>
+              <section
+                className="missing-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Missing batch materials"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <div>
+                    <p className="eyebrow">Missing items</p>
+                    <h2>{missingBatch.recipeName} x{formatAmount(missingBatch.quantity)}</h2>
+                  </div>
+                  <button type="button" className="icon-button" aria-label="Close missing items" onClick={() => setMissingBatch(null)}>
+                    <X size={18} />
+                  </button>
+                </div>
+                {missingBatch.missingResources.length > 0 ? (
+                  <div className="missing-slot-list">
+                    {missingBatch.missingResources.map((amount) => (
+                      <ItemSlot amount={amount} disabled key={amount.id} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="missing-line">{missingBatch.missingSetup || 'Missing required setup.'}</p>
+                )}
+                {missingBatch.missingSetup && missingBatch.missingResources.length > 0 && (
+                  <p className="missing-line">Missing {missingBatch.missingSetup}</p>
+                )}
+                <button type="button" className="load-recipe-button" onClick={() => setMissingBatch(null)}>
+                  Close
+                </button>
+              </section>
+            </div>
+          )}
         </section>
       )}
 
@@ -675,20 +1110,10 @@ function App() {
         </section>
       )}
 
-      {state.activeCrafts.length > 0 && (
-        <section className="active-stack" aria-label="Active crafting">
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Running</p>
-              <h2>Queue</h2>
-            </div>
-            <Flame size={22} />
-          </div>
-          {state.activeCrafts.map((craft) => {
-            const recipe = recipes.find((candidate) => candidate.id === craft.recipeId)
-            return recipe ? <CraftProgress craft={craft} recipe={recipe} key={`${craft.recipeId}-${craft.startedAt}`} /> : null
-          })}
-        </section>
+      {dragPreview && (
+        <div className="item-drag-preview" style={{ left: dragPreview.x, top: dragPreview.y }} aria-hidden="true">
+          <PixelIcon id={dragPreview.id} />
+        </div>
       )}
     </main>
   )

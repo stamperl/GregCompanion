@@ -1,11 +1,25 @@
-import type { GameState, GatherTarget, GatherTargetId, Machine, MachineId, Quest, Recipe, ResourceId, Tool, ToolId } from './types'
+import type {
+  EquipmentState,
+  GameState,
+  GatherTarget,
+  GatherTargetId,
+  Machine,
+  MachineId,
+  Quest,
+  Recipe,
+  ResourceId,
+  Tool,
+  ToolId,
+} from './types'
 
 export const resourceLabels: Record<ResourceId, string> = {
   log: 'Log',
   plank: 'Plank',
   stick: 'Stick',
   woodenAxe: 'Wooden Axe',
+  woodenPickaxe: 'Wooden Pickaxe',
   stone: 'Stone',
+  cobblestone: 'Cobblestone',
   crushedStone: 'Crushed Stone',
   copperOre: 'Copper Shards',
   tinOre: 'Tin Flecks',
@@ -38,16 +52,30 @@ export const tools: Record<ToolId, Tool> = {
     description: 'A crude edge that makes trees stop arguing so much.',
     damageByTarget: { tree: 3 },
   },
+  woodenPickaxe: {
+    id: 'woodenPickaxe',
+    name: 'Wooden Pickaxe',
+    description: 'A blocky starter pick that can crack soft stone.',
+    damageByTarget: { stone: 2 },
+  },
 }
 
 export const gatherTargets: Record<GatherTargetId, GatherTarget> = {
   tree: {
     id: 'tree',
     name: 'Tree',
-    description: 'Punch the trunk until a log breaks free.',
-    hardness: 5,
+    description: 'Damage the trunk until a log breaks free.',
+    maxHp: 5,
     drops: [{ id: 'log', amount: 1 }],
     preferredTool: 'woodenAxe',
+  },
+  stone: {
+    id: 'stone',
+    name: 'Stone',
+    description: 'Hard rock that needs a pickaxe before it gives up cobblestone.',
+    maxHp: 9,
+    drops: [{ id: 'cobblestone', amount: 1 }],
+    preferredTool: 'woodenPickaxe',
   },
 }
 
@@ -100,7 +128,7 @@ export const machines: Record<MachineId, Machine> = {
     description: 'Late-LV teaser automation. It barely works, which means it works.',
     tier: 'lv',
     produces: [
-      { id: 'stone', amount: 2 },
+      { id: 'cobblestone', amount: 2 },
       { id: 'copperOre', amount: 1 },
       { id: 'tinOre', amount: 1 },
     ],
@@ -141,17 +169,33 @@ export const recipes: Recipe[] = [
       { id: 'plank', amount: 3 },
       { id: 'stick', amount: 2 },
     ],
+    pattern: ['plank', 'plank', null, 'plank', 'stick', null, null, 'stick', null],
     outputs: [{ id: 'woodenAxe', amount: 1 }],
     requiredMachine: 'workbench',
     unlockedBy: 'craftSticks',
   },
   {
+    id: 'craft_wooden_pickaxe',
+    name: 'Craft Wooden Pickaxe',
+    description: 'A starter pick for cracking stone into cobblestone.',
+    tier: 'manual',
+    durationMs: 1400,
+    inputs: [
+      { id: 'plank', amount: 3 },
+      { id: 'stick', amount: 2 },
+    ],
+    pattern: ['plank', 'plank', 'plank', null, 'stick', null, null, 'stick', null],
+    outputs: [{ id: 'woodenPickaxe', amount: 1 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'craftSticks',
+  },
+  {
     id: 'crush_stone',
-    name: 'Crush Stone',
-    description: 'Smash rock into feedstock by hand.',
+    name: 'Crush Cobblestone',
+    description: 'Smash rough cobblestone into feedstock by hand.',
     tier: 'manual',
     durationMs: 1800,
-    inputs: [{ id: 'stone', amount: 2 }],
+    inputs: [{ id: 'cobblestone', amount: 2 }],
     outputs: [{ id: 'crushedStone', amount: 1 }],
     unlockedBy: 'firstDirt',
   },
@@ -173,7 +217,7 @@ export const recipes: Recipe[] = [
     tier: 'bronze',
     durationMs: 5000,
     inputs: [
-      { id: 'stone', amount: 18 },
+      { id: 'cobblestone', amount: 18 },
       { id: 'clay', amount: 8 },
       { id: 'coal', amount: 4 },
     ],
@@ -394,7 +438,7 @@ export const quests: Quest[] = [
     id: 'punchTree',
     chapter: 'First Tree',
     title: 'Punch a log loose',
-    description: 'Hit the tree until one full log drops into your inventory.',
+    description: 'Damage the tree until one full log drops into your inventory.',
     requirements: {
       resources: [{ id: 'log', amount: 1 }],
     },
@@ -454,10 +498,10 @@ export const quests: Quest[] = [
     id: 'firstDirt',
     chapter: 'First Dirt Under Your Nails',
     title: 'Gather a rough starter pile',
-    description: 'Stone and coal are enough to begin making ugly tools.',
+    description: 'Cobblestone and coal are enough to begin making ugly tools.',
     requirements: {
       resources: [
-        { id: 'stone', amount: 12 },
+        { id: 'cobblestone', amount: 12 },
         { id: 'coal', amount: 4 },
       ],
     },
@@ -559,6 +603,17 @@ export const initialMachines: Record<MachineId, number> = Object.keys(machines).
   {} as Record<MachineId, number>,
 )
 
+export const initialEquipment: EquipmentState = {
+  helmet: null,
+  chestplate: null,
+  leggings: null,
+  boots: null,
+  axe: null,
+  shovel: null,
+  pickaxe: null,
+  weapon: null,
+}
+
 export function createInitialState(now = Date.now()): GameState {
   return {
     version: 1,
@@ -566,7 +621,7 @@ export function createInitialState(now = Date.now()): GameState {
     machines: { ...initialMachines },
     completedQuests: [],
     unlockedQuests: ['punchTree'],
-    activeCrafts: [],
+    equipment: { ...initialEquipment },
     gatherProgress: {},
     machineProgress: {},
     lastSavedAt: now,
