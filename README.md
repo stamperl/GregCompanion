@@ -17,7 +17,7 @@ npm run lint
 
 - Tree breaking with per-block hit progress, log drops, planks, sticks, and a wooden axe speed upgrade.
 - Unlimited inventory stacks shown as item counts.
-- Crafting queue with timed recipes and machine requirements.
+- Minecraft-like hand crafting grid with timed recipe completion and machine requirements.
 - Quest chapters that guide and reward progression without locking crafting.
 - Local save/load through `localStorage`.
 - Slow late-LV automation teaser after the first dynamo.

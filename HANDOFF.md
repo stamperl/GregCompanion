@@ -5,7 +5,7 @@ This repo is the current mobile-first idle/clicker prototype that grew out of th
 ## Current Product Direction
 
 - Working title: `Click Foundry`.
-- Core feel: early survival gathering, inventory crafting, slow industrial progression, satisfying small milestones.
+- Core feel: early survival gathering, grid-based inventory crafting, slow industrial progression, satisfying small milestones.
 - Opening loop: hit a tree several times, get logs, craft planks, craft sticks, craft a wooden axe, then chop faster.
 - Quests should guide and reward the player, but must not lock progression.
 - Progression should eventually move through stone, ore, steam, low voltage, and beyond.
@@ -27,7 +27,8 @@ Implemented systems:
 - Inventory resources with unlimited stacks.
 - Tree gather target with per-target hit progress.
 - Tool lookup with bare hand by default and wooden axe upgrade.
-- Timed crafting queue.
+- Minecraft-like 3x3 hand crafting grid that matches recipe ingredient counts.
+- Timed crafting queue after a matched craft is started.
 - Machine data and slow machine tick support.
 - Quest guide page with claimable rewards.
 - Save/load migration from older local saves.
@@ -37,6 +38,7 @@ Important recent decision:
 
 - Quests are optional guide/reward content only.
 - Crafting visibility and crafting ability are based on inventory and machine requirements, not completed quests.
+- Crafting should feel tactile: tap inventory items into the grid, tap grid slots to remove them, then craft the matched output.
 - The Play page should stay playable without visiting the Guide page.
 
 ## Current GitHub Repo
@@ -64,7 +66,7 @@ npm run dev
 
 ## Verified Before Handoff
 
-These commands passed after the guide-only quest change:
+These commands passed after the guide-only quest and crafting-grid changes:
 
 ```bash
 npm run test
@@ -77,6 +79,8 @@ Browser smoke test also passed:
 - Reset save.
 - Hit tree until one log drops.
 - Confirmed `Split Log into Planks` appears before claiming any quest.
+- Put one log into the crafting grid and confirmed output preview changed to `4 Plank`.
+- Crafted the matched recipe and confirmed planks arrived after the timed queue.
 - Confirmed Guide page is separate from Play page.
 - Confirmed 390px mobile viewport has no horizontal overflow.
 

@@ -182,7 +182,6 @@
 .mine-face p,
 .quest-card p,
 .guide-card p,
-.craft-card p,
 .machine-card p {
   color: var(--muted);
   margin: 4px 0 0;
@@ -280,7 +279,8 @@
 }
 
 .hit-button,
-.craft-card button,
+.craft-actions button,
+.craft-inventory button,
 .guide-card button {
   align-items: center;
   background: var(--ink);
@@ -301,7 +301,8 @@
   color: var(--steam);
 }
 
-.craft-card button:disabled,
+.craft-actions button:disabled,
+.craft-inventory button:disabled,
 .guide-card button:disabled {
   background: var(--field);
   color: var(--muted);
@@ -352,7 +353,6 @@
   align-items: start;
 }
 
-.craft-list,
 .machine-list,
 .guide-list {
   display: grid;
@@ -360,7 +360,6 @@
   margin-top: 12px;
 }
 
-.craft-card,
 .machine-card,
 .guide-card,
 .active-craft {
@@ -371,13 +370,9 @@
   padding: 10px;
 }
 
-.craft-card.ready {
-  border-left-color: var(--signal);
-}
-
-.craft-card h3,
 .machine-card h3,
-.guide-card h3 {
+.guide-card h3,
+.recipe-hint h3 {
   color: var(--ink);
   font-size: 1rem;
   margin: 0;
@@ -394,13 +389,117 @@
   white-space: nowrap;
 }
 
-.craft-card button {
-  margin-top: 10px;
-  width: 100%;
-}
-
 .guide-card.completed {
   border-left-color: var(--signal);
+}
+
+.crafting-bench {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.craft-grid {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.craft-slot {
+  align-items: center;
+  aspect-ratio: 1;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.36), transparent 45%),
+    var(--field);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  box-shadow: inset -4px -4px 0 rgba(35, 27, 16, 0.08);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  justify-content: center;
+  min-width: 0;
+  padding: 6px;
+  text-align: center;
+}
+
+.craft-slot.filled {
+  background:
+    linear-gradient(135deg, rgba(154, 102, 44, 0.3), transparent 55%),
+    var(--panel);
+  border-color: var(--copper);
+  color: var(--ink);
+}
+
+.craft-output {
+  align-items: center;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  min-height: 74px;
+  padding: 10px;
+}
+
+.craft-output span,
+.craft-output small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.craft-output strong {
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.craft-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.craft-inventory {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.craft-inventory button {
+  justify-content: space-between;
+}
+
+.craft-inventory button span,
+.craft-inventory button strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.recipe-hints {
+  display: grid;
+  gap: 8px;
+}
+
+.recipe-hint {
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-left: 5px solid transparent;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.recipe-hint.matched {
+  border-left-color: var(--signal);
+}
+
+.recipe-hint p {
+  color: var(--muted);
+  margin: 4px 0 0;
 }
 
 .guide-card.completed svg {
