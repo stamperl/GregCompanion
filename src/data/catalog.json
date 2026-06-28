@@ -1,0 +1,3439 @@
+{
+  "generatedAt": "2026-06-28T13:15:48.540Z",
+  "schemaVersion": 1,
+  "sources": [
+    "https://api.github.com/repos/GTNewHorizons/GT-New-Horizons-Modpack/releases/latest",
+    "https://api.github.com/repos/GTNewHorizons/GT5-Unofficial/releases/latest",
+    "https://www.curseforge.com/api/v1/mods/952034/files?pageSize=1"
+  ],
+  "packs": [
+    {
+      "id": "gtnh",
+      "name": "GT New Horizons",
+      "gameType": "Expert GregTech modpack",
+      "minecraft": "1.7.10",
+      "loader": "Forge",
+      "latestVersion": "2.9.0-nightly-2026-06-28",
+      "publishedAt": "2026-06-27T22:58:33Z",
+      "sourceUrl": "https://github.com/GTNewHorizons/GT-New-Horizons-Modpack/releases/tag/2.9.0-nightly-2026-06-28",
+      "sourceKind": "github-release-and-source-tree",
+      "notes": [
+        "GT5-Unofficial latest recipe-code source: 5.09.54.01",
+        "GTNH recipes are split across the pack repo, GT5-Unofficial, and GTNH addon mods.",
+        "This pass indexes candidate source files; exact Java recipe normalization should be added per recipe builder family."
+      ],
+      "indexedFiles": [
+        {
+          "path": "GT-New-Horizons-Modpack/.github/scripts/questbook-i18n.py",
+          "bytes": 4612,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/AppliedEnergistics2/recipes/user/materials/circuits.recipe",
+          "bytes": 622,
+          "kind": "ae2-recipe"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/GregTech/Client.cfg",
+          "bytes": 12784,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/GregTech/GregTech.cfg",
+          "bytes": 24585,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/GregTech/MachineStats.cfg",
+          "bytes": 6680,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/GregTech/Other.cfg",
+          "bytes": 446,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/GregTech/OverpoweredStuff.cfg",
+          "bytes": 938,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/GregTech/Pollution.cfg",
+          "bytes": 18020,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/GregTech/WorldGeneration.cfg",
+          "bytes": 1387,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/ThaumcraftMobAspects/gregtech.cfg",
+          "bytes": 513,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/aspectrecipeindex.cfg",
+          "bytes": 594,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/betterquesting/DefaultQuests/QuestLines/AppliedEnergisti-AAAAAAAAAAAAAAAAAAAAIw==/ForFluidRecipes-AAAAAAAAAAAAAAAAAAAFGQ==.json",
+          "bytes": 109,
+          "kind": "json-data"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/betterquesting/DefaultQuests/QuestLines/AppliedEnergisti-AAAAAAAAAAAAAAAAAAAAIw==/RecipePatterns-AAAAAAAAAAAAAAAAAAAFLw==.json",
+          "bytes": 109,
+          "kind": "json-data"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/betterquesting/DefaultQuests/QuestLines/HandleLogisticsw-mZBBLGPDQQGDVfcT_wh9AQ==/RequestinaRecipe-FYOm8b1PRTKsyVjFdpBqjg==.json",
+          "bytes": 144,
+          "kind": "json-data"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/betterquesting/DefaultQuests/Quests/AppliedEnergisti-AAAAAAAAAAAAAAAAAAAAIw==/ForFluidRecipes-AAAAAAAAAAAAAAAAAAAFGQ==.json",
+          "bytes": 3202,
+          "kind": "json-data"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/betterquesting/DefaultQuests/Quests/AppliedEnergisti-AAAAAAAAAAAAAAAAAAAAIw==/RecipePatterns-AAAAAAAAAAAAAAAAAAAFLw==.json",
+          "bytes": 3183,
+          "kind": "json-data"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/betterquesting/DefaultQuests/Quests/HandleLogisticsw-mZBBLGPDQQGDVfcT_wh9AQ==/RequestinaRecipe-FYOm8b1PRTKsyVjFdpBqjg==.json",
+          "bytes": 2951,
+          "kind": "json-data"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/enderio/AlloySmelterRecipes_Core.xml",
+          "bytes": 17914,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/enderio/AlloySmelterRecipes_User.xml",
+          "bytes": 9309,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/enderio/EnchanterRecipes_User.xml",
+          "bytes": 867,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/enderio/SAGMillRecipes_User.xml",
+          "bytes": 583893,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/enderio/SliceAndSpliceRecipes_User.xml",
+          "bytes": 4661,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/enderio/VatRecipes_Core.xml",
+          "bytes": 6895,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/enderio/VatRecipes_User.xml",
+          "bytes": 5116,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/gendustry/overrides/recipes.cfg",
+          "bytes": 7567,
+          "kind": "config"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/ic2/shaped_recipes.ini",
+          "bytes": 1530,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/ic2/shapeless_recipes.ini",
+          "bytes": 1392,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/opencomputers/default.recipes",
+          "bytes": 23748,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/opencomputers/gregtech.recipes",
+          "bytes": 12842,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/opencomputers/gtnh.recipes",
+          "bytes": 4573,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/opencomputers/hardmode.recipes",
+          "bytes": 14005,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/opencomputers/peaceful.recipes",
+          "bytes": 2699,
+          "kind": "source"
+        },
+        {
+          "path": "GT-New-Horizons-Modpack/config/opencomputers/user.recipes",
+          "bytes": 993,
+          "kind": "source"
+        },
+        {
+          "path": "GT5-Unofficial/docs/RecipeBuilder.md",
+          "bytes": 2946,
+          "kind": "source"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/API/recipe/BacterialVatFrontend.java",
+          "bytes": 3849,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/API/recipe/BartWorksRecipeMaps.java",
+          "bytes": 3621,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/API/recipe/RadioHatchFrontend.java",
+          "bytes": 2017,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/commands/PrintRecipeListToFile.java",
+          "bytes": 2482,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/ArtificialMicaLine.java",
+          "bytes": 8499,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/BioCultureLoader.java",
+          "bytes": 2255,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/BioItemList.java",
+          "bytes": 2443,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/BioLabLoader.java",
+          "bytes": 2402,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/BioRecipeLoader.java",
+          "bytes": 7819,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/ElectricImplosionCompressorRecipes.java",
+          "bytes": 9020,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/FluidLoader.java",
+          "bytes": 6977,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/ItemRegistry.java",
+          "bytes": 22034,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/RadioHatchMaterialLoader.java",
+          "bytes": 11280,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/RecipeLoader.java",
+          "bytes": 2564,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/RegisterServerCommands.java",
+          "bytes": 1526,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/StaticRecipeChangeLoaders.java",
+          "bytes": 4184,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/Assembler.java",
+          "bytes": 5453,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/AssemblyLine.java",
+          "bytes": 4887,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/Autoclave.java",
+          "bytes": 1401,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/Centrifuge.java",
+          "bytes": 4785,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/ChemicalReactor.java",
+          "bytes": 788,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/CraftingRecipes.java",
+          "bytes": 34477,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/Electrolyzer.java",
+          "bytes": 7669,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/Extractor.java",
+          "bytes": 1352,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/FluidHeater.java",
+          "bytes": 782,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/FluidSolidifier.java",
+          "bytes": 4320,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/FormingPress.java",
+          "bytes": 1716,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/LaserEngraver.java",
+          "bytes": 723,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/Mixer.java",
+          "bytes": 1685,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/common/loaders/recipes/Pulverizer.java",
+          "bytes": 3483,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/CircuitGeneration/CircuitImprintLoader.java",
+          "bytes": 22917,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/CircuitGeneration/DeprecatedPartsMigrationRecipe.java",
+          "bytes": 1791,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/WerkstoffLoader.java",
+          "bytes": 86904,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/processingLoaders/AdditionalRecipes.java",
+          "bytes": 23099,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/IWerkstoffRunnable.java",
+          "bytes": 1272,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/AspectLoader.java",
+          "bytes": 3101,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/BlockLoader.java",
+          "bytes": 2918,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/CasingLoader.java",
+          "bytes": 4132,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/CellLoader.java",
+          "bytes": 15823,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/CraftingMaterialLoader.java",
+          "bytes": 9329,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/CrushedLoader.java",
+          "bytes": 14320,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/DustLoader.java",
+          "bytes": 24232,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/GemLoader.java",
+          "bytes": 11897,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/MetalLoader.java",
+          "bytes": 2992,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/MoltenCellLoader.java",
+          "bytes": 11361,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/MultipleMetalLoader.java",
+          "bytes": 3480,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/RawOreLoader.java",
+          "bytes": 3417,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/SimpleMetalLoader.java",
+          "bytes": 9448,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/recipe/ToolLoader.java",
+          "bytes": 54780,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/registration/AssociationLoader.java",
+          "bytes": 2201,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/registration/BridgeMaterialsLoader.java",
+          "bytes": 5246,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bartworks/system/material/werkstoff_loaders/registration/CasingRegistrator.java",
+          "bytes": 2050,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bwcrossmod/GTpp/loader/RadioHatchCompat.java",
+          "bytes": 4755,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bwcrossmod/galacticgreg/VoidMinerLoader.java",
+          "bytes": 3753,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/bwcrossmod/tectech/TecTechResearchLoader.java",
+          "bytes": 4568,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/ggfab/ComponentRecipeLoader.java",
+          "bytes": 2308,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/ggfab/SingleUseToolRecipeLoader.java",
+          "bytes": 5592,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/api/recipe/ComponentAssemblyLineFrontend.java",
+          "bytes": 1431,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/api/recipe/ExtremeHeatExchangerBackend.java",
+          "bytes": 840,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/api/recipe/ExtremeHeatExchangerFrontend.java",
+          "bytes": 2441,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/api/recipe/ExtremeHeatExchangerRecipe.java",
+          "bytes": 1802,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/api/recipe/GoodGeneratorRecipeMaps.java",
+          "bytes": 3882,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/api/recipe/PreciseAssemblerFrontend.java",
+          "bytes": 1285,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/AchievementLoader.java",
+          "bytes": 66,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/ComponentAssemblyLineLoader.java",
+          "bytes": 86930,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/ComponentAssemblyLineMiscRecipes.java",
+          "bytes": 19483,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/FuelRecipeLoader.java",
+          "bytes": 9806,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/Loaders.java",
+          "bytes": 33817,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/NaquadahReworkRecipeLoader.java",
+          "bytes": 48870,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/NeutronActivatorLoader.java",
+          "bytes": 3383,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/RecipeLoader.java",
+          "bytes": 81330,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/loader/RecipeLoader2.java",
+          "bytes": 79394,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/main/GGConfigLoader.java",
+          "bytes": 5850,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/util/CrackRecipeAdder.java",
+          "bytes": 23588,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/goodgenerator/util/MyRecipeAdder.java",
+          "bytes": 1159,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/interfaces/IChunkLoader.java",
+          "bytes": 295,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/interfaces/IOreRecipeRegistrator.java",
+          "bytes": 666,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/interfaces/IRecipeMap.java",
+          "bytes": 1413,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/interfaces/internal/IGTCraftingRecipe.java",
+          "bytes": 171,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/interfaces/internal/IGTRecipeAdder.java",
+          "bytes": 157,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/interfaces/tileentity/IRecipeLockable.java",
+          "bytes": 832,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/interfaces/tileentity/RecipeMapWorkable.java",
+          "bytes": 1483,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/metatileentity/implementations/MTEBasicMachineWithRecipe.java",
+          "bytes": 25253,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/BasicUIProperties.java",
+          "bytes": 11649,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/BasicUIPropertiesBuilder.java",
+          "bytes": 12222,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/FindRecipeQuery.java",
+          "bytes": 5565,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/NEIRecipeProperties.java",
+          "bytes": 4285,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/NEIRecipePropertiesBuilder.java",
+          "bytes": 4530,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeCategories.java",
+          "bytes": 3768,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeCategory.java",
+          "bytes": 3446,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeCategorySetting.java",
+          "bytes": 710,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeLookupValidator.java",
+          "bytes": 34896,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMap.java",
+          "bytes": 8758,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMapBackend.java",
+          "bytes": 21859,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMapBackendProperties.java",
+          "bytes": 3490,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMapBackendPropertiesBuilder.java",
+          "bytes": 3781,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMapBuilder.java",
+          "bytes": 22572,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMapFrontend.java",
+          "bytes": 15734,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMaps.java",
+          "bytes": 90375,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/RecipeMetadataKey.java",
+          "bytes": 2649,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/ScannerHandlerRegistry.java",
+          "bytes": 2246,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/CheckRecipeResult.java",
+          "bytes": 751,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/CheckRecipeResultRegistry.java",
+          "bytes": 7570,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultInsufficientHeat.java",
+          "bytes": 2068,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultInsufficientMachineTier.java",
+          "bytes": 2001,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultInsufficientPower.java",
+          "bytes": 2035,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultInsufficientStartupPower.java",
+          "bytes": 3459,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultInsufficientStartupPowerBigInt.java",
+          "bytes": 1798,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultInsufficientVoltage.java",
+          "bytes": 2049,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultMissingApiaryFlowers.java",
+          "bytes": 2756,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultMissingItem.java",
+          "bytes": 1861,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/ResultNoValidOutputColor.java",
+          "bytes": 1803,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/SimpleCheckRecipeResult.java",
+          "bytes": 3754,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/check/SingleRecipeCheck.java",
+          "bytes": 30519,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTFluidLookupIngredient.java",
+          "bytes": 1018,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTItemDataLookupIngredient.java",
+          "bytes": 1731,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTItemStackLookupIngredient.java",
+          "bytes": 3108,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTOreDictLookupIngredient.java",
+          "bytes": 797,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTRecipeLookup.java",
+          "bytes": 5796,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTRecipeLookupBranch.java",
+          "bytes": 825,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTRecipeLookupBuilder.java",
+          "bytes": 13780,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/lookup/GTRecipeLookupIngredient.java",
+          "bytes": 827,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/AssemblerBackend.java",
+          "bytes": 1177,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/AssemblyLineFrontend.java",
+          "bytes": 2999,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/BECCreationFrontend.java",
+          "bytes": 1318,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/CauldronFrontend.java",
+          "bytes": 2694,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/ChiselBackend.java",
+          "bytes": 12716,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/DistillationTowerFrontend.java",
+          "bytes": 1233,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/EFRBlastingBackend.java",
+          "bytes": 1796,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/EFRSmokingBackend.java",
+          "bytes": 1793,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/FakeCuttingFrontend.java",
+          "bytes": 3235,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/FluidCannerBackend.java",
+          "bytes": 3071,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/FluidOnlyFrontend.java",
+          "bytes": 1038,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/FormingPressBackend.java",
+          "bytes": 3429,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/FoundryModuleFrontend.java",
+          "bytes": 3411,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/FuelBackend.java",
+          "bytes": 3236,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/FurnaceBackend.java",
+          "bytes": 1689,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/IsotopeDecayFrontend.java",
+          "bytes": 2609,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/LargeBoilerFuelBackend.java",
+          "bytes": 7062,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/LargeBoilerFuelFrontend.java",
+          "bytes": 841,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/LargeNEIFrontend.java",
+          "bytes": 2660,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/MicrowaveBackend.java",
+          "bytes": 6413,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/NACRecipeMapBackend.java",
+          "bytes": 1616,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/NonGTBackend.java",
+          "bytes": 1363,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/OilCrackerBackend.java",
+          "bytes": 2011,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PrinterBackend.java",
+          "bytes": 5024,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitClarifierFrontend.java",
+          "bytes": 2597,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitFlocculatorFrontend.java",
+          "bytes": 3104,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitLaserFrontend.java",
+          "bytes": 1791,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitOzonationFrontend.java",
+          "bytes": 1644,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitParticleExtractorFrontend.java",
+          "bytes": 2251,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitPhAdjustmentFrontend.java",
+          "bytes": 2969,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitPlasmaHeaterFrontend.java",
+          "bytes": 1483,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/PurificationUnitRecipeMapFrontend.java",
+          "bytes": 2270,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/QuantumComputerFrontend.java",
+          "bytes": 2056,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/RecyclerBackend.java",
+          "bytes": 1768,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/ReplicatorBackend.java",
+          "bytes": 4309,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/SpaceProjectFrontend.java",
+          "bytes": 4496,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/TranscendentPlasmaMixerFrontend.java",
+          "bytes": 2443,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/maps/UnpackagerBackend.java",
+          "bytes": 1835,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/BoardProcessingModuleFluidKey.java",
+          "bytes": 1076,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/CentrifugeRecipeKey.java",
+          "bytes": 614,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/CompressionTierKey.java",
+          "bytes": 1016,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/EmptyRecipeMetadataStorage.java",
+          "bytes": 1328,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/IRecipeMetadataStorage.java",
+          "bytes": 1005,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/NanochipAssemblyMatrixTierKey.java",
+          "bytes": 905,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/PCBFactoryTierKey.java",
+          "bytes": 893,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/PCBFactoryUpgrade.java",
+          "bytes": 92,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/PCBFactoryUpgradeKey.java",
+          "bytes": 1028,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/PurificationPlantBaseChanceKey.java",
+          "bytes": 1001,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/RecipeMetadataStorage.java",
+          "bytes": 1573,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/SimpleRecipeMetadataKey.java",
+          "bytes": 843,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/recipe/metadata/SolarFactoryRecipeDataKey.java",
+          "bytes": 875,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/FishPondRecipes.java",
+          "bytes": 3135,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/GTRecipe.java",
+          "bytes": 69839,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/GTRecipeBuilder.java",
+          "bytes": 43166,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/GTRecipeConstants.java",
+          "bytes": 36463,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/GTRecipeMapUtil.java",
+          "bytes": 9325,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/GTRecipeRegistrator.java",
+          "bytes": 46483,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/GTShapedRecipe.java",
+          "bytes": 4838,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/GTShapelessRecipe.java",
+          "bytes": 5981,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/recipe/QuantumComputerRecipeData.java",
+          "bytes": 519,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/recipe/Scanning.java",
+          "bytes": 833,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/recipe/Sievert.java",
+          "bytes": 345,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/recipe/SolarFactoryRecipeData.java",
+          "bytes": 661,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/api/util/tooltip/MarkdownTooltipLoader.java",
+          "bytes": 17939,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/GTCapesLoader.java",
+          "bytes": 16581,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/RecipeAdder.java",
+          "bytes": 285,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/gui/modularui/adapter/CheckRecipeResultAdapter.java",
+          "bytes": 1190,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/gui/modularui/singleblock/MTERecipeFilterGui.java",
+          "bytes": 6451,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/gui/modularui/widget/CheckRecipeResultSyncer.java",
+          "bytes": 1005,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/items/armor/MechArmorLoader.java",
+          "bytes": 2298,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/recipes/CALImprintRecipe.java",
+          "bytes": 4356,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/tileentities/automation/MTERecipeFilter.java",
+          "bytes": 5045,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/tileentities/machines/IRecipeProcessingAwareHatch.java",
+          "bytes": 1042,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/tileentities/machines/basic/MTEBasicMachineWithRecipeBuilder.java",
+          "bytes": 8258,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/common/tileentities/machines/multi/nanochip/util/ModuleRecipeInfo.java",
+          "bytes": 682,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/ExtraIcons.java",
+          "bytes": 3833,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/load/FissionFuelLoader.java",
+          "bytes": 47082,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/load/FuelLoader.java",
+          "bytes": 6840,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/load/GTItemIterator.java",
+          "bytes": 13498,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/load/MTERecipeLoader.java",
+          "bytes": 255070,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/materialprocessing/ProcessingConfig.java",
+          "bytes": 1280,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/materialprocessing/ProcessingModSupport.java",
+          "bytes": 572,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/materials/MaterialsInit.java",
+          "bytes": 639068,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/CoverLoader.java",
+          "bytes": 1680,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/GTAchievements.java",
+          "bytes": 38928,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/GTBeeDefinition.java",
+          "bytes": 182712,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/GTBees.java",
+          "bytes": 8470,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/GTBranchDefinition.java",
+          "bytes": 12149,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/bees/GTAlleleEffect.java",
+          "bytes": 2223,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/bees/GTEffectMachineBoost.java",
+          "bytes": 2440,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/bees/GTEffectTreeTwister.java",
+          "bytes": 3274,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/misc/bees/GTFlowers.java",
+          "bytes": 3471,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingAll.java",
+          "bytes": 929,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingBlock.java",
+          "bytes": 9902,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingBolt.java",
+          "bytes": 1167,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingCell.java",
+          "bytes": 26811,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingCircuit.java",
+          "bytes": 1147,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingCompressed.java",
+          "bytes": 843,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingCrop.java",
+          "bytes": 957,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingCrushedOre.java",
+          "bytes": 5764,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingCrystallized.java",
+          "bytes": 1830,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingDirty.java",
+          "bytes": 7598,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingDust.java",
+          "bytes": 33215,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingFineWire.java",
+          "bytes": 1167,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingFoil.java",
+          "bytes": 1732,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingGear.java",
+          "bytes": 5806,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingGem.java",
+          "bytes": 26961,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingIceOre.java",
+          "bytes": 1125,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingIngot.java",
+          "bytes": 10996,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingItem.java",
+          "bytes": 2201,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingLens.java",
+          "bytes": 5010,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingLog.java",
+          "bytes": 9474,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingNugget.java",
+          "bytes": 4364,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingOre.java",
+          "bytes": 12009,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingOrePoor.java",
+          "bytes": 2829,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingOreSmelting.java",
+          "bytes": 8723,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingPipe.java",
+          "bytes": 7618,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingPlank.java",
+          "bytes": 11760,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingPlate.java",
+          "bytes": 26330,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingPure.java",
+          "bytes": 2019,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingRawOre.java",
+          "bytes": 10983,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingRecycling.java",
+          "bytes": 1968,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingRotor.java",
+          "bytes": 3953,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingRound.java",
+          "bytes": 2181,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingScrew.java",
+          "bytes": 1884,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingShaping.java",
+          "bytes": 31058,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingSlab.java",
+          "bytes": 1232,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingStick.java",
+          "bytes": 8141,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingStickLong.java",
+          "bytes": 6581,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingStoneVarious.java",
+          "bytes": 815,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingToolHead.java",
+          "bytes": 80269,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingToolOther.java",
+          "bytes": 13306,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingTransforming.java",
+          "bytes": 8469,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/oreprocessing/ProcessingWire.java",
+          "bytes": 32669,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/BlockResistanceLoader.java",
+          "bytes": 1317,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/BookAndLootLoader.java",
+          "bytes": 13907,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/CraftingRecipeLoader.java",
+          "bytes": 119849,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/FoundryFakeModuleCostLoader.java",
+          "bytes": 7857,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/GTPostLoad.java",
+          "bytes": 23087,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/GTWorldgenloader.java",
+          "bytes": 877,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/ItemMaxStacksizeLoader.java",
+          "bytes": 7785,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/MachineRecipeLoader.java",
+          "bytes": 5990,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/MachineTooltipsLoader.java",
+          "bytes": 737,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/MissingMappingsHandler.java",
+          "bytes": 13200,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/PCBFactoryMaterialLoader.java",
+          "bytes": 793,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/PartP2PGTPower.java",
+          "bytes": 2734,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/PosteaTransformers.java",
+          "bytes": 12345,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/RecyclerBlacklistLoader.java",
+          "bytes": 4922,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/ScannerHandlerLoader.java",
+          "bytes": 14850,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/ScrapboxDropLoader.java",
+          "bytes": 8109,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/chains/AcidRecipes.java",
+          "bytes": 11127,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/chains/BauxiteRefineChain.java",
+          "bytes": 14219,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/chains/NaniteChain.java",
+          "bytes": 13343,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/chains/NetheriteRecipes.java",
+          "bytes": 23028,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/chains/PCBFactoryRecipes.java",
+          "bytes": 38708,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/chains/PurifiedWaterRecipes.java",
+          "bytes": 18406,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/AlloySmelterRecipes.java",
+          "bytes": 7907,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ArcFurnaceRecipes.java",
+          "bytes": 23382,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/AssemblerRecipes.java",
+          "bytes": 296718,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/AssemblyLineRecipes.java",
+          "bytes": 60553,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/AutoclaveRecipes.java",
+          "bytes": 14094,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/BECMetaMaterialRecipes.java",
+          "bytes": 25999,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/BECRecipes.java",
+          "bytes": 41950,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/BenderRecipes.java",
+          "bytes": 12360,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/BlastFurnaceRecipes.java",
+          "bytes": 33689,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/BreweryRecipes.java",
+          "bytes": 24890,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/CannerRecipes.java",
+          "bytes": 7752,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/CentrifugeRecipes.java",
+          "bytes": 40693,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ChemicalBathRecipes.java",
+          "bytes": 22726,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ChemicalRecipes.java",
+          "bytes": 266064,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/CircuitAssemblerRecipes.java",
+          "bytes": 12194,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/CokeOvenRecipes.java",
+          "bytes": 3267,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/CompressorRecipes.java",
+          "bytes": 14041,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/CuttingRecipes.java",
+          "bytes": 25420,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/DistilleryRecipes.java",
+          "bytes": 55388,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ElectrolyzerRecipes.java",
+          "bytes": 14928,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ElectromagneticSeparatorRecipes.java",
+          "bytes": 1229,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ExtractorRecipes.java",
+          "bytes": 8980,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ExtruderRecipes.java",
+          "bytes": 1906,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FakeCuttingRecipes.java",
+          "bytes": 4589,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FakeCuttingSpecialInfo.java",
+          "bytes": 1337,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FermenterRecipes.java",
+          "bytes": 10638,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FluidCannerRecipes.java",
+          "bytes": 3549,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FluidExtractorRecipes.java",
+          "bytes": 24207,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FluidHeaterRecipes.java",
+          "bytes": 3070,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FluidSolidifierRecipes.java",
+          "bytes": 15583,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ForgeHammerRecipes.java",
+          "bytes": 6414,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FormingPressRecipes.java",
+          "bytes": 15191,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FuelRecipes.java",
+          "bytes": 5015,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/FusionReactorRecipes.java",
+          "bytes": 15855,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ImplosionCompressorRecipes.java",
+          "bytes": 3183,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/LaserEngraverRecipes.java",
+          "bytes": 22204,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/LatheRecipes.java",
+          "bytes": 2591,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/MatterAmplifierRecipes.java",
+          "bytes": 926,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/MixerRecipes.java",
+          "bytes": 80151,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/NEIHiding.java",
+          "bytes": 530,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/OreDictUnification.java",
+          "bytes": 675,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/PackagerRecipes.java",
+          "bytes": 2325,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/PlasmaForgeRecipes.java",
+          "bytes": 9205,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/PrinterRecipes.java",
+          "bytes": 2668,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/Pulverizer.java",
+          "bytes": 40474,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/PyrolyseRecipes.java",
+          "bytes": 10359,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/RecipeRemover.java",
+          "bytes": 6526,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/SifterRecipes.java",
+          "bytes": 2461,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/SmelterRecipes.java",
+          "bytes": 3204,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ThaumcraftRecipes.java",
+          "bytes": 50489,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/ThermalCentrifugeRecipes.java",
+          "bytes": 1894,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/TranscendentPlasmaMixerRecipes.java",
+          "bytes": 8674,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/VacuumFreezerRecipes.java",
+          "bytes": 18628,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/WiremillRecipes.java",
+          "bytes": 1501,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/beamcrafter/BeamCrafterFrontend.java",
+          "bytes": 3002,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/beamcrafter/BeamCrafterMetadata.java",
+          "bytes": 3043,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/beamcrafter/BeamCrafterRecipes.java",
+          "bytes": 16947,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/beamcrafter/LargeHadronColliderFrontend.java",
+          "bytes": 4309,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/beamcrafter/LargeHadronColliderMetadata.java",
+          "bytes": 1235,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/postload/recipes/beamcrafter/LargeHadronColliderRecipes.java",
+          "bytes": 2962,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/GTPreLoad.java",
+          "bytes": 32877,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/LoaderCircuitBehaviors.java",
+          "bytes": 1068,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/LoaderGTBlockFluid.java",
+          "bytes": 130383,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/LoaderGTItemData.java",
+          "bytes": 27033,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/LoaderGTOreDictionary.java",
+          "bytes": 25527,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/LoaderMetaPipeEntities.java",
+          "bytes": 52150,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/LoaderMetaTileEntities.java",
+          "bytes": 486916,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/loaders/preload/LoaderOreProcessing.java",
+          "bytes": 3932,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/mixin/interfaces/accessors/IRecipeMutableAccess.java",
+          "bytes": 602,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/mixin/interfaces/accessors/ShapedOreRecipeAccessor.java",
+          "bytes": 145,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/nei/RecipeDisplayInfo.java",
+          "bytes": 2881,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gregtech/nei/dumper/RecipeLockingSupportDumper.java",
+          "bytes": 332,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/AlgaePondFrontend.java",
+          "bytes": 954,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/ChemicalPlantFrontend.java",
+          "bytes": 2251,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/GTPPRecipeMaps.java",
+          "bytes": 14884,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/MillingFrontend.java",
+          "bytes": 1263,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/QuantumForceTransformerFrontend.java",
+          "bytes": 1863,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/SpargeTowerFrontend.java",
+          "bytes": 2705,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/TGSFrontend.java",
+          "bytes": 6801,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/ThermalBoilerFrontend.java",
+          "bytes": 2066,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/api/recipe/ZhuhaiFrontend.java",
+          "bytes": 1053,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/handler/Recipes/DecayableRecipe.java",
+          "bytes": 1407,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/handler/Recipes/RegistrationHandler.java",
+          "bytes": 432,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/item/chemistry/RecipeLoaderAgriculturalChem.java",
+          "bytes": 9392,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/item/chemistry/RecipeLoaderCoalTar.java",
+          "bytes": 12495,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/item/chemistry/RecipeLoaderGenericChem.java",
+          "bytes": 21270,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/item/chemistry/RecipeLoaderMilling.java",
+          "bytes": 26005,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/item/chemistry/RecipeLoaderRocketFuels.java",
+          "bytes": 9750,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/item/wearable/WearableLoader.java",
+          "bytes": 481,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesBatteries.java",
+          "bytes": 1163,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesGeneral.java",
+          "bytes": 22785,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesGregTech.java",
+          "bytes": 94521,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesLaserEngraver.java",
+          "bytes": 6041,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesMachines.java",
+          "bytes": 9376,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesMachinesCustom.java",
+          "bytes": 50157,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesMachinesMulti.java",
+          "bytes": 49107,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesMachinesTiered.java",
+          "bytes": 65653,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesRareEarthProcessing.java",
+          "bytes": 6646,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/recipe/RecipesSeleniumProcessing.java",
+          "bytes": 4929,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/util/recipe/GTRecipeUtils.java",
+          "bytes": 4696,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/core/util/recipe/RecipeHashStrat.java",
+          "bytes": 4163,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/nei/DecayableRecipeHandler.java",
+          "bytes": 8598,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/plugin/agrichem/BioRecipes.java",
+          "bytes": 30074,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/recipes/CokeAndPyrolyseOven.java",
+          "bytes": 5341,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/recipes/RecipeRemovals.java",
+          "bytes": 435,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/GTPPBlocks.java",
+          "bytes": 1869,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenAlloySmelter.java",
+          "bytes": 2156,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenAssembler.java",
+          "bytes": 2294,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenBase.java",
+          "bytes": 222,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenBlastSmelter.java",
+          "bytes": 5968,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenBlastSmelterGTNH.java",
+          "bytes": 9463,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenDustGeneration.java",
+          "bytes": 11129,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenExtruder.java",
+          "bytes": 5607,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenFluids.java",
+          "bytes": 6731,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenFluorite.java",
+          "bytes": 6818,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenMaterialProcessing.java",
+          "bytes": 8172,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenMetalRecipe.java",
+          "bytes": 3169,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenMultisUsingFluidInsteadOfCells.java",
+          "bytes": 7196,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenOre.java",
+          "bytes": 17894,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenPlasma.java",
+          "bytes": 3566,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenPlates.java",
+          "bytes": 6929,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenRecycling.java",
+          "bytes": 12806,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/RecipeGenShapedCrafting.java",
+          "bytes": 6405,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderAlgaePond.java",
+          "bytes": 14404,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderChemicalSkips.java",
+          "bytes": 40108,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderGTNH.java",
+          "bytes": 3373,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderGlueLine.java",
+          "bytes": 20519,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderIndustrialRockBreaker.java",
+          "bytes": 3913,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderLFTR.java",
+          "bytes": 7129,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderMolecularTransformer.java",
+          "bytes": 7906,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderNuclear.java",
+          "bytes": 30698,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderNuclearFuelProcessing.java",
+          "bytes": 13346,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/gregtech/loaders/recipe/RecipeLoaderTreeFarm.java",
+          "bytes": 32188,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/ic2/recipe/RecipeIC2.java",
+          "bytes": 10650,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtPlusPlus/xmod/thermalfoundation/recipe/TFGregtechRecipes.java",
+          "bytes": 3827,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/loader/MachineLoader.java",
+          "bytes": 6707,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/loader/RecipeLoader.java",
+          "bytes": 535,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/nei/GasSiphonRecipeHandler.java",
+          "bytes": 11423,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/nei/SpacePumpModuleRecipeHandler.java",
+          "bytes": 10537,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/AsteroidData.java",
+          "bytes": 3958,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/GasSiphonRecipes.java",
+          "bytes": 3394,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/IGRecipeMaps.java",
+          "bytes": 3320,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/IG_RecipeAdder.java",
+          "bytes": 8988,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/MachineRecipes.java",
+          "bytes": 40779,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/ResultNoSpaceProject.java",
+          "bytes": 3586,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/SpaceMiningData.java",
+          "bytes": 2260,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/SpaceMiningRecipes.java",
+          "bytes": 38995,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/SpaceProjectRegistration.java",
+          "bytes": 5218,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/SpacePumpingRecipes.java",
+          "bytes": 4054,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/maps/SpaceAssemblerFrontend.java",
+          "bytes": 4443,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/maps/SpaceMiningFrontend.java",
+          "bytes": 3018,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhintergalactic/recipe/maps/SpaceResearchFrontend.java",
+          "bytes": 3450,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/api/recipe/LanthanidesRecipeMaps.java",
+          "bytes": 6014,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/common/tileentity/recipe/beamline/BeamlineRecipeLoader.java",
+          "bytes": 11651,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/common/tileentity/recipe/beamline/SourceChamberFrontend.java",
+          "bytes": 822,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/common/tileentity/recipe/beamline/SourceChamberMetadata.java",
+          "bytes": 3207,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/common/tileentity/recipe/beamline/TargetChamberFrontend.java",
+          "bytes": 3865,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/common/tileentity/recipe/beamline/TargetChamberMetadata.java",
+          "bytes": 4408,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/loader/BotRecipes.java",
+          "bytes": 9707,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/loader/MTELoader.java",
+          "bytes": 54,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/gtnhlanth/loader/RecipeLoader.java",
+          "bytes": 198629,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/Recipes.java",
+          "bytes": 6207,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/AlloySmelter.java",
+          "bytes": 988,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/Assembler.java",
+          "bytes": 12912,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/AssemblyLine.java",
+          "bytes": 12097,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/ChemicalReactor.java",
+          "bytes": 947,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/Crafting.java",
+          "bytes": 3984,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/FormingPress.java",
+          "bytes": 990,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/Mixer.java",
+          "bytes": 1640,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/ResearchableAssemblyLine.java",
+          "bytes": 6375,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kekztech/common/recipeLoaders/Unpackager.java",
+          "bytes": 8415,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/api/gui/HighTemperatureGasCooledReactorRecipeMapFrontend.java",
+          "bytes": 4587,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/ArcFurnaceElectrode.java",
+          "bytes": 13797,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/ArcFurnaceLoader.java",
+          "bytes": 4391,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/BlockLoader.java",
+          "bytes": 2134,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/DEFCRecipes.java",
+          "bytes": 15949,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/EIGBucketLoader.java",
+          "bytes": 1044,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/HTGRLoader.java",
+          "bytes": 20675,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/ItemLoader.java",
+          "bytes": 8780,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/MTLoader.java",
+          "bytes": 1455,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/MobHandlerLoader.java",
+          "bytes": 10279,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/RecipeLoader.java",
+          "bytes": 17494,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/TCLoader.java",
+          "bytes": 6337,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/block/defc/BlockDEFCCasing.java",
+          "bytes": 2010,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/block/kubablock/BlockProxy.java",
+          "bytes": 3859,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/block/kubablock/IProxyTileEntityProvider.java",
+          "bytes": 992,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/block/kubablock/KubaBlock.java",
+          "bytes": 7217,
+          "kind": "mod-source-recipe-loader"
+        },
+        {
+          "path": "GT5-Unofficial/src/main/java/kubatech/loaders/block/kubablock/KubaItemBlock.java",
+          "bytes": 2045,
+          "kind": "mod-source-recipe-loader"
+        }
+      ],
+      "recipeSignalCount": 545
+    },
+    {
+      "id": "sky-greg",
+      "name": "Sky Greg",
+      "gameType": "Skyblock GregTech CEu Modern modpack",
+      "minecraft": "1.20.1",
+      "loader": "Forge",
+      "latestVersion": "Sky Greg-2.7.1",
+      "publishedAt": "2026-05-03T17:48:50.237Z",
+      "sourceUrl": "https://www.curseforge.com/minecraft/modpacks/sky-greg/files/8033723",
+      "sourceKind": "curseforge-release-zip",
+      "notes": [
+        "CurseForge HTML is protected by a browser challenge, so this updater uses the public JSON file endpoint and CDN zip.",
+        "Sky Greg recipes and custom machines are mainly in KubeJS plus GTCEu config.",
+        "This pass indexes KubeJS/config candidates and counts recipe-like statements for future parser work."
+      ],
+      "indexedFiles": [
+        {
+          "path": "overrides/config/gtceu.yaml",
+          "bytes": 21394,
+          "kind": "config"
+        },
+        {
+          "path": "overrides/config/gtceuterminals.yaml",
+          "bytes": 1309,
+          "kind": "config"
+        },
+        {
+          "path": "overrides/config/exdeorum/compost_colors/gtceu.txt",
+          "bytes": 10772,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/buses.json",
+          "bytes": 523,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/coils.json",
+          "bytes": 1137,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/components.json",
+          "bytes": 912,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/default_theme.json",
+          "bytes": 218,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/energy_hatches.json",
+          "bytes": 1605,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/fluid_hatches.json",
+          "bytes": 1398,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/laser_hatches.json",
+          "bytes": 1668,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/maintenance_hatches.json",
+          "bytes": 868,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/muffler_hatches.json",
+          "bytes": 219,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/parallel_hatches.json",
+          "bytes": 338,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/substation_hatches.json",
+          "bytes": 643,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/gtceuterminal/wireless_hatches.json",
+          "bytes": 802,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/config/jei/recipe-category-sort-order.ini",
+          "bytes": 1781,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/emi/recipe/filters/alloy_smelting.json",
+          "bytes": 95,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/assets/emi/recipe/filters/chest_loot.json",
+          "bytes": 92,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/assets/emi/recipe/filters/dungeon.json",
+          "bytes": 92,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/assets/emi/recipe/filters/gem_cutting.json",
+          "bytes": 95,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/lang/en_us.json",
+          "bytes": 9198,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_input_hatch_4a/overlay_front.png",
+          "bytes": 306,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_input_hatch_4a/overlay_front_emissive.png",
+          "bytes": 262,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_output_hatch_16a/overlay_front.png",
+          "bytes": 401,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_output_hatch_16a/overlay_front_emissive.png",
+          "bytes": 354,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_output_hatch_4a/overlay_front.png",
+          "bytes": 312,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_output_hatch_4a/overlay_front_emissive.png",
+          "bytes": 263,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_output_hatch_64a/overlay_front.png",
+          "bytes": 478,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/energy_output_hatch_64a/overlay_front_emissive.png",
+          "bytes": 450,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/sterilizing_cleaning_maintenance_hatch/overlay_front.png",
+          "bytes": 250,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/sterilizing_cleaning_maintenance_hatch/overlay_front_emissive.png",
+          "bytes": 280,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/assets/gtceu/textures/block/machines/sterilizing_cleaning_maintenance_hatch/overlay_front_emissive.png.mcmeta",
+          "bytes": 77,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/CUSTOM_JEI_RECIPE_CATEGORIES/BASIC_FLUID_GENERATORS_JEI_RECIPES.js",
+          "bytes": 6132,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/CUSTOM_JEI_RECIPE_CATEGORIES/FLUID_CONDENSER_JEI_RECIPES.js",
+          "bytes": 6142,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/CUSTOM_JEI_RECIPE_CATEGORIES/HAMMERS_JEI_RECIPES.js",
+          "bytes": 15435,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/CUSTOM_JEI_RECIPE_CATEGORIES/INFINITE_BLOCKS_JEI_RECIPES.js",
+          "bytes": 10843,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/CUSTOM_JEI_RECIPE_CATEGORIES/SAPLING_GENERATOR_JEI_RECIPES.js",
+          "bytes": 5720,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/CUSTOM_JEI_RECIPE_CATEGORIES/SEED_GENERATOR_JEI_RECIPES.js",
+          "bytes": 6819,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/gtceu/celestial_harvester_launch_render backup with stack render.js",
+          "bytes": 28731,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/gtceu/celestial_harvester_launch_render backup.js",
+          "bytes": 11872,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/gtceu/celestial_harvester_launch_render.js",
+          "bytes": 26780,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/gtceu/woodworking_item_slide_render backup.js",
+          "bytes": 8360,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/gtceu/woodworking_item_slide_render full complete backup.js",
+          "bytes": 13681,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/gtceu/woodworking_item_slide_render perfect backup.js",
+          "bytes": 11432,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/client_scripts/gtceu/woodworking_item_slide_render.js",
+          "bytes": 13389,
+          "kind": "source"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/agon.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/azur.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/bitt.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/cray.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/factory.json",
+          "bytes": 1283,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/factory2.json",
+          "bytes": 1248,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/fort.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/glaxx.json",
+          "bytes": 914,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/iszm.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/jelt.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/korp.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/kryp.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/lair.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/lave.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/marble.json",
+          "bytes": 215,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/mint.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/myst.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/netherite_block.json",
+          "bytes": 1723,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/reds.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/reed.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/roen.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/sols.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/sync.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/tank.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/vect.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/vena.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zane.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zech.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zest.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zeta.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zion.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zkul.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zoea.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zome.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zone.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/ztyl.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/data/rechiseled/chiseling_recipes/zyth.json",
+          "bytes": 898,
+          "kind": "json-data"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/LOGGED_IN_MESSAGE.js",
+          "bytes": 249,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/LOOTJS.js",
+          "bytes": 536,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/MB_FTBQ_COOLDOWN.js",
+          "bytes": 3717,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/MISC_RECIPES.js",
+          "bytes": 24029,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/NETHERITE_SWAP.js",
+          "bytes": 21029,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/ORE_CRAFTING.js",
+          "bytes": 7075,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/QUEST_HOOKS.js",
+          "bytes": 3184,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/SPAWNER.js",
+          "bytes": 11224,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/TAGS.js",
+          "bytes": 25622,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/UNIFICATION.js",
+          "bytes": 48927,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/AAATEMPLATE.js",
+          "bytes": 80,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/DIM_STORAGE.js",
+          "bytes": 901,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/DRAWERS.js",
+          "bytes": 5532,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/EASY_TRADERS.js",
+          "bytes": 3012,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/ENDER_IO.js",
+          "bytes": 4606,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/ENDER_STORAGE.js",
+          "bytes": 1191,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/FARMERS_DELIGHT.js",
+          "bytes": 1358,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/GTCEU.js",
+          "bytes": 30789,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/KUBEJS.js",
+          "bytes": 4599,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/LASER_IO.js",
+          "bytes": 2127,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/MINECRAFT.js",
+          "bytes": 4549,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/MOB_GRINDING_UTILS.js",
+          "bytes": 2221,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/RESOURCES_FOR_DAYS.js",
+          "bytes": 2959,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/RFTOOLS.js",
+          "bytes": 2186,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/SIMPLE_RESOURCE_GENERATORS.js",
+          "bytes": 1774,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/SOPHISTICATED_BACKPACKS.js",
+          "bytes": 5039,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/STRICT_REMOVALS.js",
+          "bytes": 8317,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CRAFTING_TABLE_AND_REMOVALS/WIRELESS_CHARGERS.js",
+          "bytes": 1844,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MACHINES/CABLEMILL.js",
+          "bytes": 7321,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MACHINES/CARD_ASSEMBLER.js",
+          "bytes": 13558,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MACHINES/FIREBRICK_MIXER.js",
+          "bytes": 391,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/ADVANCED_GREENHOUSE.js",
+          "bytes": 17821,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/APOTHIC_CONDENSER.js",
+          "bytes": 75707,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/AUTO_COOKING_POT.js",
+          "bytes": 8883,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/AUTO_CUTTING_BOARD.js",
+          "bytes": 24663,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/BRONZE_BULK_SMELTER.js",
+          "bytes": 33034,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/CELESTIAL_HARVESTER.js",
+          "bytes": 5004,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/CERTUS_QUARTZ_CHARGER.js",
+          "bytes": 722,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/CRYOGENIC_DISTILLATION_TOWER.js",
+          "bytes": 611,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/DESULFURIZER.js",
+          "bytes": 1457,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/ELICITOR_RIMAE_IGNOTUS.js",
+          "bytes": 451,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/FUSION_ASSEMBLER.js",
+          "bytes": 22008,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/FUSION_REACTOR.js",
+          "bytes": 797,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/GLASS_BOX.js",
+          "bytes": 9241,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/GREENHOUSE.js",
+          "bytes": 17408,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/HYDROVOLCANISM_GENERATOR.js",
+          "bytes": 676,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/LARGE_INSCRIBER.js",
+          "bytes": 4427,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/LARGE_RESOURCE_GENERATOR.js",
+          "bytes": 8518,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/MEAT_BOX.js",
+          "bytes": 1268,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/NATURAL_FLUID_GENERATOR.js",
+          "bytes": 935,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/POWERED_ENCHANTER.js",
+          "bytes": 6926,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/PRIMITIVE_FARM.js",
+          "bytes": 16579,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/SIMULATION_ARENA.js",
+          "bytes": 14895,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/SOLAR_MULTIS.js",
+          "bytes": 642,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/STEEL_BLAST_FURNACE.js",
+          "bytes": 4168,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/CUSTOM_MULTIBLOCKS/WOODWORKING_STATION.js",
+          "bytes": 4419,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/ALLOY_SMELTER.js",
+          "bytes": 7933,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/ARC_FURNACE.js",
+          "bytes": 504,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/ASSEMBLER.js",
+          "bytes": 97349,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/ASSEMBLY_LINE.js",
+          "bytes": 1025,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/AUTOCLAVE.js",
+          "bytes": 6017,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/BENDER.js",
+          "bytes": 420,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/CANNER_BUCKETS.js",
+          "bytes": 39704,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/CENTRIFUGE.js",
+          "bytes": 419,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/CHEMICAL_BATH.js",
+          "bytes": 6326,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/CHEMICAL_REACTOR.js",
+          "bytes": 12197,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/CIRCUIT_ASSEMBLER.js",
+          "bytes": 3652,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/COMPRESSOR.js",
+          "bytes": 1437,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/CUTTER.js",
+          "bytes": 1310,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/EXTRACTOR.js",
+          "bytes": 1303,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/EXTRUDER.js",
+          "bytes": 1190,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/FLUID_SOLIDIFIER.js",
+          "bytes": 1293,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/FORGE_HAMMER.js",
+          "bytes": 741,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/IMPLOSION_COMPRESSOR.js",
+          "bytes": 1556,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/LARGE_CHEMICAL_REACTOR.js",
+          "bytes": 278,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/LASER_ENGRAVER.js",
+          "bytes": 1038,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/MACERATOR.js",
+          "bytes": 3309,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/MIXER.js",
+          "bytes": 6975,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/PYROLYSE_OVEN.js",
+          "bytes": 476,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/RESEARCH_STATION.js",
+          "bytes": 3132,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/ROCK_BREAKER.js",
+          "bytes": 9600,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/GREGTECH/STEAM_BOILER.js",
+          "bytes": 398,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/ADV_GENERATOR_FUELS.js",
+          "bytes": 1566,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/BOTANY_POTS.js",
+          "bytes": 5060,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/CHARGER.js",
+          "bytes": 397,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/COMPOSTER.js",
+          "bytes": 121,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/CUTTING_BOARD.js",
+          "bytes": 2760,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/ENCHANTER.js",
+          "bytes": 2163,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/FLUID_TANK.js",
+          "bytes": 536,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/INSCRIBER.js",
+          "bytes": 665,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/REACTION_CHAMBER.js",
+          "bytes": 944,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/SALVAGING.js",
+          "bytes": 480,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/SMELTING.js",
+          "bytes": 177,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/kubejs/server_scripts/CRAFTING_TYPES/OTHER/STONECUTTING.js",
+          "bytes": 94003,
+          "kind": "kubejs-server-script"
+        },
+        {
+          "path": "overrides/scripts/anvil.zs",
+          "bytes": 2092,
+          "kind": "crafttweaker-script"
+        },
+        {
+          "path": "overrides/scripts/cauldron.zs",
+          "bytes": 0,
+          "kind": "crafttweaker-script"
+        }
+      ],
+      "recipeSignalCount": 990
+    }
+  ]
+}

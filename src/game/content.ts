@@ -1,0 +1,573 @@
+import type { GameState, GatherTarget, GatherTargetId, Machine, MachineId, Quest, Recipe, ResourceId, Tool, ToolId } from './types'
+
+export const resourceLabels: Record<ResourceId, string> = {
+  log: 'Log',
+  plank: 'Plank',
+  stick: 'Stick',
+  woodenAxe: 'Wooden Axe',
+  stone: 'Stone',
+  crushedStone: 'Crushed Stone',
+  copperOre: 'Copper Shards',
+  tinOre: 'Tin Flecks',
+  coal: 'Coal Chunk',
+  clay: 'Clay Lump',
+  sand: 'Silica Sand',
+  rubberSap: 'Sticky Sap',
+  water: 'Water',
+  copperPlate: 'Copper Plate',
+  tinPlate: 'Tin Plate',
+  copperWire: 'Drawn Copper Wire',
+  bronzeBlend: 'Bronze Blend',
+  firebrick: 'Firebrick',
+  steamCasing: 'Riveted Steam Casing',
+  basicBoard: 'Pressed Board',
+  conductiveWire: 'Insulated Wire',
+  primitiveCircuit: 'Clicker Circuit',
+}
+
+export const tools: Record<ToolId, Tool> = {
+  bareHand: {
+    id: 'bareHand',
+    name: 'Bare Hand',
+    description: 'Slow, stubborn, and good enough for the first tree.',
+    damageByTarget: { tree: 1 },
+  },
+  woodenAxe: {
+    id: 'woodenAxe',
+    name: 'Wooden Axe',
+    description: 'A crude edge that makes trees stop arguing so much.',
+    damageByTarget: { tree: 3 },
+  },
+}
+
+export const gatherTargets: Record<GatherTargetId, GatherTarget> = {
+  tree: {
+    id: 'tree',
+    name: 'Tree',
+    description: 'Punch the trunk until a log breaks free.',
+    hardness: 5,
+    drops: [{ id: 'log', amount: 1 }],
+    preferredTool: 'woodenAxe',
+  },
+}
+
+export const machines: Record<MachineId, Machine> = {
+  workbench: {
+    id: 'workbench',
+    name: 'Block Bench',
+    description: 'A scarred table for early hand work.',
+    tier: 'manual',
+  },
+  furnace: {
+    id: 'furnace',
+    name: 'Brick Furnace',
+    description: 'Turns ugly piles into slightly less ugly parts.',
+    tier: 'bronze',
+  },
+  steamBoiler: {
+    id: 'steamBoiler',
+    name: 'Small Steam Boiler',
+    description: 'Pressure, heat, and a worrying little whistle.',
+    tier: 'steam',
+  },
+  steamHammer: {
+    id: 'steamHammer',
+    name: 'Steam Hammer',
+    description: 'Makes plates without asking your thumb for permission.',
+    tier: 'steam',
+  },
+  steamGrinder: {
+    id: 'steamGrinder',
+    name: 'Steam Grinder',
+    description: 'Chews stone and ore into workable feedstock.',
+    tier: 'steam',
+  },
+  steamAssembler: {
+    id: 'steamAssembler',
+    name: 'Steam Assembler',
+    description: 'Bolts little nonsense parts into useful nonsense.',
+    tier: 'steam',
+  },
+  lvGenerator: {
+    id: 'lvGenerator',
+    name: 'Low-Voltage Dynamo',
+    description: 'The first real current. Tiny, proud, and hungry.',
+    tier: 'lv',
+  },
+  slowOreTap: {
+    id: 'slowOreTap',
+    name: 'Slow Ore Tap',
+    description: 'Late-LV teaser automation. It barely works, which means it works.',
+    tier: 'lv',
+    produces: [
+      { id: 'stone', amount: 2 },
+      { id: 'copperOre', amount: 1 },
+      { id: 'tinOre', amount: 1 },
+    ],
+    consumes: [{ id: 'coal', amount: 1 }],
+    intervalMs: 30000,
+    unlockedBy: 'firstCurrent',
+  },
+}
+
+export const recipes: Recipe[] = [
+  {
+    id: 'craft_planks',
+    name: 'Split Log into Planks',
+    description: 'Break one log into simple boards.',
+    tier: 'manual',
+    durationMs: 900,
+    inputs: [{ id: 'log', amount: 1 }],
+    outputs: [{ id: 'plank', amount: 4 }],
+    unlockedBy: 'punchTree',
+  },
+  {
+    id: 'craft_sticks',
+    name: 'Carve Sticks',
+    description: 'Thin planks into handles for early tools.',
+    tier: 'manual',
+    durationMs: 800,
+    inputs: [{ id: 'plank', amount: 2 }],
+    outputs: [{ id: 'stick', amount: 4 }],
+    unlockedBy: 'craftPlanks',
+  },
+  {
+    id: 'craft_wooden_axe',
+    name: 'Craft Wooden Axe',
+    description: 'A first tool. Not fancy, but the tree will notice.',
+    tier: 'manual',
+    durationMs: 1400,
+    inputs: [
+      { id: 'plank', amount: 3 },
+      { id: 'stick', amount: 2 },
+    ],
+    outputs: [{ id: 'woodenAxe', amount: 1 }],
+    unlockedBy: 'craftSticks',
+  },
+  {
+    id: 'crush_stone',
+    name: 'Crush Stone',
+    description: 'Smash rock into feedstock by hand.',
+    tier: 'manual',
+    durationMs: 1800,
+    inputs: [{ id: 'stone', amount: 2 }],
+    outputs: [{ id: 'crushedStone', amount: 1 }],
+    unlockedBy: 'firstDirt',
+  },
+  {
+    id: 'build_workbench',
+    name: 'Build Block Bench',
+    description: 'The first proper crafting surface.',
+    tier: 'manual',
+    durationMs: 2500,
+    inputs: [{ id: 'stone', amount: 12 }],
+    outputs: [],
+    machineOutputs: [{ id: 'workbench', amount: 1 }],
+    unlockedBy: 'firstDirt',
+  },
+  {
+    id: 'build_furnace',
+    name: 'Build Brick Furnace',
+    description: 'A hot box for early alloys and bricks.',
+    tier: 'bronze',
+    durationMs: 5000,
+    inputs: [
+      { id: 'stone', amount: 18 },
+      { id: 'clay', amount: 8 },
+      { id: 'coal', amount: 4 },
+    ],
+    outputs: [],
+    machineOutputs: [{ id: 'furnace', amount: 1 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'copperAndTin',
+  },
+  {
+    id: 'firebrick',
+    name: 'Bake Firebrick',
+    description: 'Heat-hardened brick for primitive pressure vessels.',
+    tier: 'bronze',
+    durationMs: 4500,
+    inputs: [
+      { id: 'clay', amount: 2 },
+      { id: 'sand', amount: 1 },
+      { id: 'coal', amount: 1 },
+    ],
+    outputs: [{ id: 'firebrick', amount: 2 }],
+    requiredMachine: 'furnace',
+    unlockedBy: 'copperAndTin',
+  },
+  {
+    id: 'bronze_blend',
+    name: 'Mix Bronze Blend',
+    description: 'Three copper, one tin, much better machinery.',
+    tier: 'bronze',
+    durationMs: 3500,
+    inputs: [
+      { id: 'copperOre', amount: 3 },
+      { id: 'tinOre', amount: 1 },
+    ],
+    outputs: [{ id: 'bronzeBlend', amount: 2 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'copperAndTin',
+  },
+  {
+    id: 'copper_plate',
+    name: 'Hand-Hammer Copper Plate',
+    description: 'Flatten copper into a useful plate. Your wrist will remember this.',
+    tier: 'bronze',
+    durationMs: 5500,
+    inputs: [{ id: 'copperOre', amount: 2 }],
+    outputs: [{ id: 'copperPlate', amount: 1 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'copperAndTin',
+  },
+  {
+    id: 'tin_plate',
+    name: 'Hand-Hammer Tin Plate',
+    description: 'Soft tin sheets for early electrical tricks.',
+    tier: 'bronze',
+    durationMs: 4500,
+    inputs: [{ id: 'tinOre', amount: 2 }],
+    outputs: [{ id: 'tinPlate', amount: 1 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'copperAndTin',
+  },
+  {
+    id: 'copper_wire',
+    name: 'Hand-Draw Copper Wire',
+    description: 'Pull copper plate into rough wire.',
+    tier: 'bronze',
+    durationMs: 4000,
+    inputs: [{ id: 'copperPlate', amount: 1 }],
+    outputs: [{ id: 'copperWire', amount: 2 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'copperAndTin',
+  },
+  {
+    id: 'steam_casing',
+    name: 'Rivet Steam Casing',
+    description: 'A chunky casing for steam machines.',
+    tier: 'steam',
+    durationMs: 6500,
+    inputs: [
+      { id: 'bronzeBlend', amount: 4 },
+      { id: 'firebrick', amount: 4 },
+      { id: 'copperPlate', amount: 2 },
+    ],
+    outputs: [{ id: 'steamCasing', amount: 1 }],
+    requiredMachine: 'furnace',
+    unlockedBy: 'bronzeAge',
+  },
+  {
+    id: 'build_boiler',
+    name: 'Build Steam Boiler',
+    description: 'A compact pressure source for the steam age.',
+    tier: 'steam',
+    durationMs: 8000,
+    inputs: [
+      { id: 'steamCasing', amount: 1 },
+      { id: 'firebrick', amount: 6 },
+      { id: 'copperPlate', amount: 2 },
+    ],
+    outputs: [],
+    machineOutputs: [{ id: 'steamBoiler', amount: 1 }],
+    requiredMachine: 'furnace',
+    unlockedBy: 'bronzeAge',
+  },
+  {
+    id: 'build_steam_hammer',
+    name: 'Build Steam Hammer',
+    description: 'The first machine that feels like progress.',
+    tier: 'steam',
+    durationMs: 9000,
+    inputs: [
+      { id: 'steamCasing', amount: 1 },
+      { id: 'bronzeBlend', amount: 6 },
+      { id: 'copperPlate', amount: 2 },
+    ],
+    outputs: [],
+    machineInputs: [{ id: 'steamBoiler', amount: 1 }],
+    machineOutputs: [{ id: 'steamHammer', amount: 1 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'pressureProgress',
+  },
+  {
+    id: 'build_steam_grinder',
+    name: 'Build Steam Grinder',
+    description: 'Slow, loud, and extremely useful.',
+    tier: 'steam',
+    durationMs: 9000,
+    inputs: [
+      { id: 'steamCasing', amount: 1 },
+      { id: 'crushedStone', amount: 8 },
+      { id: 'copperPlate', amount: 2 },
+    ],
+    outputs: [],
+    machineInputs: [{ id: 'steamBoiler', amount: 1 }],
+    machineOutputs: [{ id: 'steamGrinder', amount: 1 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'pressureProgress',
+  },
+  {
+    id: 'build_steam_assembler',
+    name: 'Build Steam Assembler',
+    description: 'A clanking table that can finally make proper boards.',
+    tier: 'steam',
+    durationMs: 10000,
+    inputs: [
+      { id: 'steamCasing', amount: 1 },
+      { id: 'copperWire', amount: 6 },
+      { id: 'tinPlate', amount: 2 },
+    ],
+    outputs: [],
+    machineInputs: [{ id: 'steamBoiler', amount: 1 }],
+    machineOutputs: [{ id: 'steamAssembler', amount: 1 }],
+    requiredMachine: 'workbench',
+    unlockedBy: 'steamWorkshop',
+  },
+  {
+    id: 'basic_board',
+    name: 'Press Basic Board',
+    description: 'A board blank for your first current-bearing part.',
+    tier: 'steam',
+    durationMs: 6000,
+    inputs: [
+      { id: 'rubberSap', amount: 3 },
+      { id: 'sand', amount: 2 },
+      { id: 'copperPlate', amount: 1 },
+    ],
+    outputs: [{ id: 'basicBoard', amount: 1 }],
+    requiredMachine: 'steamAssembler',
+    unlockedBy: 'steamWorkshop',
+  },
+  {
+    id: 'conductive_wire',
+    name: 'Wrap Conductive Wire',
+    description: 'Copper wire with sticky insulation.',
+    tier: 'steam',
+    durationMs: 4500,
+    inputs: [
+      { id: 'copperWire', amount: 2 },
+      { id: 'rubberSap', amount: 2 },
+    ],
+    outputs: [{ id: 'conductiveWire', amount: 2 }],
+    requiredMachine: 'steamAssembler',
+    unlockedBy: 'steamWorkshop',
+  },
+  {
+    id: 'primitive_circuit',
+    name: 'Assemble Clicker Circuit',
+    description: 'Your first useful low-voltage control part.',
+    tier: 'lv',
+    durationMs: 9000,
+    inputs: [
+      { id: 'basicBoard', amount: 1 },
+      { id: 'conductiveWire', amount: 4 },
+      { id: 'tinPlate', amount: 1 },
+    ],
+    outputs: [{ id: 'primitiveCircuit', amount: 1 }],
+    requiredMachine: 'steamAssembler',
+    unlockedBy: 'steamWorkshop',
+  },
+  {
+    id: 'build_lv_generator',
+    name: 'Build Low-Voltage Dynamo',
+    description: 'A tiny machine heart for the next era.',
+    tier: 'lv',
+    durationMs: 12000,
+    inputs: [
+      { id: 'primitiveCircuit', amount: 1 },
+      { id: 'steamCasing', amount: 2 },
+      { id: 'copperWire', amount: 8 },
+      { id: 'coal', amount: 8 },
+    ],
+    outputs: [],
+    machineOutputs: [{ id: 'lvGenerator', amount: 1 }],
+    requiredMachine: 'steamAssembler',
+    unlockedBy: 'steamWorkshop',
+  },
+]
+
+export const quests: Quest[] = [
+  {
+    id: 'punchTree',
+    chapter: 'First Tree',
+    title: 'Punch a log loose',
+    description: 'Hit the tree until one full log drops into your inventory.',
+    requirements: {
+      resources: [{ id: 'log', amount: 1 }],
+    },
+    rewards: {
+      unlocks: ['craftPlanks'],
+    },
+  },
+  {
+    id: 'craftPlanks',
+    chapter: 'First Tree',
+    title: 'Split logs into planks',
+    description: 'Turn rough logs into useful boards.',
+    requirements: {
+      resources: [{ id: 'plank', amount: 4 }],
+    },
+    rewards: {
+      unlocks: ['craftSticks'],
+    },
+  },
+  {
+    id: 'craftSticks',
+    chapter: 'First Tool',
+    title: 'Carve sticks',
+    description: 'Tools need handles before they can become helpful.',
+    requirements: {
+      resources: [{ id: 'stick', amount: 4 }],
+    },
+    rewards: {
+      unlocks: ['craftAxe'],
+    },
+  },
+  {
+    id: 'craftAxe',
+    chapter: 'First Tool',
+    title: 'Make a wooden axe',
+    description: 'Three planks and two sticks become your first speed upgrade.',
+    requirements: {
+      resources: [{ id: 'woodenAxe', amount: 1 }],
+    },
+    rewards: {
+      unlocks: ['chopFaster'],
+    },
+  },
+  {
+    id: 'chopFaster',
+    chapter: 'First Tool',
+    title: 'Chop with the axe',
+    description: 'Use the wooden axe to break a second log faster.',
+    requirements: {
+      resources: [{ id: 'log', amount: 2 }],
+    },
+    rewards: {
+      resources: [{ id: 'plank', amount: 2 }],
+    },
+  },
+  {
+    id: 'firstDirt',
+    chapter: 'First Dirt Under Your Nails',
+    title: 'Gather a rough starter pile',
+    description: 'Stone and coal are enough to begin making ugly tools.',
+    requirements: {
+      resources: [
+        { id: 'stone', amount: 12 },
+        { id: 'coal', amount: 4 },
+      ],
+    },
+    rewards: {
+      resources: [{ id: 'clay', amount: 4 }],
+      unlocks: ['copperAndTin'],
+    },
+  },
+  {
+    id: 'copperAndTin',
+    chapter: 'Copper and Tin',
+    title: 'Find the soft metals',
+    description: 'Copper and tin unlock the first real progression knot.',
+    requirements: {
+      resources: [
+        { id: 'copperOre', amount: 12 },
+        { id: 'tinOre', amount: 6 },
+      ],
+      machines: [{ id: 'workbench', amount: 1 }],
+    },
+    rewards: {
+      resources: [{ id: 'sand', amount: 6 }],
+      unlocks: ['bronzeAge'],
+    },
+  },
+  {
+    id: 'bronzeAge',
+    chapter: 'Bronze Age',
+    title: 'Bake bricks and blend bronze',
+    description: 'The first machines need pressure-safe parts.',
+    requirements: {
+      resources: [
+        { id: 'bronzeBlend', amount: 4 },
+        { id: 'firebrick', amount: 6 },
+      ],
+      machines: [{ id: 'furnace', amount: 1 }],
+    },
+    rewards: {
+      resources: [{ id: 'copperOre', amount: 6 }],
+      unlocks: ['pressureProgress'],
+    },
+  },
+  {
+    id: 'pressureProgress',
+    chapter: 'Pressure Makes Progress',
+    title: 'Build a boiler and casing',
+    description: 'Steam is the bridge between tapping rocks and controlling current.',
+    requirements: {
+      resources: [{ id: 'steamCasing', amount: 1 }],
+      machines: [{ id: 'steamBoiler', amount: 1 }],
+    },
+    rewards: {
+      resources: [
+        { id: 'rubberSap', amount: 8 },
+        { id: 'water', amount: 8 },
+      ],
+      unlocks: ['steamWorkshop'],
+    },
+  },
+  {
+    id: 'steamWorkshop',
+    chapter: 'Steam Workshop',
+    title: 'Set up the clanking workshop',
+    description: 'Hammer, grinder, assembler: now the pile can become a line.',
+    requirements: {
+      machines: [
+        { id: 'steamHammer', amount: 1 },
+        { id: 'steamGrinder', amount: 1 },
+        { id: 'steamAssembler', amount: 1 },
+      ],
+    },
+    rewards: {
+      resources: [{ id: 'tinOre', amount: 10 }],
+      unlocks: ['firstCurrent'],
+    },
+  },
+  {
+    id: 'firstCurrent',
+    chapter: 'First Current',
+    title: 'Make a circuit and a dynamo',
+    description: 'Your first current unlocks painfully slow automation.',
+    requirements: {
+      resources: [{ id: 'primitiveCircuit', amount: 1 }],
+      machines: [{ id: 'lvGenerator', amount: 1 }],
+    },
+    rewards: {
+      machines: [{ id: 'slowOreTap', amount: 1 }],
+    },
+  },
+]
+
+export const initialResources: Record<ResourceId, number> = Object.keys(resourceLabels).reduce(
+  (resources, id) => ({ ...resources, [id]: 0 }),
+  {} as Record<ResourceId, number>,
+)
+
+export const initialMachines: Record<MachineId, number> = Object.keys(machines).reduce(
+  (builtMachines, id) => ({ ...builtMachines, [id]: 0 }),
+  {} as Record<MachineId, number>,
+)
+
+export function createInitialState(now = Date.now()): GameState {
+  return {
+    version: 1,
+    resources: { ...initialResources },
+    machines: { ...initialMachines },
+    completedQuests: [],
+    unlockedQuests: ['punchTree'],
+    activeCrafts: [],
+    gatherProgress: {},
+    machineProgress: {},
+    lastSavedAt: now,
+  }
+}
