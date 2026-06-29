@@ -2955,6 +2955,11 @@ button.craft-output:disabled {
   padding: 5px 8px;
 }
 
+.hit-button {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
 .icon-button {
   min-width: 38px;
 }
@@ -3032,6 +3037,8 @@ button.craft-output:disabled {
   border-right-color: #6f6f6f;
   box-shadow: 0 3px 0 #2f2f2f;
   padding: 8px;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .mine-face {
