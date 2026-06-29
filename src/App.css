@@ -3156,15 +3156,64 @@ button.craft-output:disabled {
   word-break: normal;
 }
 
+.break-stats .stat-tool {
+  align-items: center;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: 28px minmax(0, 1fr);
+}
+
+.stat-tool-icon {
+  align-items: center;
+  background: #8d8d8d;
+  border: 2px solid #e8e8e8;
+  border-bottom-color: #4f4f4f;
+  border-radius: 0;
+  border-right-color: #4f4f4f;
+  display: grid;
+  height: 28px;
+  justify-items: center;
+  padding: 2px;
+  position: relative;
+  width: 28px;
+}
+
+.stat-tool-icon .pixel-icon,
+.stat-drop-icon .pixel-icon {
+  height: 20px;
+  width: 20px;
+}
+
+.stat-tool-icon .durability-bar {
+  bottom: 1px;
+  left: 2px;
+  right: 2px;
+}
+
+.bare-hand-mark {
+  background:
+    linear-gradient(90deg, transparent 0 28%, #8f5a47 28% 40%, transparent 40% 48%, #8f5a47 48% 60%, transparent 60%),
+    linear-gradient(180deg, #d39a70 0 45%, #8f5a47 46% 100%);
+  display: block;
+  height: 18px;
+  width: 16px;
+}
+
 .break-stats .stat-drop-item {
+  align-items: center;
   display: grid;
   gap: 2px;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   min-width: 0;
+}
+
+.break-stats .stat-drop-icon {
+  grid-row: span 2;
 }
 
 .break-stats .stat-drop-count {
   font-size: 0.72rem;
+  line-height: 1;
   min-width: 0;
 }
 

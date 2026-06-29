@@ -1014,6 +1014,7 @@ function App() {
               const progress = state.gatherProgress[targetId] ?? 0
               const tool = getBestToolForTarget(state, targetId)
               const damage = tool.damageByTarget[targetId] ?? 0
+              const toolResource = tool.id === 'bareHand' ? null : (tool.id as ResourceId)
               const remainingHp = Math.max(0, target.maxHp - progress)
               const progressPercent = Math.min(100, (progress / target.maxHp) * 100)
               const targetFloats = floatTexts.filter((floatText) => floatText.targetId === targetId)
@@ -1041,14 +1042,31 @@ function App() {
                     <div className="break-stats">
                       <div className="stat-cell">
                         <span className="stat-label">Tool</span>
-                        <strong>{tool.name}</strong>
+                        <strong className="stat-tool">
+                          <span className={toolResource ? 'stat-tool-icon' : 'stat-tool-icon bare-hand'}>
+                            {toolResource ? (
+                              <>
+                                <PixelIcon id={toolResource} />
+                                <DurabilityBar state={state} id={toolResource} />
+                              </>
+                            ) : (
+                              <span className="bare-hand-mark" aria-hidden="true" />
+                            )}
+                          </span>
+                          <span>{tool.name}</span>
+                        </strong>
                       </div>
                       <div className="stat-cell stat-drop">
                         <span className="stat-label">Drop</span>
                         <strong>
                           {target.drops.map((drop) => (
                             <span className="stat-drop-item" key={drop.id}>
-                              <span className="stat-drop-count">{formatAmount(drop.amount)}</span>
+                              <span className="stat-drop-icon">
+                                <PixelIcon id={drop.id} />
+                              </span>
+                              <span className="stat-drop-count">
+                                +{formatAmount(drop.amount)} / {formatAmount(state.resources[drop.id])}
+                              </span>
                               <span className="stat-drop-name">{resourceLabels[drop.id]}</span>
                             </span>
                           ))}
