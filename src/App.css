@@ -1770,8 +1770,8 @@ button.craft-output:disabled {
 .terminal-crafting-compact {
   align-items: center;
   display: grid;
-  gap: 8px;
-  grid-template-columns: 130px 82px minmax(112px, 118px);
+  gap: 10px;
+  grid-template-columns: 180px 78px minmax(112px, 118px);
   justify-content: center;
   justify-items: center;
   margin: 0 auto;
@@ -1781,22 +1781,23 @@ button.craft-output:disabled {
 .terminal-craft-stack {
   align-items: center;
   display: grid;
-  gap: 6px;
+  gap: 8px;
   justify-items: center;
-  width: 130px;
+  width: 180px;
 }
 
 .pixel-grid {
-  gap: 2px;
-  grid-template-columns: repeat(3, 42px);
+  gap: 9px;
+  grid-template-columns: repeat(3, 54px);
   margin-top: 0;
   max-width: none;
 }
 
 .pixel-grid .craft-slot {
-  height: 42px;
-  min-height: 42px;
-  width: 42px;
+  height: 54px;
+  min-height: 54px;
+  touch-action: manipulation;
+  width: 54px;
 }
 
 .pixel-grid .craft-slot.ghost {
@@ -3559,6 +3560,42 @@ button.craft-output:disabled {
   .terminal-panel,
   .processing-panel {
     padding: 6px;
+  }
+
+  .terminal-crafting-compact {
+    align-items: start;
+    gap: 10px;
+    grid-template-columns: minmax(0, 190px) 62px;
+    justify-content: center;
+  }
+
+  .terminal-craft-stack {
+    width: min(190px, 100%);
+  }
+
+  .pixel-grid {
+    gap: 11px;
+    grid-template-columns: repeat(3, 54px);
+  }
+
+  .terminal-output-column {
+    grid-template-columns: 62px;
+    width: 62px;
+  }
+
+  .output-row {
+    gap: 4px;
+    grid-template-columns: 12px 46px;
+  }
+
+  .craft-arrow {
+    overflow: hidden;
+    width: 12px;
+  }
+
+  .batch-controls {
+    grid-column: 1 / -1;
+    max-width: 286px;
   }
 
   .break-stats {
