@@ -1,10 +1,15 @@
 .game-shell {
   display: grid;
   gap: 14px;
+  height: 100svh;
+  height: 100dvh;
   margin: 0 auto;
   max-width: 1080px;
   min-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: scroll;
   padding: 18px 14px 30px;
+  scrollbar-gutter: stable;
 }
 
 .game-header,
@@ -126,11 +131,11 @@
 }
 
 .page-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .page-tabs.wide-tabs {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .page-tabs button {
@@ -247,10 +252,34 @@
   left: 68%;
 }
 
+.float-layer .break-float {
+  background: #3b1f1f;
+  border: 2px solid #f0d7b0;
+  border-bottom-color: #120808;
+  border-radius: 0;
+  box-shadow: 2px 2px 0 #111;
+  color: #ffd0a0;
+  left: 36%;
+}
+
 .break-panel {
   display: grid;
   gap: 10px;
   margin-top: 10px;
+}
+
+.gather-panels {
+  display: grid;
+  gap: 10px;
+}
+
+.gather-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(30, 24, 13, 0.08);
+  min-width: 0;
+  padding: 12px;
 }
 
 .gather-targets {
@@ -303,20 +332,57 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.break-stats span {
+.break-stats > .stat-cell {
   background: var(--field);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 850;
+  line-height: 1.08;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 9px;
+  word-break: break-word;
 }
 
 .break-stats strong {
   color: var(--ink);
   display: block;
+  line-height: 1.12;
   margin-top: 2px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.stat-label {
+  display: block;
+  min-width: 0;
+}
+
+.stat-drop strong {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.stat-drop-item {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.stat-drop-count,
+.stat-drop-name {
+  min-width: 0;
+}
+
+.stat-drop-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hit-button {
@@ -818,6 +884,29 @@ button.craft-output:disabled {
   bottom: 2px;
 }
 
+.durability-bar {
+  background: #2b2b2b;
+  border: 1px solid #111;
+  bottom: 2px;
+  display: block;
+  height: 4px;
+  left: 2px;
+  position: absolute;
+  right: 2px;
+  z-index: 1;
+}
+
+.durability-bar > span {
+  background: #67a345;
+  display: block;
+  height: 100%;
+}
+
+.item-slot .durability-bar + .item-count,
+.item-slot:has(.durability-bar) .item-count {
+  bottom: 7px;
+}
+
 .pixel-icon {
   --p1: #9f9f9f;
   --p2: #686868;
@@ -853,12 +942,31 @@ button.craft-output:disabled {
 .pixel-stick span,
 .pixel-woodenAxe span,
 .pixel-woodenPickaxe span,
+.pixel-stoneAxe span,
+.pixel-stonePickaxe span,
+.pixel-ironAxe span,
+.pixel-ironPickaxe span,
+.pixel-stoneHammer span,
+.pixel-ironHammer span,
+.pixel-mortar span,
+.pixel-ironIngot span,
+.pixel-copperIngot span,
+.pixel-tinIngot span,
+.pixel-copperDust span,
+.pixel-tinDust span,
+.pixel-ironDust span,
+.pixel-bronzeIngot span,
 .pixel-copperWire span,
 .pixel-conductiveWire span,
 .pixel-cobblestone span,
-.pixel-crushedStone span,
+.pixel-crushedIronOre span,
+.pixel-crushedCopperOre span,
+.pixel-crushedTinOre span,
 .pixel-sand span,
-.pixel-bronzeBlend span {
+.pixel-bronzeBlend span,
+.pixel-gravel span,
+.pixel-flint span,
+.pixel-charcoal span {
   display: none;
 }
 
@@ -935,7 +1043,7 @@ button.craft-output:disabled {
 }
 
 .pixel-woodenAxe::before {
-  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  background: linear-gradient(90deg, #d2a05a, #5f3719);
   height: 5px;
   left: 4px;
   top: 12px;
@@ -945,9 +1053,9 @@ button.craft-output:disabled {
 
 .pixel-woodenAxe::after {
   background:
-    linear-gradient(90deg, #c9c9c9 0 58%, #767676 58%),
-    #a4a4a4;
-  clip-path: polygon(0 20%, 82% 0, 100% 42%, 72% 100%, 0 78%);
+    linear-gradient(90deg, #d7b76f 0 18%, transparent 18% 28%, #8a552d 28% 70%, #4c2c15 70%),
+    #b98a4a;
+  clip-path: polygon(0 20%, 78% 0, 100% 36%, 78% 78%, 32% 100%, 0 74%);
   height: 13px;
   left: 2px;
   top: 2px;
@@ -964,7 +1072,7 @@ button.craft-output:disabled {
 }
 
 .pixel-woodenPickaxe::before {
-  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  background: linear-gradient(90deg, #d2a05a, #5f3719);
   height: 5px;
   left: 4px;
   top: 12px;
@@ -973,12 +1081,160 @@ button.craft-output:disabled {
 }
 
 .pixel-woodenPickaxe::after {
+  background: linear-gradient(90deg, #d7b76f 0 24%, #6f4526 24% 42%, #bf8748 42% 100%);
+  clip-path: polygon(0 36%, 38% 8%, 100% 10%, 88% 34%, 44% 34%, 18% 78%);
+  height: 16px;
+  left: 1px;
+  top: 2px;
+  width: 24px;
+}
+
+.pixel-stoneAxe {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-stoneAxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(44deg);
+  width: 23px;
+}
+
+.pixel-stoneAxe::after {
+  background:
+    linear-gradient(90deg, #c9c9c9 0 58%, #767676 58%),
+    #a4a4a4;
+  clip-path: polygon(0 20%, 82% 0, 100% 42%, 72% 100%, 0 78%);
+  height: 13px;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+}
+
+.pixel-stonePickaxe {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-stonePickaxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(46deg);
+  width: 23px;
+}
+
+.pixel-stonePickaxe::after {
   background: linear-gradient(90deg, #c9c9c9 0 24%, #767676 24% 42%, #c9c9c9 42% 100%);
   clip-path: polygon(0 36%, 38% 8%, 100% 10%, 88% 34%, 44% 34%, 18% 78%);
   height: 16px;
   left: 1px;
   top: 2px;
   width: 24px;
+}
+
+.pixel-ironAxe {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironAxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(44deg);
+  width: 23px;
+}
+
+.pixel-ironAxe::after {
+  background:
+    linear-gradient(90deg, #e2e9eb 0 52%, #7a858b 52%),
+    #a8b2b8;
+  clip-path: polygon(0 18%, 84% 0, 100% 40%, 70% 100%, 0 78%);
+  height: 14px;
+  left: 1px;
+  top: 1px;
+  width: 17px;
+}
+
+.pixel-ironPickaxe {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironPickaxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(46deg);
+  width: 23px;
+}
+
+.pixel-ironPickaxe::after {
+  background: linear-gradient(90deg, #e2e9eb 0 24%, #7a858b 24% 42%, #d5dde0 42% 100%);
+  clip-path: polygon(0 34%, 38% 6%, 100% 8%, 90% 34%, 44% 34%, 18% 80%);
+  height: 17px;
+  left: 1px;
+  top: 1px;
+  width: 24px;
+}
+
+.pixel-stoneHammer,
+.pixel-ironHammer {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-stoneHammer::before,
+.pixel-ironHammer::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 13px;
+  transform: rotate(48deg);
+  width: 23px;
+}
+
+.pixel-stoneHammer::after,
+.pixel-ironHammer::after {
+  height: 12px;
+  left: 3px;
+  top: 3px;
+  width: 17px;
+}
+
+.pixel-stoneHammer::after {
+  background: linear-gradient(135deg, #c9c9c9 0 28%, #8c8e8b 28% 72%, #5a5d5d 72%);
+  box-shadow: inset -3px -2px 0 rgba(0, 0, 0, 0.22);
+  clip-path: polygon(0 18%, 92% 0, 100% 72%, 14% 100%);
+}
+
+.pixel-ironHammer::after {
+  background: linear-gradient(135deg, #e2e9eb 0 28%, #a8b2b8 28% 74%, #4f585e 74%);
+  box-shadow: inset -3px -2px 0 rgba(0, 0, 0, 0.22);
+  clip-path: polygon(0 14%, 94% 0, 100% 74%, 12% 100%);
 }
 
 .pixel-stone {
@@ -1026,17 +1282,39 @@ button.craft-output:disabled {
   width: 8px;
 }
 
-.pixel-crushedStone {
-  --p1: #8c8e8b;
-  --p2: #5a5d5d;
-  --p3: #c8cac5;
-  --p4: #343636;
+.pixel-gravel {
+  --p1: #878984;
+  --p2: #4f514f;
+  --p3: #c1c4bf;
+  --p4: #2f3130;
   background:
-    radial-gradient(circle at 28% 30%, #c8cac5 0 10%, transparent 11%),
-    radial-gradient(circle at 68% 34%, #5a5d5d 0 12%, transparent 13%),
-    radial-gradient(circle at 46% 70%, #8c8e8b 0 17%, transparent 18%),
-    radial-gradient(circle at 80% 78%, #343636 0 10%, transparent 11%);
+    radial-gradient(circle at 28% 34%, #c1c4bf 0 8%, transparent 9%),
+    radial-gradient(circle at 62% 28%, #878984 0 10%, transparent 11%),
+    radial-gradient(circle at 42% 70%, #4f514f 0 12%, transparent 13%),
+    radial-gradient(circle at 78% 70%, #a0a39d 0 8%, transparent 9%);
   box-shadow: none;
+}
+
+.pixel-flint {
+  --p1: #3a3e3f;
+  --p2: #171a1b;
+  --p3: #8a8f8f;
+  --p4: #080909;
+  background: linear-gradient(135deg, #8a8f8f 0 24%, #3a3e3f 24% 72%, #171a1b 72%);
+  clip-path: polygon(20% 4%, 78% 18%, 98% 52%, 60% 98%, 14% 80%, 0 36%);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.16);
+}
+
+.pixel-charcoal {
+  --p1: #2b2d2d;
+  --p2: #0d0e0f;
+  --p3: #5a5e5e;
+  --p4: #030303;
+  background:
+    radial-gradient(circle at 34% 34%, #5a5e5e 0 8%, transparent 9%),
+    radial-gradient(circle at 68% 64%, #3b3f3f 0 10%, transparent 11%),
+    linear-gradient(135deg, #2b2d2d, #030303);
+  clip-path: polygon(16% 8%, 74% 4%, 100% 42%, 76% 94%, 24% 88%, 0 36%);
 }
 
 .pixel-copperOre {
@@ -1049,6 +1327,26 @@ button.craft-output:disabled {
     radial-gradient(circle at 64% 58%, #b66c3e 0 10%, transparent 11%),
     linear-gradient(135deg, #8c8e8b, #343636);
   clip-path: polygon(14% 8%, 76% 4%, 98% 38%, 80% 88%, 38% 100%, 4% 66%);
+}
+
+.pixel-ironOre {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+  background:
+    radial-gradient(circle at 32% 30%, #d5dde0 0 8%, transparent 9%),
+    radial-gradient(circle at 66% 62%, #8f9aa0 0 10%, transparent 11%),
+    linear-gradient(135deg, #8c8e8b, #343636);
+  clip-path: polygon(12% 10%, 74% 4%, 98% 40%, 82% 86%, 40% 100%, 2% 64%);
+}
+
+.pixel-ironOre::before {
+  background: #4f585e;
+  height: 3px;
+  left: 7px;
+  top: 17px;
+  width: 12px;
 }
 
 .pixel-copperPlate,
@@ -1182,10 +1480,199 @@ button.craft-output:disabled {
   --p3: #dec279;
   --p4: #49331f;
   background:
-    radial-gradient(circle at 30% 42%, #dec279 0 10%, transparent 11%),
-    radial-gradient(circle at 62% 32%, #b66c3e 0 11%, transparent 12%),
-    radial-gradient(circle at 58% 70%, #7f898d 0 12%, transparent 13%);
+    radial-gradient(circle at 24% 70%, #73522f 0 7%, transparent 8%),
+    radial-gradient(circle at 38% 56%, #dec279 0 8%, transparent 9%),
+    radial-gradient(circle at 58% 66%, #b66c3e 0 8%, transparent 9%),
+    radial-gradient(circle at 70% 48%, #7f898d 0 6%, transparent 7%),
+    radial-gradient(circle at 50% 76%, #b7854c 0 9%, transparent 10%);
   box-shadow: none;
+}
+
+.pixel-mortar {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background:
+    radial-gradient(circle at 54% 62%, #5a5d5d 0 22%, transparent 23%),
+    linear-gradient(135deg, #c8cac5 0 20%, #8c8e8b 20% 80%, #5a5d5d 80%);
+  clip-path: polygon(12% 28%, 88% 28%, 78% 96%, 22% 96%);
+}
+
+.pixel-mortar::before {
+  background: linear-gradient(90deg, #c8cac5, #5a5d5d);
+  height: 5px;
+  left: 4px;
+  top: 5px;
+  transform: rotate(-32deg);
+  width: 20px;
+}
+
+.pixel-ironIngot,
+.pixel-copperIngot,
+.pixel-tinIngot,
+.pixel-bronzeIngot {
+  background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+  clip-path: polygon(12% 28%, 88% 28%, 100% 72%, 78% 94%, 22% 94%, 0 72%);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.22), inset -3px -3px 0 rgba(0, 0, 0, 0.22);
+}
+
+.pixel-ironIngot {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-copperIngot {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-tinIngot {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-bronzeIngot {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
+.pixel-copperDust,
+.pixel-tinDust,
+.pixel-ironDust {
+  background:
+    radial-gradient(circle at 26% 72%, var(--p2) 0 5%, transparent 6%),
+    radial-gradient(circle at 38% 58%, var(--p3) 0 6%, transparent 7%),
+    radial-gradient(circle at 52% 70%, var(--p1) 0 7%, transparent 8%),
+    radial-gradient(circle at 66% 56%, var(--p3) 0 5%, transparent 6%),
+    radial-gradient(circle at 74% 76%, var(--p2) 0 5%, transparent 6%);
+  box-shadow: none;
+}
+
+.pixel-copperDust::before,
+.pixel-tinDust::before,
+.pixel-ironDust::before {
+  background:
+    linear-gradient(90deg, transparent 0 12%, var(--p1) 12% 24%, transparent 24% 48%, var(--p3) 48% 60%, transparent 60% 78%, var(--p2) 78% 90%, transparent 90%),
+    linear-gradient(0deg, transparent 0 28%, var(--p2) 28% 40%, transparent 40% 68%, var(--p1) 68% 80%, transparent 80%);
+  height: 16px;
+  left: 5px;
+  top: 7px;
+  width: 17px;
+}
+
+.pixel-copperDust::after,
+.pixel-tinDust::after,
+.pixel-ironDust::after {
+  background: var(--p1);
+  height: 2px;
+  left: 8px;
+  top: 18px;
+  width: 12px;
+}
+
+.pixel-copperDust {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-tinDust {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-ironDust {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-crushedIronOre,
+.pixel-crushedCopperOre,
+.pixel-crushedTinOre {
+  background: linear-gradient(135deg, #c8cac5 0 18%, #8c8e8b 18% 72%, #4f5252 72%);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.24), inset 2px 2px 0 rgba(255, 255, 255, 0.18);
+  clip-path: polygon(14% 18%, 36% 4%, 70% 10%, 96% 38%, 88% 74%, 58% 98%, 20% 88%, 4% 52%);
+}
+
+.pixel-crushedIronOre {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-crushedIronOre::before {
+  background:
+    radial-gradient(circle at 28% 34%, #d5dde0 0 9%, transparent 10%),
+    radial-gradient(circle at 66% 62%, #8f9aa0 0 8%, transparent 9%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-crushedIronOre::after {
+  background: #4f585e;
+  height: 3px;
+  left: 7px;
+  top: 17px;
+  width: 12px;
+}
+
+.pixel-crushedCopperOre {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-crushedCopperOre::before {
+  background:
+    radial-gradient(circle at 34% 28%, #e19b61 0 9%, transparent 10%),
+    radial-gradient(circle at 72% 44%, #b66c3e 0 8%, transparent 9%),
+    radial-gradient(circle at 48% 74%, #68402e 0 7%, transparent 8%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-crushedCopperOre::after {
+  background: #e19b61;
+  height: 3px;
+  left: 5px;
+  top: 13px;
+  width: 14px;
+}
+
+.pixel-crushedTinOre {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-crushedTinOre::before {
+  background:
+    radial-gradient(circle at 26% 62%, #edf0ed 0 8%, transparent 9%),
+    radial-gradient(circle at 58% 26%, #c4c9ca 0 9%, transparent 10%),
+    radial-gradient(circle at 74% 70%, #7f898d 0 7%, transparent 8%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-crushedTinOre::after {
+  background: #edf0ed;
+  height: 12px;
+  left: 12px;
+  top: 6px;
+  width: 3px;
 }
 
 .pixel-steamCasing {
@@ -1254,6 +1741,10 @@ button.craft-output:disabled {
 
 .item-tooltip span {
   color: #d5d5d5;
+}
+
+.item-tooltip.empty {
+  visibility: hidden;
 }
 
 .item-drag-preview {
@@ -1408,20 +1899,21 @@ button.craft-output:disabled {
   border-radius: 0;
   border-right-color: #f2f2f2;
   display: grid;
-  gap: 4px;
-  padding: 4px;
+  gap: 3px;
+  padding: 3px;
   width: 100%;
 }
 
-.batch-step-row,
-.batch-action-row {
+.batch-step-row {
   display: grid;
   gap: 3px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .batch-action-row {
-  grid-template-columns: minmax(0, 1fr) 44px;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: minmax(0, 1fr) 36px;
 }
 
 .batch-step-row button,
@@ -1433,13 +1925,18 @@ button.craft-output:disabled {
   border-right-color: #5f5f5f;
   color: #272727;
   cursor: pointer;
-  font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
-  min-height: 28px;
-  padding: 2px 3px;
+  font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+  min-height: 26px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 1px 2px;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .batch-action-row button {
-  font-size: 0.64rem;
+  font-size: 0.52rem;
 }
 
 .batch-step-row button:disabled,
@@ -1457,22 +1954,28 @@ button.craft-output:disabled {
   border-right-color: #f3f3f3;
   color: #272727;
   display: grid;
-  gap: 3px;
+  gap: 2px;
   grid-template-columns: auto 1fr auto;
-  min-height: 28px;
-  padding: 2px 5px;
+  min-height: 24px;
+  min-width: 0;
+  padding: 1px 3px;
 }
 
 .batch-quantity span,
 .batch-quantity small {
   color: #4d4d4d;
-  font-size: 0.56rem;
+  font-size: 0.48rem;
   font-weight: 900;
+  line-height: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .batch-quantity strong {
-  font: 950 0.8rem "Courier New", ui-monospace, monospace;
+  font: 950 0.68rem "Courier New", ui-monospace, monospace;
   min-width: 0;
   overflow: hidden;
   text-align: center;
@@ -1486,7 +1989,7 @@ button.craft-output:disabled {
 }
 
 .compact-actions button,
-.equipment-drawer summary,
+.equipment-toggle,
 .machine-drawer summary {
   align-items: center;
   background: #9f9f9f;
@@ -1509,12 +2012,16 @@ button.craft-output:disabled {
   color: #272727;
 }
 
-.equipment-drawer summary,
+.equipment-drawer {
+  display: grid;
+  gap: 6px;
+}
+
+.equipment-toggle,
 .machine-drawer summary {
   list-style: none;
 }
 
-.equipment-drawer summary::-webkit-details-marker,
 .machine-drawer summary::-webkit-details-marker {
   display: none;
 }
@@ -1531,6 +2038,296 @@ button.craft-output:disabled {
   margin-top: 6px;
   min-width: 0;
   padding: 6px;
+}
+
+.equipment-drawer.closed .equipment-layout {
+  display: none;
+}
+
+.processing-panel {
+  background: #c7c7c7;
+  border: 3px solid #f2f2f2;
+  border-bottom-color: #6f6f6f;
+  border-radius: 0;
+  border-right-color: #6f6f6f;
+  box-shadow: 0 3px 0 #2f2f2f;
+  display: grid;
+  gap: 8px;
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 8px;
+  width: 100%;
+}
+
+.processing-head {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+}
+
+.processing-head h2 {
+  color: #2d2d2d;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 1rem;
+  line-height: 1;
+  margin: 0;
+}
+
+.place-machine-button {
+  background: #4a4a4a;
+  border: 2px solid #efefef;
+  border-bottom-color: #1f1f1f;
+  border-radius: 0;
+  border-right-color: #1f1f1f;
+  color: #fff;
+  cursor: pointer;
+  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 34px;
+  padding: 5px 8px;
+}
+
+.place-machine-button.active {
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+}
+
+.place-machine-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.processing-storage {
+  background: #b6b6b6;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  display: flex;
+  gap: 4px;
+  min-height: 48px;
+  overflow-x: auto;
+  padding: 4px;
+}
+
+.processing-storage .item-slot {
+  flex: 0 0 40px;
+}
+
+.furnace-storage {
+  min-height: 46px;
+  padding: 3px;
+}
+
+.factory-scroll {
+  background: #a8a8a8;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 6px;
+}
+
+.factory-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(8, 44px);
+  width: max-content;
+}
+
+.factory-cell {
+  align-items: center;
+  background: #8f8f8f;
+  border: 2px solid #747474;
+  border-bottom-color: #cfcfcf;
+  border-radius: 0;
+  border-right-color: #cfcfcf;
+  cursor: pointer;
+  display: grid;
+  height: 44px;
+  justify-content: center;
+  padding: 2px;
+  width: 44px;
+}
+
+.factory-cell > span {
+  background: rgba(60, 60, 60, 0.24);
+  display: block;
+  height: 16px;
+  width: 16px;
+}
+
+.factory-cell.placing {
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+}
+
+.factory-cell.occupied {
+  background: #777;
+  border-color: #efefef;
+  border-bottom-color: #4f4f4f;
+  border-right-color: #4f4f4f;
+}
+
+.furnace-modal {
+  background: #c7c7c7;
+  border: 3px solid #f2f2f2;
+  border-bottom-color: #6f6f6f;
+  border-radius: 0;
+  border-right-color: #6f6f6f;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 10px;
+  max-width: min(390px, calc(100vw - 20px));
+  padding: 10px;
+  width: 100%;
+}
+
+.furnace-interface {
+  align-items: center;
+  background: #b6b6b6;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 72px 1fr 72px;
+  justify-items: center;
+  padding: 12px;
+}
+
+.furnace-inputs {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.process-slot {
+  align-items: center;
+  background: #8d8d8d;
+  border: 2px solid #e8e8e8;
+  border-bottom-color: #4f4f4f;
+  border-radius: 0;
+  border-right-color: #4f4f4f;
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  height: 54px;
+  justify-items: center;
+  min-width: 54px;
+  padding: 3px;
+  position: relative;
+  width: 54px;
+}
+
+.process-slot-label {
+  color: #e7e7e7;
+  font: 900 0.56rem Inter, ui-sans-serif, system-ui, sans-serif;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.furnace-flame {
+  align-items: end;
+  background: #777;
+  border: 2px solid #555;
+  border-bottom-color: #cfcfcf;
+  border-right-color: #cfcfcf;
+  display: grid;
+  height: 28px;
+  overflow: hidden;
+  width: 24px;
+}
+
+.furnace-flame span {
+  background: linear-gradient(180deg, #ffe178, #d8692f);
+  display: block;
+  width: 100%;
+}
+
+.furnace-progress {
+  background: #8f8f8f;
+  border: 2px solid #666;
+  border-bottom-color: #e7e7e7;
+  border-right-color: #e7e7e7;
+  height: 14px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.furnace-progress span {
+  background: linear-gradient(90deg, #6da448, #d0c46a);
+  display: block;
+  height: 100%;
+}
+
+.process-quantity-panel {
+  background: #b6b6b6;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px;
+}
+
+.process-quantity-head {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 44px minmax(0, 1fr) 34px;
+  min-width: 0;
+}
+
+.process-quantity-head .item-slot {
+  height: 40px;
+  width: 40px;
+}
+
+.process-quantity-head h3 {
+  color: #272727;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 0.92rem;
+  line-height: 1;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.process-quantity-head > div > span {
+  color: #4d4d4d;
+  display: block;
+  font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+  margin-top: 3px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.process-quantity-head .icon-button {
+  border-radius: 0;
+  min-height: 30px;
+  min-width: 30px;
+}
+
+.process-quantity-controls {
+  width: 100%;
+}
+
+.furnace-help {
+  color: #3b3b3b;
+  font: 800 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.2;
+  margin: 0;
 }
 
 .equipment-column {
@@ -2095,6 +2892,27 @@ button.craft-output:disabled {
   padding: 8px;
 }
 
+.tap-panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.gather-panels {
+  gap: 8px;
+}
+
+.gather-panel {
+  background: #c7c7c7;
+  border: 3px solid #f2f2f2;
+  border-bottom-color: #6f6f6f;
+  border-radius: 0;
+  border-right-color: #6f6f6f;
+  box-shadow: 0 3px 0 #2f2f2f;
+  padding: 8px;
+}
+
 .mine-face {
   background: #b6b6b6;
   border: 2px solid #777;
@@ -2180,7 +2998,7 @@ button.craft-output:disabled {
   gap: 4px;
 }
 
-.break-stats span {
+.break-stats > .stat-cell {
   background: #9f9f9f;
   border: 2px solid #efefef;
   border-bottom-color: #5f5f5f;
@@ -2188,13 +3006,54 @@ button.craft-output:disabled {
   border-right-color: #5f5f5f;
   color: #3b3b3b;
   font-size: 0.66rem;
+  line-height: 1.08;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 5px;
   text-transform: uppercase;
+  word-break: break-word;
+}
+
+.break-stats .stat-label {
+  display: block;
+  line-height: 1;
+  min-width: 0;
 }
 
 .break-stats strong {
   color: #1f1f1f;
   font-size: 0.75rem;
+  line-height: 1.12;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.break-stats .stat-drop strong {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.break-stats .stat-drop-item {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.break-stats .stat-drop-count {
+  font-size: 0.72rem;
+  min-width: 0;
+}
+
+.break-stats .stat-drop-name {
+  font-size: 0.58rem;
+  line-height: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gather-warning {
@@ -2339,22 +3198,6 @@ button.craft-output:disabled {
   --m1: #8f5a47;
   --m2: #44251e;
   --m3: #d48747;
-}
-
-.machine-steamBoiler,
-.machine-steamHammer,
-.machine-steamGrinder,
-.machine-steamAssembler {
-  --m1: #9f8a55;
-  --m2: #4d4128;
-  --m3: #d6c579;
-}
-
-.machine-lvGenerator,
-.machine-slowOreTap {
-  --m1: #477b78;
-  --m2: #1d3c3d;
-  --m3: #8ed5cf;
 }
 
 .recipe-modal {
@@ -2521,6 +3364,37 @@ button.craft-output:disabled {
   gap: 4px;
 }
 
+.recipe-pattern-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(3, 34px);
+}
+
+.recipe-pattern-slot {
+  align-items: center;
+  aspect-ratio: 1;
+  background: #8d8d8d;
+  border: 2px solid #e8e8e8;
+  border-bottom-color: #4f4f4f;
+  border-right-color: #4f4f4f;
+  display: grid;
+  justify-items: center;
+  padding: 3px;
+  position: relative;
+}
+
+.recipe-pattern-slot.ghost {
+  background:
+    repeating-linear-gradient(135deg, rgba(35, 35, 35, 0.18) 0 4px, transparent 4px 8px),
+    #989898;
+  opacity: 0.62;
+}
+
+.recipe-pattern-slot .pixel-icon {
+  height: 24px;
+  width: 24px;
+}
+
 .missing-line,
 .recipe-notice {
   background: #9f9f9f;
@@ -2532,6 +3406,26 @@ button.craft-output:disabled {
   font-size: 0.72rem;
   margin: 0;
   padding: 5px 7px;
+}
+
+.mine-face p,
+.guide-card p,
+.machine-card p,
+.furnace-help,
+.missing-line,
+.recipe-notice,
+.process-slot-label,
+.equipment-label,
+.resource-pill > span:last-child,
+.recipe-detail h3,
+.guide-card h3,
+.machine-card h3 {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 :root {
@@ -2551,25 +3445,36 @@ button.craft-output:disabled {
   border-bottom-color: #6f6f6f;
   border-radius: 0;
   border-right-color: #6f6f6f;
-  bottom: max(8px, env(safe-area-inset-bottom));
-  box-shadow: 0 3px 0 #2f2f2f;
+  bottom: max(4px, env(safe-area-inset-bottom));
+  box-shadow: 0 3px 0 #2f2f2f, 0 -6px 0 rgba(32, 32, 32, 0.2);
   display: grid;
-  gap: 4px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  isolation: isolate;
   left: 50%;
-  padding: 4px;
+  padding: 3px;
   position: fixed;
   transform: translateX(-50%);
-  width: min(calc(100% - 16px), 760px);
+  width: min(calc(100% - 8px), 760px);
   z-index: 9;
 }
 
+.page-tabs::before {
+  background: #2f2f2f;
+  content: "";
+  inset: -3px -8px calc(-1 * max(8px, env(safe-area-inset-bottom))) -8px;
+  position: absolute;
+  z-index: -1;
+}
+
 .page-tabs.wide-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .page-tabs button {
   min-height: 36px;
+  min-width: 0;
+  padding: 4px 3px;
 }
 
 .game-header {
@@ -2609,7 +3514,7 @@ button.craft-output:disabled {
 
 @media (max-width: 430px) {
   .game-shell {
-    padding: 8px 8px calc(var(--bottom-nav-clearance) + 12px);
+    padding: 6px 4px calc(var(--bottom-nav-clearance) + 10px);
   }
 
   .status-grid {
@@ -2625,11 +3530,35 @@ button.craft-output:disabled {
   }
 
   .page-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .page-tabs button {
+    font-size: 0.66rem;
+    gap: 2px;
     justify-content: center;
+    line-height: 1;
+    min-height: 38px;
+    padding: 3px 2px;
+    text-align: center;
+  }
+
+  .page-tabs svg {
+    height: 14px;
+    width: 14px;
+  }
+
+  .game-header,
+  .terminal-panel,
+  .processing-panel,
+  .guide-page,
+  .gather-panel {
+    border-width: 2px;
+  }
+
+  .terminal-panel,
+  .processing-panel {
+    padding: 6px;
   }
 
   .break-stats {

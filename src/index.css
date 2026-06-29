@@ -25,12 +25,21 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
 body {
   background:
     linear-gradient(180deg, rgba(168, 100, 45, 0.18), transparent 260px),
     repeating-linear-gradient(90deg, rgba(32, 25, 17, 0.03) 0 1px, transparent 1px 18px),
     var(--paper);
   margin: 0;
+  overscroll-behavior: none;
 }
 
 button,

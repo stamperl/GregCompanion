@@ -20,25 +20,34 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import './App.css'
-import { gatherTargets, machines, recipes, resourceLabels, tools } from './game/content'
+import { fuelDefinitions, gatherTargets, machines, processRecipes, recipes, resourceLabels, tools } from './game/content'
 import {
+  availableResourceAmount,
+  availableUnplacedMachineCount,
   canCompleteQuest,
   canCraft,
+  collectProcessOutput,
   completeQuest,
   craftableQuantity,
   craftRecipeInstant,
   equipResource,
   equipmentSlotAccepts,
   findGridRecipe,
+  factoryGrid,
   getBestToolForTarget,
   hitGatherTarget,
+  insertProcessSlot,
   loadGame,
   makeGridForRecipe,
+  maxDurability,
   missingForQuantity,
   missingForRecipe,
+  placeMachineInstance,
+  processStackLimit,
   questProgress,
   recipeFitsTerminalGrid,
   recipesUsingInput,
+  removeProcessSlot,
   saveGame,
   saveKey,
   searchTerminalRecipes,
@@ -47,6 +56,7 @@ import {
   unequipSlot,
   visibleQuests,
   visibleRecipes,
+  durabilityRemaining,
 } from './game/engine'
 import type {
   CraftSlot,
@@ -54,6 +64,9 @@ import type {
   GatherTargetId,
   GameState,
   MachineId,
+  MachineInstance,
+  ProcessSlot,
+  ProcessSlotId,
   Quest,
   Recipe,
   ResourceAmount,
@@ -63,33 +76,37 @@ import type {
 type FloatText = {
   id: number
   label: string
+  variant?: 'break'
+  targetId?: GatherTargetId
 }
 
-type Page = 'gather' | 'terminal' | 'guide'
+type Page = 'gather' | 'terminal' | 'processing' | 'guide'
 type TerminalMode = 'recipes' | 'uses'
 type DragPreview = { id: ResourceId; x: number; y: number }
+type PendingProcessInsert = {
+  uid: string
+  slotId: Exclude<ProcessSlotId, 'output'>
+  resourceId: ResourceId
+  quantity: number
+}
 
 type RecipeDisplayOutput =
   | { kind: 'resource'; id: ResourceId; amount: number; label: string }
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
 
-const machineOrder: MachineId[] = [
-  'workbench',
-  'furnace',
-  'steamBoiler',
-  'steamHammer',
-  'steamGrinder',
-  'steamAssembler',
-  'lvGenerator',
-  'slowOreTap',
-]
+const machineOrder: MachineId[] = ['furnace']
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
 
-const gatherTargetOrder: GatherTargetId[] = ['tree', 'stone']
+const gatherTargetOrder: GatherTargetId[] = ['tree', 'stone', 'ironVein', 'gravelPatch', 'copperVein', 'tinVein', 'coalSeam']
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tree: 'log',
   stone: 'cobblestone',
+  ironVein: 'ironOre',
+  gravelPatch: 'gravel',
+  copperVein: 'copperOre',
+  tinVein: 'tinOre',
+  coalSeam: 'coal',
 }
 
 const armourEquipmentSlots: EquipmentSlotId[] = ['helmet', 'chestplate', 'leggings', 'boots']
@@ -114,6 +131,17 @@ function formatAmount(amount: number) {
   return Number.isInteger(amount) ? `${amount}` : amount.toFixed(1)
 }
 
+function DurabilityBar({ state, id }: { state: GameState; id: ResourceId }) {
+  const max = maxDurability(id)
+  if (max < 1 || state.resources[id] < 1) return null
+  const remaining = durabilityRemaining(state, id)
+  return (
+    <span className="durability-bar" title={`${formatAmount(remaining)}/${formatAmount(max)} uses`}>
+      <span style={{ width: `${Math.max(0, Math.min(100, (remaining / max) * 100))}%` }} />
+    </span>
+  )
+}
+
 function PixelIcon({ id }: { id: ResourceId }) {
   return (
     <span className={`pixel-icon pixel-${id}`} aria-hidden="true">
@@ -134,16 +162,33 @@ function ItemSlot({
   amount,
   className = '',
   disabled = false,
+  state,
 }: {
   amount: ResourceAmount
   className?: string
   disabled?: boolean
+  state?: GameState
 }) {
   return (
     <span className={disabled ? `mini-slot muted ${className}` : `mini-slot ${className}`} title={resourceLabels[amount.id]}>
       <PixelIcon id={amount.id} />
       <span className="item-count">{formatAmount(amount.amount)}</span>
+      {state && <DurabilityBar state={state} id={amount.id} />}
     </span>
+  )
+}
+
+function RecipePatternPreview({ recipe, state }: { recipe: Recipe; state: GameState }) {
+  const grid = makeGridForRecipe(recipe, state)
+
+  return (
+    <div className="recipe-pattern-grid" aria-label={`${recipe.name} pattern`}>
+      {grid.map((slot, index) => (
+        <span className={slot ? (slot.ghost ? 'recipe-pattern-slot ghost' : 'recipe-pattern-slot filled') : 'recipe-pattern-slot'} key={index}>
+          {slot && <PixelIcon id={slot.id} />}
+        </span>
+      ))}
+    </div>
   )
 }
 
@@ -153,6 +198,29 @@ function MachineSlot({ id, amount = 1, muted = false }: { id: MachineId; amount?
       <MachineGlyph id={id} />
       <span className="item-count">{formatAmount(amount)}</span>
     </span>
+  )
+}
+
+function ProcessItemSlot({
+  slot,
+  label,
+  onClick,
+}: {
+  slot: ProcessSlot
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button type="button" className={slot ? 'process-slot filled' : 'process-slot'} aria-label={slot ? `${label} ${resourceLabels[slot.id]}` : label} onClick={onClick}>
+      {slot ? (
+        <>
+          <PixelIcon id={slot.id} />
+          <span className="item-count">{formatAmount(slot.amount)}</span>
+        </>
+      ) : (
+        <span className="process-slot-label">{label}</span>
+      )}
+    </button>
   )
 }
 
@@ -193,15 +261,37 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
     }
   }
 
-  return { kind: 'machine', id: 'workbench', amount: 0, label: 'No output' }
+  return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
 }
 
 function missingLine(state: GameState, recipe: Recipe) {
   const missing = missingForRecipe(state, recipe)
   return [
     ...missing.missingResources.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`),
+    ...missing.missingCatalysts.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`),
+    ...(missing.missingDurability ?? []).map((amount) => `${amount.amount} ${resourceLabels[amount.id]} uses`),
     ...missing.missingMachines.map((amount) => machines[amount.id].name),
   ].join(', ')
+}
+
+function canResourceEnterProcessSlot(machineId: MachineId, slotId: Exclude<ProcessSlotId, 'output'>, resourceId: ResourceId) {
+  if (slotId === 'input') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.input.id === resourceId)
+  return resourceId in fuelDefinitions
+}
+
+function hasToolTierUnlocked(state: GameState, resourceId: ResourceId) {
+  return state.craftedResources.includes(resourceId) || state.resources[resourceId] > 0 || Object.values(state.equipment).includes(resourceId)
+}
+
+function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
+  if (targetId === 'tree') return true
+  if (targetId === 'stone') {
+    return hasToolTierUnlocked(state, 'woodenPickaxe') || hasToolTierUnlocked(state, 'stonePickaxe') || hasToolTierUnlocked(state, 'ironPickaxe')
+  }
+  if (targetId === 'ironVein' || targetId === 'gravelPatch') {
+    return hasToolTierUnlocked(state, 'stonePickaxe') || hasToolTierUnlocked(state, 'ironPickaxe')
+  }
+  return hasToolTierUnlocked(state, 'ironPickaxe')
 }
 
 function QuestCard({
@@ -269,11 +359,14 @@ function App() {
   const [recipeSearch, setRecipeSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
-  const [selectedGatherTarget, setSelectedGatherTarget] = useState<GatherTargetId>('tree')
   const [terminalNotice, setTerminalNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
+  const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
+  const [isPlacingFurnace, setIsPlacingFurnace] = useState(false)
+  const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(null)
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
   const [batchQuantity, setBatchQuantity] = useState(1)
+  const [pendingProcessInsert, setPendingProcessInsert] = useState<PendingProcessInsert | null>(null)
   const [missingBatch, setMissingBatch] = useState<{
     recipeName: string
     quantity: number
@@ -281,6 +374,7 @@ function App() {
     missingSetup: string
   } | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
+  const floatTextIdRef = useRef(0)
   const pointerDragRef = useRef<{ id: ResourceId; startX: number; startY: number; dragged: boolean } | null>(null)
   const suppressClickRef = useRef(false)
 
@@ -302,53 +396,99 @@ function App() {
     }
   }, [selectedResource, state, terminalGrid])
 
+  useEffect(() => {
+    if (selectedMachineUid && !state.machineInstances.some((instance) => instance.uid === selectedMachineUid)) {
+      setSelectedMachineUid(null)
+    }
+  }, [selectedMachineUid, state.machineInstances])
+
+  useEffect(() => {
+    if (!pendingProcessInsert) return
+    const instance = state.machineInstances.find((candidate) => candidate.uid === pendingProcessInsert.uid)
+    const slot = instance?.process[pendingProcessInsert.slotId]
+    const currentAmount = slot?.id === pendingProcessInsert.resourceId ? slot.amount : 0
+    const max = Math.min(processStackLimit - currentAmount, availableResourceAmount(state, pendingProcessInsert.resourceId))
+    if (!instance || max < 1) setPendingProcessInsert(null)
+  }, [pendingProcessInsert, state])
+
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
   const guideQuests = useMemo(() => visibleQuests(state), [state])
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
-  const currentTarget = gatherTargets[selectedGatherTarget]
-  const currentTool = getBestToolForTarget(state, selectedGatherTarget)
-  const currentDamage = currentTool.damageByTarget[selectedGatherTarget] ?? 0
-  const targetProgress = state.gatherProgress[selectedGatherTarget] ?? 0
-  const targetRemainingHp = Math.max(0, currentTarget.maxHp - targetProgress)
-  const targetProgressPercent = Math.min(100, (targetProgress / currentTarget.maxHp) * 100)
   const totalMachines = machineOrder.reduce((sum, id) => sum + state.machines[id], 0)
+  const processRecipeCards = useMemo(
+    () =>
+      processRecipes.map(
+        (recipe): Recipe => ({
+          id: recipe.id,
+          name: recipe.name,
+          description: recipe.description,
+          tier: recipe.tier,
+          stationType: 'furnace',
+          recipeType: 'processing',
+          durationMs: recipe.durationMs,
+          inputs: [recipe.input],
+          outputs: [recipe.output],
+          requiredMachine: recipe.machineId,
+        }),
+      ),
+    [],
+  )
+  const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
   const filteredResources = inventoryResources.filter((id) => {
     const query = terminalSearch.trim().toLowerCase()
     if (!query) return true
     return id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
   })
-  const recipeCandidates = recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipes) : recipes
+  const recipeCandidates = recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipeCatalog) : recipeCatalog
   const selectedResourceForRecipes = selectedResource ?? 'log'
-  const usageRecipes = recipesUsingInput(selectedResourceForRecipes, recipes)
+  const usageRecipes = recipesUsingInput(selectedResourceForRecipes, recipeCatalog)
   const listedRecipes = terminalMode === 'recipes' ? recipeCandidates : usageRecipes
   const selectedRecipe = listedRecipes.find((recipe) => recipe.id === selectedRecipeId) ?? listedRecipes[0]
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
+  const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const unplacedFurnaces = availableUnplacedMachineCount(state, 'furnace')
+  const pendingProcessMachine = pendingProcessInsert
+    ? state.machineInstances.find((instance) => instance.uid === pendingProcessInsert.uid) ?? null
+    : null
+  const pendingProcessSlot = pendingProcessInsert && pendingProcessMachine ? pendingProcessMachine.process[pendingProcessInsert.slotId] : null
+  const pendingProcessCurrentAmount =
+    pendingProcessSlot && pendingProcessInsert && pendingProcessSlot.id === pendingProcessInsert.resourceId ? pendingProcessSlot.amount : 0
+  const pendingProcessMax = pendingProcessInsert
+    ? Math.min(processStackLimit - pendingProcessCurrentAmount, availableResourceAmount(state, pendingProcessInsert.resourceId))
+    : 0
 
-  const addFloatText = (label: string) => {
-    const id = Date.now() + Math.random()
-    setFloatTexts((current) => [...current.slice(-4), { id, label }])
+  const addFloatText = (label: string, targetId?: GatherTargetId, variant?: FloatText['variant']) => {
+    const id = (floatTextIdRef.current += 1)
+    setFloatTexts((current) => [...current.slice(-4), { id, label, targetId, variant }])
     window.setTimeout(() => {
       setFloatTexts((current) => current.filter((floatText) => floatText.id !== id))
     }, 850)
   }
 
-  const handleGatherTarget = () => {
-    if (currentDamage < 1) {
-      addFloatText(`Need ${tools[currentTarget.preferredTool].name}`)
+  const handleGatherTarget = (targetId: GatherTargetId) => {
+    const target = gatherTargets[targetId]
+    const tool = getBestToolForTarget(state, targetId)
+    const damage = tool.damageByTarget[targetId] ?? 0
+
+    if (damage < 1) {
+      addFloatText(`Need ${tools[target.preferredTool].name}`, targetId)
       return
     }
 
     setState((current) => {
-      const result = hitGatherTarget(current, selectedGatherTarget)
+      const result = hitGatherTarget(current, targetId)
+      if (result.toolBroke) {
+        addFloatText(`X ${resourceLabels[result.toolBroke]} broke!`, targetId, 'break')
+      }
       if (result.completed) {
-        addFloatText(`${result.drops.map((drop) => resourceLabels[drop.id]).join(', ')} gained`)
-      } else if (result.tool.id === 'woodenAxe') {
-        addFloatText('Axe bites')
-      } else if (result.tool.id === 'woodenPickaxe') {
-        addFloatText('Pick chips')
+        addFloatText(`${result.drops.map((drop) => resourceLabels[drop.id]).join(', ')} gained`, targetId)
+      } else if (targetId === 'tree' && result.tool.id !== 'bareHand') {
+        addFloatText('Axe bites', targetId)
+      } else if (targetId === 'stone' && result.tool.id !== 'bareHand') {
+        addFloatText('Pick chips', targetId)
       } else {
-        addFloatText(`${currentTarget.name} damaged`)
+        addFloatText(`${target.name} damaged`, targetId)
       }
       return result.state
     })
@@ -357,6 +497,81 @@ function App() {
   const handleCraft = (recipe: Recipe) => {
     addFloatText(recipe.id === 'craft_wooden_axe' ? 'axe crafted' : recipe.machineOutputs ? 'built' : 'crafted')
     setState((current) => craftRecipeInstant(current, recipe, 1))
+  }
+
+  const handleFactoryCellPress = (x: number, y: number, instance?: MachineInstance) => {
+    if (instance) {
+      setSelectedMachineUid(instance.uid)
+      return
+    }
+    if (!isPlacingFurnace) return
+    setState((current) => {
+      const next = placeMachineInstance(current, 'furnace', x, y)
+      if (next !== current) {
+        setIsPlacingFurnace(false)
+        setTerminalNotice('Furnace placed.')
+      }
+      return next
+    })
+  }
+
+  const handleProcessSlotPress = (slotId: ProcessSlotId) => {
+    if (!selectedMachine) return
+    const slot = selectedMachine.process[slotId]
+    if (slotId === 'output') {
+      setState((current) => collectProcessOutput(current, selectedMachine.uid))
+      return
+    }
+    if (slot && slot.id === selectedResource) {
+      const max = Math.min(processStackLimit - slot.amount, availableResourceAmount(state, selectedResource))
+      if (max < 1) {
+        setTerminalNotice(`${resourceLabels[selectedResource]} slot is full.`)
+        return
+      }
+      setPendingProcessInsert({ uid: selectedMachine.uid, slotId, resourceId: selectedResource, quantity: 1 })
+      return
+    }
+    if (slot) {
+      setState((current) => removeProcessSlot(current, selectedMachine.uid, slotId))
+      return
+    }
+    if (!selectedResource) {
+      setTerminalNotice('Select an item first.')
+      return
+    }
+    if (!canResourceEnterProcessSlot(selectedMachine.machineId, slotId, selectedResource)) {
+      setTerminalNotice(`${resourceLabels[selectedResource]} does not fit there.`)
+      return
+    }
+    const max = Math.min(processStackLimit, availableResourceAmount(state, selectedResource))
+    if (max < 1) {
+      setTerminalNotice(`No ${resourceLabels[selectedResource]} available.`)
+      return
+    }
+    setPendingProcessInsert({ uid: selectedMachine.uid, slotId, resourceId: selectedResource, quantity: 1 })
+  }
+
+  const handleAdjustProcessQuantity = (delta: number) => {
+    setPendingProcessInsert((current) => {
+      if (!current) return current
+      const instance = state.machineInstances.find((candidate) => candidate.uid === current.uid)
+      const slot = instance?.process[current.slotId]
+      const currentAmount = slot?.id === current.resourceId ? slot.amount : 0
+      const max = Math.min(processStackLimit - currentAmount, availableResourceAmount(state, current.resourceId))
+      return { ...current, quantity: Math.max(1, Math.min(max, current.quantity + delta)) }
+    })
+  }
+
+  const handleSetProcessQuantityMax = () => {
+    setPendingProcessInsert((current) => (current ? { ...current, quantity: Math.max(1, pendingProcessMax) } : current))
+  }
+
+  const handleConfirmProcessInsert = () => {
+    if (!pendingProcessInsert || pendingProcessMax < 1) return
+    const quantity = Math.min(pendingProcessInsert.quantity, pendingProcessMax)
+    setState((current) => insertProcessSlot(current, pendingProcessInsert.uid, pendingProcessInsert.slotId, pendingProcessInsert.resourceId, quantity))
+    setTerminalNotice(`${resourceLabels[pendingProcessInsert.resourceId]} x${formatAmount(quantity)} inserted.`)
+    setPendingProcessInsert(null)
   }
 
   const placeResourceInGridAt = (resourceId: ResourceId, slotIndex: number) => {
@@ -385,12 +600,15 @@ function App() {
   }
 
   const handleCraftSlotPress = (slotIndex: number) => {
+    if (terminalGrid[slotIndex]) {
+      setTerminalGrid((current) => current.map((slot, index) => (index === slotIndex ? null : slot)))
+      return
+    }
+
     if (selectedResource) {
       placeResourceInGridAt(selectedResource, slotIndex)
       return
     }
-
-    setTerminalGrid((current) => current.map((slot, index) => (index === slotIndex ? null : slot)))
   }
 
   const handleInventoryDragStart = (event: DragEvent<HTMLButtonElement>, resourceId: ResourceId) => {
@@ -547,6 +765,7 @@ function App() {
       missingResources,
       missingSetup: missingRecipe.missingMachines
         .map((amount) => `${machines[amount.id].name} x${formatAmount(amount.amount)}`)
+        .concat(missingRecipe.missingCatalysts.map((amount) => `${resourceLabels[amount.id]} x${formatAmount(amount.amount)}`))
         .join(', '),
     })
   }
@@ -603,10 +822,12 @@ function App() {
     setTerminalSearch('')
     setRecipeSearch('')
     setSelectedResource(null)
-    setSelectedGatherTarget('tree')
     setBatchQuantity(1)
+    setPendingProcessInsert(null)
     setMissingBatch(null)
     setIsRecipeModalOpen(false)
+    setIsPlacingFurnace(false)
+    setSelectedMachineUid(null)
     setSelectedRecipeId(null)
     setPage('gather')
     addFloatText('fresh save')
@@ -640,7 +861,14 @@ function App() {
       >
         <span className="equipment-label">{equipmentLabels[slotId]}</span>
         <span className="equipment-slot-box">
-          {equipped ? <PixelIcon id={equipped} /> : <span className={`equipment-placeholder equipment-${slotId}`} aria-hidden="true" />}
+          {equipped ? (
+            <>
+              <PixelIcon id={equipped} />
+              <DurabilityBar state={state} id={equipped} />
+            </>
+          ) : (
+            <span className={`equipment-placeholder equipment-${slotId}`} aria-hidden="true" />
+          )}
         </span>
       </button>
     )
@@ -667,6 +895,10 @@ function App() {
           <Database size={18} />
           Terminal
         </button>
+        <button type="button" className={page === 'processing' ? 'active' : ''} onClick={() => setPage('processing')}>
+          <Factory size={18} />
+          Processing
+        </button>
         <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => setPage('guide')}>
           <BookOpen size={18} />
           Guide
@@ -675,63 +907,73 @@ function App() {
 
       {page === 'gather' && (
         <section className="tap-panel" aria-label="Manual gathering">
-          <div className="gather-targets" aria-label="Gather targets">
-            {gatherTargetOrder.map((targetId) => {
+          <div className="gather-panels">
+            {gatherTargetOrder.filter((targetId) => isGatherTargetVisible(state, targetId)).map((targetId) => {
               const target = gatherTargets[targetId]
               const progress = state.gatherProgress[targetId] ?? 0
+              const tool = getBestToolForTarget(state, targetId)
+              const damage = tool.damageByTarget[targetId] ?? 0
+              const remainingHp = Math.max(0, target.maxHp - progress)
+              const progressPercent = Math.min(100, (progress / target.maxHp) * 100)
+              const targetFloats = floatTexts.filter((floatText) => floatText.targetId === targetId)
+
               return (
-                <button
-                  type="button"
-                  className={selectedGatherTarget === targetId ? 'gather-target selected' : 'gather-target'}
-                  onClick={() => setSelectedGatherTarget(targetId)}
-                  key={targetId}
-                >
-                  <PixelIcon id={gatherTargetIcons[targetId]} />
-                  <span>{target.name}</span>
-                  <strong>{Math.max(0, target.maxHp - progress)}/{target.maxHp}</strong>
-                </button>
+                <article className="gather-panel" key={targetId}>
+                  <div className="mine-face">
+                    <div className="gather-block" aria-hidden="true">
+                      <PixelIcon id={gatherTargetIcons[targetId]} />
+                    </div>
+                    <div>
+                      <h2>{target.name}</h2>
+                      <p>{target.description}</p>
+                    </div>
+                    <div className="float-layer" aria-live="polite">
+                      {targetFloats.map((floatText) => (
+                        <span className={floatText.variant === 'break' ? 'break-float' : undefined} key={floatText.id}>
+                          {floatText.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="break-panel">
+                    <div className="break-stats">
+                      <div className="stat-cell">
+                        <span className="stat-label">Tool</span>
+                        <strong>{tool.name}</strong>
+                      </div>
+                      <div className="stat-cell stat-drop">
+                        <span className="stat-label">Drop</span>
+                        <strong>
+                          {target.drops.map((drop) => (
+                            <span className="stat-drop-item" key={drop.id}>
+                              <span className="stat-drop-count">{formatAmount(drop.amount)}</span>
+                              <span className="stat-drop-name">{resourceLabels[drop.id]}</span>
+                            </span>
+                          ))}
+                        </strong>
+                      </div>
+                      <div className="stat-cell">
+                        <span className="stat-label">HP</span>
+                        <strong>{remainingHp}/{target.maxHp}</strong>
+                      </div>
+                      <div className="stat-cell">
+                        <span className="stat-label">Damage</span>
+                        <strong>{damage}</strong>
+                      </div>
+                    </div>
+                    <div className="progress-track">
+                      <span style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    {damage < 1 && <p className="gather-warning">Requires {tools[target.preferredTool].name}</p>}
+                    <button type="button" className="hit-button" disabled={damage < 1} onClick={() => handleGatherTarget(targetId)}>
+                      {targetId === 'tree' ? <Axe size={20} /> : <Pickaxe size={20} />}
+                      Mine {target.name}
+                    </button>
+                  </div>
+                </article>
               )
             })}
-          </div>
-
-          <div className="mine-face">
-            <div className="gather-block" aria-hidden="true">
-              <PixelIcon id={gatherTargetIcons[selectedGatherTarget]} />
-            </div>
-            <div>
-              <h2>{currentTarget.name}</h2>
-              <p>{currentTarget.description}</p>
-            </div>
-            <div className="float-layer" aria-live="polite">
-              {floatTexts.map((floatText) => (
-                <span key={floatText.id}>{floatText.label}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="break-panel">
-            <div className="break-stats">
-              <span>
-                Tool <strong>{currentTool.name}</strong>
-              </span>
-              <span>
-                Drop <strong>{currentTarget.drops.map((drop) => `${drop.amount} ${resourceLabels[drop.id]}`).join(', ')}</strong>
-              </span>
-              <span>
-                HP <strong>{targetRemainingHp}/{currentTarget.maxHp}</strong>
-              </span>
-              <span>
-                Damage <strong>{currentDamage}</strong>
-              </span>
-            </div>
-            <div className="progress-track">
-              <span style={{ width: `${targetProgressPercent}%` }} />
-            </div>
-            {currentDamage < 1 && <p className="gather-warning">Requires {tools[currentTarget.preferredTool].name}</p>}
-            <button type="button" className="hit-button" disabled={currentDamage < 1} onClick={handleGatherTarget}>
-              {currentTool.id === 'woodenPickaxe' ? <Pickaxe size={20} /> : <Axe size={20} />}
-              Mine {currentTarget.name}
-            </button>
           </div>
         </section>
       )}
@@ -771,6 +1013,7 @@ function App() {
                   >
                     <PixelIcon id={id} />
                     <span className="item-count">{formatAmount(available)}</span>
+                    <DurabilityBar state={state} id={id} />
                   </button>
                 )
               })
@@ -779,12 +1022,22 @@ function App() {
             )}
           </div>
 
-          {selectedResource && (
-            <div className="item-tooltip" role="status">
-              <strong>{resourceLabels[selectedResource]}</strong>
-              <span>x{formatAmount(Math.max(0, selectedAvailable))}</span>
-            </div>
-          )}
+          <div className={selectedResource ? 'item-tooltip' : 'item-tooltip empty'} role={selectedResource ? 'status' : undefined}>
+            {selectedResource ? (
+              <>
+                <strong>{resourceLabels[selectedResource]}</strong>
+                <span>
+                  x{formatAmount(Math.max(0, selectedAvailable))}
+                  {maxDurability(selectedResource) > 0 && ` | ${formatAmount(durabilityRemaining(state, selectedResource))}/${formatAmount(maxDurability(selectedResource))} uses`}
+                </span>
+              </>
+            ) : (
+              <>
+                <strong>Select item</strong>
+                <span>x0</span>
+              </>
+            )}
+          </div>
 
           <div className="terminal-crafting-compact">
             <div className="terminal-craft-stack">
@@ -869,12 +1122,17 @@ function App() {
             </button>
           </div>
 
-          <details className="equipment-drawer">
-            <summary>
+          <div className={isEquipmentOpen ? 'equipment-drawer open' : 'equipment-drawer closed'}>
+            <button
+              type="button"
+              className="equipment-toggle"
+              aria-expanded={isEquipmentOpen}
+              onClick={() => setIsEquipmentOpen((current) => !current)}
+            >
               <Axe size={16} />
               Player Equipment
-            </summary>
-            <div className="equipment-layout" aria-label="Player equipment">
+            </button>
+            <div className="equipment-layout" aria-label="Player equipment" aria-hidden={!isEquipmentOpen}>
               <div className="equipment-column armour-column" aria-label="Armour slots">
                 {armourEquipmentSlots.map(renderEquipmentSlot)}
               </div>
@@ -890,7 +1148,7 @@ function App() {
                 {toolEquipmentSlots.map(renderEquipmentSlot)}
               </div>
             </div>
-          </details>
+          </div>
 
           {terminalNotice && <p className="recipe-notice">{terminalNotice}</p>}
 
@@ -1001,35 +1259,54 @@ function App() {
                         </span>
                       </div>
 
-                      <div className="recipe-slot-section">
-                        <span>Inputs</span>
-                        <div className="recipe-slot-row">
-                          {selectedRecipe.inputs.map((amount) => {
-                            const missing = selectedRecipeMissing.missingResources.some((item) => item.id === amount.id)
-                            return <ItemSlot amount={amount} disabled={missing} key={amount.id} />
-                          })}
-                          {selectedRecipe.requiredMachine && (
-                            <MachineSlot
-                              id={selectedRecipe.requiredMachine}
-                              muted={state.machines[selectedRecipe.requiredMachine] < 1}
-                            />
-                          )}
-                          {selectedRecipe.machineInputs?.map((amount) => (
-                            <MachineSlot
-                              id={amount.id}
-                              amount={amount.amount}
-                              muted={state.machines[amount.id] < amount.amount}
-                              key={amount.id}
-                            />
-                          ))}
+                      {recipeFitsTerminalGrid(selectedRecipe) ? (
+                        <div className="recipe-slot-section">
+                          <span>Pattern</span>
+                          <RecipePatternPreview recipe={selectedRecipe} state={state} />
                         </div>
-                      </div>
+                      ) : (
+                        <div className="recipe-slot-section">
+                          <span>Inputs</span>
+                          <div className="recipe-slot-row">
+                            {selectedRecipe.inputs.map((amount) => {
+                              const missing = selectedRecipeMissing.missingResources.some((item) => item.id === amount.id)
+                              return <ItemSlot amount={amount} disabled={missing} state={state} key={amount.id} />
+                            })}
+                            {selectedRecipe.catalysts?.map((amount) => {
+                              const missing = selectedRecipeMissing.missingCatalysts.some((item) => item.id === amount.id)
+                              return <ItemSlot amount={amount} disabled={missing} state={state} key={`catalyst-${amount.id}`} />
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {(selectedRecipe.requiredMachine || selectedRecipe.machineInputs?.length) && (
+                        <div className="recipe-slot-section">
+                          <span>Station</span>
+                          <div className="recipe-slot-row">
+                            {selectedRecipe.requiredMachine && (
+                              <MachineSlot
+                                id={selectedRecipe.requiredMachine}
+                                muted={state.machines[selectedRecipe.requiredMachine] < 1}
+                              />
+                            )}
+                            {selectedRecipe.machineInputs?.map((amount) => (
+                              <MachineSlot
+                                id={amount.id}
+                                amount={amount.amount}
+                                muted={state.machines[amount.id] < amount.amount}
+                                key={amount.id}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="recipe-slot-section">
                         <span>Outputs</span>
                         <div className="recipe-slot-row">
                           {selectedRecipe.outputs.map((amount) => (
-                            <ItemSlot amount={amount} key={amount.id} />
+                            <ItemSlot amount={amount} state={state} key={amount.id} />
                           ))}
                           {selectedRecipe.machineOutputs?.map((amount) => (
                             <MachineSlot id={amount.id} amount={amount.amount} key={amount.id} />
@@ -1086,6 +1363,192 @@ function App() {
                 <button type="button" className="load-recipe-button" onClick={() => setMissingBatch(null)}>
                   Close
                 </button>
+              </section>
+            </div>
+          )}
+        </section>
+      )}
+
+      {page === 'processing' && (
+        <section className="processing-panel" aria-label="Processing factory">
+          <div className="processing-head">
+            <div>
+              <p className="eyebrow">Processing</p>
+              <h2>Factory Floor</h2>
+            </div>
+            <button
+              type="button"
+              className={isPlacingFurnace ? 'place-machine-button active' : 'place-machine-button'}
+              disabled={unplacedFurnaces < 1}
+              onClick={() => setIsPlacingFurnace((current) => !current)}
+            >
+              Place Furnace x{formatAmount(unplacedFurnaces)}
+            </button>
+          </div>
+
+          <div className="processing-storage" aria-label="Processing storage">
+            {resourceOrder
+              .filter((id) => availableResourceAmount(state, id) > 0)
+              .map((id) => (
+                <button
+                  type="button"
+                  className={selectedResource === id ? 'item-slot selected' : 'item-slot'}
+                  aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
+                  title={resourceLabels[id]}
+                  onClick={() => setSelectedResource(id)}
+                  key={id}
+                >
+                  <PixelIcon id={id} />
+                  <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
+                  <DurabilityBar state={state} id={id} />
+                </button>
+              ))}
+          </div>
+
+          <div className="factory-scroll">
+            <div className="factory-grid" aria-label="Factory grid">
+              {Array.from({ length: factoryGrid.width * factoryGrid.height }, (_, index) => {
+                const x = index % factoryGrid.width
+                const y = Math.floor(index / factoryGrid.width)
+                const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
+                return (
+                  <button
+                    type="button"
+                    className={instance ? 'factory-cell occupied' : isPlacingFurnace ? 'factory-cell placing' : 'factory-cell'}
+                    aria-label={instance ? `${machines[instance.machineId].name} at ${x + 1}, ${y + 1}` : `Empty factory cell ${x + 1}, ${y + 1}`}
+                    onClick={() => handleFactoryCellPress(x, y, instance)}
+                    key={`${x}-${y}`}
+                  >
+                    {instance ? <MachineGlyph id={instance.machineId} /> : <span />}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {selectedMachine && (
+            <div
+              className="modal-backdrop"
+              role="presentation"
+              onClick={() => {
+                setPendingProcessInsert(null)
+                setSelectedMachineUid(null)
+              }}
+            >
+              <section
+                className="furnace-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${machines[selectedMachine.machineId].name} terminal`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <div>
+                    <p className="eyebrow">Level {selectedMachine.level}</p>
+                    <h2>{machines[selectedMachine.machineId].name}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Close furnace"
+                    onClick={() => {
+                      setPendingProcessInsert(null)
+                      setSelectedMachineUid(null)
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="processing-storage furnace-storage" aria-label="Furnace storage">
+                  {resourceOrder
+                    .filter((id) => availableResourceAmount(state, id) > 0)
+                    .map((id) => (
+                      <button
+                        type="button"
+                        className={selectedResource === id ? 'item-slot selected' : 'item-slot'}
+                        aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
+                        title={resourceLabels[id]}
+                        onClick={() => setSelectedResource(id)}
+                        key={id}
+                      >
+                        <PixelIcon id={id} />
+                        <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
+                        <DurabilityBar state={state} id={id} />
+                      </button>
+                    ))}
+                </div>
+                <div className="furnace-interface">
+                  <div className="furnace-inputs">
+                    <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                    <div className="furnace-flame">
+                      <span style={{ height: `${selectedMachine.process.fuelRemainingMs > 0 ? 100 : 0}%` }} />
+                    </div>
+                    <ProcessItemSlot slot={selectedMachine.process.fuel} label="Fuel" onClick={() => handleProcessSlotPress('fuel')} />
+                  </div>
+                  <div className="furnace-progress">
+                    <span
+                      style={{
+                        width: `${
+                          selectedMachine.process.durationMs > 0
+                            ? Math.min(100, (selectedMachine.process.progressMs / selectedMachine.process.durationMs) * 100)
+                            : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                  <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                </div>
+                {pendingProcessInsert && pendingProcessInsert.uid === selectedMachine.uid && (
+                  <div className="process-quantity-panel" role="dialog" aria-label={`Insert ${resourceLabels[pendingProcessInsert.resourceId]}`}>
+                    <div className="process-quantity-head">
+                      <span className="item-slot filled">
+                        <PixelIcon id={pendingProcessInsert.resourceId} />
+                        <span className="item-count">{formatAmount(pendingProcessInsert.quantity)}</span>
+                        <DurabilityBar state={state} id={pendingProcessInsert.resourceId} />
+                      </span>
+                      <div>
+                        <p className="eyebrow">{pendingProcessInsert.slotId}</p>
+                        <h3>{resourceLabels[pendingProcessInsert.resourceId]}</h3>
+                        <span>
+                          Slot {formatAmount(pendingProcessCurrentAmount)}/{formatAmount(processStackLimit)}
+                        </span>
+                      </div>
+                      <button type="button" className="icon-button" aria-label="Cancel insert" onClick={() => setPendingProcessInsert(null)}>
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="batch-controls process-quantity-controls" aria-label="Furnace quantity controls">
+                      <div className="batch-step-row" aria-label="Increase insert quantity">
+                        {[1, 10, 100].map((amount) => (
+                          <button type="button" onClick={() => handleAdjustProcessQuantity(amount)} key={`process-plus-${amount}`}>
+                            +{amount}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="batch-quantity" aria-live="polite">
+                        <span>Qty</span>
+                        <strong>{formatAmount(Math.min(pendingProcessInsert.quantity, pendingProcessMax))}</strong>
+                        <small>Max {formatAmount(pendingProcessMax)}</small>
+                      </div>
+                      <div className="batch-step-row" aria-label="Decrease insert quantity">
+                        {[-1, -10, -100].map((amount) => (
+                          <button type="button" onClick={() => handleAdjustProcessQuantity(amount)} key={`process-minus-${amount}`}>
+                            {amount}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="batch-action-row">
+                        <button type="button" disabled={pendingProcessMax < 1} onClick={handleConfirmProcessInsert}>
+                          Insert x{formatAmount(Math.min(pendingProcessInsert.quantity, pendingProcessMax))}
+                        </button>
+                        <button type="button" disabled={pendingProcessMax < 1} onClick={handleSetProcessQuantityMax}>
+                          Max
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <p className="furnace-help">Tap storage, then Input or Fuel to choose an amount. Tap Output to collect.</p>
               </section>
             </div>
           )}

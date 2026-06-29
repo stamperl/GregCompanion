@@ -4,12 +4,32 @@ export type ResourceId =
   | 'stick'
   | 'woodenAxe'
   | 'woodenPickaxe'
+  | 'stoneAxe'
+  | 'stonePickaxe'
+  | 'ironAxe'
+  | 'ironPickaxe'
+  | 'stoneHammer'
+  | 'ironHammer'
   | 'stone'
   | 'cobblestone'
-  | 'crushedStone'
+  | 'gravel'
+  | 'flint'
+  | 'ironOre'
   | 'copperOre'
   | 'tinOre'
+  | 'crushedIronOre'
+  | 'crushedCopperOre'
+  | 'crushedTinOre'
   | 'coal'
+  | 'charcoal'
+  | 'mortar'
+  | 'ironIngot'
+  | 'copperIngot'
+  | 'tinIngot'
+  | 'ironDust'
+  | 'copperDust'
+  | 'tinDust'
+  | 'bronzeIngot'
   | 'clay'
   | 'sand'
   | 'rubberSap'
@@ -25,14 +45,7 @@ export type ResourceId =
   | 'primitiveCircuit'
 
 export type MachineId =
-  | 'workbench'
   | 'furnace'
-  | 'steamBoiler'
-  | 'steamHammer'
-  | 'steamGrinder'
-  | 'steamAssembler'
-  | 'lvGenerator'
-  | 'slowOreTap'
 
 export type QuestId =
   | 'punchTree'
@@ -43,19 +56,16 @@ export type QuestId =
   | 'firstDirt'
   | 'copperAndTin'
   | 'bronzeAge'
-  | 'pressureProgress'
-  | 'steamWorkshop'
-  | 'firstCurrent'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
 
-export type StationType = 'hand' | 'craftingTable' | 'furnace' | 'steam' | 'lv'
+export type StationType = 'hand' | 'furnace' | 'steam' | 'lv'
 
 export type RecipeType = 'crafting' | 'processing' | 'machine'
 
-export type ToolId = 'bareHand' | 'woodenAxe' | 'woodenPickaxe'
+export type ToolId = 'bareHand' | 'woodenAxe' | 'woodenPickaxe' | 'stoneAxe' | 'stonePickaxe' | 'ironAxe' | 'ironPickaxe'
 
-export type GatherTargetId = 'tree' | 'stone'
+export type GatherTargetId = 'tree' | 'stone' | 'gravelPatch' | 'ironVein' | 'copperVein' | 'tinVein' | 'coalSeam'
 
 export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | 'axe' | 'shovel' | 'pickaxe' | 'weapon'
 
@@ -70,6 +80,8 @@ export type ResourceAmount = {
   id: ResourceId
   amount: number
 }
+
+export type ProcessSlot = ResourceAmount | null
 
 export type MachineAmount = {
   id: MachineId
@@ -87,10 +99,28 @@ export type Recipe = {
   durationMs: number
   inputs: ResourceAmount[]
   outputs: ResourceAmount[]
+  catalysts?: ResourceAmount[]
+  durabilityCosts?: ResourceAmount[]
   machineInputs?: MachineAmount[]
   machineOutputs?: MachineAmount[]
   requiredMachine?: MachineId
   unlockedBy?: QuestId
+}
+
+export type FuelDefinition = {
+  id: ResourceId
+  burnMs: number
+}
+
+export type ProcessRecipe = {
+  id: string
+  name: string
+  description: string
+  tier: Tier
+  machineId: MachineId
+  durationMs: number
+  input: ResourceAmount
+  output: ResourceAmount
 }
 
 export type Quest = {
@@ -140,12 +170,36 @@ export type GameState = {
   version: number
   resources: Record<ResourceId, number>
   machines: Record<MachineId, number>
+  machineInstances: MachineInstance[]
   completedQuests: QuestId[]
   unlockedQuests: QuestId[]
+  craftedResources: ResourceId[]
   equipment: EquipmentState
+  durability: Partial<Record<ResourceId, number>>
   gatherProgress: Partial<Record<GatherTargetId, number>>
   machineProgress: Partial<Record<MachineId, number>>
   lastSavedAt: number
+}
+
+export type ProcessSlotId = 'input' | 'fuel' | 'output'
+
+export type MachineProcessState = {
+  input: ProcessSlot
+  fuel: ProcessSlot
+  output: ProcessSlot
+  activeRecipeId: string | null
+  progressMs: number
+  durationMs: number
+  fuelRemainingMs: number
+}
+
+export type MachineInstance = {
+  uid: string
+  machineId: MachineId
+  x: number
+  y: number
+  level: number
+  process: MachineProcessState
 }
 
 export type TickResult = {
