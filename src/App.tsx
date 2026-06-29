@@ -456,7 +456,6 @@ function App() {
   const [terminalNotice, setTerminalNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
-  const [saveImportText, setSaveImportText] = useState('')
   const [saveBackupNotice, setSaveBackupNotice] = useState('')
   const [serverSaveId, setServerSaveId] = useState(() => localStorage.getItem(serverSaveIdKey) ?? 'phone')
   const [serverSaves, setServerSaves] = useState<ServerSaveSlot[]>([])
@@ -962,7 +961,6 @@ function App() {
     setPendingProcessInsert(null)
     setMissingBatch(null)
     setSaveBackupNotice(notice)
-    setSaveImportText('')
     addFloatText('save restored')
   }
 
@@ -1014,38 +1012,6 @@ function App() {
     }
   }
 
-  const handleCopySaveBackup = async () => {
-    try {
-      await navigator.clipboard.writeText(currentSaveBackup)
-      setSaveBackupNotice('Backup copied.')
-    } catch {
-      setSaveBackupNotice('Select and copy the backup code.')
-    }
-  }
-
-  const handleRestoreSaveBackup = () => {
-    const trimmed = saveImportText.trim()
-    if (!trimmed) {
-      setSaveBackupNotice('Paste a backup code first.')
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(trimmed) as Partial<GameState>
-      if (!parsed || typeof parsed !== 'object' || (!parsed.resources && !parsed.machines && !parsed.completedQuests)) {
-        setSaveBackupNotice('That backup code is not a game save.')
-        return
-      }
-    } catch {
-      setSaveBackupNotice('That backup code is not valid.')
-      return
-    }
-
-    applyRestoredSave(trimmed, 'Backup restored.')
-    setSaveImportText('')
-    setIsSaveModalOpen(false)
-  }
-
   const handleReset = () => {
     localStorage.removeItem(saveKey)
     setState(loadGame(null))
@@ -1059,7 +1025,6 @@ function App() {
     setMissingBatch(null)
     setIsRecipeModalOpen(false)
     setIsSaveModalOpen(false)
-    setSaveImportText('')
     setSaveBackupNotice('')
     setIsPlacingFurnace(false)
     setSelectedMachineUid(null)
@@ -1918,29 +1883,6 @@ function App() {
                 )}
               </div>
             </div>
-
-            <p className="save-help">Manual backup is still here in case you want to move a save by copy and paste.</p>
-
-            <label className="save-field">
-              <span>Backup code</span>
-              <textarea readOnly value={currentSaveBackup} rows={5} onFocus={(event) => event.currentTarget.select()} />
-            </label>
-            <button type="button" className="load-recipe-button" onClick={handleCopySaveBackup}>
-              Copy backup
-            </button>
-
-            <label className="save-field">
-              <span>Restore from backup</span>
-              <textarea
-                value={saveImportText}
-                rows={4}
-                placeholder="Paste backup code"
-                onChange={(event) => setSaveImportText(event.target.value)}
-              />
-            </label>
-            <button type="button" className="load-recipe-button restore-button" onClick={handleRestoreSaveBackup}>
-              Restore backup
-            </button>
             {saveBackupNotice && <p className="missing-line">{saveBackupNotice}</p>}
           </section>
         </div>

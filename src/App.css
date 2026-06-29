@@ -3450,21 +3450,6 @@ button.craft-output:disabled {
   text-transform: uppercase;
 }
 
-.save-field textarea {
-  background: #e8e8e8;
-  border: 2px solid #777;
-  border-bottom-color: #f3f3f3;
-  border-radius: 0;
-  border-right-color: #f3f3f3;
-  color: #272727;
-  font: 800 0.68rem "Courier New", ui-monospace, monospace;
-  min-height: 86px;
-  padding: 6px;
-  resize: vertical;
-  user-select: text;
-  width: 100%;
-}
-
 .save-field input {
   background: #e8e8e8;
   border: 2px solid #777;
