@@ -1,6 +1,8 @@
 import {
   Axe,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   Check,
   Database,
   Factory,
@@ -58,6 +60,12 @@ import {
   visibleRecipes,
   durabilityRemaining,
 } from './game/engine'
+import {
+  groupRecipesByOutput,
+  recipeGroupKeyForOutput,
+  recipeGroupOutput,
+  type RecipeGroup,
+} from './game/recipeGroups'
 import type {
   CraftSlot,
   EquipmentSlotId,
@@ -162,32 +170,72 @@ function ItemSlot({
   amount,
   className = '',
   disabled = false,
+  onClick,
   state,
 }: {
   amount: ResourceAmount
   className?: string
   disabled?: boolean
+  onClick?: (id: ResourceId) => void
   state?: GameState
 }) {
-  return (
-    <span className={disabled ? `mini-slot muted ${className}` : `mini-slot ${className}`} title={resourceLabels[amount.id]}>
+  const content = (
+    <>
       <PixelIcon id={amount.id} />
       <span className="item-count">{formatAmount(amount.amount)}</span>
       {state && <DurabilityBar state={state} id={amount.id} />}
+    </>
+  )
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={disabled ? `mini-slot recipe-jump-slot muted ${className}` : `mini-slot recipe-jump-slot ${className}`}
+        aria-label={`Recipes for ${resourceLabels[amount.id]}`}
+        title={`Recipes for ${resourceLabels[amount.id]}`}
+        onClick={() => onClick(amount.id)}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <span className={disabled ? `mini-slot muted ${className}` : `mini-slot ${className}`} title={resourceLabels[amount.id]}>
+      {content}
     </span>
   )
 }
 
-function RecipePatternPreview({ recipe, state }: { recipe: Recipe; state: GameState }) {
+function RecipePatternPreview({
+  recipe,
+  state,
+  onSelectResource,
+}: {
+  recipe: Recipe
+  state: GameState
+  onSelectResource: (id: ResourceId) => void
+}) {
   const grid = makeGridForRecipe(recipe, state)
 
   return (
     <div className="recipe-pattern-grid" aria-label={`${recipe.name} pattern`}>
-      {grid.map((slot, index) => (
-        <span className={slot ? (slot.ghost ? 'recipe-pattern-slot ghost' : 'recipe-pattern-slot filled') : 'recipe-pattern-slot'} key={index}>
-          {slot && <PixelIcon id={slot.id} />}
-        </span>
-      ))}
+      {grid.map((slot, index) => {
+        const className = slot ? (slot.ghost ? 'recipe-pattern-slot ghost' : 'recipe-pattern-slot filled') : 'recipe-pattern-slot'
+        if (!slot) return <span className={className} key={index} />
+        return (
+          <button
+            type="button"
+            className={`${className} recipe-jump-slot`}
+            aria-label={`Recipes for ${resourceLabels[slot.id]}`}
+            title={`Recipes for ${resourceLabels[slot.id]}`}
+            onClick={() => onSelectResource(slot.id)}
+            key={index}
+          >
+            <PixelIcon id={slot.id} />
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -262,6 +310,33 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
   }
 
   return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
+}
+
+function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
+  const recipeOutput = recipeGroupOutput(group.recipes[0])
+  const output = recipeOutput ?? group.output
+  if (output.kind === 'resource') {
+    return {
+      kind: 'resource',
+      id: output.id,
+      amount: output.amount,
+      label: resourceLabels[output.id],
+    }
+  }
+
+  return {
+    kind: 'machine',
+    id: output.id,
+    amount: output.amount,
+    label: machines[output.id].name,
+  }
+}
+
+function singleRecipeGroups(recipesToGroup: Recipe[]): RecipeGroup[] {
+  return recipesToGroup.map((recipe) => {
+    const output = recipeGroupOutput(recipe) ?? { kind: 'machine' as const, id: 'furnace' as const, amount: 0 }
+    return { key: `recipe:${recipe.id}`, output, recipes: [recipe] }
+  })
 }
 
 function missingLine(state: GameState, recipe: Recipe) {
@@ -364,7 +439,8 @@ function App() {
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
   const [isPlacingFurnace, setIsPlacingFurnace] = useState(false)
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(null)
-  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
+  const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
+  const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
   const [batchQuantity, setBatchQuantity] = useState(1)
   const [pendingProcessInsert, setPendingProcessInsert] = useState<PendingProcessInsert | null>(null)
   const [missingBatch, setMissingBatch] = useState<{
@@ -443,8 +519,12 @@ function App() {
   const recipeCandidates = recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipeCatalog) : recipeCatalog
   const selectedResourceForRecipes = selectedResource ?? 'log'
   const usageRecipes = recipesUsingInput(selectedResourceForRecipes, recipeCatalog)
-  const listedRecipes = terminalMode === 'recipes' ? recipeCandidates : usageRecipes
-  const selectedRecipe = listedRecipes.find((recipe) => recipe.id === selectedRecipeId) ?? listedRecipes[0]
+  const listedRecipeGroups = terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : singleRecipeGroups(usageRecipes)
+  const selectedRecipeGroup = listedRecipeGroups.find((group) => group.key === selectedRecipeGroupKey) ?? listedRecipeGroups[0]
+  const clampedSelectedRecipeIndex = selectedRecipeGroup
+    ? Math.min(selectedRecipeIndex, Math.max(0, selectedRecipeGroup.recipes.length - 1))
+    : 0
+  const selectedRecipe = selectedRecipeGroup?.recipes[clampedSelectedRecipeIndex]
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
   const unplacedFurnaces = availableUnplacedMachineCount(state, 'furnace')
@@ -809,6 +889,26 @@ function App() {
     setPage('terminal')
   }
 
+  const handleSelectRecipeGroup = (groupKey: string) => {
+    setSelectedRecipeGroupKey(groupKey)
+    setSelectedRecipeIndex(0)
+  }
+
+  const handleJumpToResourceRecipe = (resourceId: ResourceId) => {
+    const targetOutput = { kind: 'resource' as const, id: resourceId, amount: 1 }
+    const targetKey = recipeGroupKeyForOutput(targetOutput)
+    const targetGroup = groupRecipesByOutput(recipeCatalog).find((group) => group.key === targetKey)
+    if (!targetGroup) {
+      setTerminalNotice(`No recipe found for ${resourceLabels[resourceId]}.`)
+      return
+    }
+
+    setTerminalMode('recipes')
+    setRecipeSearch('')
+    handleSelectRecipeGroup(targetKey)
+    setTerminalNotice(`Showing recipes for ${resourceLabels[resourceId]}.`)
+  }
+
   const handleCompleteQuest = (questId: string) => {
     setState((current) => completeQuest(current, questId))
     addFloatText('reward claimed')
@@ -828,7 +928,8 @@ function App() {
     setIsRecipeModalOpen(false)
     setIsPlacingFurnace(false)
     setSelectedMachineUid(null)
-    setSelectedRecipeId(null)
+    setSelectedRecipeGroupKey(null)
+    setSelectedRecipeIndex(0)
     setPage('gather')
     addFloatText('fresh save')
   }
@@ -1219,50 +1320,78 @@ function App() {
 
                 <div className="recipe-modal-body">
                   <div className="recipe-icon-grid" aria-label="Recipe results">
-                  {listedRecipes.map((recipe) => {
-                    const output = recipePrimaryOutput(recipe)
-                    const missing = missingLine(state, recipe)
+                  {listedRecipeGroups.map((group) => {
+                    const output = recipeGroupDisplayOutput(group)
+                    const missing = group.recipes.every((recipe) => missingLine(state, recipe))
                     return (
                       <button
                         type="button"
                         className={[
                           'recipe-icon-button',
-                          recipe.id === selectedRecipe?.id ? 'selected' : '',
+                          group.key === selectedRecipeGroup?.key ? 'selected' : '',
                           missing ? 'missing' : 'ready',
                         ].join(' ')}
-                        aria-label={recipe.name}
-                        title={recipe.name}
-                        onClick={() => setSelectedRecipeId(recipe.id)}
-                        key={recipe.id}
+                        aria-label={output.label}
+                        title={group.recipes.map((recipe) => recipe.name).join(' / ')}
+                        onClick={() => handleSelectRecipeGroup(group.key)}
+                        key={group.key}
                       >
                         {output.kind === 'resource' ? <PixelIcon id={output.id} /> : <MachineGlyph id={output.id} />}
                         <span className="item-count">{formatAmount(output.amount)}</span>
+                        {group.recipes.length > 1 && <span className="recipe-count-badge">{group.recipes.length}</span>}
                       </button>
                     )
                   })}
                   </div>
 
-                  {selectedRecipe && selectedRecipeOutput && selectedRecipeMissing && (
+                  {selectedRecipe && selectedRecipeOutput && selectedRecipeMissing && selectedRecipeGroup && (
                     <aside className="recipe-detail" aria-label={`${selectedRecipe.name} details`}>
                       <div className="recipe-detail-head">
                         <div>
                           <p className="eyebrow">{selectedRecipe.tier}</p>
                           <h3>{selectedRecipe.name}</h3>
                         </div>
-                        <span className={selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
-                          {selectedRecipeOutput.kind === 'resource' ? (
-                            <PixelIcon id={selectedRecipeOutput.id} />
-                          ) : (
-                            <MachineGlyph id={selectedRecipeOutput.id} />
+                        <div className="recipe-detail-actions">
+                          {selectedRecipeGroup.recipes.length > 1 && (
+                            <div className="recipe-cycle" aria-label="Recipe variants">
+                              <button
+                                type="button"
+                                aria-label="Previous recipe"
+                                onClick={() =>
+                                  setSelectedRecipeIndex((current) =>
+                                    current <= 0 ? selectedRecipeGroup.recipes.length - 1 : current - 1,
+                                  )
+                                }
+                              >
+                                <ChevronLeft size={15} />
+                              </button>
+                              <span>{clampedSelectedRecipeIndex + 1}/{selectedRecipeGroup.recipes.length}</span>
+                              <button
+                                type="button"
+                                aria-label="Next recipe"
+                                onClick={() =>
+                                  setSelectedRecipeIndex((current) => (current + 1) % selectedRecipeGroup.recipes.length)
+                                }
+                              >
+                                <ChevronRight size={15} />
+                              </button>
+                            </div>
                           )}
-                          <span className="item-count">{formatAmount(selectedRecipeOutput.amount)}</span>
-                        </span>
+                          <span className={selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
+                            {selectedRecipeOutput.kind === 'resource' ? (
+                              <PixelIcon id={selectedRecipeOutput.id} />
+                            ) : (
+                              <MachineGlyph id={selectedRecipeOutput.id} />
+                            )}
+                            <span className="item-count">{formatAmount(selectedRecipeOutput.amount)}</span>
+                          </span>
+                        </div>
                       </div>
 
                       {recipeFitsTerminalGrid(selectedRecipe) ? (
                         <div className="recipe-slot-section">
                           <span>Pattern</span>
-                          <RecipePatternPreview recipe={selectedRecipe} state={state} />
+                          <RecipePatternPreview recipe={selectedRecipe} state={state} onSelectResource={handleJumpToResourceRecipe} />
                         </div>
                       ) : (
                         <div className="recipe-slot-section">
@@ -1270,11 +1399,11 @@ function App() {
                           <div className="recipe-slot-row">
                             {selectedRecipe.inputs.map((amount) => {
                               const missing = selectedRecipeMissing.missingResources.some((item) => item.id === amount.id)
-                              return <ItemSlot amount={amount} disabled={missing} state={state} key={amount.id} />
+                              return <ItemSlot amount={amount} disabled={missing} state={state} onClick={handleJumpToResourceRecipe} key={amount.id} />
                             })}
                             {selectedRecipe.catalysts?.map((amount) => {
                               const missing = selectedRecipeMissing.missingCatalysts.some((item) => item.id === amount.id)
-                              return <ItemSlot amount={amount} disabled={missing} state={state} key={`catalyst-${amount.id}`} />
+                              return <ItemSlot amount={amount} disabled={missing} state={state} onClick={handleJumpToResourceRecipe} key={`catalyst-${amount.id}`} />
                             })}
                           </div>
                         </div>
@@ -1306,7 +1435,7 @@ function App() {
                         <span>Outputs</span>
                         <div className="recipe-slot-row">
                           {selectedRecipe.outputs.map((amount) => (
-                            <ItemSlot amount={amount} state={state} key={amount.id} />
+                            <ItemSlot amount={amount} state={state} onClick={handleJumpToResourceRecipe} key={amount.id} />
                           ))}
                           {selectedRecipe.machineOutputs?.map((amount) => (
                             <MachineSlot id={amount.id} amount={amount.amount} key={amount.id} />

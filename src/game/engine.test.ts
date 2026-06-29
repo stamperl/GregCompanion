@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, fuelDefinitions, quests, recipes } from './content'
+import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -696,6 +697,61 @@ describe('game engine', () => {
 
     expect(outputMatches).toContain('craft_wooden_axe')
     expect(ingredientMatches).toContain('craft_sticks')
+  })
+
+  it('groups duplicate output recipes into one recipe browser result', () => {
+    const groups = groupRecipesByOutput([
+      {
+        id: 'test_direct_iron',
+        name: 'Direct Iron',
+        description: 'Synthetic direct smelt.',
+        tier: 'bronze',
+        durationMs: 1,
+        inputs: [{ id: 'ironOre', amount: 1 }],
+        outputs: [{ id: 'ironIngot', amount: 1 }],
+      },
+      {
+        id: 'test_crushed_iron',
+        name: 'Crushed Iron',
+        description: 'Synthetic crushed smelt.',
+        tier: 'bronze',
+        durationMs: 1,
+        inputs: [{ id: 'crushedIronOre', amount: 1 }],
+        outputs: [{ id: 'ironIngot', amount: 2 }],
+      },
+    ])
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0].key).toBe('resource:ironIngot')
+    expect(groups[0].recipes.map((recipe) => recipe.id)).toEqual(['test_direct_iron', 'test_crushed_iron'])
+  })
+
+  it('keeps ingredient search matches inside the grouped recipe output', () => {
+    const matchingRecipes = searchTerminalRecipes('crushed iron', [
+      {
+        id: 'test_direct_iron',
+        name: 'Direct Iron',
+        description: 'Synthetic direct smelt.',
+        tier: 'bronze',
+        durationMs: 1,
+        inputs: [{ id: 'ironOre', amount: 1 }],
+        outputs: [{ id: 'ironIngot', amount: 1 }],
+      },
+      {
+        id: 'test_crushed_iron',
+        name: 'Crushed Iron',
+        description: 'Synthetic crushed smelt.',
+        tier: 'bronze',
+        durationMs: 1,
+        inputs: [{ id: 'crushedIronOre', amount: 1 }],
+        outputs: [{ id: 'ironIngot', amount: 2 }],
+      },
+    ])
+    const groups = groupRecipesByOutput(matchingRecipes)
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0].key).toBe('resource:ironIngot')
+    expect(groups[0].recipes.map((recipe) => recipe.id)).toEqual(['test_crushed_iron'])
   })
 
   it('does not expose removed non-furnace machine recipes', () => {

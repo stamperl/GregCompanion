@@ -3449,6 +3449,22 @@ button.craft-output:disabled {
   opacity: 1;
 }
 
+.recipe-count-badge {
+  align-items: center;
+  background: #3f3f3f;
+  border: 1px solid #f2f2f2;
+  bottom: 2px;
+  color: #fff;
+  display: grid;
+  font: 950 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+  height: 13px;
+  justify-items: center;
+  left: 2px;
+  line-height: 1;
+  position: absolute;
+  width: 13px;
+}
+
 .recipe-detail {
   background: #b6b6b6;
   border: 2px solid #777;
@@ -3465,6 +3481,50 @@ button.craft-output:disabled {
   display: flex;
   gap: 8px;
   justify-content: space-between;
+}
+
+.recipe-detail-actions {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.recipe-cycle {
+  align-items: center;
+  background: #9f9f9f;
+  border: 2px solid #efefef;
+  border-bottom-color: #5f5f5f;
+  border-right-color: #5f5f5f;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: 24px auto 24px;
+  min-height: 30px;
+  padding: 2px;
+}
+
+.recipe-cycle button {
+  align-items: center;
+  background: #8d8d8d;
+  border: 2px solid #e8e8e8;
+  border-bottom-color: #4f4f4f;
+  border-radius: 0;
+  border-right-color: #4f4f4f;
+  color: #272727;
+  cursor: pointer;
+  display: grid;
+  height: 24px;
+  justify-items: center;
+  padding: 0;
+  width: 24px;
+}
+
+.recipe-cycle span {
+  color: #272727;
+  font-size: 0.58rem;
+  font-weight: 950;
+  line-height: 1;
+  min-width: 28px;
+  text-align: center;
 }
 
 .recipe-slot-section {
@@ -3514,6 +3574,23 @@ button.craft-output:disabled {
 .recipe-pattern-slot .pixel-icon {
   height: 24px;
   width: 24px;
+}
+
+.recipe-jump-slot {
+  cursor: pointer;
+}
+
+button.recipe-jump-slot {
+  color: inherit;
+  font: inherit;
+}
+
+.recipe-jump-slot:hover,
+.recipe-jump-slot:focus-visible {
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+  outline: none;
 }
 
 .missing-line,
