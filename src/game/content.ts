@@ -580,16 +580,6 @@ export const recipes: Recipe[] = [
     outputs: [{ id: 'bronzeRod', amount: 1 }],
     unlockedBy: 'bronzeAge',
   },
-  {
-    id: 'copper_wire',
-    name: 'Draw Copper Wire',
-    description: 'Work copper plate into rough wire.',
-    tier: 'bronze',
-    durationMs: 4000,
-    inputs: [{ id: 'copperPlate', amount: 1 }],
-    outputs: [{ id: 'copperWire', amount: 2 }],
-    unlockedBy: 'copperAndTin',
-  },
 ]
 
 export const fuelDefinitions: Record<string, FuelDefinition> = {
