@@ -574,7 +574,7 @@ describe('game engine', () => {
     state = craftRecipeInstant(state, crushIron, 1)
 
     expect(state.resources.ironOre).toBe(0)
-    expect(state.resources.crushedIronOre).toBe(1)
+    expect(state.resources.crushedIronOre).toBe(2)
     expect(state.resources.ironHammer).toBe(1)
     expect(durabilityRemaining(state, 'ironHammer')).toBe(159)
   })
@@ -630,6 +630,21 @@ describe('game engine', () => {
     expect(state.resources.copperRod).toBe(1)
   })
 
+  it('grinds crushed ore into dust one-to-one with a pestle and mortar', () => {
+    let state = createInitialState(1000)
+    state.resources.crushedIronOre = 2
+    state.resources.mortar = 1
+    const grindCrushedIron = recipes.find((recipe) => recipe.id === 'grind_crushed_iron_ore')!
+
+    expect(craftableQuantity(state, grindCrushedIron)).toBe(2)
+    state = craftRecipeInstant(state, grindCrushedIron, 2)
+
+    expect(state.resources.crushedIronOre).toBe(0)
+    expect(state.resources.ironDust).toBe(2)
+    expect(state.resources.mortar).toBe(1)
+    expect(durabilityRemaining(state, 'mortar')).toBe(62)
+  })
+
   it('requires durable catalysts to be placed in the terminal grid pattern', () => {
     const crushIron = recipes.find((recipe) => recipe.id === 'crush_iron_ore')!
     const missingHammerGrid: CraftSlot[] = [null, null, null, null, { id: 'ironOre' }, null, null, null, null]
@@ -671,7 +686,7 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
   })
 
-  it('smelts crushed ore into double ingots compared with direct ore', () => {
+  it('smelts crushed ore into ingots one-to-one after the crushing bonus', () => {
     let state = createInitialState(1000)
     state.machines.furnace = 2
     state.resources.ironOre = 1
@@ -688,7 +703,7 @@ describe('game engine', () => {
     state = tickGame(state, 14000).state
 
     expect(state.machineInstances[0].process.output).toEqual({ id: 'ironIngot', amount: 1 })
-    expect(state.machineInstances[1].process.output).toEqual({ id: 'ironIngot', amount: 2 })
+    expect(state.machineInstances[1].process.output).toEqual({ id: 'ironIngot', amount: 1 })
   })
 
   it('searches terminal recipes by output and ingredient labels', () => {
