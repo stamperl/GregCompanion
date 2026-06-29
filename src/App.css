@@ -3425,6 +3425,50 @@ button.craft-output:disabled {
   padding: 5px;
 }
 
+.save-modal {
+  max-height: calc(100svh - 20px);
+  overflow: auto;
+}
+
+.save-help {
+  color: #4d4d4d;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.save-field {
+  display: grid;
+  gap: 4px;
+}
+
+.save-field span {
+  color: #4d4d4d;
+  font-size: 0.62rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.save-field textarea {
+  background: #e8e8e8;
+  border: 2px solid #777;
+  border-bottom-color: #f3f3f3;
+  border-radius: 0;
+  border-right-color: #f3f3f3;
+  color: #272727;
+  font: 800 0.68rem "Courier New", ui-monospace, monospace;
+  min-height: 86px;
+  padding: 6px;
+  resize: vertical;
+  user-select: text;
+  width: 100%;
+}
+
+.restore-button {
+  background: #654343;
+}
+
 .recipe-modal h2 {
   color: #272727;
   font-family: "Courier New", ui-monospace, monospace;
@@ -3759,6 +3803,11 @@ button.recipe-jump-slot {
 
 .game-header .icon-button {
   min-width: 32px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 6px;
 }
 
 @media (min-width: 760px) {

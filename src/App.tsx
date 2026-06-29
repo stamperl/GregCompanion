@@ -8,6 +8,7 @@ import {
   Factory,
   Pickaxe,
   RotateCcw,
+  Save,
   Trash2,
   Undo2,
   X,
@@ -436,6 +437,9 @@ function App() {
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
   const [terminalNotice, setTerminalNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+  const [saveImportText, setSaveImportText] = useState('')
+  const [saveBackupNotice, setSaveBackupNotice] = useState('')
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
   const [isPlacingFurnace, setIsPlacingFurnace] = useState(false)
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(null)
@@ -914,6 +918,48 @@ function App() {
     addFloatText('reward claimed')
   }
 
+  const currentSaveBackup = useMemo(() => saveGame(state), [state])
+
+  const handleCopySaveBackup = async () => {
+    try {
+      await navigator.clipboard.writeText(currentSaveBackup)
+      setSaveBackupNotice('Backup copied.')
+    } catch {
+      setSaveBackupNotice('Select and copy the backup code.')
+    }
+  }
+
+  const handleRestoreSaveBackup = () => {
+    const trimmed = saveImportText.trim()
+    if (!trimmed) {
+      setSaveBackupNotice('Paste a backup code first.')
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed) as Partial<GameState>
+      if (!parsed || typeof parsed !== 'object' || (!parsed.resources && !parsed.machines && !parsed.completedQuests)) {
+        setSaveBackupNotice('That backup code is not a game save.')
+        return
+      }
+    } catch {
+      setSaveBackupNotice('That backup code is not valid.')
+      return
+    }
+
+    const restored = loadGame(trimmed)
+    setState(restored)
+    localStorage.setItem(saveKey, saveGame(restored))
+    handleClearGrid()
+    setSelectedResource(null)
+    setPendingProcessInsert(null)
+    setMissingBatch(null)
+    setSaveBackupNotice('Backup restored.')
+    setSaveImportText('')
+    setIsSaveModalOpen(false)
+    addFloatText('save restored')
+  }
+
   const handleReset = () => {
     localStorage.removeItem(saveKey)
     setState(loadGame(null))
@@ -926,6 +972,9 @@ function App() {
     setPendingProcessInsert(null)
     setMissingBatch(null)
     setIsRecipeModalOpen(false)
+    setIsSaveModalOpen(false)
+    setSaveImportText('')
+    setSaveBackupNotice('')
     setIsPlacingFurnace(false)
     setSelectedMachineUid(null)
     setSelectedRecipeGroupKey(null)
@@ -982,9 +1031,14 @@ function App() {
           <p className="eyebrow">Block-tech idle</p>
           <h1>Click Foundry</h1>
         </div>
-        <button type="button" className="icon-button" aria-label="Reset save" title="Reset save" onClick={handleReset}>
-          <RotateCcw size={18} />
-        </button>
+        <div className="header-actions">
+          <button type="button" className="icon-button" aria-label="Save backup" title="Save backup" onClick={() => setIsSaveModalOpen(true)}>
+            <Save size={18} />
+          </button>
+          <button type="button" className="icon-button" aria-label="Reset save" title="Reset save" onClick={handleReset}>
+            <RotateCcw size={18} />
+          </button>
+        </div>
       </header>
 
       <section className="page-tabs" aria-label="Game pages">
@@ -1719,6 +1773,52 @@ function App() {
             ))}
           </div>
         </section>
+      )}
+
+      {isSaveModalOpen && (
+        <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setIsSaveModalOpen(false)}>
+          <section
+            className="missing-modal save-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Save backup"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Save backup</p>
+                <h2>Keep your progress</h2>
+              </div>
+              <button type="button" className="icon-button" aria-label="Close save backup" onClick={() => setIsSaveModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="save-help">Progress auto-saves on this phone. Copy this backup code somewhere safe before clearing browser data or changing device.</p>
+
+            <label className="save-field">
+              <span>Backup code</span>
+              <textarea readOnly value={currentSaveBackup} rows={5} onFocus={(event) => event.currentTarget.select()} />
+            </label>
+            <button type="button" className="load-recipe-button" onClick={handleCopySaveBackup}>
+              Copy backup
+            </button>
+
+            <label className="save-field">
+              <span>Restore from backup</span>
+              <textarea
+                value={saveImportText}
+                rows={4}
+                placeholder="Paste backup code"
+                onChange={(event) => setSaveImportText(event.target.value)}
+              />
+            </label>
+            <button type="button" className="load-recipe-button restore-button" onClick={handleRestoreSaveBackup}>
+              Restore backup
+            </button>
+            {saveBackupNotice && <p className="missing-line">{saveBackupNotice}</p>}
+          </section>
+        </div>
       )}
 
       {dragPreview && (
