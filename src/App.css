@@ -1771,7 +1771,7 @@ button.craft-output:disabled {
   align-items: center;
   display: grid;
   gap: 12px;
-  grid-template-columns: 138px 76px minmax(106px, 112px);
+  grid-template-columns: 138px 76px minmax(118px, 126px);
   justify-content: center;
   justify-items: center;
   margin: 0 auto;
@@ -1926,9 +1926,9 @@ button.craft-output:disabled {
   border-right-color: #5f5f5f;
   color: #272727;
   cursor: pointer;
-  font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  font: 900 0.56rem Inter, ui-sans-serif, system-ui, sans-serif;
   line-height: 1;
-  min-height: 26px;
+  min-height: 30px;
   min-width: 0;
   overflow: hidden;
   padding: 1px 2px;
@@ -1937,7 +1937,7 @@ button.craft-output:disabled {
 }
 
 .batch-action-row button {
-  font-size: 0.52rem;
+  font-size: 0.56rem;
 }
 
 .batch-step-row button:disabled,
@@ -1957,7 +1957,7 @@ button.craft-output:disabled {
   display: grid;
   gap: 2px;
   grid-template-columns: auto 1fr auto;
-  min-height: 24px;
+  min-height: 28px;
   min-width: 0;
   padding: 1px 3px;
 }
@@ -3565,7 +3565,7 @@ button.craft-output:disabled {
   .terminal-crafting-compact {
     align-items: center;
     gap: 12px;
-    grid-template-columns: 138px 70px minmax(100px, 108px);
+    grid-template-columns: 138px 70px minmax(118px, 126px);
     justify-content: center;
   }
 
