@@ -948,10 +948,19 @@ button.craft-output:disabled {
 .pixel-ironPickaxe span,
 .pixel-stoneHammer span,
 .pixel-ironHammer span,
+.pixel-ironFile span,
+.pixel-ironWrench span,
+.pixel-bronzeWrench span,
 .pixel-mortar span,
 .pixel-ironIngot span,
 .pixel-copperIngot span,
 .pixel-tinIngot span,
+.pixel-ironPlate span,
+.pixel-bronzePlate span,
+.pixel-ironRod span,
+.pixel-copperRod span,
+.pixel-tinRod span,
+.pixel-bronzeRod span,
 .pixel-copperDust span,
 .pixel-tinDust span,
 .pixel-ironDust span,
@@ -1237,6 +1246,59 @@ button.craft-output:disabled {
   clip-path: polygon(0 14%, 94% 0, 100% 74%, 12% 100%);
 }
 
+.pixel-ironFile {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironFile::before {
+  background: linear-gradient(90deg, #d5dde0 0 22%, #8f9aa0 22% 78%, #4f585e 78%);
+  clip-path: polygon(0 38%, 82% 10%, 100% 50%, 82% 90%, 0 62%);
+  height: 8px;
+  left: 2px;
+  top: 7px;
+  transform: rotate(-32deg);
+  width: 24px;
+}
+
+.pixel-ironFile::after {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 12px;
+  top: 17px;
+  transform: rotate(-32deg);
+  width: 12px;
+}
+
+.pixel-ironWrench,
+.pixel-bronzeWrench {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironWrench::before,
+.pixel-bronzeWrench::before {
+  background: linear-gradient(90deg, var(--p3), var(--p1) 48%, var(--p2));
+  clip-path: polygon(0 34%, 48% 34%, 78% 0, 100% 20%, 78% 46%, 100% 72%, 78% 100%, 48% 66%, 0 66%);
+  height: 18px;
+  left: 2px;
+  top: 5px;
+  transform: rotate(-36deg);
+  width: 24px;
+}
+
+.pixel-ironWrench {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-bronzeWrench {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
 .pixel-stone {
   --p1: #8c8e8b;
   --p2: #5a5d5d;
@@ -1349,14 +1411,18 @@ button.craft-output:disabled {
   width: 12px;
 }
 
+.pixel-ironPlate,
 .pixel-copperPlate,
-.pixel-tinPlate {
+.pixel-tinPlate,
+.pixel-bronzePlate {
   background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 82%, var(--p2) 82%);
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18), inset -4px -4px 0 rgba(0, 0, 0, 0.22);
 }
 
+.pixel-ironPlate::before,
 .pixel-copperPlate::before,
-.pixel-tinPlate::before {
+.pixel-tinPlate::before,
+.pixel-bronzePlate::before {
   background: rgba(0, 0, 0, 0.22);
   height: 2px;
   left: 5px;
@@ -1397,6 +1463,71 @@ button.craft-output:disabled {
   --p4: #4d5558;
 }
 
+.pixel-copperPlate {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+  --p4: #3e2419;
+}
+
+.pixel-ironPlate {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+}
+
+.pixel-bronzePlate {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+  --p4: #49331f;
+}
+
+.pixel-ironRod,
+.pixel-copperRod,
+.pixel-tinRod,
+.pixel-bronzeRod {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironRod::before,
+.pixel-copperRod::before,
+.pixel-tinRod::before,
+.pixel-bronzeRod::before {
+  background: linear-gradient(90deg, var(--p3), var(--p1) 50%, var(--p2));
+  height: 5px;
+  left: 3px;
+  top: 12px;
+  transform: rotate(-32deg);
+  width: 22px;
+}
+
+.pixel-ironRod {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-copperRod {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-tinRod {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-bronzeRod {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
 .pixel-tinOre {
   --p1: #c4c9ca;
   --p2: #7f898d;
@@ -1427,17 +1558,6 @@ button.craft-output:disabled {
   --p4: #47211f;
   background: radial-gradient(circle at 42% 42%, #cc8a78 0 20%, #a65f53 21% 68%, #6e3833 69%);
   clip-path: polygon(22% 10%, 74% 4%, 94% 42%, 78% 86%, 34% 100%, 4% 64%);
-}
-
-.pixel-firebrick {
-  --p1: #a65f53;
-  --p2: #6e3833;
-  --p3: #cc8a78;
-  --p4: #47211f;
-  background:
-    linear-gradient(90deg, transparent 48%, #6e3833 48% 55%, transparent 55%),
-    linear-gradient(0deg, transparent 45%, #6e3833 45% 53%, transparent 53%),
-    linear-gradient(135deg, #cc8a78, #a65f53 72%, #6e3833);
 }
 
 .pixel-sand {

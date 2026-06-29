@@ -245,6 +245,22 @@ describe('game engine', () => {
     expect('activeCrafts' in state).toBe(false)
   })
 
+  it('removes old firebrick state during save migration', () => {
+    const state = loadGame(
+      JSON.stringify({
+        resources: { firebrick: 8, log: 1 },
+        craftedResources: ['firebrick', 'log'],
+        durability: { firebrick: 3 },
+      }),
+      1000,
+    )
+
+    expect('firebrick' in state.resources).toBe(false)
+    expect(state.resources.log).toBe(1)
+    expect(state.craftedResources).not.toContain('firebrick')
+    expect('firebrick' in state.durability).toBe(false)
+  })
+
   it('migrates old furnace counts into placed factory instances', () => {
     const state = loadGame(
       JSON.stringify({
@@ -562,6 +578,57 @@ describe('game engine', () => {
     expect(durabilityRemaining(state, 'ironHammer')).toBe(159)
   })
 
+  it('requires a hammer catalyst to make early metal plates', () => {
+    let state = createInitialState(1000)
+    state.resources.copperIngot = 2
+    const copperPlate = recipes.find((recipe) => recipe.id === 'copper_plate')!
+
+    expect(canCraft(state, copperPlate)).toBe(false)
+    expect(missingForRecipe(state, copperPlate).missingCatalysts).toEqual([{ id: 'stoneHammer', amount: 1 }])
+
+    state.resources.ironHammer = 1
+    expect(canCraft(state, copperPlate)).toBe(true)
+    state = craftRecipeInstant(state, copperPlate, 1)
+
+    expect(state.resources.copperIngot).toBe(0)
+    expect(state.resources.copperPlate).toBe(1)
+    expect(state.resources.ironHammer).toBe(1)
+    expect(durabilityRemaining(state, 'ironHammer')).toBe(159)
+  })
+
+  it('crafts an iron file and uses it to file one ingot into one rod', () => {
+    let state = createInitialState(1000)
+    state.resources.ironPlate = 2
+    state.resources.stick = 1
+    const ironFile = recipes.find((recipe) => recipe.id === 'craft_iron_file')!
+
+    state = craftRecipeInstant(state, ironFile, 1)
+    expect(state.resources.ironPlate).toBe(0)
+    expect(state.resources.stick).toBe(0)
+    expect(state.resources.ironFile).toBe(1)
+
+    state.resources.ironIngot = 1
+    const ironRod = recipes.find((recipe) => recipe.id === 'file_iron_rod')!
+    state = craftRecipeInstant(state, ironRod, 1)
+
+    expect(state.resources.ironIngot).toBe(0)
+    expect(state.resources.ironRod).toBe(1)
+    expect(state.resources.ironFile).toBe(1)
+    expect(durabilityRemaining(state, 'ironFile')).toBe(95)
+  })
+
+  it('files one ingot into exactly one rod for early hand filing', () => {
+    let state = createInitialState(1000)
+    state.resources.copperIngot = 1
+    state.resources.ironFile = 1
+    const copperRod = recipes.find((recipe) => recipe.id === 'file_copper_rod')!
+
+    state = craftRecipeInstant(state, copperRod, 1)
+
+    expect(state.resources.copperIngot).toBe(0)
+    expect(state.resources.copperRod).toBe(1)
+  })
+
   it('requires durable catalysts to be placed in the terminal grid pattern', () => {
     const crushIron = recipes.find((recipe) => recipe.id === 'crush_iron_ore')!
     const missingHammerGrid: CraftSlot[] = [null, null, null, null, { id: 'ironOre' }, null, null, null, null]
@@ -770,6 +837,29 @@ describe('game engine', () => {
       null,
       null,
     ]
+    const ironFileGrid: CraftSlot[] = [null, { id: 'ironPlate' }, null, null, { id: 'ironPlate' }, null, null, { id: 'stick' }, null]
+    const ironWrenchGrid: CraftSlot[] = [
+      { id: 'ironIngot' },
+      null,
+      { id: 'ironIngot' },
+      { id: 'ironIngot' },
+      { id: 'ironIngot' },
+      { id: 'ironIngot' },
+      null,
+      { id: 'ironIngot' },
+      null,
+    ]
+    const bronzeWrenchGrid: CraftSlot[] = [
+      { id: 'bronzeIngot' },
+      null,
+      { id: 'bronzeIngot' },
+      { id: 'bronzeIngot' },
+      { id: 'bronzeIngot' },
+      { id: 'bronzeIngot' },
+      null,
+      { id: 'bronzeIngot' },
+      null,
+    ]
 
     expect(findGridRecipe(axeGrid, recipes)?.id).toBe('craft_wooden_axe')
     expect(findGridRecipe(pickaxeGrid, recipes)?.id).toBe('craft_wooden_pickaxe')
@@ -779,6 +869,9 @@ describe('game engine', () => {
     expect(findGridRecipe(ironAxeGrid, recipes)?.id).toBe('craft_iron_axe')
     expect(findGridRecipe(ironPickaxeGrid, recipes)?.id).toBe('craft_iron_pickaxe')
     expect(findGridRecipe(ironHammerGrid, recipes)?.id).toBe('craft_iron_hammer')
+    expect(findGridRecipe(ironFileGrid, recipes)?.id).toBe('craft_iron_file')
+    expect(findGridRecipe(ironWrenchGrid, recipes)?.id).toBe('craft_iron_wrench')
+    expect(findGridRecipe(bronzeWrenchGrid, recipes)?.id).toBe('craft_bronze_wrench')
   })
 
   it('mixes three copper dust and one tin dust into four bronze dust', () => {

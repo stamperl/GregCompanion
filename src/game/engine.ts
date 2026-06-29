@@ -43,6 +43,7 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   ironPickaxe: 128,
   stoneHammer: 48,
   ironHammer: 160,
+  ironFile: 96,
   mortar: 64,
 }
 
@@ -916,6 +917,7 @@ export function nextQuest(state: GameState) {
 }
 
 function migrateResources(resources: Record<ResourceId, number>) {
+  delete (resources as Partial<Record<string, number>>).firebrick
   if (resources.stone > 0) {
     resources.cobblestone += resources.stone
     resources.stone = 0
