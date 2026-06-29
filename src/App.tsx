@@ -1388,6 +1388,8 @@ function App() {
                         </div>
                       </div>
 
+                      {selectedRecipeMissingLine && <p className="missing-line recipe-detail-warning">Missing {selectedRecipeMissingLine}</p>}
+
                       {recipeFitsTerminalGrid(selectedRecipe) ? (
                         <div className="recipe-slot-section">
                           <span>Pattern</span>
@@ -1443,7 +1445,6 @@ function App() {
                         </div>
                       </div>
 
-                      {selectedRecipeMissingLine && <p className="missing-line">Missing {selectedRecipeMissingLine}</p>}
                       <button
                         type="button"
                         className="load-recipe-button"

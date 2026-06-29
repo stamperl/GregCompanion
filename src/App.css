@@ -3473,6 +3473,7 @@ button.craft-output:disabled {
   display: grid;
   gap: 8px;
   min-width: 0;
+  overflow: auto;
   padding: 7px;
 }
 
@@ -3604,6 +3605,10 @@ button.recipe-jump-slot {
   font-size: 0.72rem;
   margin: 0;
   padding: 5px 7px;
+}
+
+.recipe-detail-warning {
+  margin: 0;
 }
 
 .mine-face p,
@@ -3799,10 +3804,75 @@ button.recipe-jump-slot {
   }
 
   .recipe-modal-body {
+    gap: 6px;
     grid-template-columns: 1fr;
   }
 
+  .recipe-modal {
+    gap: 6px;
+    max-height: calc(100svh - 18px);
+    padding: 8px;
+  }
+
+  .recipe-search,
+  .mode-tabs {
+    min-height: 30px;
+  }
+
+  .mode-tabs button {
+    min-height: 26px;
+  }
+
   .recipe-icon-grid {
-    max-height: 176px;
+    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    max-height: 128px;
+  }
+
+  .recipe-icon-button {
+    min-height: 36px;
+  }
+
+  .recipe-detail {
+    gap: 5px;
+    max-height: min(42svh, 310px);
+    padding: 6px;
+  }
+
+  .recipe-detail-head {
+    gap: 5px;
+  }
+
+  .recipe-detail h3 {
+    font-size: 0.82rem;
+    line-height: 1.05;
+  }
+
+  .recipe-pattern-grid {
+    gap: 2px;
+    grid-template-columns: repeat(3, 30px);
+  }
+
+  .recipe-pattern-slot,
+  .mini-slot {
+    height: 30px;
+    min-width: 30px;
+    width: 30px;
+  }
+
+  .recipe-pattern-slot .pixel-icon,
+  .mini-slot .pixel-icon,
+  .mini-slot .machine-glyph {
+    height: 20px;
+    width: 20px;
+  }
+
+  .missing-line,
+  .recipe-notice {
+    font-size: 0.66rem;
+    padding: 4px 6px;
+  }
+
+  .load-recipe-button {
+    min-height: 34px;
   }
 }
