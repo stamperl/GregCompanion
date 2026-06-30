@@ -878,6 +878,8 @@ function QuestBook({
   const chapter = questChapters.find((candidate) => candidate.id === activeChapterId) ?? questChapters[0]
   const chapterQuests = quests.filter((quest) => (quest.chapterId ?? 'gettingStarted') === chapter.id)
   const questById = new Map(quests.map((quest) => [quest.id, quest]))
+  const nodeWidth = 142
+  const nodeHeight = 74
   const mapWidth = Math.max(980, ...chapterQuests.map((quest) => (quest.position?.x ?? 0) + 160))
   const mapHeight = Math.max(360, ...chapterQuests.map((quest) => (quest.position?.y ?? 0) + 130))
 
@@ -912,15 +914,19 @@ function QuestBook({
                 const parentStatus = questStatus(state, parent)
                 const childStatus = questStatus(state, quest)
                 const className = parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'
+                const startX = parent.position.x + nodeWidth
+                const startY = parent.position.y + nodeHeight / 2
+                const endX = quest.position.x
+                const endY = quest.position.y + nodeHeight / 2
+                const midX = startX + Math.max(24, (endX - startX) / 2)
+                const path = `M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`
                 return (
-                  <line
-                    className={className}
-                    x1={parent.position.x + 42}
-                    y1={parent.position.y + 42}
-                    x2={quest.position.x + 42}
-                    y2={quest.position.y + 42}
-                    key={`${parent.id}-${quest.id}`}
-                  />
+                  <g key={`${parent.id}-${quest.id}`}>
+                    <path className="quest-line-shadow" d={path} />
+                    <path className={className} d={path} />
+                    <rect className={`quest-line-joint ${className}`} x={startX - 3} y={startY - 3} width="6" height="6" />
+                    <rect className={`quest-line-joint ${className}`} x={endX - 3} y={endY - 3} width="6" height="6" />
+                  </g>
                 )
               }),
             )}

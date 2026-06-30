@@ -4870,23 +4870,46 @@ button.craft-output:disabled {
   position: absolute;
 }
 
-.quest-lines line {
-  stroke: #4f4f4f;
+.quest-lines path {
+  fill: none;
   stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.quest-line-shadow {
+  stroke: #5a5a5a;
+  stroke-width: 12px;
+}
+
+.quest-lines path.locked {
+  stroke: #8a8a8a;
   stroke-width: 6px;
 }
 
-.quest-lines line.locked {
-  stroke: #7d7d7d;
-  stroke-dasharray: 9 8;
-}
-
-.quest-lines line.open {
+.quest-lines path.open {
   stroke: #c2a846;
+  stroke-width: 7px;
 }
 
-.quest-lines line.complete {
+.quest-lines path.complete {
   stroke: #6da448;
+  stroke-width: 7px;
+}
+
+.quest-line-joint {
+  fill: #5a5a5a;
+}
+
+.quest-line-joint.locked {
+  fill: #8a8a8a;
+}
+
+.quest-line-joint.open {
+  fill: #d8c45c;
+}
+
+.quest-line-joint.complete {
+  fill: #7fbc55;
 }
 
 .quest-node {
