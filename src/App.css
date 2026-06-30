@@ -252,6 +252,30 @@
   left: 68%;
 }
 
+.float-layer .hit-particles {
+  animation: hit-particle-burst 520ms steps(4, end) forwards;
+  background: #f6d16d;
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    -14px 8px 0 #cfcfcf,
+    -8px -7px 0 #8b8f8d,
+    7px -10px 0 #f6d16d,
+    14px 5px 0 #5f6260,
+    3px 13px 0 #fff1a8;
+  color: transparent;
+  height: 4px;
+  left: 50%;
+  overflow: hidden;
+  padding: 0;
+  top: 50%;
+  width: 4px;
+}
+
+.tap-fx-layer {
+  z-index: 0;
+}
+
 .float-layer .break-float {
   background: #3b1f1f;
   border: 2px solid #f0d7b0;
@@ -271,6 +295,33 @@
 .gather-panels {
   display: grid;
   gap: 10px;
+}
+
+.gather-area-tabs {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 8px;
+}
+
+.gather-area-tabs button {
+  background: #4a4a4a;
+  border: 2px solid #efefef;
+  border-bottom-color: #1f1f1f;
+  border-radius: 0;
+  border-right-color: #1f1f1f;
+  color: #fff;
+  cursor: pointer;
+  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 34px;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
+
+.gather-area-tabs button.active {
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
 }
 
 .gather-panel {
@@ -329,7 +380,7 @@
 .break-stats {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .break-stats > .stat-cell {
@@ -343,6 +394,7 @@
   min-width: 0;
   overflow-wrap: anywhere;
   padding: 9px;
+  width: 100%;
   word-break: break-word;
 }
 
@@ -387,6 +439,14 @@
 
 .hit-button {
   min-height: 64px;
+  overflow: hidden;
+  position: relative;
+}
+
+.hit-button > svg,
+.hit-button > :not(.tap-fx-layer) {
+  position: relative;
+  z-index: 1;
 }
 
 .hit-button:disabled {
@@ -942,16 +1002,25 @@ button.craft-output:disabled {
 .pixel-stick span,
 .pixel-woodenAxe span,
 .pixel-woodenPickaxe span,
+.pixel-woodenShovel span,
 .pixel-stoneAxe span,
 .pixel-stonePickaxe span,
+.pixel-stoneShovel span,
 .pixel-ironAxe span,
 .pixel-ironPickaxe span,
+.pixel-ironShovel span,
 .pixel-stoneHammer span,
 .pixel-ironHammer span,
 .pixel-ironFile span,
+.pixel-bronzeFile span,
 .pixel-ironWrench span,
 .pixel-bronzeWrench span,
 .pixel-mortar span,
+.pixel-ironMortar span,
+.pixel-bronzeMortar span,
+.pixel-unfiredBrick span,
+.pixel-brick span,
+.pixel-bucket span,
 .pixel-ironIngot span,
 .pixel-copperIngot span,
 .pixel-tinIngot span,
@@ -1154,6 +1223,53 @@ button.craft-output:disabled {
   width: 24px;
 }
 
+.pixel-woodenShovel,
+.pixel-stoneShovel,
+.pixel-ironShovel {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-woodenShovel::before,
+.pixel-stoneShovel::before,
+.pixel-ironShovel::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 13px;
+  transform: rotate(46deg);
+  width: 23px;
+}
+
+.pixel-woodenShovel::after,
+.pixel-stoneShovel::after,
+.pixel-ironShovel::after {
+  background: linear-gradient(135deg, var(--p3) 0 28%, var(--p1) 28% 72%, var(--p2) 72%);
+  clip-path: polygon(50% 0, 88% 26%, 74% 100%, 26% 100%, 12% 26%);
+  height: 15px;
+  left: 2px;
+  top: 2px;
+  width: 15px;
+}
+
+.pixel-woodenShovel {
+  --p1: #b98a4a;
+  --p2: #6f4526;
+  --p3: #d7b76f;
+  --p4: #3b2415;
+}
+
+.pixel-ironShovel {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+}
+
 .pixel-ironAxe {
   --p1: #8f9aa0;
   --p2: #4f585e;
@@ -1246,13 +1362,15 @@ button.craft-output:disabled {
   clip-path: polygon(0 14%, 94% 0, 100% 74%, 12% 100%);
 }
 
-.pixel-ironFile {
+.pixel-ironFile,
+.pixel-bronzeFile {
   background: transparent;
   box-shadow: none;
 }
 
-.pixel-ironFile::before {
-  background: linear-gradient(90deg, #d5dde0 0 22%, #8f9aa0 22% 78%, #4f585e 78%);
+.pixel-ironFile::before,
+.pixel-bronzeFile::before {
+  background: linear-gradient(90deg, var(--p3) 0 22%, var(--p1) 22% 78%, var(--p2) 78%);
   clip-path: polygon(0 38%, 82% 10%, 100% 50%, 82% 90%, 0 62%);
   height: 8px;
   left: 2px;
@@ -1261,13 +1379,26 @@ button.craft-output:disabled {
   width: 24px;
 }
 
-.pixel-ironFile::after {
+.pixel-ironFile::after,
+.pixel-bronzeFile::after {
   background: linear-gradient(90deg, #c79c54, #4c2c15);
   height: 5px;
   left: 12px;
   top: 17px;
   transform: rotate(-32deg);
   width: 12px;
+}
+
+.pixel-ironFile {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-bronzeFile {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
 }
 
 .pixel-ironWrench,
@@ -1608,24 +1739,71 @@ button.craft-output:disabled {
   box-shadow: none;
 }
 
-.pixel-mortar {
+.pixel-mortar,
+.pixel-ironMortar,
+.pixel-bronzeMortar {
   --p1: #8c8e8b;
   --p2: #5a5d5d;
   --p3: #c8cac5;
   --p4: #343636;
   background:
-    radial-gradient(circle at 54% 62%, #5a5d5d 0 22%, transparent 23%),
-    linear-gradient(135deg, #c8cac5 0 20%, #8c8e8b 20% 80%, #5a5d5d 80%);
+    radial-gradient(circle at 54% 62%, var(--p2) 0 22%, transparent 23%),
+    linear-gradient(135deg, var(--p3) 0 20%, var(--p1) 20% 80%, var(--p2) 80%);
   clip-path: polygon(12% 28%, 88% 28%, 78% 96%, 22% 96%);
 }
 
-.pixel-mortar::before {
-  background: linear-gradient(90deg, #c8cac5, #5a5d5d);
+.pixel-mortar::before,
+.pixel-ironMortar::before,
+.pixel-bronzeMortar::before {
+  background: linear-gradient(90deg, var(--p3), var(--p2));
   height: 5px;
   left: 4px;
   top: 5px;
   transform: rotate(-32deg);
   width: 20px;
+}
+
+.pixel-ironMortar {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+}
+
+.pixel-bronzeMortar {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+  --p4: #49331f;
+}
+
+.pixel-unfiredBrick,
+.pixel-brick {
+  background:
+    linear-gradient(90deg, transparent 0 48%, rgba(0, 0, 0, 0.24) 48% 54%, transparent 54%),
+    linear-gradient(0deg, transparent 0 46%, rgba(0, 0, 0, 0.22) 46% 54%, transparent 54%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.2), inset -3px -3px 0 rgba(0, 0, 0, 0.24);
+}
+
+.pixel-unfiredBrick {
+  --p1: #9c765d;
+  --p2: #5f4739;
+  --p3: #c2a083;
+}
+
+.pixel-brick {
+  --p1: #a8553d;
+  --p2: #633122;
+  --p3: #d17a55;
+}
+
+.pixel-bucket {
+  background:
+    linear-gradient(90deg, transparent 0 20%, #d5dde0 20% 32%, transparent 32% 68%, #4f585e 68% 80%, transparent 80%),
+    linear-gradient(180deg, transparent 0 22%, #d5dde0 22% 34%, #8f9aa0 34% 82%, #4f585e 82%);
+  clip-path: polygon(12% 20%, 88% 20%, 76% 96%, 24% 96%);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.24);
 }
 
 .pixel-ironIngot,
@@ -2236,8 +2414,89 @@ button.craft-output:disabled {
 }
 
 .furnace-storage {
+  align-items: center;
   min-height: 46px;
   padding: 3px;
+}
+
+.place-machine-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: end;
+}
+
+.machine-placement-storage {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 44px);
+  justify-content: start;
+  min-height: 96px;
+}
+
+.machine-inventory-slot .machine-glyph {
+  height: 26px;
+  width: 26px;
+}
+
+.remove-machine-button {
+  background: #4a4a4a;
+  border: 2px solid #efefef;
+  border-bottom-color: #1f1f1f;
+  border-radius: 0;
+  border-right-color: #1f1f1f;
+  color: #fff;
+  cursor: pointer;
+  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 34px;
+  padding: 5px 8px;
+}
+
+.empty-furnace-storage {
+  color: #4b4b4b;
+  font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+  padding: 0 6px;
+  text-transform: uppercase;
+}
+
+.machine-status-row {
+  align-items: center;
+  background: #9f9f9f;
+  border: 2px solid #efefef;
+  border-bottom-color: #5f5f5f;
+  border-radius: 0;
+  border-right-color: #5f5f5f;
+  color: #272727;
+  display: flex;
+  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 5px 7px;
+  text-transform: uppercase;
+}
+
+.machine-status-row strong {
+  color: #1f1f1f;
+}
+
+.well-interface {
+  align-items: center;
+  background: #b6b6b6;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  color: #272727;
+  display: grid;
+  font: 900 0.76rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 8px;
+  grid-template-columns: 40px 1fr;
+  padding: 12px;
+  text-transform: uppercase;
+}
+
+.well-interface .machine-glyph {
+  height: 34px;
+  width: 34px;
 }
 
 .factory-scroll {
@@ -2290,6 +2549,14 @@ button.craft-output:disabled {
   border-color: #efefef;
   border-bottom-color: #4f4f4f;
   border-right-color: #4f4f4f;
+}
+
+.factory-cell.occupied.active {
+  animation: factory-furnace-thrum 0.8s steps(2, end) infinite;
+  background: #7f7870;
+  border-color: #fff0a8;
+  border-bottom-color: #5f4a28;
+  border-right-color: #5f4a28;
 }
 
 .furnace-modal {
@@ -2359,13 +2626,33 @@ button.craft-output:disabled {
   display: grid;
   height: 28px;
   overflow: hidden;
+  position: relative;
   width: 24px;
 }
 
 .furnace-flame span {
   background: linear-gradient(180deg, #ffe178, #d8692f);
   display: block;
+  grid-area: 1 / 1;
+  transition: height 180ms linear;
   width: 100%;
+}
+
+.furnace-flame.active span {
+  animation: furnace-flame-flicker 0.35s steps(2, end) infinite;
+}
+
+.furnace-flame strong {
+  align-self: center;
+  color: #fff4bb;
+  display: block;
+  font: 900 0.48rem "Courier New", ui-monospace, monospace;
+  grid-area: 1 / 1;
+  justify-self: center;
+  line-height: 1;
+  position: relative;
+  text-shadow: 1px 1px 0 #32140b;
+  z-index: 1;
 }
 
 .furnace-progress {
@@ -2955,6 +3242,22 @@ button.craft-output:disabled {
   padding: 5px 8px;
 }
 
+@keyframes hit-particle-burst {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+}
+
 .hit-button {
   -webkit-touch-callout: none;
   user-select: none;
@@ -3124,6 +3427,7 @@ button.craft-output:disabled {
 
 .break-stats {
   gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .break-stats > .stat-cell {
@@ -3166,8 +3470,8 @@ button.craft-output:disabled {
 .break-stats .stat-tool {
   align-items: center;
   display: grid;
-  gap: 3px;
-  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 6px;
+  grid-template-columns: 32px minmax(0, 1fr);
 }
 
 .stat-tool-icon {
@@ -3178,17 +3482,17 @@ button.craft-output:disabled {
   border-radius: 0;
   border-right-color: #4f4f4f;
   display: grid;
-  height: 28px;
+  height: 32px;
   justify-items: center;
   padding: 2px;
   position: relative;
-  width: 28px;
+  width: 32px;
 }
 
 .stat-tool-icon .pixel-icon,
 .stat-drop-icon .pixel-icon {
-  height: 20px;
-  width: 20px;
+  height: 24px;
+  width: 24px;
 }
 
 .stat-tool-icon .durability-bar {
@@ -3209,23 +3513,23 @@ button.craft-output:disabled {
 .break-stats .stat-drop-item {
   align-items: center;
   display: grid;
-  gap: 2px;
-  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 6px;
+  grid-template-columns: 32px minmax(0, auto) minmax(0, 1fr);
   min-width: 0;
 }
 
 .break-stats .stat-drop-icon {
-  grid-row: span 2;
+  grid-row: auto;
 }
 
 .break-stats .stat-drop-count {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   line-height: 1;
   min-width: 0;
 }
 
 .break-stats .stat-drop-name {
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   line-height: 1;
   min-width: 0;
   overflow: hidden;
@@ -3257,7 +3561,7 @@ button.craft-output:disabled {
   background: linear-gradient(90deg, #6da448, #d0c46a);
 }
 
-.float-layer span {
+.float-layer span:not(.hit-particles) {
   background: #2d2d2d;
   border: 2px solid #f1f1f1;
   border-bottom-color: #111;
@@ -3372,9 +3676,132 @@ button.craft-output:disabled {
 }
 
 .machine-furnace {
-  --m1: #8f5a47;
-  --m2: #44251e;
-  --m3: #d48747;
+  --m1: #858984;
+  --m2: #4b4f4e;
+  --m3: #c4c8c2;
+  background:
+    radial-gradient(circle at 50% 76%, #ffbc4f 0 9%, #9a4427 10% 16%, transparent 17%),
+    linear-gradient(90deg, transparent 0 22%, #1d1d1d 22% 78%, transparent 78%),
+    linear-gradient(180deg, transparent 0 45%, #242424 45% 74%, transparent 74%),
+    linear-gradient(90deg, transparent 0 34%, #5d6260 34% 40%, transparent 40% 60%, #353938 60% 66%, transparent 66%),
+    linear-gradient(180deg, #c4c8c2 0 18%, #858984 18% 78%, #4b4f4e 78%);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.26),
+    inset -3px -3px 0 rgba(0, 0, 0, 0.34);
+}
+
+.machine-furnace span {
+  background: #2a2d2c;
+  box-shadow:
+    8px 0 0 #1b1c1c,
+    4px 12px 0 #e07935;
+  height: 5px;
+  left: 7px;
+  top: 6px;
+  width: 5px;
+}
+
+.machine-furnace.active {
+  animation: furnace-glyph-glow 0.7s steps(2, end) infinite;
+}
+
+.machine-furnace.active span {
+  box-shadow:
+    8px 0 0 #1b1c1c,
+    4px 12px 0 #ffb14d,
+    4px 15px 0 #a44122;
+}
+
+.machine-well {
+  --m1: #7f8b8f;
+  --m2: #42484b;
+  --m3: #cfd8da;
+  background:
+    radial-gradient(circle at 50% 52%, #2f7f9c 0 22%, #174258 23% 34%, transparent 35%),
+    linear-gradient(90deg, #7b3f2c 0 18%, transparent 18% 82%, #542a1f 82%),
+    linear-gradient(180deg, #b76042 0 22%, #8e4b36 22% 80%, #542a1f 80%);
+}
+
+.machine-well span {
+  background: #9fd8ef;
+  height: 4px;
+  left: 11px;
+  top: 13px;
+  width: 8px;
+}
+
+.machine-steamBoiler {
+  --m1: #b7854c;
+  --m2: #49331f;
+  --m3: #dec279;
+  background:
+    radial-gradient(circle at 50% 70%, #ffbc4f 0 8%, #8f3e25 9% 15%, transparent 16%),
+    linear-gradient(90deg, transparent 0 24%, #262626 24% 76%, transparent 76%),
+    linear-gradient(180deg, #dec279 0 16%, #b7854c 16% 78%, #49331f 78%);
+}
+
+.machine-steamBoiler span {
+  background: #2f2f2f;
+  box-shadow: 7px 0 0 #1b1b1b;
+  height: 5px;
+  left: 7px;
+  top: 6px;
+  width: 5px;
+}
+
+.machine-steamMacerator {
+  --m1: #8f9aa0;
+  --m2: #4f585e;
+  --m3: #d5dde0;
+  background:
+    linear-gradient(45deg, transparent 0 34%, #4f585e 34% 42%, transparent 42%),
+    radial-gradient(circle at 50% 50%, #d5dde0 0 18%, #8f9aa0 19% 34%, #4f585e 35% 46%, transparent 47%),
+    linear-gradient(135deg, #d5dde0 0 18%, #8f9aa0 18% 78%, #4f585e 78%);
+}
+
+.machine-steamMacerator span {
+  background: #2d3438;
+  height: 4px;
+  left: 6px;
+  top: 18px;
+  width: 14px;
+}
+
+.machine-steamBoiler.active,
+.machine-steamMacerator.active {
+  animation: furnace-glyph-glow 0.7s steps(2, end) infinite;
+}
+
+@keyframes furnace-flame-flicker {
+  0% {
+    filter: brightness(1);
+    transform: translateY(0);
+  }
+
+  100% {
+    filter: brightness(1.25);
+    transform: translateY(1px);
+  }
+}
+
+@keyframes factory-furnace-thrum {
+  0% {
+    box-shadow: inset 0 0 0 rgba(255, 176, 69, 0);
+  }
+
+  100% {
+    box-shadow: inset 0 -4px 0 rgba(255, 176, 69, 0.45);
+  }
+}
+
+@keyframes furnace-glyph-glow {
+  0% {
+    filter: brightness(1);
+  }
+
+  100% {
+    filter: brightness(1.2);
+  }
 }
 
 .recipe-modal {
@@ -3957,7 +4384,7 @@ button.recipe-jump-slot {
   }
 
   .break-stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .recipe-modal-body {

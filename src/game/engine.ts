@@ -33,22 +33,31 @@ import type {
 export const saveKey = 'block-tech-idle-save'
 export const factoryGrid = { width: 8, height: 6 }
 export const processStackLimit = 64
+export const boilerSteamCapacityMs = 30000
 
 const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   woodenAxe: 32,
   woodenPickaxe: 32,
+  woodenShovel: 32,
   stoneAxe: 64,
   stonePickaxe: 64,
   ironAxe: 128,
   ironPickaxe: 128,
+  ironShovel: 128,
+  stoneShovel: 64,
   stoneHammer: 48,
   ironHammer: 160,
   ironFile: 96,
+  bronzeFile: 160,
   mortar: 64,
+  ironMortar: 128,
+  bronzeMortar: 192,
 }
 
 const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
   stoneHammer: ['stoneHammer', 'ironHammer'],
+  mortar: ['bronzeMortar', 'ironMortar', 'mortar'],
+  ironFile: ['bronzeFile', 'ironFile'],
 }
 
 function emptyProcessState(): MachineProcessState {
@@ -60,6 +69,9 @@ function emptyProcessState(): MachineProcessState {
     progressMs: 0,
     durationMs: 0,
     fuelRemainingMs: 0,
+    fuelDurationMs: 0,
+    steamStoredMs: 0,
+    steamCapacityMs: 0,
   }
 }
 
@@ -76,6 +88,9 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     progressMs: process.progressMs,
     durationMs: process.durationMs,
     fuelRemainingMs: process.fuelRemainingMs,
+    fuelDurationMs: process.fuelDurationMs,
+    steamStoredMs: process.steamStoredMs,
+    steamCapacityMs: process.steamCapacityMs,
   }
 }
 
@@ -97,6 +112,9 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     progressMs: Math.max(0, Math.floor(process.progressMs ?? 0)),
     durationMs: Math.max(0, Math.floor(process.durationMs ?? 0)),
     fuelRemainingMs: Math.max(0, Math.floor(process.fuelRemainingMs ?? 0)),
+    fuelDurationMs: Math.max(0, Math.floor(process.fuelDurationMs ?? 0)),
+    steamStoredMs: Math.max(0, Math.floor(process.steamStoredMs ?? 0)),
+    steamCapacityMs: Math.max(0, Math.floor(process.steamCapacityMs ?? 0)),
   }
 }
 
@@ -106,7 +124,7 @@ const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
   leggings: [],
   boots: [],
   axe: ['woodenAxe', 'stoneAxe', 'ironAxe'],
-  shovel: [],
+  shovel: ['woodenShovel', 'stoneShovel', 'ironShovel'],
   pickaxe: ['woodenPickaxe', 'stonePickaxe', 'ironPickaxe'],
   weapon: [],
 }
@@ -344,6 +362,11 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
   if (targetId === 'ironVein' || targetId === 'gravelPatch') {
     if (state.equipment.pickaxe === 'ironPickaxe') return tools.ironPickaxe
     if (state.equipment.pickaxe === 'stonePickaxe') return tools.stonePickaxe
+  }
+  if (targetId === 'clayPatch') {
+    if (state.equipment.shovel === 'ironShovel') return tools.ironShovel
+    if (state.equipment.shovel === 'stoneShovel') return tools.stoneShovel
+    if (state.equipment.shovel === 'woodenShovel') return tools.woodenShovel
   }
   if ((targetId === 'copperVein' || targetId === 'tinVein' || targetId === 'coalSeam') && state.equipment.pickaxe === 'ironPickaxe') {
     return tools.ironPickaxe
@@ -699,6 +722,63 @@ function canOutputAccept(output: ProcessSlot, produced: ResourceAmount) {
   return output.id === produced.id && output.amount + produced.amount <= processStackLimit
 }
 
+function adjacentPositions(x: number, y: number) {
+  return [
+    { x: x - 1, y },
+    { x: x + 1, y },
+    { x, y: y - 1 },
+    { x, y: y + 1 },
+  ].filter((position) => isInsideFactoryGrid(position.x, position.y))
+}
+
+function machineAt(state: GameState, x: number, y: number) {
+  return state.machineInstances.find((instance) => instance.x === x && instance.y === y)
+}
+
+export function boilerHasWater(state: GameState, boiler: MachineInstance) {
+  if (boiler.machineId !== 'steamBoiler') return false
+  return adjacentPositions(boiler.x, boiler.y).some((position) => machineAt(state, position.x, position.y)?.machineId === 'well')
+}
+
+function isSteamNetworkMachine(machineId: MachineId) {
+  return machineId === 'steamBoiler' || machineId === 'steamMacerator'
+}
+
+function connectedSteamBoilers(state: GameState, start: MachineInstance) {
+  if (!isSteamNetworkMachine(start.machineId)) return [] as MachineInstance[]
+  const visited = new Set<string>()
+  const queue = [start]
+  const boilers: MachineInstance[] = []
+
+  while (queue.length > 0) {
+    const instance = queue.shift()!
+    if (visited.has(instance.uid)) continue
+    visited.add(instance.uid)
+    if (instance.machineId === 'steamBoiler') boilers.push(instance)
+
+    for (const position of adjacentPositions(instance.x, instance.y)) {
+      const next = machineAt(state, position.x, position.y)
+      if (next && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
+    }
+  }
+  return boilers
+}
+
+export function availableConnectedSteam(state: GameState, instance: MachineInstance) {
+  return connectedSteamBoilers(state, instance).reduce((sum, boiler) => sum + boiler.process.steamStoredMs, 0)
+}
+
+function consumeConnectedSteam(state: GameState, instance: MachineInstance, amount: number) {
+  let remaining = amount
+  for (const boiler of connectedSteamBoilers(state, instance).sort((a, b) => a.uid.localeCompare(b.uid))) {
+    if (remaining < 1) break
+    const spend = Math.min(remaining, boiler.process.steamStoredMs)
+    boiler.process.steamStoredMs -= spend
+    remaining -= spend
+  }
+  return amount - remaining
+}
+
 function addToProcessOutput(output: ProcessSlot, produced: ResourceAmount): ProcessSlot {
   if (!output) return { ...produced }
   return { ...output, amount: output.amount + produced.amount }
@@ -733,9 +813,21 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   return next
 }
 
+export function removeMachineInstance(state: GameState, uid: string) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance) return state
+
+  let next = cloneState(state)
+  const returned = [instance.process.input, instance.process.fuel, instance.process.output].filter((slot): slot is NonNullable<ProcessSlot> => Boolean(slot))
+  next.machineInstances = next.machineInstances.filter((candidate) => candidate.uid !== uid)
+  next.lastSavedAt = Date.now()
+  if (returned.length > 0) next = addResources(next, returned)
+  return next
+}
+
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (slotId === 'input') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.input.id === resourceId)
-  if (slotId === 'fuel') return resourceId in fuelDefinitions
+  if (slotId === 'fuel') return (machineId === 'furnace' || machineId === 'steamBoiler') && resourceId in fuelDefinitions
   return false
 }
 
@@ -797,42 +889,126 @@ function consumeProcessFuel(process: MachineProcessState) {
   const fuel = fuelDefinitions[process.fuel.id]
   if (!fuel) return false
   process.fuelRemainingMs += fuel.burnMs
+  process.fuelDurationMs = fuel.burnMs
   process.fuel = decrementProcessSlot(process.fuel, 1)
   return true
+}
+
+function burnProcessFuel(process: MachineProcessState, elapsedMs: number) {
+  const burnedMs = Math.min(process.fuelRemainingMs, elapsedMs)
+  process.fuelRemainingMs -= burnedMs
+  if (process.fuelRemainingMs < 1) process.fuelDurationMs = 0
+  return burnedMs
+}
+
+function tickFurnaceProcess(instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  let remainingMs = elapsedMs
+
+  while (remainingMs > 0) {
+    const recipe = findProcessRecipeForInput(instance.machineId, process.input)
+    if (!recipe) {
+      process.activeRecipeId = null
+      process.progressMs = 0
+      process.durationMs = 0
+      if (process.fuelRemainingMs > 0) {
+        remainingMs -= burnProcessFuel(process, remainingMs)
+      }
+      break
+    }
+    if (!canOutputAccept(process.output, recipe.output)) {
+      process.activeRecipeId = null
+      if (process.fuelRemainingMs > 0) {
+        remainingMs -= burnProcessFuel(process, remainingMs)
+      }
+      break
+    }
+    if (!consumeProcessFuel(process)) break
+
+    process.activeRecipeId = recipe.id
+    process.durationMs = recipe.durationMs
+    const workMs = Math.min(remainingMs, process.fuelRemainingMs, recipe.durationMs - process.progressMs)
+    process.progressMs += workMs
+    burnProcessFuel(process, workMs)
+    remainingMs -= workMs
+
+    if (process.progressMs < recipe.durationMs) continue
+
+    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.output = addToProcessOutput(process.output, recipe.output)
+    process.progressMs = 0
+    process.activeRecipeId = null
+    process.durationMs = 0
+  }
+}
+
+function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.steamCapacityMs = boilerSteamCapacityMs
+  process.steamStoredMs = Math.min(process.steamStoredMs, boilerSteamCapacityMs)
+  if (!boilerHasWater(state, instance) || process.steamStoredMs >= boilerSteamCapacityMs) {
+    process.activeRecipeId = null
+    return
+  }
+  if (!consumeProcessFuel(process)) {
+    process.activeRecipeId = null
+    return
+  }
+
+  const produced = Math.min(elapsedMs, process.fuelRemainingMs, boilerSteamCapacityMs - process.steamStoredMs)
+  if (produced < 1) return
+  process.activeRecipeId = 'make_steam'
+  process.progressMs = 0
+  process.durationMs = 0
+  burnProcessFuel(process, produced)
+  process.steamStoredMs += produced
+}
+
+function tickSteamMacerator(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  let remainingMs = elapsedMs
+
+  while (remainingMs > 0) {
+    const recipe = findProcessRecipeForInput(instance.machineId, process.input)
+    if (!recipe || !canOutputAccept(process.output, recipe.output)) {
+      process.activeRecipeId = null
+      if (!recipe) {
+        process.progressMs = 0
+        process.durationMs = 0
+      }
+      break
+    }
+
+    const steam = availableConnectedSteam(state, instance)
+    if (steam < 1) {
+      process.activeRecipeId = null
+      break
+    }
+
+    process.activeRecipeId = recipe.id
+    process.durationMs = recipe.durationMs
+    const workMs = Math.min(remainingMs, steam, recipe.durationMs - process.progressMs)
+    const consumed = consumeConnectedSteam(state, instance, workMs)
+    if (consumed < 1) break
+    process.progressMs += consumed
+    remainingMs -= consumed
+
+    if (process.progressMs < recipe.durationMs) continue
+
+    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.output = addToProcessOutput(process.output, recipe.output)
+    process.progressMs = 0
+    process.activeRecipeId = null
+    process.durationMs = 0
+  }
 }
 
 export function tickMachineInstances(state: GameState, elapsedMs: number) {
   const next = cloneState(state)
   for (const instance of next.machineInstances) {
-    const process = instance.process
-    let remainingMs = elapsedMs
-
-    while (remainingMs > 0) {
-      const recipe = findProcessRecipeForInput(instance.machineId, process.input)
-      if (!recipe) {
-        process.activeRecipeId = null
-        process.progressMs = 0
-        process.durationMs = 0
-        break
-      }
-      if (!canOutputAccept(process.output, recipe.output)) break
-      if (!consumeProcessFuel(process)) break
-
-      process.activeRecipeId = recipe.id
-      process.durationMs = recipe.durationMs
-      const workMs = Math.min(remainingMs, process.fuelRemainingMs, recipe.durationMs - process.progressMs)
-      process.progressMs += workMs
-      process.fuelRemainingMs -= workMs
-      remainingMs -= workMs
-
-      if (process.progressMs < recipe.durationMs) continue
-
-      process.input = decrementProcessSlot(process.input, recipe.input.amount)
-      process.output = addToProcessOutput(process.output, recipe.output)
-      process.progressMs = 0
-      process.activeRecipeId = null
-      process.durationMs = 0
-    }
+    if (instance.machineId === 'furnace') tickFurnaceProcess(instance, elapsedMs)
+    if (instance.machineId === 'steamBoiler') tickSteamBoiler(next, instance, elapsedMs)
+    if (instance.machineId === 'steamMacerator') tickSteamMacerator(next, instance, elapsedMs)
   }
   next.lastSavedAt = Date.now()
   return next

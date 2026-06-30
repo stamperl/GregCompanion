@@ -4,6 +4,8 @@ import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
+  boilerHasWater,
+  boilerSteamCapacityMs,
   canCompleteQuest,
   canCraft,
   collectProcessOutput,
@@ -19,11 +21,13 @@ import {
   insertProcessSlot,
   loadGame,
   makeGridForRecipe,
+  maxDurability,
   missingForQuantity,
   missingForRecipe,
   placeMachineInstance,
   processStackLimit,
   recipesUsingInput,
+  removeMachineInstance,
   removeProcessSlot,
   searchTerminalRecipes,
   terminalAvailableAmount,
@@ -181,17 +185,21 @@ describe('game engine', () => {
     let state = createInitialState(1000)
     state.resources.stoneAxe = 1
     state.resources.stonePickaxe = 1
+    state.resources.stoneShovel = 1
     state.resources.ironAxe = 1
     state.resources.ironPickaxe = 1
 
     state = equipResource(state, 'axe', 'stoneAxe')
     state = equipResource(state, 'pickaxe', 'stonePickaxe')
+    state = equipResource(state, 'shovel', 'stoneShovel')
 
     expect(getBestToolForTarget(state, 'tree').id).toBe('stoneAxe')
     expect(getBestToolForTarget(state, 'stone').id).toBe('stonePickaxe')
+    expect(getBestToolForTarget(state, 'clayPatch').id).toBe('stoneShovel')
 
     expect(hitGatherTarget(state, 'tree').state.gatherProgress.tree).toBe(5)
     expect(hitGatherTarget(state, 'stone').state.gatherProgress.stone).toBe(4)
+    expect(hitGatherTarget(state, 'clayPatch').state.gatherProgress.clayPatch).toBe(5)
 
     state = unequipSlot(state, 'axe')
     state = unequipSlot(state, 'pickaxe')
@@ -275,9 +283,13 @@ describe('game engine', () => {
     )
 
     expect(state.machines.furnace).toBe(2)
-    expect(Object.keys(state.machines)).toEqual(['furnace'])
-    expect(state.machineInstances).toHaveLength(1)
+    expect(Object.keys(state.machines)).toEqual(['furnace', 'well', 'steamBoiler', 'steamMacerator'])
+    expect(state.machines.well).toBe(0)
+    expect(state.machines.steamBoiler).toBe(3)
+    expect(state.machines.steamMacerator).toBe(0)
+    expect(state.machineInstances).toHaveLength(2)
     expect(state.machineInstances[0]).toMatchObject({ machineId: 'furnace', x: 0, y: 0, level: 1 })
+    expect(state.machineInstances[1]).toMatchObject({ machineId: 'steamBoiler', x: 1, y: 0, level: 1 })
   })
 
   it('reserves equipped items from terminal storage and crafting', () => {
@@ -303,6 +315,7 @@ describe('game engine', () => {
     state.resources.woodenPickaxe = 1
     state.resources.stoneAxe = 1
     state.resources.stonePickaxe = 1
+    state.resources.stoneShovel = 1
     state.resources.ironAxe = 1
     state.resources.ironPickaxe = 1
     state.resources.stick = 1
@@ -311,6 +324,8 @@ describe('game engine', () => {
     expect(equipResource(state, 'axe', 'stick')).toBe(state)
     expect(equipResource(state, 'axe', 'stonePickaxe')).toBe(state)
     expect(equipResource(state, 'pickaxe', 'stoneAxe')).toBe(state)
+    expect(equipResource(state, 'axe', 'stoneShovel')).toBe(state)
+    expect(equipResource(state, 'pickaxe', 'stoneShovel')).toBe(state)
     expect(equipResource(state, 'axe', 'ironPickaxe')).toBe(state)
     expect(equipResource(state, 'pickaxe', 'ironAxe')).toBe(state)
 
@@ -329,6 +344,8 @@ describe('game engine', () => {
 
     expect(state.equipment.axe).toBe('stoneAxe')
     expect(state.equipment.pickaxe).toBe('stonePickaxe')
+    state = equipResource(state, 'shovel', 'stoneShovel')
+    expect(state.equipment.shovel).toBe('stoneShovel')
 
     state = unequipSlot(state, 'axe')
     state = unequipSlot(state, 'pickaxe')
@@ -487,6 +504,23 @@ describe('game engine', () => {
     expect(placeMachineInstance(state, 'furnace', 1, 0)).toBe(state)
   })
 
+  it('removes placed machines back into unplaced factory inventory and returns slotted items', () => {
+    let state = createInitialState(1000)
+    state.machines.furnace = 1
+    state.resources.log = 2
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    const furnace = state.machineInstances[0]
+    state = insertProcessSlot(state, furnace.uid, 'input', 'log', 1)
+
+    expect(availableUnplacedMachineCount(state, 'furnace')).toBe(0)
+    state = removeMachineInstance(state, furnace.uid)
+
+    expect(state.machineInstances).toEqual([])
+    expect(state.machines.furnace).toBe(1)
+    expect(availableUnplacedMachineCount(state, 'furnace')).toBe(1)
+    expect(state.resources.log).toBe(2)
+  })
+
   it('smelts ore in multiple furnace instances independently', () => {
     let state = createInitialState(1000)
     state.machines.furnace = 3
@@ -579,6 +613,35 @@ describe('game engine', () => {
     expect(durabilityRemaining(state, 'ironHammer')).toBe(159)
   })
 
+  it('requires a stone shovel to dig clay and wears the shovel', () => {
+    let state = createInitialState(1000)
+
+    let result = hitGatherTarget(state, 'clayPatch')
+    expect(result.state.gatherProgress.clayPatch).toBeUndefined()
+
+    state.resources.stoneShovel = 1
+    state = equipResource(state, 'shovel', 'stoneShovel')
+    result = hitGatherTarget(state, 'clayPatch')
+
+    expect(result.state.gatherProgress.clayPatch).toBe(5)
+    expect(durabilityRemaining(result.state, 'stoneShovel')).toBe(63)
+  })
+
+  it('supports wooden and iron shovels for clay digging', () => {
+    let state = createInitialState(1000)
+    state.resources.woodenShovel = 1
+    state.resources.ironShovel = 1
+
+    state = equipResource(state, 'shovel', 'woodenShovel')
+    expect(getBestToolForTarget(state, 'clayPatch').id).toBe('woodenShovel')
+    expect(hitGatherTarget(state, 'clayPatch').state.gatherProgress.clayPatch).toBe(3)
+
+    state = unequipSlot(state, 'shovel')
+    state = equipResource(state, 'shovel', 'ironShovel')
+    expect(getBestToolForTarget(state, 'clayPatch').id).toBe('ironShovel')
+    expect(hitGatherTarget(state, 'clayPatch').state.gatherProgress.clayPatch).toBe(8)
+  })
+
   it('requires a hammer catalyst to make early metal plates', () => {
     let state = createInitialState(1000)
     state.resources.copperIngot = 2
@@ -616,6 +679,68 @@ describe('game engine', () => {
     expect(state.resources.ironRod).toBe(1)
     expect(state.resources.ironFile).toBe(1)
     expect(durabilityRemaining(state, 'ironFile')).toBe(95)
+  })
+
+  it('crafts upgraded pestle and mortar tools with higher durability', () => {
+    let state = createInitialState(1000)
+    state.resources.ironPlate = 3
+    state.resources.bronzePlate = 3
+    state.resources.flint = 2
+    state.resources.stick = 2
+    const ironMortar = recipes.find((recipe) => recipe.id === 'craft_iron_mortar')!
+    const bronzeMortar = recipes.find((recipe) => recipe.id === 'craft_bronze_mortar')!
+
+    state = craftRecipeInstant(state, ironMortar, 1)
+    state = craftRecipeInstant(state, bronzeMortar, 1)
+
+    expect(state.resources.ironMortar).toBe(1)
+    expect(state.resources.bronzeMortar).toBe(1)
+    expect(durabilityRemaining(state, 'mortar')).toBe(0)
+    expect(durabilityRemaining(state, 'ironMortar')).toBe(128)
+    expect(durabilityRemaining(state, 'bronzeMortar')).toBe(192)
+  })
+
+  it('crafts a bronze file with more durability than iron', () => {
+    let state = createInitialState(1000)
+    state.resources.bronzePlate = 2
+    state.resources.stick = 1
+    const bronzeFile = recipes.find((recipe) => recipe.id === 'craft_bronze_file')!
+
+    state = craftRecipeInstant(state, bronzeFile, 1)
+
+    expect(state.resources.bronzeFile).toBe(1)
+    expect(maxDurability('bronzeFile')).toBeGreaterThan(maxDurability('ironFile'))
+    expect(durabilityRemaining(state, 'bronzeFile')).toBe(160)
+  })
+
+  it('uses upgraded mortars for grinding and spends the upgraded durability first', () => {
+    let state = createInitialState(1000)
+    state.resources.copperIngot = 2
+    state.resources.mortar = 1
+    state.resources.ironMortar = 1
+    state.resources.bronzeMortar = 1
+    const grindCopper = recipes.find((recipe) => recipe.id === 'grind_copper_ingot')!
+
+    state = craftRecipeInstant(state, grindCopper, 2)
+
+    expect(state.resources.copperDust).toBe(2)
+    expect(durabilityRemaining(state, 'bronzeMortar')).toBe(190)
+    expect(durabilityRemaining(state, 'ironMortar')).toBe(128)
+    expect(durabilityRemaining(state, 'mortar')).toBe(64)
+  })
+
+  it('uses bronze files for rod filing and spends bronze durability first', () => {
+    let state = createInitialState(1000)
+    state.resources.bronzeIngot = 1
+    state.resources.ironFile = 1
+    state.resources.bronzeFile = 1
+    const bronzeRod = recipes.find((recipe) => recipe.id === 'file_bronze_rod')!
+
+    state = craftRecipeInstant(state, bronzeRod, 1)
+
+    expect(state.resources.bronzeRod).toBe(1)
+    expect(durabilityRemaining(state, 'bronzeFile')).toBe(159)
+    expect(durabilityRemaining(state, 'ironFile')).toBe(96)
   })
 
   it('files one ingot into exactly one rod for early hand filing', () => {
@@ -656,6 +781,34 @@ describe('game engine', () => {
     expect(findGridRecipe(ironHammerGrid, recipes)?.id).toBe(crushIron.id)
   })
 
+  it('matches only the shaped eight-cobblestone furnace ring', () => {
+    const furnaceRing: CraftSlot[] = [
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      null,
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+    ]
+    const arbitraryEight: CraftSlot[] = [
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      { id: 'cobblestone' },
+      null,
+    ]
+
+    expect(findGridRecipe(furnaceRing, recipes)?.id).toBe('build_furnace')
+    expect(findGridRecipe(arbitraryEight, recipes)?.id).not.toBe('build_furnace')
+  })
+
   it('loads catalyst recipes into the grid with catalyst tools included', () => {
     const state = createInitialState(1000)
     state.resources.ironOre = 1
@@ -666,6 +819,21 @@ describe('game engine', () => {
     expect(grid[1]).toEqual({ id: 'ironHammer', ghost: false })
     expect(grid[4]).toEqual({ id: 'ironOre', ghost: false })
     expect(findGridRecipe(grid, recipes)?.id).toBe('crush_iron_ore')
+  })
+
+  it('loads mortar and file recipe previews with the best owned valid tool', () => {
+    const state = createInitialState(1000)
+    state.resources.ironIngot = 2
+    state.resources.mortar = 1
+    state.resources.ironMortar = 1
+    state.resources.bronzeMortar = 1
+    state.resources.ironFile = 1
+    state.resources.bronzeFile = 1
+    const grindIron = recipes.find((recipe) => recipe.id === 'grind_iron_ingot')!
+    const fileIron = recipes.find((recipe) => recipe.id === 'file_iron_rod')!
+
+    expect(makeGridForRecipe(grindIron, state)[1]).toEqual({ id: 'bronzeMortar', ghost: false })
+    expect(makeGridForRecipe(fileIron, state)[1]).toEqual({ id: 'bronzeFile', ghost: false })
   })
 
   it('smelts charcoal and uses it as a middle-strength furnace fuel', () => {
@@ -686,6 +854,49 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
   })
 
+  it('keeps lit furnace fuel burning even after the recipe becomes invalid', () => {
+    let state = createInitialState(1000)
+    state.machines.furnace = 1
+    state.resources.log = 2
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    const furnace = state.machineInstances[0]
+
+    state = insertProcessSlot(state, furnace.uid, 'input', 'log', 1)
+    state = insertProcessSlot(state, furnace.uid, 'fuel', 'log', 1)
+    state = tickGame(state, 4000).state
+
+    expect(state.machineInstances[0].process.fuelRemainingMs).toBe(6000)
+    expect(state.machineInstances[0].process.fuelDurationMs).toBe(10000)
+
+    state = removeProcessSlot(state, furnace.uid, 'input')
+    state = tickGame(state, 2500).state
+
+    expect(state.machineInstances[0].process.input).toBeNull()
+    expect(state.machineInstances[0].process.activeRecipeId).toBeNull()
+    expect(state.machineInstances[0].process.fuelRemainingMs).toBe(3500)
+    expect(state.machineInstances[0].process.fuelDurationMs).toBe(10000)
+
+    state = tickGame(state, 3500).state
+
+    expect(state.machineInstances[0].process.fuelRemainingMs).toBe(0)
+    expect(state.machineInstances[0].process.fuelDurationMs).toBe(0)
+  })
+
+  it('does not light a new furnace fuel item without a valid process recipe', () => {
+    let state = createInitialState(1000)
+    state.machines.furnace = 1
+    state.resources.log = 1
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    const furnace = state.machineInstances[0]
+
+    state = insertProcessSlot(state, furnace.uid, 'fuel', 'log', 1)
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances[0].process.fuel).toEqual({ id: 'log', amount: 1 })
+    expect(state.machineInstances[0].process.fuelRemainingMs).toBe(0)
+    expect(state.machineInstances[0].process.fuelDurationMs).toBe(0)
+  })
+
   it('smelts crushed ore into ingots one-to-one after the crushing bonus', () => {
     let state = createInitialState(1000)
     state.machines.furnace = 2
@@ -704,6 +915,185 @@ describe('game engine', () => {
 
     expect(state.machineInstances[0].process.output).toEqual({ id: 'ironIngot', amount: 1 })
     expect(state.machineInstances[1].process.output).toEqual({ id: 'ironIngot', amount: 1 })
+  })
+
+  it('crafts bricks, bucket, well, and steam machines with shaped recipes', () => {
+    let state = createInitialState(1000)
+    state.resources.clay = 1
+    state.resources.unfiredBrick = 1
+    state.resources.ironPlate = 3
+    state.resources.brick = 8
+    state.resources.bronzePlate = 12
+    state.resources.bronzeRod = 4
+    state.resources.copperRod = 2
+    state.resources.steamCasing = 2
+    state.resources.bronzeMortar = 1
+    const unfiredBrick = recipes.find((recipe) => recipe.id === 'craft_unfired_brick')!
+    const bucket = recipes.find((recipe) => recipe.id === 'craft_bucket')!
+    const well = recipes.find((recipe) => recipe.id === 'build_well')!
+    const boiler = recipes.find((recipe) => recipe.id === 'build_steam_boiler')!
+    const macerator = recipes.find((recipe) => recipe.id === 'build_steam_macerator')!
+
+    state = craftRecipeInstant(state, unfiredBrick, 1)
+    state = craftRecipeInstant(state, bucket, 1)
+    state = craftRecipeInstant(state, well, 1)
+    state = craftRecipeInstant(state, boiler, 1)
+    state = craftRecipeInstant(state, macerator, 1)
+
+    expect(state.resources.unfiredBrick).toBe(2)
+    expect(state.resources.bucket).toBe(0)
+    expect(state.machines.well).toBe(1)
+    expect(state.machines.steamBoiler).toBe(1)
+    expect(state.machines.steamMacerator).toBe(1)
+  })
+
+  it('smelts unfired brick into brick in the primitive furnace', () => {
+    let state = createInitialState(1000)
+    state.machines.furnace = 1
+    state.resources.unfiredBrick = 1
+    state.resources.log = 1
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    const furnace = state.machineInstances[0]
+
+    state = insertProcessSlot(state, furnace.uid, 'input', 'unfiredBrick', 1)
+    state = insertProcessSlot(state, furnace.uid, 'fuel', 'log', 1)
+    state = tickGame(state, 8000).state
+
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'brick', amount: 1 })
+  })
+
+  it('requires the well ring recipe to build a well', () => {
+    const wellRing: CraftSlot[] = [
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'bucket' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+    ]
+    const missingBucket: CraftSlot[] = [
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      { id: 'brick' },
+      null,
+    ]
+
+    expect(findGridRecipe(wellRing, recipes)?.id).toBe('build_well')
+    expect(findGridRecipe(missingBucket, recipes)?.id).not.toBe('build_well')
+  })
+
+  it('uses adjacent wells to supply steam boilers', () => {
+    let state = createInitialState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 2
+    state.resources.log = 2
+    state = placeMachineInstance(state, 'well', 1, 1)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 4, 4)
+    const adjacentBoiler = state.machineInstances.find((instance) => instance.x === 1 && instance.y === 0)!
+    const distantBoiler = state.machineInstances.find((instance) => instance.x === 4 && instance.y === 4)!
+
+    expect(boilerHasWater(state, adjacentBoiler)).toBe(true)
+    expect(boilerHasWater(state, distantBoiler)).toBe(false)
+
+    state = insertProcessSlot(state, adjacentBoiler.uid, 'fuel', 'log', 1)
+    state = insertProcessSlot(state, distantBoiler.uid, 'fuel', 'log', 1)
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === adjacentBoiler.uid)!.process.steamStoredMs).toBe(1000)
+    expect(state.machineInstances.find((instance) => instance.uid === distantBoiler.uid)!.process.steamStoredMs).toBe(0)
+  })
+
+  it('lets one well supply four adjacent boilers', () => {
+    let state = createInitialState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 4
+    state.resources.log = 4
+    state = placeMachineInstance(state, 'well', 2, 2)
+    state = placeMachineInstance(state, 'steamBoiler', 2, 1)
+    state = placeMachineInstance(state, 'steamBoiler', 2, 3)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 2)
+    state = placeMachineInstance(state, 'steamBoiler', 3, 2)
+
+    for (const boiler of state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler')) {
+      state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
+    }
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').map((instance) => instance.process.steamStoredMs)).toEqual([
+      1000,
+      1000,
+      1000,
+      1000,
+    ])
+  })
+
+  it('stops a steam boiler when its steam buffer is full', () => {
+    let state = createInitialState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 1
+    state.resources.coal = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'coal', 1)
+    state = tickGame(state, boilerSteamCapacityMs + 10000).state
+
+    const process = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
+    expect(process.steamStoredMs).toBe(boilerSteamCapacityMs)
+    expect(process.fuelRemainingMs).toBeGreaterThan(0)
+  })
+
+  it('runs a steam macerator from connected boiler steam', () => {
+    let state = createInitialState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 1
+    state.machines.steamMacerator = 1
+    state.resources.log = 1
+    state.resources.ironOre = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
+    state = tickGame(state, 7000).state
+    state = insertProcessSlot(state, macerator.uid, 'input', 'ironOre', 1)
+    state = tickGame(state, 7000).state
+
+    const maceratorProcess = state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process
+    expect(maceratorProcess.output).toEqual({ id: 'crushedIronOre', amount: 2 })
+  })
+
+  it('pauses a steam macerator without connected steam and resumes when steam is available', () => {
+    let state = createInitialState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 1
+    state.machines.steamMacerator = 1
+    state.resources.log = 1
+    state.resources.copperIngot = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    state = insertProcessSlot(state, macerator.uid, 'input', 'copperIngot', 1)
+    state = tickGame(state, 3000).state
+    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.progressMs).toBe(0)
+
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
+    state = tickGame(state, 6000).state
+    state = tickGame(state, 6000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.output).toEqual({ id: 'copperDust', amount: 1 })
   })
 
   it('searches terminal recipes by output and ingredient labels', () => {
@@ -769,8 +1159,12 @@ describe('game engine', () => {
     expect(groups[0].recipes.map((recipe) => recipe.id)).toEqual(['test_crushed_iron'])
   })
 
-  it('does not expose removed non-furnace machine recipes', () => {
-    expect(searchTerminalRecipes('steam').map((recipe) => recipe.id)).toEqual([])
+  it('exposes steam machine recipes without restoring removed machines', () => {
+    expect(searchTerminalRecipes('steam').map((recipe) => recipe.id)).toEqual([
+      'build_steam_boiler',
+      'craft_steam_casing',
+      'build_steam_macerator',
+    ])
     expect(searchTerminalRecipes('dynamo').map((recipe) => recipe.id)).toEqual([])
   })
 
@@ -908,7 +1302,44 @@ describe('game engine', () => {
       null,
       null,
     ]
+    const stoneShovelGrid: CraftSlot[] = [null, { id: 'cobblestone' }, null, null, { id: 'stick' }, null, null, { id: 'stick' }, null]
+    const woodenShovelGrid: CraftSlot[] = [null, { id: 'plank' }, null, null, { id: 'stick' }, null, null, { id: 'stick' }, null]
+    const ironShovelGrid: CraftSlot[] = [null, { id: 'ironIngot' }, null, null, { id: 'stick' }, null, null, { id: 'stick' }, null]
     const ironFileGrid: CraftSlot[] = [null, { id: 'ironPlate' }, null, null, { id: 'ironPlate' }, null, null, { id: 'stick' }, null]
+    const bronzeFileGrid: CraftSlot[] = [null, { id: 'bronzePlate' }, null, null, { id: 'bronzePlate' }, null, null, { id: 'stick' }, null]
+    const mortarGrid: CraftSlot[] = [
+      { id: 'cobblestone' },
+      { id: 'flint' },
+      { id: 'cobblestone' },
+      null,
+      { id: 'cobblestone' },
+      null,
+      null,
+      { id: 'stick' },
+      null,
+    ]
+    const ironMortarGrid: CraftSlot[] = [
+      { id: 'ironPlate' },
+      { id: 'flint' },
+      { id: 'ironPlate' },
+      null,
+      { id: 'ironPlate' },
+      null,
+      null,
+      { id: 'stick' },
+      null,
+    ]
+    const bronzeMortarGrid: CraftSlot[] = [
+      { id: 'bronzePlate' },
+      { id: 'flint' },
+      { id: 'bronzePlate' },
+      null,
+      { id: 'bronzePlate' },
+      null,
+      null,
+      { id: 'stick' },
+      null,
+    ]
     const ironWrenchGrid: CraftSlot[] = [
       { id: 'ironIngot' },
       null,
@@ -936,11 +1367,18 @@ describe('game engine', () => {
     expect(findGridRecipe(pickaxeGrid, recipes)?.id).toBe('craft_wooden_pickaxe')
     expect(findGridRecipe(stoneAxeGrid, recipes)?.id).toBe('craft_stone_axe')
     expect(findGridRecipe(stonePickaxeGrid, recipes)?.id).toBe('craft_stone_pickaxe')
+    expect(findGridRecipe(stoneShovelGrid, recipes)?.id).toBe('craft_stone_shovel')
+    expect(findGridRecipe(woodenShovelGrid, recipes)?.id).toBe('craft_wooden_shovel')
+    expect(findGridRecipe(ironShovelGrid, recipes)?.id).toBe('craft_iron_shovel')
     expect(findGridRecipe(stoneHammerGrid, recipes)?.id).toBe('craft_stone_hammer')
     expect(findGridRecipe(ironAxeGrid, recipes)?.id).toBe('craft_iron_axe')
     expect(findGridRecipe(ironPickaxeGrid, recipes)?.id).toBe('craft_iron_pickaxe')
     expect(findGridRecipe(ironHammerGrid, recipes)?.id).toBe('craft_iron_hammer')
     expect(findGridRecipe(ironFileGrid, recipes)?.id).toBe('craft_iron_file')
+    expect(findGridRecipe(bronzeFileGrid, recipes)?.id).toBe('craft_bronze_file')
+    expect(findGridRecipe(mortarGrid, recipes)?.id).toBe('craft_mortar')
+    expect(findGridRecipe(ironMortarGrid, recipes)?.id).toBe('craft_iron_mortar')
+    expect(findGridRecipe(bronzeMortarGrid, recipes)?.id).toBe('craft_bronze_mortar')
     expect(findGridRecipe(ironWrenchGrid, recipes)?.id).toBe('craft_iron_wrench')
     expect(findGridRecipe(bronzeWrenchGrid, recipes)?.id).toBe('craft_bronze_wrench')
   })

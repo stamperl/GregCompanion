@@ -4,13 +4,17 @@ export type ResourceId =
   | 'stick'
   | 'woodenAxe'
   | 'woodenPickaxe'
+  | 'woodenShovel'
   | 'stoneAxe'
   | 'stonePickaxe'
+  | 'stoneShovel'
   | 'ironAxe'
   | 'ironPickaxe'
+  | 'ironShovel'
   | 'stoneHammer'
   | 'ironHammer'
   | 'ironFile'
+  | 'bronzeFile'
   | 'ironWrench'
   | 'bronzeWrench'
   | 'stone'
@@ -26,6 +30,11 @@ export type ResourceId =
   | 'coal'
   | 'charcoal'
   | 'mortar'
+  | 'ironMortar'
+  | 'bronzeMortar'
+  | 'unfiredBrick'
+  | 'brick'
+  | 'bucket'
   | 'ironIngot'
   | 'copperIngot'
   | 'tinIngot'
@@ -54,6 +63,9 @@ export type ResourceId =
 
 export type MachineId =
   | 'furnace'
+  | 'well'
+  | 'steamBoiler'
+  | 'steamMacerator'
 
 export type QuestId =
   | 'punchTree'
@@ -71,9 +83,19 @@ export type StationType = 'hand' | 'furnace' | 'steam' | 'lv'
 
 export type RecipeType = 'crafting' | 'processing' | 'machine'
 
-export type ToolId = 'bareHand' | 'woodenAxe' | 'woodenPickaxe' | 'stoneAxe' | 'stonePickaxe' | 'ironAxe' | 'ironPickaxe'
+export type ToolId =
+  | 'bareHand'
+  | 'woodenAxe'
+  | 'woodenPickaxe'
+  | 'woodenShovel'
+  | 'stoneAxe'
+  | 'stonePickaxe'
+  | 'stoneShovel'
+  | 'ironAxe'
+  | 'ironPickaxe'
+  | 'ironShovel'
 
-export type GatherTargetId = 'tree' | 'stone' | 'gravelPatch' | 'ironVein' | 'copperVein' | 'tinVein' | 'coalSeam'
+export type GatherTargetId = 'tree' | 'stone' | 'clayPatch' | 'gravelPatch' | 'ironVein' | 'copperVein' | 'tinVein' | 'coalSeam'
 
 export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | 'axe' | 'shovel' | 'pickaxe' | 'weapon'
 
@@ -199,6 +221,9 @@ export type MachineProcessState = {
   progressMs: number
   durationMs: number
   fuelRemainingMs: number
+  fuelDurationMs: number
+  steamStoredMs: number
+  steamCapacityMs: number
 }
 
 export type MachineInstance = {
