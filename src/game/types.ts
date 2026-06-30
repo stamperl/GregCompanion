@@ -2,6 +2,7 @@ export type ResourceId =
   | 'log'
   | 'plank'
   | 'stick'
+  | 'treeTap'
   | 'woodenAxe'
   | 'woodenPickaxe'
   | 'woodenShovel'
@@ -29,6 +30,7 @@ export type ResourceId =
   | 'crushedTinOre'
   | 'coal'
   | 'charcoal'
+  | 'coalCoke'
   | 'mortar'
   | 'ironMortar'
   | 'bronzeMortar'
@@ -45,6 +47,8 @@ export type ResourceId =
   | 'clay'
   | 'sand'
   | 'rubberSap'
+  | 'pipeSealant'
+  | 'rubber'
   | 'water'
   | 'ironPlate'
   | 'copperPlate'
@@ -54,9 +58,15 @@ export type ResourceId =
   | 'copperRod'
   | 'tinRod'
   | 'bronzeRod'
+  | 'steelIngot'
+  | 'steelPlate'
+  | 'steelRod'
   | 'copperWire'
   | 'bronzeBlend'
   | 'steamCasing'
+  | 'cokeOvenBrick'
+  | 'firebrick'
+  | 'bbfCasing'
   | 'basicBoard'
   | 'conductiveWire'
   | 'primitiveCircuit'
@@ -65,7 +75,19 @@ export type MachineId =
   | 'furnace'
   | 'well'
   | 'steamBoiler'
+  | 'steamTank'
+  | 'copperPipe'
+  | 'bronzePipe'
+  | 'ironPipe'
   | 'steamMacerator'
+  | 'steamForgeHammer'
+  | 'steamCompressor'
+  | 'steamExtractor'
+  | 'steamAlloySmelter'
+  | 'steamFurnace'
+  | 'cokeOven'
+  | 'brickedBlastFurnacePart'
+  | 'brickedBlastFurnace'
 
 export type QuestId =
   | 'punchTree'
@@ -94,8 +116,21 @@ export type ToolId =
   | 'ironAxe'
   | 'ironPickaxe'
   | 'ironShovel'
+  | 'treeTap'
 
-export type GatherTargetId = 'tree' | 'stone' | 'clayPatch' | 'gravelPatch' | 'ironVein' | 'copperVein' | 'tinVein' | 'coalSeam'
+export type GatherTargetId =
+  | 'tree'
+  | 'rubberTree'
+  | 'stone'
+  | 'clayPatch'
+  | 'sandPatch'
+  | 'gravelPatch'
+  | 'ironVein'
+  | 'copperVein'
+  | 'tinVein'
+  | 'coalSeam'
+
+export type FluidId = 'water' | 'creosote'
 
 export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | 'axe' | 'shovel' | 'pickaxe' | 'weapon'
 
@@ -149,8 +184,14 @@ export type ProcessRecipe = {
   tier: Tier
   machineId: MachineId
   durationMs: number
+  steamCostLitres?: number
   input: ResourceAmount
+  fuelInput?: ResourceAmount
   output: ResourceAmount
+  fluidOutput?: {
+    id: FluidId
+    amount: number
+  }
 }
 
 export type Quest = {
@@ -201,6 +242,7 @@ export type GameState = {
   resources: Record<ResourceId, number>
   machines: Record<MachineId, number>
   machineInstances: MachineInstance[]
+  factoryFoundationLevel: number
   completedQuests: QuestId[]
   unlockedQuests: QuestId[]
   craftedResources: ResourceId[]
@@ -224,6 +266,8 @@ export type MachineProcessState = {
   fuelDurationMs: number
   steamStoredMs: number
   steamCapacityMs: number
+  fluids: Partial<Record<FluidId, number>>
+  fluidCapacityLitres: number
 }
 
 export type MachineInstance = {

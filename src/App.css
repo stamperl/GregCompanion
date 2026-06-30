@@ -1,4 +1,6 @@
 .game-shell {
+  --sticky-header-height: 72px;
+  --sticky-header-gap: 8px;
   display: grid;
   gap: 14px;
   height: 100svh;
@@ -252,24 +254,120 @@
   left: 68%;
 }
 
+.gather-card-info .mine-face {
+  min-height: 48px;
+}
+
 .float-layer .hit-particles {
-  animation: hit-particle-burst 520ms steps(4, end) forwards;
-  background: #f6d16d;
+  --hit-particle-1: #f6d16d;
+  --hit-particle-2: #cfcfcf;
+  --hit-particle-3: #8b8f8d;
+  --hit-particle-4: #f6d16d;
+  --hit-particle-5: #5f6260;
+  --hit-particle-6: #fff1a8;
+  --hit-particle-7: #2f312f;
+  animation: hit-particle-burst 660ms steps(5, end) forwards;
+  background: var(--hit-particle-1);
   border: 0;
   border-radius: 0;
   box-shadow:
-    -14px 8px 0 #cfcfcf,
-    -8px -7px 0 #8b8f8d,
-    7px -10px 0 #f6d16d,
-    14px 5px 0 #5f6260,
-    3px 13px 0 #fff1a8;
+    -24px 10px 0 var(--hit-particle-2),
+    -15px -14px 0 var(--hit-particle-3),
+    4px -20px 0 var(--hit-particle-4),
+    23px -8px 0 var(--hit-particle-5),
+    20px 15px 0 var(--hit-particle-6),
+    -3px 22px 0 var(--hit-particle-7),
+    -30px -4px 0 var(--hit-particle-4),
+    31px 6px 0 var(--hit-particle-2);
   color: transparent;
-  height: 4px;
+  height: 7px;
   left: 50%;
   overflow: hidden;
   padding: 0;
   top: 50%;
-  width: 4px;
+  width: 7px;
+}
+
+.float-layer .hit-particles-tree,
+.float-layer .hit-particles-rubberTree {
+  --hit-particle-1: #9b5b27;
+  --hit-particle-2: #c78a42;
+  --hit-particle-3: #5e3519;
+  --hit-particle-4: #dfb56a;
+  --hit-particle-5: #2f5f2a;
+  --hit-particle-6: #7f4a22;
+  --hit-particle-7: #173f20;
+}
+
+.float-layer .hit-particles-stone,
+.float-layer .hit-particles-gravelPatch {
+  --hit-particle-1: #8f9290;
+  --hit-particle-2: #c9cbc8;
+  --hit-particle-3: #555957;
+  --hit-particle-4: #aeb2ae;
+  --hit-particle-5: #383c3b;
+  --hit-particle-6: #e1e0d8;
+  --hit-particle-7: #6b706d;
+}
+
+.float-layer .hit-particles-ironVein {
+  --hit-particle-1: #6b7478;
+  --hit-particle-2: #9da6a9;
+  --hit-particle-3: #2f383c;
+  --hit-particle-4: #c37a3d;
+  --hit-particle-5: #566064;
+  --hit-particle-6: #dd9a59;
+  --hit-particle-7: #1f2528;
+}
+
+.float-layer .hit-particles-copperVein {
+  --hit-particle-1: #b66a35;
+  --hit-particle-2: #e28b4a;
+  --hit-particle-3: #5f8f87;
+  --hit-particle-4: #63b6a9;
+  --hit-particle-5: #6b321f;
+  --hit-particle-6: #f2b16a;
+  --hit-particle-7: #2d5e59;
+}
+
+.float-layer .hit-particles-tinVein {
+  --hit-particle-1: #cfd9df;
+  --hit-particle-2: #f1f6f8;
+  --hit-particle-3: #7f8c94;
+  --hit-particle-4: #b6c1c8;
+  --hit-particle-5: #59646b;
+  --hit-particle-6: #ffffff;
+  --hit-particle-7: #949fa6;
+}
+
+.float-layer .hit-particles-coalSeam {
+  --hit-particle-1: #1d2024;
+  --hit-particle-2: #3a3f45;
+  --hit-particle-3: #050607;
+  --hit-particle-4: #686d73;
+  --hit-particle-5: #111417;
+  --hit-particle-6: #2a2f34;
+  --hit-particle-7: #000000;
+}
+
+.float-layer .hit-particles-clayPatch {
+  --hit-particle-1: #a95f45;
+  --hit-particle-2: #c8795b;
+  --hit-particle-3: #6e382c;
+  --hit-particle-4: #d99373;
+  --hit-particle-5: #8e4a37;
+  --hit-particle-6: #e6aa86;
+  --hit-particle-7: #56291f;
+}
+
+.float-layer .hit-particles-sandPatch {
+  --hit-particle-1: #d7bd6a;
+  --hit-particle-2: #f1dc91;
+  --hit-particle-3: #9d8440;
+  --hit-particle-4: #fff0aa;
+  --hit-particle-5: #b99c4f;
+  --hit-particle-6: #f7e6ad;
+  --hit-particle-7: #806b32;
 }
 
 .tap-fx-layer {
@@ -292,16 +390,45 @@
   margin-top: 10px;
 }
 
+.gather-card-info .break-panel {
+  margin-top: 0;
+}
+
+.gather-card-info .break-stats {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gather-card-info .stat-cell {
+  min-height: 0;
+}
+
+.gather-card-info .stat-drop-item {
+  align-items: center;
+  grid-template-columns: 32px auto minmax(0, 1fr);
+}
+
+.gather-card-info .stat-drop-name {
+  white-space: normal;
+}
+
 .gather-panels {
   display: grid;
   gap: 10px;
 }
 
 .gather-area-tabs {
+  background: #c7c7c7;
+  box-shadow:
+    0 -8px 0 #c7c7c7,
+    0 8px 0 #c7c7c7;
   display: grid;
   gap: 4px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  height: 38px;
   margin-bottom: 8px;
+  position: sticky;
+  top: calc(var(--sticky-header-height) + var(--sticky-header-gap));
+  z-index: 50;
 }
 
 .gather-area-tabs button {
@@ -310,11 +437,15 @@
   border-bottom-color: #1f1f1f;
   border-radius: 0;
   border-right-color: #1f1f1f;
+  box-sizing: border-box;
   color: #fff;
   cursor: pointer;
+  display: grid;
   font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
-  min-height: 34px;
+  height: 38px;
+  line-height: 1;
   padding: 5px 8px;
+  place-items: center;
   text-transform: uppercase;
 }
 
@@ -331,6 +462,91 @@
   box-shadow: 0 10px 26px rgba(30, 24, 13, 0.08);
   min-width: 0;
   padding: 12px;
+}
+
+.gather-card-layout {
+  align-items: stretch;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) clamp(118px, 30vw, 168px);
+}
+
+.gather-card-info {
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+  min-width: 0;
+}
+
+.resource-tap-target {
+  -webkit-touch-callout: none;
+  align-self: start;
+  aspect-ratio: 1;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 45%),
+    #8d9870;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  box-shadow: inset 0 -10px 0 rgba(25, 20, 12, 0.12);
+  cursor: pointer;
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px;
+  place-items: center;
+  position: relative;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.resource-tap-art-stack {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  justify-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.resource-tap-target:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.45);
+  opacity: 0.58;
+}
+
+.resource-tap-target:active:not(:disabled) .gather-tap-svg,
+.resource-tap-target:active:not(:disabled) .gather-tap-fallback {
+  transform: translateY(2px) scale(0.97);
+}
+
+.gather-tap-svg {
+  align-self: center;
+  display: block;
+  height: auto;
+  image-rendering: pixelated;
+  justify-self: center;
+  max-height: 100%;
+  transition: transform 90ms steps(2, end);
+  width: min(100%, 132px);
+}
+
+.gather-tap-fallback {
+  display: grid;
+  place-items: center;
+  transition: transform 90ms steps(2, end);
+}
+
+.resource-progress-track {
+  align-self: end;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.gather-tap-fallback .pixel-icon {
+  transform: scale(2.35);
+  transform-origin: center;
 }
 
 .gather-targets {
@@ -447,6 +663,17 @@
 .hit-button > :not(.tap-fx-layer) {
   position: relative;
   z-index: 1;
+}
+
+.hit-button-label-image {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  display: inline-block;
+  flex: 0 1 auto;
+  height: 28px;
+  max-width: calc(100% - 28px);
+  pointer-events: none;
 }
 
 .hit-button:disabled {
@@ -1044,7 +1271,17 @@ button.craft-output:disabled {
 .pixel-bronzeBlend span,
 .pixel-gravel span,
 .pixel-flint span,
-.pixel-charcoal span {
+.pixel-charcoal span,
+.pixel-treeTap span,
+.pixel-coalCoke span,
+.pixel-pipeSealant span,
+.pixel-rubber span,
+.pixel-steelIngot span,
+.pixel-steelPlate span,
+.pixel-steelRod span,
+.pixel-cokeOvenBrick span,
+.pixel-firebrick span,
+.pixel-bbfCasing span {
   display: none;
 }
 
@@ -1109,6 +1346,34 @@ button.craft-output:disabled {
   top: 11px;
   transform: rotate(-34deg);
   width: 22px;
+}
+
+.pixel-treeTap {
+  --p1: #92652f;
+  --p2: #4c2c15;
+  --p3: #c79c54;
+  --p4: #201209;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-treeTap::before {
+  background:
+    linear-gradient(90deg, #c79c54 0 24%, #92652f 24% 74%, #4c2c15 74%),
+    linear-gradient(180deg, transparent 0 58%, #201209 58% 100%);
+  height: 9px;
+  left: 3px;
+  top: 8px;
+  width: 20px;
+}
+
+.pixel-treeTap::after {
+  background: linear-gradient(180deg, #c79c54, #4c2c15);
+  box-shadow: 6px -7px 0 #d6e18a;
+  height: 13px;
+  left: 11px;
+  top: 13px;
+  width: 5px;
 }
 
 .pixel-woodenAxe {
@@ -1510,6 +1775,19 @@ button.craft-output:disabled {
   clip-path: polygon(16% 8%, 74% 4%, 100% 42%, 76% 94%, 24% 88%, 0 36%);
 }
 
+.pixel-coalCoke {
+  --p1: #252829;
+  --p2: #070808;
+  --p3: #c7b56c;
+  --p4: #030303;
+  background:
+    radial-gradient(circle at 34% 30%, #c7b56c 0 6%, transparent 7%),
+    radial-gradient(circle at 68% 62%, #6f642c 0 7%, transparent 8%),
+    radial-gradient(circle at 46% 70%, #4a4f4f 0 10%, transparent 11%),
+    linear-gradient(135deg, #252829, #030303);
+  clip-path: polygon(14% 10%, 72% 2%, 98% 40%, 80% 92%, 30% 96%, 0 48%);
+}
+
 .pixel-copperOre {
   --p1: #b66c3e;
   --p2: #68402e;
@@ -1545,7 +1823,8 @@ button.craft-output:disabled {
 .pixel-ironPlate,
 .pixel-copperPlate,
 .pixel-tinPlate,
-.pixel-bronzePlate {
+.pixel-bronzePlate,
+.pixel-steelPlate {
   background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 82%, var(--p2) 82%);
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18), inset -4px -4px 0 rgba(0, 0, 0, 0.22);
 }
@@ -1553,7 +1832,8 @@ button.craft-output:disabled {
 .pixel-ironPlate::before,
 .pixel-copperPlate::before,
 .pixel-tinPlate::before,
-.pixel-bronzePlate::before {
+.pixel-bronzePlate::before,
+.pixel-steelPlate::before {
   background: rgba(0, 0, 0, 0.22);
   height: 2px;
   left: 5px;
@@ -1615,10 +1895,18 @@ button.craft-output:disabled {
   --p4: #49331f;
 }
 
+.pixel-steelPlate {
+  --p1: #6f7b81;
+  --p2: #31383d;
+  --p3: #c5d0d5;
+  --p4: #1c2226;
+}
+
 .pixel-ironRod,
 .pixel-copperRod,
 .pixel-tinRod,
-.pixel-bronzeRod {
+.pixel-bronzeRod,
+.pixel-steelRod {
   background: transparent;
   box-shadow: none;
 }
@@ -1626,7 +1914,8 @@ button.craft-output:disabled {
 .pixel-ironRod::before,
 .pixel-copperRod::before,
 .pixel-tinRod::before,
-.pixel-bronzeRod::before {
+.pixel-bronzeRod::before,
+.pixel-steelRod::before {
   background: linear-gradient(90deg, var(--p3), var(--p1) 50%, var(--p2));
   height: 5px;
   left: 3px;
@@ -1657,6 +1946,12 @@ button.craft-output:disabled {
   --p1: #b7854c;
   --p2: #73522f;
   --p3: #dec279;
+}
+
+.pixel-steelRod {
+  --p1: #6f7b81;
+  --p2: #31383d;
+  --p3: #c5d0d5;
 }
 
 .pixel-tinOre {
@@ -1712,6 +2007,29 @@ button.craft-output:disabled {
   --p4: #13240e;
   background: linear-gradient(180deg, #88b95b 0 18%, #527f36 19% 74%, #23441c 75%);
   clip-path: polygon(50% 0, 78% 30%, 88% 66%, 64% 100%, 30% 94%, 12% 62%, 24% 28%);
+}
+
+.pixel-pipeSealant {
+  --p1: #5f7f3c;
+  --p2: #25351e;
+  --p3: #bdd887;
+  --p4: #121b0f;
+  background:
+    linear-gradient(90deg, transparent 0 18%, #25351e 18% 30%, transparent 30% 70%, #25351e 70% 82%, transparent 82%),
+    radial-gradient(circle at 50% 54%, #bdd887 0 18%, #5f7f3c 19% 36%, #25351e 37% 46%, transparent 47%),
+    linear-gradient(180deg, transparent 0 36%, #5f7f3c 36% 74%, #25351e 75%);
+  clip-path: polygon(16% 14%, 84% 14%, 96% 38%, 82% 92%, 18% 92%, 4% 38%);
+}
+
+.pixel-rubber {
+  --p1: #2f3030;
+  --p2: #111212;
+  --p3: #6c7070;
+  --p4: #050505;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 0 32%, #6c7070 33% 43%, #2f3030 44% 62%, #111212 63% 74%, transparent 75%),
+    linear-gradient(135deg, #2f3030, #111212);
+  clip-path: polygon(8% 22%, 28% 6%, 72% 6%, 92% 24%, 92% 76%, 72% 94%, 28% 94%, 8% 76%);
 }
 
 .pixel-water {
@@ -1778,7 +2096,10 @@ button.craft-output:disabled {
 }
 
 .pixel-unfiredBrick,
-.pixel-brick {
+.pixel-brick,
+.pixel-cokeOvenBrick,
+.pixel-firebrick,
+.pixel-bbfCasing {
   background:
     linear-gradient(90deg, transparent 0 48%, rgba(0, 0, 0, 0.24) 48% 54%, transparent 54%),
     linear-gradient(0deg, transparent 0 46%, rgba(0, 0, 0, 0.22) 46% 54%, transparent 54%),
@@ -1798,6 +2119,41 @@ button.craft-output:disabled {
   --p3: #d17a55;
 }
 
+.pixel-cokeOvenBrick {
+  --p1: #8e4b36;
+  --p2: #4a241c;
+  --p3: #d28a5d;
+  background:
+    radial-gradient(circle at 72% 72%, #2a1712 0 9%, transparent 10%),
+    linear-gradient(90deg, transparent 0 48%, rgba(0, 0, 0, 0.28) 48% 54%, transparent 54%),
+    linear-gradient(0deg, transparent 0 46%, rgba(0, 0, 0, 0.24) 46% 54%, transparent 54%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+}
+
+.pixel-firebrick {
+  --p1: #8d8175;
+  --p2: #3c3029;
+  --p3: #d4b28a;
+  background:
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.3) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.3) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.28) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.28) 66% 73%, transparent 73%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+}
+
+.pixel-bbfCasing {
+  --p1: #8d8175;
+  --p2: #3c3029;
+  --p3: #d4b28a;
+  background:
+    radial-gradient(circle at 23% 23%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    radial-gradient(circle at 77% 23%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    radial-gradient(circle at 23% 77%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    radial-gradient(circle at 77% 77%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.3) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.3) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.28) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.28) 66% 73%, transparent 73%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+}
+
 .pixel-bucket {
   background:
     linear-gradient(90deg, transparent 0 20%, #d5dde0 20% 32%, transparent 32% 68%, #4f585e 68% 80%, transparent 80%),
@@ -1809,7 +2165,8 @@ button.craft-output:disabled {
 .pixel-ironIngot,
 .pixel-copperIngot,
 .pixel-tinIngot,
-.pixel-bronzeIngot {
+.pixel-bronzeIngot,
+.pixel-steelIngot {
   background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
   clip-path: polygon(12% 28%, 88% 28%, 100% 72%, 78% 94%, 22% 94%, 0 72%);
   box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.22), inset -3px -3px 0 rgba(0, 0, 0, 0.22);
@@ -1837,6 +2194,12 @@ button.craft-output:disabled {
   --p1: #b7854c;
   --p2: #73522f;
   --p3: #dec279;
+}
+
+.pixel-steelIngot {
+  --p1: #6f7b81;
+  --p2: #31383d;
+  --p3: #c5d0d5;
 }
 
 .pixel-copperDust,
@@ -2362,7 +2725,6 @@ button.craft-output:disabled {
   align-items: center;
   display: grid;
   gap: 8px;
-  grid-template-columns: 1fr auto;
 }
 
 .processing-head h2 {
@@ -2426,12 +2788,141 @@ button.craft-output:disabled {
   justify-content: end;
 }
 
-.machine-placement-storage {
+.factory-inventory-panel {
   display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 2fr) minmax(78px, 1fr);
+  min-width: 0;
+}
+
+.factory-tool-storage,
+.machine-placement-storage {
+  align-content: start;
+  display: grid;
+  gap: 4px;
+  grid-template-rows: auto 1fr;
+  min-height: 96px;
+  overflow: hidden;
+}
+
+.machine-placement-storage {
+  min-width: 0;
+}
+
+.factory-tray-label {
+  color: #333;
+  font: 950 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.factory-tray-head {
+  align-items: center;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: auto minmax(54px, 96px);
+  min-width: 0;
+}
+
+.factory-machine-search {
+  background: #e8e8e8;
+  border: 2px solid #777;
+  border-bottom-color: #f3f3f3;
+  border-radius: 0;
+  border-right-color: #f3f3f3;
+  color: #202020;
+  font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 22px;
+  min-width: 0;
+  padding: 2px 5px;
+  width: 100%;
+  -webkit-text-fill-color: #202020;
+}
+
+.factory-machine-search::placeholder {
+  color: #666;
+  opacity: 1;
+}
+
+.factory-tool-slots {
+  align-content: start;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, 40px);
+  min-width: 0;
+}
+
+.factory-tool-slot .pixel-icon {
+  height: 26px;
+  width: 26px;
+}
+
+.machine-placement-slots {
+  align-content: start;
+  display: grid;
+  gap: 4px;
+  grid-auto-columns: 40px;
   grid-auto-flow: column;
   grid-template-rows: repeat(2, 44px);
   justify-content: start;
+  max-width: 100%;
   min-height: 96px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-color: #6f6f6f #b6b6b6;
+  scrollbar-width: thin;
+}
+
+.machine-placement-slots::-webkit-scrollbar {
+  height: 6px;
+}
+
+.machine-placement-slots::-webkit-scrollbar-track {
+  background: #9f9f9f;
+}
+
+.machine-placement-slots::-webkit-scrollbar-thumb {
+  background: #5f5f5f;
+}
+
+.factory-selection-name {
+  align-items: center;
+  background: #a9a9a9;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  color: #343434;
+  display: grid;
+  gap: 3px;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 28px;
+  padding: 4px 6px;
+}
+
+.factory-selection-name span {
+  color: #4d4d4d;
+  font: 950 0.55rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.factory-selection-name strong {
+  color: #272727;
+  font: 950 0.72rem "Courier New", ui-monospace, monospace;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.factory-selection-name.active {
+  background: #beb899;
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
 }
 
 .machine-inventory-slot .machine-glyph {
@@ -2439,7 +2930,46 @@ button.craft-output:disabled {
   width: 26px;
 }
 
-.remove-machine-button {
+.factory-foundation-panel,
+.factory-expansion-row {
+  background: #b6b6b6;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  color: #272727;
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+}
+
+.factory-foundation-panel h3 {
+  color: #2d2d2d;
+  font: 950 1rem "Courier New", ui-monospace, monospace;
+  margin: 2px 0;
+}
+
+.factory-foundation-panel p {
+  color: #3d3d3d;
+  font: 850 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.factory-expansion-row {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 40px;
+  padding: 5px 7px;
+}
+
+.factory-expansion-row strong {
+  color: #272727;
+  display: block;
+  font: 950 0.82rem "Courier New", ui-monospace, monospace;
+  margin-top: 2px;
+}
+
+.factory-expand-button {
   background: #4a4a4a;
   border: 2px solid #efefef;
   border-bottom-color: #1f1f1f;
@@ -2447,9 +2977,40 @@ button.craft-output:disabled {
   border-right-color: #1f1f1f;
   color: #fff;
   cursor: pointer;
-  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
-  min-height: 34px;
-  padding: 5px 8px;
+  font: 950 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 30px;
+  padding: 3px 10px;
+}
+
+.factory-expand-button:focus-visible,
+.factory-expand-button:hover {
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+  outline: none;
+}
+
+.factory-cost-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.factory-cost-row .mini-slot {
+  flex: 0 0 34px;
+}
+
+.factory-expand-modal {
+  gap: 10px;
+}
+
+.factory-expand-costs {
+  background: #b6b6b6;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  padding: 5px;
 }
 
 .empty-furnace-storage {
@@ -2468,6 +3029,7 @@ button.craft-output:disabled {
   border-right-color: #5f5f5f;
   color: #272727;
   display: flex;
+  flex-wrap: wrap;
   font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
   gap: 8px;
   justify-content: space-between;
@@ -2477,6 +3039,7 @@ button.craft-output:disabled {
 
 .machine-status-row strong {
   color: #1f1f1f;
+  text-align: right;
 }
 
 .well-interface {
@@ -2489,9 +3052,15 @@ button.craft-output:disabled {
   display: grid;
   font: 900 0.76rem Inter, ui-sans-serif, system-ui, sans-serif;
   gap: 8px;
-  grid-template-columns: 40px 1fr;
+  grid-template-columns: max-content minmax(0, 1fr);
   padding: 12px;
   text-transform: uppercase;
+}
+
+.well-interface > span {
+  line-height: 1.15;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .well-interface .machine-glyph {
@@ -2499,14 +3068,36 @@ button.craft-output:disabled {
   width: 34px;
 }
 
-.factory-scroll {
-  background: #a8a8a8;
+.factory-pan-viewport {
+  background:
+    linear-gradient(90deg, rgba(70, 70, 70, 0.18) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(70, 70, 70, 0.18) 1px, transparent 1px),
+    #a8a8a8;
+  background-size: 16px 16px;
   border: 2px solid #777;
   border-bottom-color: #f2f2f2;
   border-right-color: #f2f2f2;
+  cursor: grab;
+  height: clamp(240px, 48svh, 360px);
   max-width: 100%;
-  overflow-x: auto;
+  overflow: hidden;
+  overscroll-behavior: none;
   padding: 6px;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+}
+
+.factory-pan-viewport:active {
+  cursor: grabbing;
+}
+
+.factory-pan-content {
+  left: 6px;
+  position: absolute;
+  top: 6px;
+  width: max-content;
+  will-change: transform;
 }
 
 .factory-grid {
@@ -2518,7 +3109,10 @@ button.craft-output:disabled {
 
 .factory-cell {
   align-items: center;
-  background: #8f8f8f;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 34%),
+    linear-gradient(315deg, rgba(0, 0, 0, 0.13), transparent 38%),
+    #8f8f8f;
   border: 2px solid #747474;
   border-bottom-color: #cfcfcf;
   border-radius: 0;
@@ -2527,7 +3121,9 @@ button.craft-output:disabled {
   display: grid;
   height: 44px;
   justify-content: center;
+  overflow: visible;
   padding: 2px;
+  position: relative;
   width: 44px;
 }
 
@@ -2544,19 +3140,338 @@ button.craft-output:disabled {
   border-right-color: #806c22;
 }
 
+.factory-cell.occupied.removing {
+  border-color: #ffd0a8;
+  border-bottom-color: #5f2a1d;
+  border-right-color: #5f2a1d;
+}
+
+.factory-cell.occupied.removing::after {
+  background: #ff8d4b;
+  box-shadow:
+    0 0 0 1px #4e2112,
+    0 0 5px #ff8d4b;
+}
+
 .factory-cell.occupied {
-  background: #777;
+  background:
+    linear-gradient(90deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
+    linear-gradient(180deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
+    #777;
   border-color: #efefef;
   border-bottom-color: #4f4f4f;
   border-right-color: #4f4f4f;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.18),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.12);
 }
 
 .factory-cell.occupied.active {
   animation: factory-furnace-thrum 0.8s steps(2, end) infinite;
-  background: #7f7870;
+  background:
+    linear-gradient(90deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
+    linear-gradient(180deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
+    #7f7870;
   border-color: #fff0a8;
   border-bottom-color: #5f4a28;
   border-right-color: #5f4a28;
+}
+
+.factory-cell.occupied::before {
+  background:
+    radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at 3px calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.18)),
+    #6d6d6d;
+  border: 2px solid rgba(35, 35, 35, 0.72);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.2),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.3);
+  content: "";
+  height: 34px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  width: 34px;
+  z-index: 0;
+}
+
+.factory-cell.occupied::after {
+  background: #303030;
+  box-shadow: 0 0 0 1px #1d1d1d;
+  content: "";
+  height: 4px;
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  width: 4px;
+  z-index: 2;
+}
+
+.factory-cell.occupied.active::after {
+  background: #ffd96a;
+  box-shadow:
+    0 0 0 1px #4e3512,
+    0 0 5px #ffd96a;
+}
+
+.factory-cell.occupied .machine-glyph {
+  height: 26px;
+  z-index: 1;
+  width: 26px;
+}
+
+.factory-cell.occupied .machine-glyph {
+  filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.3));
+}
+
+.factory-cell.occupied.machine-furnace-cell::before {
+  background:
+    radial-gradient(circle at 50% 84%, rgba(255, 163, 63, 0.76) 0 3px, rgba(116, 50, 28, 0.86) 4px 6px, transparent 7px),
+    repeating-linear-gradient(90deg, rgba(35, 35, 35, 0.2) 0 2px, transparent 2px 10px),
+    repeating-linear-gradient(180deg, rgba(35, 35, 35, 0.18) 0 2px, transparent 2px 9px),
+    radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at 3px calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(0, 0, 0, 0.2)),
+    #747775;
+}
+
+.factory-cell.occupied.machine-well-cell::before {
+  background:
+    linear-gradient(90deg, transparent 0 40%, rgba(159, 216, 239, 0.7) 40% 60%, transparent 60%),
+    repeating-linear-gradient(90deg, #9c4f35 0 8px, #6e3427 8px 16px),
+    repeating-linear-gradient(180deg, rgba(55, 28, 20, 0.5) 0 2px, transparent 2px 10px),
+    radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at 3px calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(0, 0, 0, 0.2)),
+    #8e4b36;
+}
+
+.factory-cell.occupied.machine-steamBoiler-cell::before,
+.factory-cell.occupied.machine-steamMacerator-cell::before {
+  background:
+    radial-gradient(circle at 50% 84%, rgba(255, 163, 63, 0.62) 0 3px, rgba(116, 50, 28, 0.7) 4px 6px, transparent 7px),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at 3px calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(0, 0, 0, 0.24)),
+    #9a6c35;
+}
+
+.factory-cell.occupied.machine-steamForgeHammer-cell::before,
+.factory-cell.occupied.machine-steamCompressor-cell::before,
+.factory-cell.occupied.machine-steamExtractor-cell::before,
+.factory-cell.occupied.machine-steamAlloySmelter-cell::before,
+.factory-cell.occupied.machine-steamFurnace-cell::before {
+  background:
+    radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at 3px calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
+.factory-cell.occupied.machine-steamForgeHammer-cell::before {
+  background:
+    linear-gradient(135deg, transparent 0 34%, rgba(73, 51, 31, 0.95) 34% 44%, transparent 45%),
+    linear-gradient(180deg, transparent 0 62%, rgba(42, 28, 18, 0.95) 62% 75%, transparent 76%),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
+.factory-cell.occupied.machine-steamCompressor-cell::before {
+  background:
+    linear-gradient(180deg, transparent 0 18%, rgba(216, 221, 224, 0.92) 18% 36%, rgba(67, 75, 78, 0.8) 36% 45%, transparent 46%),
+    linear-gradient(90deg, transparent 0 16%, rgba(73, 51, 31, 0.9) 16% 26%, transparent 26% 74%, rgba(73, 51, 31, 0.9) 74% 84%, transparent 84%),
+    linear-gradient(180deg, transparent 0 62%, rgba(69, 45, 24, 0.82) 62% 75%, transparent 76%),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
+.factory-cell.occupied.machine-steamExtractor-cell::before {
+  background:
+    linear-gradient(90deg, transparent 0 30%, rgba(232, 249, 255, 0.88) 30% 43%, rgba(117, 191, 212, 0.88) 43% 60%, rgba(47, 127, 156, 0.9) 60% 70%, transparent 70%),
+    radial-gradient(circle at 70% 70%, rgba(217, 141, 78, 0.95) 0 4px, rgba(101, 55, 34, 0.95) 5px 7px, transparent 8px),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
+.factory-cell.occupied.machine-steamAlloySmelter-cell::before {
+  background:
+    radial-gradient(circle at 50% 72%, rgba(255, 196, 90, 0.9) 0 4px, rgba(143, 62, 37, 0.94) 5px 8px, transparent 9px),
+    linear-gradient(90deg, transparent 0 18%, rgba(36, 20, 17, 0.9) 18% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 43%, rgba(36, 20, 17, 0.82) 43% 68%, transparent 69%),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
+.factory-cell.occupied.machine-steamFurnace-cell::before {
+  background:
+    radial-gradient(circle at 50% 80%, rgba(255, 188, 79, 0.9) 0 4px, rgba(143, 62, 37, 0.94) 5px 8px, transparent 9px),
+    linear-gradient(90deg, transparent 0 18%, rgba(17, 17, 17, 0.95) 18% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 47%, rgba(12, 12, 12, 0.9) 47% 74%, transparent 75%),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
+.factory-cell.occupied.machine-steamForgeHammer-cell .machine-glyph,
+.factory-cell.occupied.machine-steamCompressor-cell .machine-glyph,
+.factory-cell.occupied.machine-steamExtractor-cell .machine-glyph,
+.factory-cell.occupied.machine-steamAlloySmelter-cell .machine-glyph,
+.factory-cell.occupied.machine-steamFurnace-cell .machine-glyph {
+  height: 30px;
+  width: 30px;
+}
+
+.factory-cell.occupied.machine-steamTank-cell::before {
+  background:
+    linear-gradient(90deg, transparent 0 36%, rgba(159, 216, 239, 0.58) 36% 64%, transparent 64%),
+    repeating-linear-gradient(90deg, rgba(225, 231, 232, 0.22) 0 3px, transparent 3px 12px),
+    radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at 3px calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(0, 0, 0, 0.22)),
+    #747d82;
+}
+
+.factory-cell.occupied.machine-cokeOven-cell::before {
+  background:
+    linear-gradient(90deg, transparent 0 69%, #5f2f20 69% 82%, #d28a5d 82% 89%, transparent 89%),
+    radial-gradient(ellipse at 43% 62%, rgba(32, 17, 14, 0.96) 0 8px, rgba(74, 36, 28, 0.94) 9px 11px, transparent 12px),
+    radial-gradient(circle at 43% 77%, rgba(208, 140, 66, 0.9) 0 3px, rgba(143, 62, 37, 0.94) 4px 6px, transparent 7px),
+    repeating-linear-gradient(90deg, #b76042 0 6px, #8e4b36 6px 12px),
+    repeating-linear-gradient(180deg, rgba(55, 28, 20, 0.42) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #d28a5d 0 16%, #9c4f35 16% 82%, #4a241c 82%);
+}
+
+.factory-cell.occupied.machine-brickedBlastFurnacePart-cell::before {
+  background:
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.3) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.3) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.28) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.28) 66% 73%, transparent 73%),
+    radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at 3px calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 3px) calc(100% - 3px), #2e2e2e 0 2px, transparent 3px),
+    linear-gradient(135deg, #d4b28a 0 18%, #8d8175 18% 78%, #3c3029 78%);
+}
+
+.factory-cell.occupied.machine-brickedBlastFurnace-cell::before {
+  background:
+    linear-gradient(90deg, transparent 0 18%, rgba(60, 48, 41, 0.92) 18% 27%, transparent 27% 73%, rgba(60, 48, 41, 0.92) 73% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 6%, rgba(60, 48, 41, 0.95) 6% 13%, transparent 13%),
+    radial-gradient(circle at 50% 83%, rgba(255, 196, 90, 0.9) 0 4px, rgba(143, 62, 37, 0.94) 5px 8px, transparent 9px),
+    linear-gradient(90deg, transparent 0 25%, rgba(36, 20, 17, 0.9) 25% 75%, transparent 75%),
+    repeating-linear-gradient(180deg, #d4b28a 0 5px, #8d8175 5px 10px),
+    repeating-linear-gradient(90deg, rgba(60, 48, 41, 0.38) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #d4b28a 0 10%, #8d8175 10% 82%, #3c3029 82%);
+}
+
+.factory-cell.occupied.multiblock-bbf-controller {
+  z-index: 4;
+}
+
+.factory-cell.occupied.multiblock-bbf-controller::before {
+  background:
+    linear-gradient(90deg, transparent 0 10%, rgba(60, 48, 41, 0.92) 10% 17%, transparent 17% 83%, rgba(60, 48, 41, 0.92) 83% 90%, transparent 90%),
+    linear-gradient(180deg, transparent 0 5%, rgba(60, 48, 41, 0.95) 5% 11%, transparent 11%),
+    radial-gradient(circle at 50% 78%, rgba(255, 196, 90, 0.95) 0 7%, rgba(143, 62, 37, 0.98) 8% 13%, transparent 14%),
+    linear-gradient(90deg, transparent 0 25%, rgba(36, 20, 17, 0.94) 25% 75%, transparent 75%),
+    repeating-linear-gradient(180deg, rgba(60, 48, 41, 0.36) 0 3px, transparent 3px 12px),
+    repeating-linear-gradient(90deg, rgba(60, 48, 41, 0.34) 0 3px, transparent 3px 14px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 30%),
+    linear-gradient(180deg, #d4b28a 0 10%, #9f9387 10% 44%, #7f7369 44% 82%, #3c3029 82%);
+  border: 3px solid rgba(50, 40, 34, 0.86);
+  box-sizing: border-box;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.26),
+    inset -4px -5px 0 rgba(0, 0, 0, 0.28),
+    4px 5px 0 rgba(0, 0, 0, 0.24);
+  height: 92px;
+  left: 0;
+  pointer-events: none;
+  top: 0;
+  width: 92px;
+  z-index: 5;
+}
+
+.factory-cell.occupied.multiblock-bbf-controller::after {
+  background: #ffd96a;
+  box-shadow:
+    0 0 0 1px #4e3512,
+    0 0 6px #ffd96a;
+  right: 6px;
+  top: 6px;
+  z-index: 6;
+}
+
+.factory-cell.occupied.multiblock-bbf-controller > span {
+  display: none;
+}
+
+.factory-cell.occupied.multiblock-bbf-child {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  z-index: 3;
+}
+
+.factory-cell.occupied.multiblock-bbf-child::before,
+.factory-cell.occupied.multiblock-bbf-child::after {
+  display: none;
+}
+
+.factory-cell.occupied.multiblock-bbf-child > span,
+.factory-cell.occupied.multiblock-bbf-child .machine-glyph {
+  display: none;
+}
+
+.factory-cell.occupied.multiblock-bbf-child.removing {
+  border-color: rgba(255, 208, 168, 0.72);
+  border-bottom-color: rgba(95, 42, 29, 0.72);
+  border-right-color: rgba(95, 42, 29, 0.72);
+}
+
+.factory-cell.occupied.machine-cokeOven-cell .machine-glyph,
+.factory-cell.occupied.machine-brickedBlastFurnacePart-cell .machine-glyph,
+.factory-cell.occupied.machine-brickedBlastFurnace-cell .machine-glyph {
+  height: 30px;
+  width: 30px;
+}
+
+.factory-cell.occupied.machine-copperPipe-cell::before,
+.factory-cell.occupied.machine-bronzePipe-cell::before,
+.factory-cell.occupied.machine-ironPipe-cell::before {
+  display: none;
+}
+
+.factory-cell.occupied.machine-copperPipe-cell::after,
+.factory-cell.occupied.machine-bronzePipe-cell::after,
+.factory-cell.occupied.machine-ironPipe-cell::after {
+  display: none;
+}
+
+.factory-cell.occupied.machine-copperPipe-cell .machine-glyph,
+.factory-cell.occupied.machine-bronzePipe-cell .machine-glyph,
+.factory-cell.occupied.machine-ironPipe-cell .machine-glyph {
+  filter: none;
+  height: 40px;
+  width: 40px;
 }
 
 .furnace-modal {
@@ -2586,10 +3501,166 @@ button.craft-output:disabled {
   padding: 12px;
 }
 
+.steamBoiler-process-interface {
+  grid-template-areas:
+    "tank fuel"
+    "progress progress";
+  grid-template-columns: max-content minmax(70px, 1fr);
+  justify-items: center;
+}
+
+.steamBoiler-process-interface > .steam-tank {
+  grid-area: tank;
+}
+
+.steamBoiler-process-interface > .furnace-inputs {
+  grid-area: fuel;
+}
+
+.steamBoiler-process-interface > .furnace-progress {
+  grid-area: progress;
+  max-width: 220px;
+}
+
+.steamMacerator-process-interface,
+.steamForgeHammer-process-interface,
+.steamCompressor-process-interface,
+.steamExtractor-process-interface,
+.steamAlloySmelter-process-interface,
+.steamFurnace-process-interface {
+  gap: 10px;
+  grid-template-columns: max-content minmax(54px, 1fr) 54px;
+}
+
+.steamMacerator-process-interface > .furnace-inputs,
+.steamForgeHammer-process-interface > .furnace-inputs,
+.steamCompressor-process-interface > .furnace-inputs,
+.steamExtractor-process-interface > .furnace-inputs,
+.steamAlloySmelter-process-interface > .furnace-inputs,
+.steamFurnace-process-interface > .furnace-inputs {
+  align-items: center;
+  display: grid;
+  grid-template-areas:
+    "input tank"
+    "usage tank";
+  grid-template-columns: 54px max-content;
+}
+
+.steamMacerator-process-interface > .furnace-inputs > .process-slot,
+.steamForgeHammer-process-interface > .furnace-inputs > .process-slot,
+.steamCompressor-process-interface > .furnace-inputs > .process-slot,
+.steamExtractor-process-interface > .furnace-inputs > .process-slot,
+.steamAlloySmelter-process-interface > .furnace-inputs > .process-slot,
+.steamFurnace-process-interface > .furnace-inputs > .process-slot {
+  grid-area: input;
+}
+
+.steamMacerator-process-interface > .furnace-inputs > .steam-tank,
+.steamForgeHammer-process-interface > .furnace-inputs > .steam-tank,
+.steamCompressor-process-interface > .furnace-inputs > .steam-tank,
+.steamExtractor-process-interface > .furnace-inputs > .steam-tank,
+.steamAlloySmelter-process-interface > .furnace-inputs > .steam-tank,
+.steamFurnace-process-interface > .furnace-inputs > .steam-tank {
+  grid-area: tank;
+}
+
+.steamMacerator-process-interface .steam-usage-line,
+.steamForgeHammer-process-interface .steam-usage-line,
+.steamCompressor-process-interface .steam-usage-line,
+.steamExtractor-process-interface .steam-usage-line,
+.steamAlloySmelter-process-interface .steam-usage-line,
+.steamFurnace-process-interface .steam-usage-line {
+  grid-area: usage;
+  justify-self: center;
+}
+
+.steamMacerator-process-interface > .furnace-progress,
+.steamForgeHammer-process-interface > .furnace-progress,
+.steamCompressor-process-interface > .furnace-progress,
+.steamExtractor-process-interface > .furnace-progress,
+.steamAlloySmelter-process-interface > .furnace-progress,
+.steamFurnace-process-interface > .furnace-progress {
+  min-width: 56px;
+}
+
 .furnace-inputs {
   display: grid;
   gap: 6px;
   justify-items: center;
+}
+
+.steam-tank {
+  align-items: center;
+  background: #8f8f8f;
+  border: 2px solid #efefef;
+  border-bottom-color: #4f4f4f;
+  border-radius: 0;
+  border-right-color: #4f4f4f;
+  color: #f7f7f7;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  min-width: 88px;
+  padding: 5px;
+  width: max-content;
+}
+
+.steam-tank-gauge {
+  align-items: end;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 35%),
+    #5f6b72;
+  border: 2px solid #363c40;
+  border-bottom-color: #c8d2d6;
+  border-right-color: #c8d2d6;
+  display: grid;
+  height: 58px;
+  overflow: hidden;
+  width: 18px;
+}
+
+.steam-tank-gauge span {
+  animation: steam-tank-wobble 1.1s steps(2, end) infinite;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.22) 0 2px, transparent 2px 8px),
+    linear-gradient(180deg, #eafaff, #8fc6d8 55%, #639caf);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.36);
+  display: block;
+  transition: height 220ms linear;
+  width: 100%;
+}
+
+.fluid-tank-gauge span {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(180deg, #d08c42, #815029 58%, #49301f);
+}
+
+.steam-tank-readout {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.steam-tank-readout span,
+.steam-tank-readout small {
+  color: #e6e6e6;
+  font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.steam-tank-readout strong {
+  color: #ffffff;
+  font: 900 0.98rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #303030;
+  white-space: nowrap;
+}
+
+.steam-usage-line {
+  color: #333;
+  font: 900 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
 }
 
 .process-slot {
@@ -3053,6 +4124,12 @@ button.craft-output:disabled {
   min-height: 48px;
   padding: 10px;
   width: 100%;
+  -webkit-text-fill-color: var(--ink);
+}
+
+.recipe-search::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 .recipe-notice,
@@ -3192,6 +4269,8 @@ button.craft-output:disabled {
   gap: 8px;
   max-width: 760px;
   padding: 10px;
+  --sticky-header-height: 72px;
+  --sticky-header-gap: 8px;
 }
 
 .game-header,
@@ -3210,7 +4289,17 @@ button.craft-output:disabled {
 }
 
 .game-header {
+  box-sizing: border-box;
+  box-shadow:
+    0 -80px 0 #c7c7c7,
+    0 3px 0 #2f2f2f;
+  height: 72px;
+  min-height: 72px;
+  overflow: hidden;
   padding: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 60;
 }
 
 .game-header h1 {
@@ -3245,7 +4334,7 @@ button.craft-output:disabled {
 @keyframes hit-particle-burst {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.6);
+    transform: translate(-50%, -50%) scale(0.65);
   }
 
   20% {
@@ -3254,7 +4343,7 @@ button.craft-output:disabled {
 
   to {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(1.6);
+    transform: translate(-50%, -50%) scale(2.05);
   }
 }
 
@@ -3344,14 +4433,27 @@ button.craft-output:disabled {
   user-select: none;
 }
 
+.gather-panel.resource-focus {
+  animation: gather-resource-focus 2s steps(4, end);
+}
+
+.gather-card-layout {
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) clamp(112px, 29vw, 154px);
+}
+
+.gather-card-info {
+  gap: 6px;
+}
+
 .mine-face {
   background: #b6b6b6;
   border: 2px solid #777;
   border-bottom-color: #f2f2f2;
   border-radius: 0;
   border-right-color: #f2f2f2;
-  grid-template-columns: auto 1fr;
-  min-height: 82px;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 42px;
   padding: 8px;
 }
 
@@ -3361,6 +4463,7 @@ button.craft-output:disabled {
   color: #2d2d2d;
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 1rem;
+  line-height: 1.05;
 }
 
 .mine-face p,
@@ -3383,9 +4486,69 @@ button.craft-output:disabled {
   width: 48px;
 }
 
+.resource-tap-target {
+  background:
+    linear-gradient(180deg, rgba(238, 238, 238, 0.34), transparent 42%),
+    #7f8b67;
+  border: 3px solid #f3f3f3;
+  border-bottom-color: #555;
+  border-radius: 0;
+  border-right-color: #555;
+  box-shadow:
+    inset 0 -8px 0 rgba(30, 30, 30, 0.16),
+    0 2px 0 #2f2f2f;
+  padding: 3px;
+}
+
+.resource-tap-art-stack {
+  gap: 5px;
+}
+
+.resource-tap-target:focus-visible {
+  outline: 2px solid #fff8aa;
+  outline-offset: 2px;
+}
+
+.resource-tap-target:active:not(:disabled) {
+  border-color: #777;
+  border-bottom-color: #f3f3f3;
+  border-right-color: #f3f3f3;
+  box-shadow: inset 0 3px 0 rgba(30, 30, 30, 0.22);
+}
+
+.gather-tap-tree {
+  filter: drop-shadow(2px 3px 0 rgba(30, 30, 30, 0.28));
+}
+
+.gather-tap-fallback {
+  height: 100%;
+  width: 100%;
+}
+
 .break-panel {
   gap: 6px;
   margin-top: 8px;
+}
+
+.gather-card-info .break-panel {
+  margin-top: 0;
+}
+
+.gather-card-info .break-stats {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gather-card-info .stat-cell {
+  min-height: 0;
+}
+
+.gather-card-info .stat-drop-item {
+  align-items: center;
+  grid-template-columns: auto auto minmax(0, 1fr);
+}
+
+.gather-card-info .stat-drop-name {
+  white-space: normal;
 }
 
 .gather-targets {
@@ -3474,7 +4637,8 @@ button.craft-output:disabled {
   grid-template-columns: 32px minmax(0, 1fr);
 }
 
-.stat-tool-icon {
+.stat-tool-icon,
+.stat-drop-icon {
   align-items: center;
   background: #8d8d8d;
   border: 2px solid #e8e8e8;
@@ -3535,6 +4699,24 @@ button.craft-output:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.gather-card-info .break-stats {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gather-card-info .stat-drop-item {
+  grid-template-columns: 32px auto minmax(0, 1fr);
+}
+
+.gather-card-info .stat-drop-count {
+  white-space: nowrap;
+}
+
+.gather-card-info .stat-drop-name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .gather-warning {
@@ -3668,23 +4850,24 @@ button.craft-output:disabled {
 
 .machine-glyph span {
   background: rgba(255, 255, 255, 0.4);
-  height: 5px;
-  left: 5px;
+  height: 19%;
+  left: 19%;
   position: absolute;
-  top: 5px;
-  width: 5px;
+  top: 19%;
+  width: 19%;
 }
 
 .machine-furnace {
-  --m1: #858984;
-  --m2: #4b4f4e;
-  --m3: #c4c8c2;
+  --m1: #8b8d89;
+  --m2: #4c504d;
+  --m3: #c9cbc6;
   background:
-    radial-gradient(circle at 50% 76%, #ffbc4f 0 9%, #9a4427 10% 16%, transparent 17%),
-    linear-gradient(90deg, transparent 0 22%, #1d1d1d 22% 78%, transparent 78%),
-    linear-gradient(180deg, transparent 0 45%, #242424 45% 74%, transparent 74%),
-    linear-gradient(90deg, transparent 0 34%, #5d6260 34% 40%, transparent 40% 60%, #353938 60% 66%, transparent 66%),
-    linear-gradient(180deg, #c4c8c2 0 18%, #858984 18% 78%, #4b4f4e 78%);
+    radial-gradient(circle at 50% 75%, #ffbc4f 0 8%, #9a4427 9% 15%, transparent 16%),
+    linear-gradient(90deg, transparent 0 18%, #242424 18% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 43%, #101010 43% 73%, transparent 73%),
+    repeating-linear-gradient(90deg, rgba(36, 38, 36, 0.32) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(180deg, rgba(36, 38, 36, 0.28) 0 2px, transparent 2px 8px),
+    linear-gradient(180deg, #c9cbc6 0 18%, #8b8d89 18% 78%, #4c504d 78%);
   box-shadow:
     inset 2px 2px 0 rgba(255, 255, 255, 0.26),
     inset -3px -3px 0 rgba(0, 0, 0, 0.34);
@@ -3693,12 +4876,12 @@ button.craft-output:disabled {
 .machine-furnace span {
   background: #2a2d2c;
   box-shadow:
-    8px 0 0 #1b1c1c,
-    4px 12px 0 #e07935;
-  height: 5px;
-  left: 7px;
-  top: 6px;
-  width: 5px;
+    9px 0 0 #1b1c1c,
+    5px 13px 0 #e07935;
+  height: 19%;
+  left: 23%;
+  top: 19%;
+  width: 23%;
 }
 
 .machine-furnace.active {
@@ -3707,27 +4890,28 @@ button.craft-output:disabled {
 
 .machine-furnace.active span {
   box-shadow:
-    8px 0 0 #1b1c1c,
-    4px 12px 0 #ffb14d,
-    4px 15px 0 #a44122;
+    9px 0 0 #1b1c1c,
+    5px 13px 0 #e07935;
 }
 
 .machine-well {
-  --m1: #7f8b8f;
-  --m2: #42484b;
-  --m3: #cfd8da;
+  --m1: #a8563a;
+  --m2: #542a1f;
+  --m3: #d58a5a;
   background:
-    radial-gradient(circle at 50% 52%, #2f7f9c 0 22%, #174258 23% 34%, transparent 35%),
-    linear-gradient(90deg, #7b3f2c 0 18%, transparent 18% 82%, #542a1f 82%),
-    linear-gradient(180deg, #b76042 0 22%, #8e4b36 22% 80%, #542a1f 80%);
+    radial-gradient(circle at 50% 54%, #9fd8ef 0 17%, #2f7f9c 18% 25%, #174258 26% 34%, transparent 35%),
+    repeating-linear-gradient(90deg, #b76042 0 6px, #8e4b36 6px 12px),
+    repeating-linear-gradient(180deg, rgba(63, 31, 22, 0.44) 0 2px, transparent 2px 10px),
+    linear-gradient(180deg, #d58a5a 0 18%, #8e4b36 18% 82%, #542a1f 82%);
 }
 
 .machine-well span {
   background: #9fd8ef;
-  height: 4px;
-  left: 11px;
-  top: 13px;
-  width: 8px;
+  box-shadow: 0 5px 0 #174258;
+  height: 15%;
+  left: 35%;
+  top: 42%;
+  width: 31%;
 }
 
 .machine-steamBoiler {
@@ -3735,40 +4919,344 @@ button.craft-output:disabled {
   --m2: #49331f;
   --m3: #dec279;
   background:
-    radial-gradient(circle at 50% 70%, #ffbc4f 0 8%, #8f3e25 9% 15%, transparent 16%),
-    linear-gradient(90deg, transparent 0 24%, #262626 24% 76%, transparent 76%),
-    linear-gradient(180deg, #dec279 0 16%, #b7854c 16% 78%, #49331f 78%);
+    radial-gradient(circle at 50% 77%, #ffbc4f 0 7%, #8f3e25 8% 13%, transparent 14%),
+    linear-gradient(90deg, transparent 0 18%, #262626 18% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 48%, #1f1f1f 48% 74%, transparent 74%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.2) 0 2px, transparent 2px 8px),
+    radial-gradient(ellipse at 50% 31%, #dec279 0 34%, #b7854c 35% 58%, #49331f 59% 70%, transparent 71%),
+    linear-gradient(180deg, #49331f 0 16%, #b7854c 16% 82%, #49331f 82%);
 }
 
 .machine-steamBoiler span {
-  background: #2f2f2f;
-  box-shadow: 7px 0 0 #1b1b1b;
-  height: 5px;
-  left: 7px;
-  top: 6px;
-  width: 5px;
+  background: #e8f9ff;
+  box-shadow:
+    6px 0 0 #c8eef7,
+    11px 0 0 #e8f9ff,
+    5px 14px 0 #ff9f3e;
+  height: 12%;
+  left: 15%;
+  top: 12%;
+  width: 12%;
+}
+
+.machine-steamTank {
+  --m1: #8f9aa0;
+  --m2: #3f474b;
+  --m3: #d8dde0;
+  background:
+    linear-gradient(90deg, transparent 0 10%, #d8dde0 10% 18%, transparent 18% 82%, #3f474b 82% 90%, transparent 90%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, transparent 0 20%, #a5d8e8 20% 64%, #6e9bad 64% 72%, transparent 72%),
+    radial-gradient(ellipse at 50% 50%, #d8dde0 0 44%, #8f9aa0 45% 67%, #3f474b 68% 78%, transparent 79%),
+    linear-gradient(180deg, #3f474b 0 16%, #8f9aa0 16% 84%, #3f474b 84%);
+}
+
+.machine-steamTank span {
+  background: #a5d8e8;
+  box-shadow:
+    0 5px 0 #6e9bad,
+    0 10px 0 #3e484c;
+  height: 15%;
+  left: 38%;
+  top: 23%;
+  width: 23%;
+}
+
+.machine-copperPipe,
+.machine-bronzePipe,
+.machine-ironPipe {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.22) 0 10%, transparent 11%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.18));
+}
+
+.machine-copperPipe {
+  --m1: #b66b42;
+  --m2: #5f2f20;
+  --m3: #e0a06d;
+}
+
+.machine-bronzePipe {
+  --m1: #b18443;
+  --m2: #5d3d1f;
+  --m3: #e1bd72;
+}
+
+.machine-ironPipe {
+  --m1: #9aa1a4;
+  --m2: #444b4e;
+  --m3: #d8dde0;
+}
+
+.machine-copperPipe .pipe-svg,
+.machine-bronzePipe .pipe-svg,
+.machine-ironPipe .pipe-svg {
+  display: block;
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  position: absolute;
+  width: 100%;
+}
+
+.machine-copperPipe .pipe-svg path,
+.machine-bronzePipe .pipe-svg path,
+.machine-ironPipe .pipe-svg path {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+}
+
+.machine-copperPipe .pipe-outline,
+.machine-bronzePipe .pipe-outline,
+.machine-ironPipe .pipe-outline {
+  stroke: var(--m2);
+  stroke-width: 18;
+}
+
+.machine-copperPipe .pipe-body,
+.machine-bronzePipe .pipe-body,
+.machine-ironPipe .pipe-body {
+  stroke: var(--m1);
+  stroke-width: 13;
+}
+
+.machine-copperPipe .pipe-highlight,
+.machine-bronzePipe .pipe-highlight,
+.machine-ironPipe .pipe-highlight {
+  opacity: 0.82;
+  stroke: var(--m3);
+  stroke-dasharray: 8 4;
+  stroke-width: 5;
 }
 
 .machine-steamMacerator {
-  --m1: #8f9aa0;
-  --m2: #4f585e;
-  --m3: #d5dde0;
+  --m1: #b7854c;
+  --m2: #49331f;
+  --m3: #dec279;
   background:
-    linear-gradient(45deg, transparent 0 34%, #4f585e 34% 42%, transparent 42%),
-    radial-gradient(circle at 50% 50%, #d5dde0 0 18%, #8f9aa0 19% 34%, #4f585e 35% 46%, transparent 47%),
-    linear-gradient(135deg, #d5dde0 0 18%, #8f9aa0 18% 78%, #4f585e 78%);
+    linear-gradient(90deg, transparent 0 18%, #49331f 18% 30%, transparent 30% 70%, #49331f 70% 82%, transparent 82%),
+    radial-gradient(circle at 50% 48%, #dec279 0 14%, #b7854c 15% 30%, #49331f 31% 42%, transparent 43%),
+    linear-gradient(45deg, transparent 0 42%, #5d3d1f 42% 50%, transparent 50%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.18) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
 }
 
 .machine-steamMacerator span {
-  background: #2d3438;
-  height: 4px;
-  left: 6px;
-  top: 18px;
-  width: 14px;
+  background: #3b2819;
+  box-shadow:
+    5px -9px 0 #dec279,
+    10px 0 0 #49331f;
+  height: 15%;
+  left: 19%;
+  top: 69%;
+  width: 27%;
+}
+
+.machine-steamForgeHammer,
+.machine-steamCompressor,
+.machine-steamExtractor,
+.machine-steamAlloySmelter,
+.machine-steamFurnace {
+  --m1: #b7854c;
+  --m2: #49331f;
+  --m3: #dec279;
+  background:
+    radial-gradient(circle at 12% 12%, #fff2b9 0 4%, transparent 5%),
+    radial-gradient(circle at 88% 12%, #3b2819 0 4%, transparent 5%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamForgeHammer {
+  background:
+    linear-gradient(90deg, transparent 0 14%, #4b3320 14% 23%, transparent 23%),
+    linear-gradient(180deg, transparent 0 58%, #3b2819 58% 73%, transparent 73%),
+    linear-gradient(135deg, transparent 0 35%, #dec279 35% 47%, #49331f 47% 56%, transparent 56%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamForgeHammer span {
+  background: #3b2819;
+  box-shadow:
+    7px -5px 0 #dec279,
+    12px -5px 0 #49331f,
+    10px 7px 0 #24180f;
+  height: 15%;
+  left: 18%;
+  top: 55%;
+  width: 35%;
+}
+
+.machine-steamCompressor {
+  background:
+    linear-gradient(180deg, transparent 0 18%, #d8dde0 18% 34%, #5d666b 34% 45%, transparent 45%),
+    linear-gradient(90deg, transparent 0 17%, #49331f 17% 27%, transparent 27% 73%, #49331f 73% 83%, transparent 83%),
+    linear-gradient(180deg, transparent 0 60%, #5d3d1f 60% 75%, transparent 75%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamCompressor span {
+  background: #d8dde0;
+  box-shadow:
+    0 7px 0 #5d666b,
+    0 14px 0 #3f474b;
+  height: 15%;
+  left: 31%;
+  top: 27%;
+  width: 38%;
+}
+
+.machine-steamExtractor {
+  background:
+    linear-gradient(180deg, transparent 0 14%, #49331f 14% 23%, transparent 23%),
+    linear-gradient(90deg, transparent 0 27%, #e8f9ff 27% 39%, #75bfd4 39% 56%, #2f7f9c 56% 66%, transparent 66%),
+    radial-gradient(circle at 68% 68%, #d98d4e 0 9%, #653722 10% 15%, transparent 16%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamExtractor span {
+  background: #e8f9ff;
+  box-shadow:
+    0 6px 0 #75bfd4,
+    0 12px 0 #2f7f9c,
+    11px 10px 0 #49331f;
+  height: 13%;
+  left: 28%;
+  top: 22%;
+  width: 19%;
+}
+
+.machine-steamAlloySmelter {
+  background:
+    radial-gradient(circle at 50% 70%, #ffc45a 0 9%, #8f3e25 10% 17%, transparent 18%),
+    linear-gradient(90deg, transparent 0 19%, #2a1712 19% 81%, transparent 81%),
+    linear-gradient(180deg, transparent 0 43%, #241411 43% 68%, transparent 68%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamAlloySmelter span {
+  background: #241411;
+  box-shadow:
+    8px 0 0 #2a1712,
+    4px 10px 0 #ffb044,
+    11px 10px 0 #d66a30;
+  height: 19%;
+  left: 24%;
+  top: 28%;
+  width: 24%;
+}
+
+.machine-steamFurnace {
+  background:
+    radial-gradient(circle at 50% 77%, #ffbc4f 0 7%, #8f3e25 8% 14%, transparent 15%),
+    linear-gradient(90deg, transparent 0 19%, #191919 19% 81%, transparent 81%),
+    linear-gradient(180deg, transparent 0 47%, #111 47% 73%, transparent 73%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamFurnace span {
+  background: #191919;
+  box-shadow:
+    9px 0 0 #111,
+    5px 13px 0 #ff9f3e;
+  height: 19%;
+  left: 23%;
+  top: 20%;
+  width: 23%;
+}
+
+.machine-cokeOven {
+  --m1: #9c4f35;
+  --m2: #4a241c;
+  --m3: #d28a5d;
+  background:
+    linear-gradient(90deg, transparent 0 70%, #5f2f20 70% 81%, #d28a5d 81% 88%, transparent 88%),
+    radial-gradient(ellipse at 43% 61%, #20110e 0 19%, #4a241c 20% 26%, transparent 27%),
+    radial-gradient(circle at 43% 75%, #d08c42 0 7%, #8f3e25 8% 13%, transparent 14%),
+    repeating-linear-gradient(90deg, #b76042 0 6px, #8e4b36 6px 12px),
+    repeating-linear-gradient(180deg, rgba(55, 28, 20, 0.42) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #d28a5d 0 16%, #9c4f35 16% 82%, #4a241c 82%);
+}
+
+.machine-cokeOven span {
+  background: #20110e;
+  box-shadow:
+    8px 0 0 #140b09,
+    5px 13px 0 #d08c42,
+    14px 3px 0 #5f2f20;
+  height: 20%;
+  left: 24%;
+  top: 39%;
+  width: 28%;
+}
+
+.machine-brickedBlastFurnace {
+  --m1: #8d8175;
+  --m2: #3c3029;
+  --m3: #d4b28a;
+  background:
+    linear-gradient(90deg, transparent 0 18%, #3c3029 18% 27%, transparent 27% 73%, #3c3029 73% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 6%, #3c3029 6% 13%, transparent 13%),
+    radial-gradient(circle at 50% 82%, #ffc45a 0 8%, #8f3e25 9% 15%, transparent 16%),
+    linear-gradient(90deg, transparent 0 24%, #241411 24% 76%, transparent 76%),
+    repeating-linear-gradient(180deg, #d4b28a 0 5px, #8d8175 5px 10px),
+    repeating-linear-gradient(90deg, rgba(60, 48, 41, 0.38) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #d4b28a 0 10%, #8d8175 10% 82%, #3c3029 82%);
+}
+
+.machine-brickedBlastFurnace span {
+  background: #3c3029;
+  box-shadow:
+    0 6px 0 #d4b28a,
+    0 12px 0 #8d8175,
+    7px 19px 0 #ffc45a;
+  height: 16%;
+  left: 36%;
+  top: 11%;
+  width: 28%;
+}
+
+.machine-brickedBlastFurnacePart {
+  --m1: #8d8175;
+  --m2: #3c3029;
+  --m3: #d4b28a;
+  background:
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.3) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.3) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.28) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.28) 66% 73%, transparent 73%),
+    linear-gradient(135deg, #d4b28a 0 18%, #8d8175 18% 78%, #3c3029 78%);
+}
+
+.machine-brickedBlastFurnacePart span {
+  background: #3c3029;
+  box-shadow:
+    8px 0 0 #d4b28a,
+    0 8px 0 #8d8175,
+    8px 8px 0 #3c3029;
+  height: 22%;
+  left: 23%;
+  top: 23%;
+  width: 22%;
 }
 
 .machine-steamBoiler.active,
-.machine-steamMacerator.active {
+.machine-steamTank.active,
+.machine-copperPipe.active,
+.machine-bronzePipe.active,
+.machine-ironPipe.active,
+.machine-steamMacerator.active,
+.machine-steamForgeHammer.active,
+.machine-steamCompressor.active,
+.machine-steamExtractor.active,
+.machine-steamAlloySmelter.active,
+.machine-steamFurnace.active,
+.machine-cokeOven.active,
+.machine-brickedBlastFurnace.active {
   animation: furnace-glyph-glow 0.7s steps(2, end) infinite;
 }
 
@@ -3784,6 +5272,18 @@ button.craft-output:disabled {
   }
 }
 
+@keyframes steam-tank-wobble {
+  0% {
+    filter: brightness(1);
+    transform: translateY(0);
+  }
+
+  100% {
+    filter: brightness(1.12);
+    transform: translateY(1px);
+  }
+}
+
 @keyframes factory-furnace-thrum {
   0% {
     box-shadow: inset 0 0 0 rgba(255, 176, 69, 0);
@@ -3791,6 +5291,28 @@ button.craft-output:disabled {
 
   100% {
     box-shadow: inset 0 -4px 0 rgba(255, 176, 69, 0.45);
+  }
+}
+
+@keyframes gather-resource-focus {
+  0%,
+  100% {
+    border-color: #f2f2f2;
+    border-bottom-color: #6f6f6f;
+    border-right-color: #6f6f6f;
+    box-shadow: 0 3px 0 #2f2f2f;
+    filter: brightness(1);
+  }
+
+  25%,
+  75% {
+    border-color: #fff8aa;
+    border-bottom-color: #806c22;
+    border-right-color: #806c22;
+    box-shadow:
+      0 3px 0 #2f2f2f,
+      0 0 0 3px rgba(255, 248, 170, 0.45);
+    filter: brightness(1.08);
   }
 }
 
@@ -3838,6 +5360,9 @@ button.craft-output:disabled {
   font-size: 0.95rem;
   line-height: 1.1;
   margin: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .missing-slot-list {
@@ -3961,8 +5486,22 @@ button.craft-output:disabled {
   border-bottom-color: #f3f3f3;
   border-radius: 0;
   border-right-color: #f3f3f3;
+  color: #202020;
+  font: 950 0.82rem "Courier New", ui-monospace, monospace;
   margin-top: 0;
   min-height: 34px;
+  -webkit-text-fill-color: #202020;
+}
+
+.recipe-search {
+  caret-color: #202020;
+  padding: 6px 8px;
+}
+
+.recipe-search::placeholder {
+  color: #676767;
+  opacity: 1;
+  -webkit-text-fill-color: #676767;
 }
 
 .mode-tabs {
@@ -4107,9 +5646,89 @@ button.craft-output:disabled {
   text-align: center;
 }
 
+.recipe-meta-row {
+  align-items: center;
+  background: #9f9f9f;
+  border: 2px solid #efefef;
+  border-bottom-color: #5f5f5f;
+  border-right-color: #5f5f5f;
+  color: #272727;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-height: 28px;
+  padding: 4px 6px;
+}
+
+.recipe-meta-row span {
+  color: #4d4d4d;
+  font-size: 0.58rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.recipe-meta-row strong {
+  color: #272727;
+  font: 950 0.7rem "Courier New", ui-monospace, monospace;
+}
+
 .recipe-slot-section {
   display: grid;
   gap: 4px;
+}
+
+.factory-layout-section {
+  gap: 5px;
+}
+
+.factory-layout-preview {
+  background: #9f9f9f;
+  border: 2px solid #efefef;
+  border-bottom-color: #5f5f5f;
+  border-right-color: #5f5f5f;
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+}
+
+.factory-layout-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, 38px);
+  width: max-content;
+}
+
+.factory-layout-cell {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 36%),
+    #7f7f7f;
+  border: 2px solid #747474;
+  border-bottom-color: #cfcfcf;
+  border-right-color: #cfcfcf;
+  display: grid;
+  height: 38px;
+  justify-items: center;
+  position: relative;
+  width: 38px;
+}
+
+.factory-layout-cell.controller {
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+}
+
+.factory-layout-cell .machine-glyph {
+  height: 28px;
+  width: 28px;
+}
+
+.factory-layout-preview p {
+  color: #333;
+  font: 850 0.64rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.15;
+  margin: 0;
 }
 
 .recipe-slot-section > span {
@@ -4180,13 +5799,21 @@ button.recipe-jump-slot {
   border-bottom-color: #5f5f5f;
   border-radius: 0;
   border-right-color: #5f5f5f;
+  box-sizing: border-box;
   color: #272727;
+  display: block;
   font-size: 0.72rem;
+  line-height: 1.22;
   margin: 0;
+  max-width: 100%;
+  overflow: visible;
+  overflow-wrap: anywhere;
   padding: 5px 7px;
+  white-space: normal;
 }
 
 .recipe-detail-warning {
+  font-weight: 850;
   margin: 0;
 }
 
@@ -4194,8 +5821,6 @@ button.recipe-jump-slot {
 .guide-card p,
 .machine-card p,
 .furnace-help,
-.missing-line,
-.recipe-notice,
 .process-slot-label,
 .equipment-label,
 .resource-pill > span:last-child,
@@ -4219,6 +5844,33 @@ button.recipe-jump-slot {
 .game-shell {
   align-content: start;
   padding-bottom: calc(var(--bottom-nav-clearance) + 12px);
+  padding-top: 0;
+}
+
+.game-shell.processing-shell {
+  align-content: stretch;
+  gap: 8px;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.processing-shell .processing-panel {
+  align-self: stretch;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.processing-shell .factory-inventory-panel,
+.processing-shell .factory-expansion-row {
+  min-height: 0;
+}
+
+.processing-shell .factory-pan-viewport {
+  height: auto;
+  min-height: 0;
 }
 
 .page-tabs {
@@ -4260,7 +5912,8 @@ button.recipe-jump-slot {
 }
 
 .game-header {
-  min-height: 44px;
+  height: 62px;
+  min-height: 62px;
   padding: 6px 8px;
 }
 
@@ -4289,6 +5942,33 @@ button.recipe-jump-slot {
   gap: 6px;
 }
 
+.global-back-button {
+  position: relative;
+  z-index: 30;
+}
+
+.creative-toggle {
+  background: #4a4a4a;
+  border: 2px solid #efefef;
+  border-bottom-color: #1f1f1f;
+  border-radius: 0;
+  border-right-color: #1f1f1f;
+  color: #f7f7f7;
+  cursor: pointer;
+  font: 900 0.72rem "Courier New", ui-monospace, monospace;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 5px;
+}
+
+.creative-toggle.active {
+  background: #725d18;
+  border-color: #fff0a8;
+  border-bottom-color: #4f3e10;
+  border-right-color: #4f3e10;
+  color: #fff7c8;
+}
+
 @media (min-width: 760px) {
   .game-shell {
     padding: 14px 14px calc(var(--bottom-nav-clearance) + 16px);
@@ -4301,7 +5981,9 @@ button.recipe-jump-slot {
 
 @media (max-width: 430px) {
   .game-shell {
-    padding: 6px 4px calc(var(--bottom-nav-clearance) + 10px);
+    padding: 0 4px calc(var(--bottom-nav-clearance) + 10px);
+    --sticky-header-height: 62px;
+    --sticky-header-gap: 8px;
   }
 
   .status-grid {
@@ -4348,6 +6030,10 @@ button.recipe-jump-slot {
     padding: 6px;
   }
 
+  .factory-expansion-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   .terminal-crafting-compact {
     align-items: center;
     gap: 12px;
@@ -4385,6 +6071,10 @@ button.recipe-jump-slot {
 
   .break-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gather-card-info .break-stats {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .recipe-modal-body {

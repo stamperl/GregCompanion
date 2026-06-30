@@ -3,6 +3,8 @@ import {
   fuelDefinitions,
   gatherTargets,
   initialEquipment,
+  initialMachines,
+  initialResources,
   machines,
   processRecipes,
   quests,
@@ -14,12 +16,14 @@ import type {
   CraftSlot,
   EquipmentSlotId,
   EquipmentState,
+  FluidId,
   GatherTargetId,
   GameState,
   MachineAmount,
   MachineId,
   MachineInstance,
   MachineProcessState,
+  ProcessRecipe,
   ProcessSlot,
   ProcessSlotId,
   Quest,
@@ -32,12 +36,60 @@ import type {
 
 export const saveKey = 'block-tech-idle-save'
 export const factoryGrid = { width: 8, height: 6 }
+export const maxFactoryFoundationLevel = 5
+export const factoryFoundationSizes = [
+  { width: 0, height: 0 },
+  { width: 5, height: 5 },
+  { width: 8, height: 6 },
+  { width: 10, height: 8 },
+  { width: 12, height: 10 },
+  { width: 14, height: 12 },
+] as const
+export const factoryFoundationCosts: Record<number, ResourceAmount[]> = {
+  1: [
+    { id: 'plank', amount: 16 },
+    { id: 'cobblestone', amount: 24 },
+  ],
+  2: [
+    { id: 'cobblestone', amount: 64 },
+    { id: 'brick', amount: 32 },
+    { id: 'ironPlate', amount: 4 },
+  ],
+  3: [
+    { id: 'cobblestone', amount: 128 },
+    { id: 'brick', amount: 64 },
+    { id: 'ironPlate', amount: 12 },
+  ],
+  4: [
+    { id: 'cobblestone', amount: 192 },
+    { id: 'brick', amount: 96 },
+    { id: 'ironPlate', amount: 24 },
+  ],
+  5: [
+    { id: 'cobblestone', amount: 256 },
+    { id: 'brick', amount: 128 },
+    { id: 'ironPlate', amount: 32 },
+    { id: 'steelPlate', amount: 8 },
+  ],
+}
 export const processStackLimit = 64
-export const boilerSteamCapacityMs = 30000
+export const steamMsPerLitre = 1000
+export const boilerSteamCapacityMs = 128 * steamMsPerLitre
+export const steamMaceratorCapacityMs = 32 * steamMsPerLitre
+export const steamTankCapacityMs = 512 * steamMsPerLitre
+export const cokeOvenFluidCapacityLitres = 128
+export const ironTankFluidCapacityLitres = 512
+export const steamMachineInternalCapacityMs = 32 * steamMsPerLitre
+export const steamPipeTransferLitresPerSecond: Partial<Record<MachineId, number>> = {
+  copperPipe: 4,
+  bronzePipe: 8,
+  ironPipe: 16,
+}
 
 const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   woodenAxe: 32,
-  woodenPickaxe: 32,
+  treeTap: 64,
+  woodenPickaxe: 48,
   woodenShovel: 32,
   stoneAxe: 64,
   stonePickaxe: 64,
@@ -49,6 +101,8 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   ironHammer: 160,
   ironFile: 96,
   bronzeFile: 160,
+  ironWrench: 128,
+  bronzeWrench: 192,
   mortar: 64,
   ironMortar: 128,
   bronzeMortar: 192,
@@ -58,6 +112,7 @@ const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
   stoneHammer: ['stoneHammer', 'ironHammer'],
   mortar: ['bronzeMortar', 'ironMortar', 'mortar'],
   ironFile: ['bronzeFile', 'ironFile'],
+  ironWrench: ['bronzeWrench', 'ironWrench'],
 }
 
 function emptyProcessState(): MachineProcessState {
@@ -72,6 +127,8 @@ function emptyProcessState(): MachineProcessState {
     fuelDurationMs: 0,
     steamStoredMs: 0,
     steamCapacityMs: 0,
+    fluids: {},
+    fluidCapacityLitres: 0,
   }
 }
 
@@ -91,7 +148,16 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     fuelDurationMs: process.fuelDurationMs,
     steamStoredMs: process.steamStoredMs,
     steamCapacityMs: process.steamCapacityMs,
+    fluids: { ...process.fluids },
+    fluidCapacityLitres: process.fluidCapacityLitres,
   }
+}
+
+function normalizeFluidStore(fluids?: Partial<Record<FluidId, number>>) {
+  return {
+    water: Math.max(0, Math.floor(fluids?.water ?? 0)),
+    creosote: Math.max(0, Math.floor(fluids?.creosote ?? 0)),
+  } satisfies Partial<Record<FluidId, number>>
 }
 
 function normalizeProcessSlot(slot: unknown): ProcessSlot {
@@ -115,6 +181,8 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     fuelDurationMs: Math.max(0, Math.floor(process.fuelDurationMs ?? 0)),
     steamStoredMs: Math.max(0, Math.floor(process.steamStoredMs ?? 0)),
     steamCapacityMs: Math.max(0, Math.floor(process.steamCapacityMs ?? 0)),
+    fluids: normalizeFluidStore(process.fluids),
+    fluidCapacityLitres: Math.max(0, Math.floor(process.fluidCapacityLitres ?? 0)),
   }
 }
 
@@ -123,7 +191,7 @@ const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
   chestplate: [],
   leggings: [],
   boots: [],
-  axe: ['woodenAxe', 'stoneAxe', 'ironAxe'],
+  axe: ['woodenAxe', 'stoneAxe', 'ironAxe', 'treeTap'],
   shovel: ['woodenShovel', 'stoneShovel', 'ironShovel'],
   pickaxe: ['woodenPickaxe', 'stonePickaxe', 'ironPickaxe'],
   weapon: [],
@@ -143,11 +211,16 @@ function normalizeEquipment(equipment?: Partial<EquipmentState>) {
   return normalized
 }
 
-function normalizeMachineInstances(instances?: Partial<MachineInstance>[]) {
+function isInsideGridSize(grid: { width: number; height: number }, x: number, y: number) {
+  return x >= 0 && x < grid.width && y >= 0 && y < grid.height
+}
+
+function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undefined, foundationLevel: number) {
   if (!instances) return []
+  const grid = factoryFoundationSizes[clampFactoryFoundationLevel(foundationLevel)] ?? factoryFoundationSizes[0]
   return instances
     .filter((instance): instance is Partial<MachineInstance> => Boolean(instance?.uid && instance.machineId && instance.machineId in machines))
-    .filter((instance) => isInsideFactoryGrid(instance.x ?? -1, instance.y ?? -1))
+    .filter((instance) => isInsideGridSize(grid, instance.x ?? -1, instance.y ?? -1))
     .map((instance) => ({
       uid: String(instance.uid),
       machineId: instance.machineId as MachineId,
@@ -175,6 +248,37 @@ export function cloneState(state: GameState): GameState {
     gatherProgress: { ...state.gatherProgress },
     machineProgress: { ...state.machineProgress },
   }
+}
+
+function clampFactoryFoundationLevel(level: unknown) {
+  return Math.max(0, Math.min(maxFactoryFoundationLevel, Math.floor(typeof level === 'number' ? level : 0)))
+}
+
+export function factoryGridForState(state: GameState) {
+  return factoryFoundationSizes[clampFactoryFoundationLevel(state.factoryFoundationLevel)] ?? factoryFoundationSizes[0]
+}
+
+export function hasFactoryFloor(state: GameState) {
+  return factoryGridForState(state).width > 0 && factoryGridForState(state).height > 0
+}
+
+export function factoryFoundationCost(state: GameState) {
+  const nextLevel = clampFactoryFoundationLevel(state.factoryFoundationLevel) + 1
+  return factoryFoundationCosts[nextLevel] ?? []
+}
+
+export function canExpandFactoryFloor(state: GameState) {
+  const cost = factoryFoundationCost(state)
+  return cost.length > 0 && hasResources(state, cost)
+}
+
+export function expandFactoryFloor(state: GameState) {
+  if (!canExpandFactoryFloor(state)) return state
+  const next = subtractResources(state, factoryFoundationCost(state))
+  const expanded = cloneState(next)
+  expanded.factoryFoundationLevel = clampFactoryFoundationLevel(expanded.factoryFoundationLevel + 1)
+  expanded.lastSavedAt = Date.now()
+  return expanded
 }
 
 export function addResources(state: GameState, amounts: ResourceAmount[]) {
@@ -354,16 +458,17 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
     if (state.equipment.axe === 'stoneAxe') return tools.stoneAxe
     if (state.equipment.axe === 'woodenAxe') return tools.woodenAxe
   }
+  if (targetId === 'rubberTree' && state.equipment.axe === 'treeTap') return tools.treeTap
   if (targetId === 'stone') {
     if (state.equipment.pickaxe === 'ironPickaxe') return tools.ironPickaxe
     if (state.equipment.pickaxe === 'stonePickaxe') return tools.stonePickaxe
     if (state.equipment.pickaxe === 'woodenPickaxe') return tools.woodenPickaxe
   }
-  if (targetId === 'ironVein' || targetId === 'gravelPatch') {
+  if (targetId === 'ironVein') {
     if (state.equipment.pickaxe === 'ironPickaxe') return tools.ironPickaxe
     if (state.equipment.pickaxe === 'stonePickaxe') return tools.stonePickaxe
   }
-  if (targetId === 'clayPatch') {
+  if (targetId === 'clayPatch' || targetId === 'sandPatch' || targetId === 'gravelPatch') {
     if (state.equipment.shovel === 'ironShovel') return tools.ironShovel
     if (state.equipment.shovel === 'stoneShovel') return tools.stoneShovel
     if (state.equipment.shovel === 'woodenShovel') return tools.woodenShovel
@@ -453,6 +558,22 @@ export function gridAmounts(grid: CraftSlot[]): ResourceAmount[] {
   return Object.entries(countGridItems(grid))
     .filter(([, amount]) => (amount ?? 0) > 0)
     .map(([id, amount]) => ({ id: id as ResourceId, amount: amount ?? 0 }))
+}
+
+export function createCreativeState(base: GameState, now = Date.now()): GameState {
+  const resourceIds = Object.keys(initialResources) as ResourceId[]
+  const machineIds = Object.keys(initialMachines) as MachineId[]
+  return {
+    ...cloneState(base),
+    resources: resourceIds.reduce((resources, id) => ({ ...resources, [id]: Math.max(32, base.resources[id] ?? 0) }), {} as Record<ResourceId, number>),
+    machines: machineIds.reduce(
+      (builtMachines, id) => ({ ...builtMachines, [id]: id === 'brickedBlastFurnace' ? (base.machines[id] ?? 0) : Math.max(32, base.machines[id] ?? 0) }),
+      {} as Record<MachineId, number>,
+    ),
+    factoryFoundationLevel: maxFactoryFoundationLevel,
+    craftedResources: resourceIds,
+    lastSavedAt: now,
+  }
 }
 
 function recipeInputTotal(recipe: Recipe) {
@@ -697,8 +818,9 @@ function combineResourceAmounts(amounts: ResourceAmount[]) {
   return [...totals].map(([id, amount]) => ({ id, amount }))
 }
 
-function isInsideFactoryGrid(x: number, y: number) {
-  return x >= 0 && x < factoryGrid.width && y >= 0 && y < factoryGrid.height
+function isInsideFactoryGrid(state: GameState, x: number, y: number) {
+  const grid = factoryGridForState(state)
+  return x >= 0 && x < grid.width && y >= 0 && y < grid.height
 }
 
 function nextMachineUid(state: GameState, machineId: MachineId) {
@@ -717,66 +839,283 @@ function findProcessRecipeForInput(machineId: MachineId, input: ProcessSlot) {
   return processRecipes.find((recipe) => recipe.machineId === machineId && recipe.input.id === input.id && input.amount >= recipe.input.amount)
 }
 
+function findProcessRecipeForInputAndFuel(machineId: MachineId, input: ProcessSlot, fuel: ProcessSlot) {
+  const candidates = processRecipes.filter((recipe) => recipe.machineId === machineId && recipe.input.id === input?.id && input.amount >= recipe.input.amount)
+  return candidates.find((recipe) => !recipe.fuelInput || (fuel?.id === recipe.fuelInput.id && fuel.amount >= recipe.fuelInput.amount))
+}
+
 function canOutputAccept(output: ProcessSlot, produced: ResourceAmount) {
   if (!output) return true
   return output.id === produced.id && output.amount + produced.amount <= processStackLimit
 }
 
-function adjacentPositions(x: number, y: number) {
+function canFluidOutputAccept(process: MachineProcessState, recipe: ProcessRecipe) {
+  if (!recipe.fluidOutput) return true
+  const otherStored = Object.entries(process.fluids).some(([id, amount]) => id !== recipe.fluidOutput?.id && (amount ?? 0) > 0)
+  if (otherStored) return false
+  return (process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount <= process.fluidCapacityLitres
+}
+
+function addFluidOutput(process: MachineProcessState, recipe: ProcessRecipe) {
+  if (!recipe.fluidOutput) return
+  process.fluids[recipe.fluidOutput.id] = (process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount
+}
+
+function adjacentPositions(state: GameState, x: number, y: number) {
   return [
     { x: x - 1, y },
     { x: x + 1, y },
     { x, y: y - 1 },
     { x, y: y + 1 },
-  ].filter((position) => isInsideFactoryGrid(position.x, position.y))
+  ].filter((position) => isInsideFactoryGrid(state, position.x, position.y))
 }
 
 function machineAt(state: GameState, x: number, y: number) {
   return state.machineInstances.find((instance) => instance.x === x && instance.y === y)
 }
 
+function brickedBlastFurnacePositions(state: GameState, centerX: number, centerY: number) {
+  const positions = [
+    { x: centerX, y: centerY },
+    { x: centerX + 1, y: centerY },
+    { x: centerX, y: centerY + 1 },
+    { x: centerX + 1, y: centerY + 1 },
+  ]
+  return positions.every((position) => isInsideFactoryGrid(state, position.x, position.y)) ? positions : []
+}
+
+function brickedBlastFurnaceCenterForInstance(state: GameState, instance: MachineInstance) {
+  for (let centerY = instance.y - 1; centerY <= instance.y; centerY += 1) {
+    for (let centerX = instance.x - 1; centerX <= instance.x; centerX += 1) {
+      const positions = brickedBlastFurnacePositions(state, centerX, centerY)
+      if (positions.length < 4) continue
+      const center = machineAt(state, centerX, centerY)
+      if (center?.machineId !== 'brickedBlastFurnace') continue
+      const complete = positions.every((position) => {
+        const candidate = machineAt(state, position.x, position.y)
+        if (!candidate) return false
+        if (position.x === centerX && position.y === centerY) return candidate.machineId === 'brickedBlastFurnace'
+        return candidate.machineId === 'brickedBlastFurnacePart'
+      })
+      if (complete) return { x: centerX, y: centerY }
+    }
+  }
+  return null
+}
+
+function tryFormBrickedBlastFurnaceMultiblock(state: GameState, placed: MachineInstance) {
+  if (placed.machineId !== 'brickedBlastFurnacePart') return false
+  for (let centerY = placed.y - 1; centerY <= placed.y; centerY += 1) {
+    for (let centerX = placed.x - 1; centerX <= placed.x; centerX += 1) {
+      const positions = brickedBlastFurnacePositions(state, centerX, centerY)
+      if (positions.length < 4) continue
+      if (!positions.every((position) => machineAt(state, position.x, position.y)?.machineId === 'brickedBlastFurnacePart')) continue
+      const center = machineAt(state, centerX, centerY)
+      if (!center) continue
+      center.uid = nextMachineUid(state, 'brickedBlastFurnace')
+      center.machineId = 'brickedBlastFurnace'
+      center.process = emptyProcessState()
+      state.machines.brickedBlastFurnacePart = Math.max(0, state.machines.brickedBlastFurnacePart - 1)
+      state.machines.brickedBlastFurnace += 1
+      return true
+    }
+  }
+  return false
+}
+
 export function boilerHasWater(state: GameState, boiler: MachineInstance) {
   if (boiler.machineId !== 'steamBoiler') return false
-  return adjacentPositions(boiler.x, boiler.y).some((position) => machineAt(state, position.x, position.y)?.machineId === 'well')
+  return adjacentPositions(state, boiler.x, boiler.y).some((position) => machineAt(state, position.x, position.y)?.machineId === 'well')
 }
 
 function isSteamNetworkMachine(machineId: MachineId) {
-  return machineId === 'steamBoiler' || machineId === 'steamMacerator'
+  return (
+    machineId === 'steamBoiler' ||
+    machineId === 'steamTank' ||
+    machineId === 'steamMacerator' ||
+    isSteamPoweredMachine(machineId) ||
+    machineId === 'copperPipe' ||
+    machineId === 'bronzePipe' ||
+    machineId === 'ironPipe'
+  )
 }
 
-function connectedSteamBoilers(state: GameState, start: MachineInstance) {
-  if (!isSteamNetworkMachine(start.machineId)) return [] as MachineInstance[]
+function isSteamPoweredMachine(machineId: MachineId) {
+  return (
+    machineId === 'steamMacerator' ||
+    machineId === 'steamForgeHammer' ||
+    machineId === 'steamCompressor' ||
+    machineId === 'steamExtractor' ||
+    machineId === 'steamAlloySmelter' ||
+    machineId === 'steamFurnace'
+  )
+}
+
+function isSteamStorageMachine(machineId: MachineId) {
+  return machineId === 'steamBoiler' || machineId === 'steamTank'
+}
+
+function isSteamPipeMachine(machineId: MachineId) {
+  return typeof steamPipeTransferLitresPerSecond[machineId] === 'number'
+}
+
+function machineFluidCapacity(machineId: MachineId) {
+  if (machineId === 'cokeOven') return cokeOvenFluidCapacityLitres
+  if (machineId === 'steamTank') return ironTankFluidCapacityLitres
+  return 0
+}
+
+function storedFluidTypes(process: MachineProcessState) {
+  return (Object.keys(process.fluids) as FluidId[]).filter((id) => (process.fluids[id] ?? 0) > 0)
+}
+
+function canStoreFluid(instance: MachineInstance, fluidId: FluidId) {
+  const capacity = machineFluidCapacity(instance.machineId)
+  if (capacity < 1) return false
+  if (instance.process.steamStoredMs > 0) return false
+  const storedTypes = storedFluidTypes(instance.process)
+  return storedTypes.length < 1 || storedTypes.every((id) => id === fluidId)
+}
+
+function connectedFluidNetwork(state: GameState, start: MachineInstance) {
   const visited = new Set<string>()
   const queue = [start]
-  const boilers: MachineInstance[] = []
+  const network: MachineInstance[] = []
 
   while (queue.length > 0) {
     const instance = queue.shift()!
     if (visited.has(instance.uid)) continue
     visited.add(instance.uid)
-    if (instance.machineId === 'steamBoiler') boilers.push(instance)
+    network.push(instance)
 
-    for (const position of adjacentPositions(instance.x, instance.y)) {
+    if (instance.uid !== start.uid && !isSteamPipeMachine(instance.machineId)) continue
+
+    for (const position of adjacentPositions(state, instance.x, instance.y)) {
+      const next = machineAt(state, position.x, position.y)
+      if (next && (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well') && !visited.has(next.uid)) {
+        queue.push(next)
+      }
+    }
+  }
+
+  return network
+}
+
+function connectedSteamNetwork(state: GameState, start: MachineInstance) {
+  if (!isSteamNetworkMachine(start.machineId)) return [] as MachineInstance[]
+  const visited = new Set<string>()
+  const queue = [start]
+  const network: MachineInstance[] = []
+
+  while (queue.length > 0) {
+    const instance = queue.shift()!
+    if (visited.has(instance.uid)) continue
+    visited.add(instance.uid)
+    network.push(instance)
+
+    if (instance.uid !== start.uid && !isSteamPipeMachine(instance.machineId)) continue
+
+    for (const position of adjacentPositions(state, instance.x, instance.y)) {
       const next = machineAt(state, position.x, position.y)
       if (next && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
     }
   }
-  return boilers
+  return network
+}
+
+function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance) {
+  return adjacentPositions(state, tank.x, tank.y).some((position) => {
+    const adjacent = machineAt(state, position.x, position.y)
+    return adjacent?.machineId === 'steamBoiler' || Boolean(adjacent && isSteamPipeMachine(adjacent.machineId))
+  })
+}
+
+function connectedSteamStorage(state: GameState, start: MachineInstance) {
+  return connectedSteamNetwork(state, start).filter((instance) => instance.uid !== start.uid && isSteamStorageMachine(instance.machineId))
+}
+
+function connectedSteamTransferRateMs(state: GameState, start: MachineInstance) {
+  const pipeRates = connectedSteamNetwork(state, start)
+    .map((instance) => steamPipeTransferLitresPerSecond[instance.machineId])
+    .filter((rate): rate is number => typeof rate === 'number')
+  const litresPerSecond = pipeRates.length > 0 ? Math.min(...pipeRates) : 16
+  return litresPerSecond * steamMsPerLitre
 }
 
 export function availableConnectedSteam(state: GameState, instance: MachineInstance) {
-  return connectedSteamBoilers(state, instance).reduce((sum, boiler) => sum + boiler.process.steamStoredMs, 0)
+  return connectedSteamStorage(state, instance).reduce((sum, storage) => sum + storage.process.steamStoredMs, 0)
+}
+
+function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId: FluidId) {
+  return connectedFluidNetwork(state, start).filter((instance) => instance.uid !== start.uid && canStoreFluid(instance, fluidId))
+}
+
+function connectedFluidTransferRateLitres(state: GameState, start: MachineInstance) {
+  const pipeRates = connectedFluidNetwork(state, start)
+    .map((instance) => steamPipeTransferLitresPerSecond[instance.machineId])
+    .filter((rate): rate is number => typeof rate === 'number')
+  return pipeRates.length > 0 ? Math.min(...pipeRates) : 16
+}
+
+function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, fluidId: FluidId, elapsedMs: number) {
+  const stored = source.process.fluids[fluidId] ?? 0
+  if (stored < 1) return 0
+
+  let remaining = Math.min(stored, Math.max(0, Math.floor((connectedFluidTransferRateLitres(state, source) * elapsedMs) / 1000)))
+  let moved = 0
+  for (const storage of connectedFluidStorage(state, source, fluidId).sort((a, b) => a.uid.localeCompare(b.uid))) {
+    if (remaining < 1) break
+    storage.process.fluidCapacityLitres = machineFluidCapacity(storage.machineId)
+    const free = storage.process.fluidCapacityLitres - (storage.process.fluids[fluidId] ?? 0)
+    const transfer = Math.min(remaining, free)
+    if (transfer < 1) continue
+    storage.process.fluids[fluidId] = (storage.process.fluids[fluidId] ?? 0) + transfer
+    remaining -= transfer
+    moved += transfer
+  }
+  source.process.fluids[fluidId] = stored - moved
+  return moved
 }
 
 function consumeConnectedSteam(state: GameState, instance: MachineInstance, amount: number) {
   let remaining = amount
-  for (const boiler of connectedSteamBoilers(state, instance).sort((a, b) => a.uid.localeCompare(b.uid))) {
+  for (const storage of connectedSteamStorage(state, instance).sort((a, b) => a.uid.localeCompare(b.uid))) {
     if (remaining < 1) break
-    const spend = Math.min(remaining, boiler.process.steamStoredMs)
-    boiler.process.steamStoredMs -= spend
+    const spend = Math.min(remaining, storage.process.steamStoredMs)
+    storage.process.steamStoredMs -= spend
     remaining -= spend
   }
   return amount - remaining
+}
+
+function fillInternalSteamFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const capacity = isSteamPoweredMachine(instance.machineId) ? steamMachineInternalCapacityMs : 0
+  if (capacity < 1) return 0
+  instance.process.steamCapacityMs = capacity
+  instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
+  const needed = capacity - instance.process.steamStoredMs
+  if (needed < 1) return 0
+  const transferLimit = Math.max(0, Math.floor((connectedSteamTransferRateMs(state, instance) * elapsedMs) / 1000))
+  const moved = consumeConnectedSteam(state, instance, Math.min(needed, transferLimit))
+  instance.process.steamStoredMs += moved
+  return moved
+}
+
+function fillSteamTankFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  if (instance.machineId !== 'steamTank') return 0
+  instance.process.steamCapacityMs = steamTankCapacityMs
+  instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, steamTankCapacityMs)
+  if (!canSteamTankReceiveFromNetwork(state, instance)) return 0
+  const needed = steamTankCapacityMs - instance.process.steamStoredMs
+  if (needed < 1) return 0
+  const transferLimit = Math.max(0, Math.floor((connectedSteamTransferRateMs(state, instance) * elapsedMs) / 1000))
+  const moved = consumeConnectedSteam(state, instance, Math.min(needed, transferLimit))
+  instance.process.steamStoredMs += moved
+  return moved
+}
+
+function recipeSteamCostMs(recipe: ProcessRecipe) {
+  return (recipe.steamCostLitres ?? Math.ceil(recipe.durationMs / steamMsPerLitre)) * steamMsPerLitre
 }
 
 function addToProcessOutput(output: ProcessSlot, produced: ResourceAmount): ProcessSlot {
@@ -796,19 +1135,21 @@ export function availableUnplacedMachineCount(state: GameState, machineId: Machi
 }
 
 export function placeMachineInstance(state: GameState, machineId: MachineId, x: number, y: number) {
-  if (!isInsideFactoryGrid(x, y)) return state
+  if (!isInsideFactoryGrid(state, x, y)) return state
   if (availableUnplacedMachineCount(state, machineId) < 1) return state
   if (state.machineInstances.some((instance) => instance.x === x && instance.y === y)) return state
 
   const next = cloneState(state)
-  next.machineInstances.push({
+  const placed: MachineInstance = {
     uid: nextMachineUid(next, machineId),
     machineId,
     x,
     y,
     level: 1,
     process: emptyProcessState(),
-  })
+  }
+  next.machineInstances.push(placed)
+  tryFormBrickedBlastFurnaceMultiblock(next, placed)
   next.lastSavedAt = Date.now()
   return next
 }
@@ -816,6 +1157,26 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
 export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
+
+  const multiblockCenter =
+    instance.machineId === 'brickedBlastFurnace' || instance.machineId === 'brickedBlastFurnacePart'
+      ? brickedBlastFurnaceCenterForInstance(state, instance)
+      : null
+  if (multiblockCenter) {
+    let next = cloneState(state)
+    const positions = brickedBlastFurnacePositions(state, multiblockCenter.x, multiblockCenter.y)
+    const positionKeys = new Set(positions.map((position) => `${position.x},${position.y}`))
+    const controller = machineAt(next, multiblockCenter.x, multiblockCenter.y)
+    const returned = [controller?.process.input, controller?.process.fuel, controller?.process.output].filter(
+      (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
+    )
+    next.machineInstances = next.machineInstances.filter((candidate) => !positionKeys.has(`${candidate.x},${candidate.y}`))
+    next.machines.brickedBlastFurnace = Math.max(0, next.machines.brickedBlastFurnace - 1)
+    next.machines.brickedBlastFurnacePart += 1
+    next.lastSavedAt = Date.now()
+    if (returned.length > 0) next = addResources(next, returned)
+    return next
+  }
 
   let next = cloneState(state)
   const returned = [instance.process.input, instance.process.fuel, instance.process.output].filter((slot): slot is NonNullable<ProcessSlot> => Boolean(slot))
@@ -825,9 +1186,23 @@ export function removeMachineInstance(state: GameState, uid: string) {
   return next
 }
 
+export function canWrenchRemoveMachine(state: GameState) {
+  return hasDurableUses(state, [{ id: 'ironWrench', amount: 1 }])
+}
+
+export function wrenchRemoveMachineInstance(state: GameState, uid: string) {
+  if (!canWrenchRemoveMachine(state)) return state
+  return removeMachineInstance(applyDurabilityCosts(state, [{ id: 'ironWrench', amount: 1 }]), uid)
+}
+
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (slotId === 'input') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.input.id === resourceId)
-  if (slotId === 'fuel') return (machineId === 'furnace' || machineId === 'steamBoiler') && resourceId in fuelDefinitions
+  if (slotId === 'fuel') {
+    if (machineId === 'brickedBlastFurnace') {
+      return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.fuelInput?.id === resourceId)
+    }
+    return (machineId === 'furnace' || machineId === 'steamBoiler') && resourceId in fuelDefinitions
+  }
   return false
 }
 
@@ -946,10 +1321,19 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
   const process = instance.process
   process.steamCapacityMs = boilerSteamCapacityMs
   process.steamStoredMs = Math.min(process.steamStoredMs, boilerSteamCapacityMs)
-  if (!boilerHasWater(state, instance) || process.steamStoredMs >= boilerSteamCapacityMs) {
+
+  if (!boilerHasWater(state, instance)) {
     process.activeRecipeId = null
+    if (process.fuelRemainingMs > 0) burnProcessFuel(process, elapsedMs)
     return
   }
+
+  if (process.steamStoredMs >= boilerSteamCapacityMs) {
+    process.activeRecipeId = null
+    if (process.fuelRemainingMs > 0) burnProcessFuel(process, elapsedMs)
+    return
+  }
+
   if (!consumeProcessFuel(process)) {
     process.activeRecipeId = null
     return
@@ -964,8 +1348,11 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
   process.steamStoredMs += produced
 }
 
-function tickSteamMacerator(state: GameState, instance: MachineInstance, elapsedMs: number) {
+function tickSteamProcessMachine(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const process = instance.process
+  process.steamCapacityMs = steamMachineInternalCapacityMs
+  process.steamStoredMs = Math.min(process.steamStoredMs, steamMachineInternalCapacityMs)
+  fillInternalSteamFromConnectedStorage(state, instance, elapsedMs)
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
@@ -979,23 +1366,95 @@ function tickSteamMacerator(state: GameState, instance: MachineInstance, elapsed
       break
     }
 
-    const steam = availableConnectedSteam(state, instance)
-    if (steam < 1) {
+    fillInternalSteamFromConnectedStorage(state, instance, remainingMs)
+    if (process.steamStoredMs < 1) {
       process.activeRecipeId = null
       break
     }
 
     process.activeRecipeId = recipe.id
     process.durationMs = recipe.durationMs
-    const workMs = Math.min(remainingMs, steam, recipe.durationMs - process.progressMs)
-    const consumed = consumeConnectedSteam(state, instance, workMs)
-    if (consumed < 1) break
-    process.progressMs += consumed
-    remainingMs -= consumed
+    const steamCostMs = recipeSteamCostMs(recipe)
+    const remainingWorkMs = recipe.durationMs - process.progressMs
+    const maxWorkBySteam = Math.floor((process.steamStoredMs * recipe.durationMs) / steamCostMs)
+    const workMs = Math.min(remainingMs, remainingWorkMs, maxWorkBySteam)
+    if (workMs < 1) break
+    const consumedSteam = Math.min(process.steamStoredMs, Math.ceil((workMs * steamCostMs) / recipe.durationMs))
+    process.steamStoredMs -= consumedSteam
+    process.progressMs += workMs
+    remainingMs -= workMs
 
     if (process.progressMs < recipe.durationMs) continue
 
     process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.output = addToProcessOutput(process.output, recipe.output)
+    process.progressMs = 0
+    process.activeRecipeId = null
+    process.durationMs = 0
+  }
+}
+
+function tickCokeOven(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+  process.fluids.creosote = Math.min(process.fluids.creosote ?? 0, cokeOvenFluidCapacityLitres)
+  pushFluidToConnectedStorage(state, instance, 'creosote', elapsedMs)
+
+  let remainingMs = elapsedMs
+  while (remainingMs > 0) {
+    const recipe = findProcessRecipeForInput(instance.machineId, process.input)
+    if (!recipe || !canOutputAccept(process.output, recipe.output) || !canFluidOutputAccept(process, recipe)) {
+      process.activeRecipeId = null
+      if (!recipe) {
+        process.progressMs = 0
+        process.durationMs = 0
+      }
+      break
+    }
+
+    process.activeRecipeId = recipe.id
+    process.durationMs = recipe.durationMs
+    const workMs = Math.min(remainingMs, recipe.durationMs - process.progressMs)
+    process.progressMs += workMs
+    remainingMs -= workMs
+
+    if (process.progressMs < recipe.durationMs) continue
+
+    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.output = addToProcessOutput(process.output, recipe.output)
+    addFluidOutput(process, recipe)
+    process.progressMs = 0
+    process.activeRecipeId = null
+    process.durationMs = 0
+    pushFluidToConnectedStorage(state, instance, 'creosote', remainingMs)
+  }
+}
+
+function tickBrickedBlastFurnace(instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  let remainingMs = elapsedMs
+
+  while (remainingMs > 0) {
+    const recipe = findProcessRecipeForInputAndFuel(instance.machineId, process.input, process.fuel)
+    if (!recipe || !canOutputAccept(process.output, recipe.output)) {
+      process.activeRecipeId = null
+      if (!recipe) {
+        process.progressMs = 0
+        process.durationMs = 0
+      }
+      break
+    }
+
+    process.activeRecipeId = recipe.id
+    process.durationMs = recipe.durationMs
+    const workMs = Math.min(remainingMs, recipe.durationMs - process.progressMs)
+    process.progressMs += workMs
+    remainingMs -= workMs
+
+    if (process.progressMs < recipe.durationMs) continue
+
+    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    if (recipe.fuelInput) process.fuel = decrementProcessSlot(process.fuel, recipe.fuelInput.amount)
     process.output = addToProcessOutput(process.output, recipe.output)
     process.progressMs = 0
     process.activeRecipeId = null
@@ -1008,7 +1467,19 @@ export function tickMachineInstances(state: GameState, elapsedMs: number) {
   for (const instance of next.machineInstances) {
     if (instance.machineId === 'furnace') tickFurnaceProcess(instance, elapsedMs)
     if (instance.machineId === 'steamBoiler') tickSteamBoiler(next, instance, elapsedMs)
-    if (instance.machineId === 'steamMacerator') tickSteamMacerator(next, instance, elapsedMs)
+    if (instance.machineId === 'steamTank') {
+      instance.process.steamCapacityMs = steamTankCapacityMs
+      instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, steamTankCapacityMs)
+      instance.process.fluidCapacityLitres = ironTankFluidCapacityLitres
+    }
+    if (instance.machineId === 'cokeOven') tickCokeOven(next, instance, elapsedMs)
+    if (instance.machineId === 'brickedBlastFurnace') tickBrickedBlastFurnace(instance, elapsedMs)
+  }
+  for (const instance of next.machineInstances) {
+    if (instance.machineId === 'steamTank') fillSteamTankFromConnectedStorage(next, instance, elapsedMs)
+  }
+  for (const instance of next.machineInstances) {
+    if (isSteamPoweredMachine(instance.machineId)) tickSteamProcessMachine(next, instance, elapsedMs)
   }
   next.lastSavedAt = Date.now()
   return next
@@ -1093,7 +1564,6 @@ export function nextQuest(state: GameState) {
 }
 
 function migrateResources(resources: Record<ResourceId, number>) {
-  delete (resources as Partial<Record<string, number>>).firebrick
   if (resources.stone > 0) {
     resources.cobblestone += resources.stone
     resources.stone = 0
@@ -1136,23 +1606,43 @@ function normalizeCraftedResources(parsed: Partial<GameState>) {
   return [...crafted]
 }
 
-function migrateMachineInstances(machinesState: Record<MachineId, number>, parsedInstances?: Partial<MachineInstance>[]) {
-  const instances = normalizeMachineInstances(parsedInstances)
-  if (parsedInstances) return instances
+function legacySaveHasFactoryMachines(parsed: Partial<GameState>) {
+  if ((parsed.machineInstances?.length ?? 0) > 0) return true
+  return Object.values(parsed.machines ?? {}).some((amount) => typeof amount === 'number' && amount > 0)
+}
+
+function normalizeFactoryFoundationLevel(parsed: Partial<GameState>) {
+  if (typeof parsed.factoryFoundationLevel === 'number') return clampFactoryFoundationLevel(parsed.factoryFoundationLevel)
+  return legacySaveHasFactoryMachines(parsed) ? 2 : 0
+}
+
+function migrateMachineInstances(machinesState: Record<MachineId, number>, foundationLevel: number, parsedInstances?: Partial<MachineInstance>[]) {
+  const instances = normalizeMachineInstances(parsedInstances, foundationLevel)
+  if (parsedInstances) {
+    const placedBlastFurnaces = instances.filter((instance) => instance.machineId === 'brickedBlastFurnace').length
+    const unplacedLegacyBlastFurnaces = Math.max(0, machinesState.brickedBlastFurnace - placedBlastFurnaces)
+    if (unplacedLegacyBlastFurnaces > 0) {
+      machinesState.brickedBlastFurnace -= unplacedLegacyBlastFurnaces
+      machinesState.brickedBlastFurnacePart += unplacedLegacyBlastFurnaces * 4
+    }
+    return instances
+  }
 
   const migrated = [...instances]
   const furnaceCount = machinesState.furnace ?? 0
+  const grid = factoryFoundationSizes[clampFactoryFoundationLevel(foundationLevel)] ?? factoryGrid
+  if (grid.width < 1 || grid.height < 1) return migrated
   for (let index = migrated.length; index < furnaceCount; index += 1) {
     migrated.push({
       uid: `furnace-${index + 1}`,
       machineId: 'furnace',
-      x: index % factoryGrid.width,
-      y: Math.floor(index / factoryGrid.width),
+      x: index % grid.width,
+      y: Math.floor(index / grid.width),
       level: 1,
       process: emptyProcessState(),
     })
   }
-  return migrated.filter((instance) => isInsideFactoryGrid(instance.x, instance.y))
+  return migrated.filter((instance) => isInsideGridSize(grid, instance.x, instance.y))
 }
 
 export function loadGame(raw: string | null, now = Date.now()): GameState {
@@ -1168,13 +1658,15 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     }
 
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
+    const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
 
     return {
       ...fresh,
       ...savedState,
       resources: migrateResources({ ...fresh.resources, ...parsed.resources }),
       machines: machinesState,
-      machineInstances: migrateMachineInstances(machinesState, parsed.machineInstances),
+      machineInstances: migrateMachineInstances(machinesState, factoryFoundationLevel, parsed.machineInstances),
+      factoryFoundationLevel,
       completedQuests: parsed.completedQuests ?? [],
       unlockedQuests: unlockedQuests as QuestId[],
       craftedResources: normalizeCraftedResources(parsed),

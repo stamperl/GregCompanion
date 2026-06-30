@@ -7,7 +7,6 @@ import {
   Database,
   Factory,
   Pickaxe,
-  Shovel,
   RotateCcw,
   Save,
   Trash2,
@@ -31,17 +30,25 @@ import {
   availableConnectedSteam,
   boilerHasWater,
   boilerSteamCapacityMs,
+  cokeOvenFluidCapacityLitres,
+  canWrenchRemoveMachine,
   canCompleteQuest,
   canCraft,
   collectProcessOutput,
   completeQuest,
+  createCreativeState,
   craftableQuantity,
   craftRecipeInstant,
   equipResource,
+  equipmentSlots,
   equipmentSlotAccepts,
+  expandFactoryFloor,
   findGridRecipe,
-  factoryGrid,
+  factoryFoundationCost,
+  factoryFoundationSizes,
+  factoryGridForState,
   getBestToolForTarget,
+  hasFactoryFloor,
   hitGatherTarget,
   insertProcessSlot,
   loadGame,
@@ -54,17 +61,23 @@ import {
   questProgress,
   recipeFitsTerminalGrid,
   recipesUsingInput,
-  removeMachineInstance,
   removeProcessSlot,
   saveGame,
   saveKey,
   searchTerminalRecipes,
+  steamMaceratorCapacityMs,
+  steamMachineInternalCapacityMs,
+  steamPipeTransferLitresPerSecond,
+  steamTankCapacityMs,
+  ironTankFluidCapacityLitres,
+  canExpandFactoryFloor,
   terminalAvailableAmount,
   tickGame,
   unequipSlot,
   visibleQuests,
   visibleRecipes,
   durabilityRemaining,
+  wrenchRemoveMachineInstance,
 } from './game/engine'
 import {
   groupRecipesByOutput,
@@ -115,6 +128,19 @@ function formatServerSaveDate(value: string) {
 type Page = 'gather' | 'terminal' | 'processing' | 'guide'
 type TerminalMode = 'recipes' | 'uses'
 type DragPreview = { id: ResourceId; x: number; y: number }
+type FactoryPan = { x: number; y: number }
+type NavigationSnapshot = {
+  page: Page
+  gatherArea: GatherAreaId
+  terminalMode: TerminalMode
+  recipeSearch: string
+  selectedResource: ResourceId | null
+  selectedMachineUid: string | null
+  selectedRecipeGroupKey: string | null
+  selectedRecipeIndex: number
+  isRecipeModalOpen: boolean
+  isFactoryExpandModalOpen: boolean
+}
 type PendingProcessInsert = {
   uid: string
   slotId: Exclude<ProcessSlotId, 'output'>
@@ -126,26 +152,66 @@ type RecipeDisplayOutput =
   | { kind: 'resource'; id: ResourceId; amount: number; label: string }
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
 
-const machineOrder: MachineId[] = ['furnace', 'well', 'steamBoiler', 'steamMacerator']
+const machineOrder: MachineId[] = [
+  'furnace',
+  'well',
+  'steamBoiler',
+  'steamTank',
+  'copperPipe',
+  'bronzePipe',
+  'ironPipe',
+  'steamMacerator',
+  'steamForgeHammer',
+  'steamCompressor',
+  'steamExtractor',
+  'steamAlloySmelter',
+  'steamFurnace',
+  'cokeOven',
+  'brickedBlastFurnacePart',
+  'brickedBlastFurnace',
+]
+const placeableFactoryMachineOrder = machineOrder.filter((id) => id !== 'brickedBlastFurnace')
+const factoryToolOrder: ResourceId[] = ['bronzeWrench', 'ironWrench']
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
 
 type GatherAreaId = 'forest' | 'lake' | 'mine'
 
 const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTargetId[] }> = [
-  { id: 'forest', label: 'Forest', targets: ['tree'] },
-  { id: 'lake', label: 'Lake', targets: ['clayPatch'] },
-  { id: 'mine', label: 'Mine', targets: ['stone', 'ironVein', 'gravelPatch', 'copperVein', 'tinVein', 'coalSeam'] },
+  { id: 'forest', label: 'Forest', targets: ['tree', 'rubberTree'] },
+  { id: 'lake', label: 'Lake', targets: ['sandPatch', 'clayPatch', 'gravelPatch'] },
+  { id: 'mine', label: 'Mine', targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'coalSeam'] },
 ]
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tree: 'log',
+  rubberTree: 'rubberSap',
   stone: 'cobblestone',
   clayPatch: 'clay',
+  sandPatch: 'sand',
   ironVein: 'ironOre',
   gravelPatch: 'gravel',
   copperVein: 'copperOre',
   tinVein: 'tinOre',
   coalSeam: 'coal',
+}
+
+function gatherAreaForResource(resourceId: ResourceId) {
+  const target = Object.values(gatherTargets).find((candidate) => candidate.drops.some((drop) => drop.id === resourceId))
+  if (!target) return null
+  const area = gatherAreas.find((candidate) => candidate.targets.includes(target.id))
+  return area ? { areaId: area.id, targetId: target.id, targetName: target.name } : null
+}
+
+const factoryCellSize = 44
+const factoryCellGap = 4
+const factoryViewportPadding = 6
+const factoryPanThreshold = 6
+
+function factoryGridPixelSize(grid: { width: number; height: number }) {
+  return {
+    width: grid.width > 0 ? grid.width * factoryCellSize + Math.max(0, grid.width - 1) * factoryCellGap : 0,
+    height: grid.height > 0 ? grid.height * factoryCellSize + Math.max(0, grid.height - 1) * factoryCellGap : 0,
+  }
 }
 
 const armourEquipmentSlots: EquipmentSlotId[] = ['helmet', 'chestplate', 'leggings', 'boots']
@@ -177,6 +243,14 @@ function formatDuration(ms: number) {
   return minutes > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : `${seconds}s`
 }
 
+function formatSteamLitres(ms: number) {
+  return Math.max(0, Math.floor(ms / 1000))
+}
+
+function formatLitres(litres: number) {
+  return Math.max(0, Math.floor(litres))
+}
+
 function DurabilityBar({ state, id }: { state: GameState; id: ResourceId }) {
   const max = maxDurability(id)
   if (max < 1 || state.resources[id] < 1) return null
@@ -196,9 +270,98 @@ function PixelIcon({ id }: { id: ResourceId }) {
   )
 }
 
-function MachineGlyph({ id, active = false }: { id: MachineId; active?: boolean }) {
+function GatherTapArt({ iconId }: { iconId: ResourceId }) {
   return (
-    <span className={active ? `machine-glyph machine-${id} active` : `machine-glyph machine-${id}`} aria-hidden="true">
+    <span className="gather-tap-fallback" aria-hidden="true">
+      <PixelIcon id={iconId} />
+    </span>
+  )
+}
+
+type PipeConnections = {
+  up: boolean
+  right: boolean
+  down: boolean
+  left: boolean
+}
+
+function isPipeMachine(machineId: MachineId) {
+  return machineId === 'copperPipe' || machineId === 'bronzePipe' || machineId === 'ironPipe'
+}
+
+function isSteamPoweredProcessMachine(machineId: MachineId) {
+  return (
+    machineId === 'steamMacerator' ||
+    machineId === 'steamForgeHammer' ||
+    machineId === 'steamCompressor' ||
+    machineId === 'steamExtractor' ||
+    machineId === 'steamAlloySmelter' ||
+    machineId === 'steamFurnace'
+  )
+}
+
+function isSteamNetworkMachine(machineId: MachineId) {
+  return (
+    machineId === 'steamBoiler' ||
+    machineId === 'steamTank' ||
+    isSteamPoweredProcessMachine(machineId) ||
+    machineId === 'copperPipe' ||
+    machineId === 'bronzePipe' ||
+    machineId === 'ironPipe'
+  )
+}
+
+function pipeConnectionClass(connections?: PipeConnections) {
+  if (!connections) return ''
+  return [
+    connections.up ? 'pipe-up' : '',
+    connections.right ? 'pipe-right' : '',
+    connections.down ? 'pipe-down' : '',
+    connections.left ? 'pipe-left' : '',
+  ].filter(Boolean).join(' ')
+}
+
+function pipePath(connections?: PipeConnections) {
+  const pipeConnections = connections ?? { up: false, right: true, down: false, left: true }
+  const { up, right, down, left } = pipeConnections
+  const count = [up, right, down, left].filter(Boolean).length
+  if (count < 1) return 'M0 20 L40 20'
+  if (left && right && !up && !down) return 'M0 20 L40 20'
+  if (up && down && !left && !right) return 'M20 0 L20 40'
+  if (up && right && count === 2) return 'M20 0 L20 20 L40 20'
+  if (right && down && count === 2) return 'M40 20 L20 20 L20 40'
+  if (down && left && count === 2) return 'M20 40 L20 20 L0 20'
+  if (left && up && count === 2) return 'M0 20 L20 20 L20 0'
+
+  return [
+    up ? 'M20 20 L20 0' : '',
+    right ? 'M20 20 L40 20' : '',
+    down ? 'M20 20 L20 40' : '',
+    left ? 'M20 20 L0 20' : '',
+  ].filter(Boolean).join(' ')
+}
+
+function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
+  const className = [
+    'machine-glyph',
+    `machine-${id}`,
+    active ? 'active' : '',
+    isPipeMachine(id) ? pipeConnectionClass(pipeConnections) : '',
+  ].filter(Boolean).join(' ')
+  if (isPipeMachine(id)) {
+    const path = pipePath(pipeConnections)
+    return (
+      <span className={className} aria-hidden="true">
+        <svg className="pipe-svg" viewBox="0 0 40 40" focusable="false">
+          <path className="pipe-outline" d={path} />
+          <path className="pipe-body" d={path} />
+          <path className="pipe-highlight" d={path} />
+        </svg>
+      </span>
+    )
+  }
+  return (
+    <span className={className} aria-hidden="true">
       <span />
     </span>
   )
@@ -229,8 +392,8 @@ function ItemSlot({
       <button
         type="button"
         className={disabled ? `mini-slot recipe-jump-slot muted ${className}` : `mini-slot recipe-jump-slot ${className}`}
-        aria-label={`Recipes for ${resourceLabels[amount.id]}`}
-        title={`Recipes for ${resourceLabels[amount.id]}`}
+        aria-label={`Find ${resourceLabels[amount.id]}`}
+        title={`Find ${resourceLabels[amount.id]}`}
         onClick={() => onClick(amount.id)}
       >
         {content}
@@ -274,6 +437,33 @@ function RecipePatternPreview({
           </button>
         )
       })}
+    </div>
+  )
+}
+
+function isFactoryFloorLayoutRecipe(recipe: Recipe) {
+  return recipe.id === 'build_bricked_blast_furnace'
+}
+
+function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
+  if (!isFactoryFloorLayoutRecipe(recipe)) return null
+  return (
+    <div className="factory-layout-preview" aria-label={`${recipe.name} factory floor layout`}>
+      <div className="factory-layout-grid">
+        <span className="factory-layout-cell controller">
+          <MachineGlyph id="brickedBlastFurnace" />
+        </span>
+        <span className="factory-layout-cell">
+          <MachineGlyph id="brickedBlastFurnacePart" />
+        </span>
+        <span className="factory-layout-cell">
+          <MachineGlyph id="brickedBlastFurnacePart" />
+        </span>
+        <span className="factory-layout-cell">
+          <MachineGlyph id="brickedBlastFurnacePart" />
+        </span>
+      </div>
+      <p>Place 4 BBF Casings as a 2x2 on the factory floor.</p>
     </div>
   )
 }
@@ -350,6 +540,41 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
   return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
 }
 
+function SteamTank({ storedMs, capacityMs }: { storedMs: number; capacityMs: number }) {
+  const storedLitres = formatSteamLitres(storedMs)
+  const capacityLitres = formatSteamLitres(capacityMs)
+  const fillPercent = capacityMs > 0 ? Math.max(0, Math.min(100, (storedMs / capacityMs) * 100)) : 0
+
+  return (
+    <div className="steam-tank" aria-label={`Steam tank ${storedLitres} of ${capacityLitres} litres`}>
+      <div className="steam-tank-gauge">
+        <span style={{ height: `${fillPercent}%` }} />
+      </div>
+      <div className="steam-tank-readout">
+        <span>Steam tank</span>
+        <strong>{storedLitres}L</strong>
+        <small>{capacityLitres}L max</small>
+      </div>
+    </div>
+  )
+}
+
+function FluidTank({ label, storedLitres, capacityLitres }: { label: string; storedLitres: number; capacityLitres: number }) {
+  const fillPercent = capacityLitres > 0 ? Math.max(0, Math.min(100, (storedLitres / capacityLitres) * 100)) : 0
+  return (
+    <div className="steam-tank fluid-tank" aria-label={`${label} ${storedLitres} of ${capacityLitres} litres`}>
+      <div className="steam-tank-gauge fluid-tank-gauge">
+        <span style={{ height: `${fillPercent}%` }} />
+      </div>
+      <div className="steam-tank-readout">
+        <span>{label}</span>
+        <strong>{formatLitres(storedLitres)}L</strong>
+        <small>{formatLitres(capacityLitres)}L max</small>
+      </div>
+    </div>
+  )
+}
+
 function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
   const recipeOutput = recipeGroupOutput(group.recipes[0])
   const output = recipeOutput ?? group.output
@@ -387,8 +612,16 @@ function missingLine(state: GameState, recipe: Recipe) {
   ].join(', ')
 }
 
+function missingResourceLine(state: GameState, costs: ResourceAmount[]) {
+  return costs
+    .filter((amount) => availableResourceAmount(state, amount.id) < amount.amount)
+    .map((amount) => `${amount.amount - availableResourceAmount(state, amount.id)} ${resourceLabels[amount.id]}`)
+    .join(', ')
+}
+
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: Exclude<ProcessSlotId, 'output'>, resourceId: ResourceId) {
   if (slotId === 'input') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.input.id === resourceId)
+  if (machineId === 'brickedBlastFurnace') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.fuelInput?.id === resourceId)
   return (machineId === 'furnace' || machineId === 'steamBoiler') && resourceId in fuelDefinitions
 }
 
@@ -396,20 +629,83 @@ function canResourceEnterMachine(machineId: MachineId, resourceId: ResourceId) {
   return canResourceEnterProcessSlot(machineId, 'input', resourceId) || canResourceEnterProcessSlot(machineId, 'fuel', resourceId)
 }
 
+function suggestedProcessInsertQuantity(
+  instance: MachineInstance,
+  slotId: Exclude<ProcessSlotId, 'output'>,
+  resourceId: ResourceId,
+  available: number,
+) {
+  const currentAmount = instance.process[slotId]?.id === resourceId ? instance.process[slotId]?.amount ?? 0 : 0
+  const candidates = processRecipes.filter((recipe) => recipe.machineId === instance.machineId)
+  const recipe =
+    slotId === 'fuel'
+      ? candidates.find((candidate) => candidate.fuelInput?.id === resourceId)
+      : candidates.find((candidate) => candidate.input.id === resourceId)
+  const required = slotId === 'fuel' ? recipe?.fuelInput?.amount : recipe?.input.amount
+  const wanted = required ? Math.max(1, required - currentAmount) : 1
+  return Math.max(1, Math.min(wanted, available, processStackLimit - currentAmount))
+}
+
+function machineUsesProcessStorage(machineId: MachineId) {
+  return (
+    machineId === 'furnace' ||
+    machineId === 'steamBoiler' ||
+    machineId === 'cokeOven' ||
+    machineId === 'brickedBlastFurnace' ||
+    isSteamPoweredProcessMachine(machineId)
+  )
+}
+
 function machineStatus(state: GameState, instance: MachineInstance) {
   const process = instance.process
   const recipe = process.input ? processRecipes.find((candidate) => candidate.machineId === instance.machineId && candidate.input.id === process.input?.id) : undefined
   if (instance.machineId === 'well') return 'Supplying water'
+  if (instance.machineId === 'steamTank') {
+    if ((process.fluids.creosote ?? 0) > 0) return 'Holding creosote'
+    if ((process.fluids.water ?? 0) > 0) return 'Holding water'
+    return process.steamStoredMs > 0 ? 'Holding steam' : 'Empty tank'
+  }
+  if (isPipeMachine(instance.machineId)) return `${steamPipeTransferLitresPerSecond[instance.machineId] ?? 0}L/s transfer`
   if (instance.machineId === 'steamBoiler') {
     if (!boilerHasWater(state, instance)) return 'No water'
+    if (process.steamStoredMs >= boilerSteamCapacityMs && process.fuelRemainingMs > 0) return 'Venting full tank'
     if (process.steamStoredMs >= boilerSteamCapacityMs) return 'Steam full'
     if (!process.fuel && process.fuelRemainingMs < 1) return 'No fuel'
     return process.fuelRemainingMs > 0 ? 'Making steam' : 'Ready'
   }
-  if (instance.machineId === 'steamMacerator') {
+  if (instance.machineId === 'cokeOven') {
     if (!recipe) return 'No input'
     if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
-    if (availableConnectedSteam(state, instance) < 1) return 'No steam'
+    if (recipe.fluidOutput && (process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount > (process.fluidCapacityLitres || cokeOvenFluidCapacityLitres)) {
+      return 'Creosote full'
+    }
+    return process.activeRecipeId ? 'Coking' : 'Ready'
+  }
+  if (instance.machineId === 'brickedBlastFurnace') {
+    const inputRecipe = process.input
+      ? processRecipes.find((candidate) => candidate.machineId === instance.machineId && candidate.input.id === process.input?.id)
+      : undefined
+    if (!inputRecipe) return 'Needs iron'
+    if (process.input && process.input.amount < inputRecipe.input.amount) return `Needs ${inputRecipe.input.amount} ${resourceLabels[inputRecipe.input.id]}`
+    const blastRecipe = process.fuel
+      ? processRecipes.find(
+          (candidate) =>
+            candidate.machineId === instance.machineId &&
+            candidate.input.id === process.input?.id &&
+            candidate.fuelInput?.id === process.fuel?.id,
+        )
+      : undefined
+    if (!blastRecipe) return 'Needs coke'
+    if (blastRecipe.fuelInput && (!process.fuel || process.fuel.amount < blastRecipe.fuelInput.amount)) {
+      return `Needs ${blastRecipe.fuelInput.amount} ${resourceLabels[blastRecipe.fuelInput.id]}`
+    }
+    if (process.output && (process.output.id !== blastRecipe.output.id || process.output.amount + blastRecipe.output.amount > processStackLimit)) return 'Output full'
+    return process.activeRecipeId ? 'Blasting' : 'Ready'
+  }
+  if (isSteamPoweredProcessMachine(instance.machineId)) {
+    if (!recipe) return 'No input'
+    if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    if (process.steamStoredMs + availableConnectedSteam(state, instance) < 1) return 'No steam'
     return process.activeRecipeId ? 'Running' : 'Ready'
   }
   if (!recipe) return 'No input'
@@ -424,11 +720,14 @@ function hasToolTierUnlocked(state: GameState, resourceId: ResourceId) {
 
 function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
   if (targetId === 'tree') return true
+  if (targetId === 'rubberTree') return hasToolTierUnlocked(state, 'treeTap')
   if (targetId === 'clayPatch') return hasToolTierUnlocked(state, 'stoneShovel')
+  if (targetId === 'sandPatch') return hasToolTierUnlocked(state, 'woodenShovel')
+  if (targetId === 'gravelPatch') return hasToolTierUnlocked(state, 'woodenShovel')
   if (targetId === 'stone') {
     return hasToolTierUnlocked(state, 'woodenPickaxe') || hasToolTierUnlocked(state, 'stonePickaxe') || hasToolTierUnlocked(state, 'ironPickaxe')
   }
-  if (targetId === 'ironVein' || targetId === 'gravelPatch') {
+  if (targetId === 'ironVein') {
     return hasToolTierUnlocked(state, 'stonePickaxe') || hasToolTierUnlocked(state, 'ironPickaxe')
   }
   return hasToolTierUnlocked(state, 'ironPickaxe')
@@ -498,17 +797,21 @@ function App() {
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
   const [terminalSearch, setTerminalSearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
+  const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
   const [terminalNotice, setTerminalNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+  const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [saveBackupNotice, setSaveBackupNotice] = useState('')
   const [serverSaveId, setServerSaveId] = useState(() => localStorage.getItem(serverSaveIdKey) ?? 'phone')
   const [serverSaves, setServerSaves] = useState<ServerSaveSlot[]>([])
   const [isServerSaveBusy, setIsServerSaveBusy] = useState(false)
+  const [isCreativeMode, setIsCreativeMode] = useState(false)
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
+  const [selectedFactoryTool, setSelectedFactoryTool] = useState<ResourceId | null>(null)
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(null)
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
@@ -521,21 +824,33 @@ function App() {
     missingSetup: string
   } | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
+  const [factoryPan, setFactoryPan] = useState<FactoryPan>({ x: 0, y: 0 })
+  const [navigationStack, setNavigationStack] = useState<NavigationSnapshot[]>([])
+  const [highlightedGatherTarget, setHighlightedGatherTarget] = useState<GatherTargetId | null>(null)
   const floatTextIdRef = useRef(0)
+  const gatherHighlightTimeoutRef = useRef<number | null>(null)
   const pointerDragRef = useRef<{ id: ResourceId; startX: number; startY: number; dragged: boolean } | null>(null)
+  const factoryViewportRef = useRef<HTMLDivElement | null>(null)
+  const factoryPanDragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; dragged: boolean } | null>(null)
+  const suppressFactoryCellClickRef = useRef(false)
   const suppressClickRef = useRef(false)
+  const isFactoryRemoveMode = selectedFactoryTool === 'bronzeWrench' || selectedFactoryTool === 'ironWrench'
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setState((current) => tickGame(current, 250).state)
+      setState((current) => {
+        const ticked = tickGame(current, 250).state
+        return isCreativeMode ? createCreativeState(ticked) : ticked
+      })
     }, 250)
 
     return () => window.clearInterval(interval)
-  }, [])
+  }, [isCreativeMode])
 
   useEffect(() => {
+    if (isCreativeMode) return
     localStorage.setItem(saveKey, saveGame(state))
-  }, [state])
+  }, [isCreativeMode, state])
 
   useEffect(() => {
     if (selectedResource && terminalAvailableAmount(state, terminalGrid, selectedResource) < 1) {
@@ -550,6 +865,10 @@ function App() {
   }, [selectedMachineUid, state.machineInstances])
 
   useEffect(() => {
+    if (isFactoryRemoveMode && !canWrenchRemoveMachine(state)) setSelectedFactoryTool(null)
+  }, [isFactoryRemoveMode, state])
+
+  useEffect(() => {
     if (!pendingProcessInsert) return
     const instance = state.machineInstances.find((candidate) => candidate.uid === pendingProcessInsert.uid)
     const slot = instance?.process[pendingProcessInsert.slotId]
@@ -557,6 +876,25 @@ function App() {
     const max = Math.min(processStackLimit - currentAmount, availableResourceAmount(state, pendingProcessInsert.resourceId))
     if (!instance || max < 1) setPendingProcessInsert(null)
   }, [pendingProcessInsert, state])
+
+  useEffect(
+    () => () => {
+      if (gatherHighlightTimeoutRef.current) window.clearTimeout(gatherHighlightTimeoutRef.current)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (page !== 'gather' || !highlightedGatherTarget) return
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-gather-target="${highlightedGatherTarget}"]`)?.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: 'smooth',
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [page, gatherArea, highlightedGatherTarget])
 
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
   const guideQuests = useMemo(() => visibleQuests(state), [state])
@@ -573,7 +911,7 @@ function App() {
           stationType: recipe.machineId === 'furnace' ? 'furnace' : 'steam',
           recipeType: 'processing',
           durationMs: recipe.durationMs,
-          inputs: [recipe.input],
+          inputs: recipe.fuelInput ? [recipe.input, recipe.fuelInput] : [recipe.input],
           outputs: [recipe.output],
           requiredMachine: recipe.machineId,
         }),
@@ -588,7 +926,7 @@ function App() {
     if (!query) return true
     return id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
   })
-  const filteredMachines = machineOrder.filter((id) => {
+  const filteredMachines = placeableFactoryMachineOrder.filter((id) => {
     if (unplacedMachineCounts[id] < 1) return false
     const query = terminalSearch.trim().toLowerCase()
     if (!query) return true
@@ -605,6 +943,11 @@ function App() {
   const selectedRecipe = selectedRecipeGroup?.recipes[clampedSelectedRecipeIndex]
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const selectedMachineRecipe =
+    selectedMachine?.process.input
+      ? processRecipes.find((recipe) => recipe.machineId === selectedMachine.machineId && recipe.input.id === selectedMachine.process.input?.id)
+      : undefined
+  const selectedMachineSteamCostLitres = selectedMachineRecipe?.steamCostLitres ?? null
   const pendingProcessMachine = pendingProcessInsert
     ? state.machineInstances.find((instance) => instance.uid === pendingProcessInsert.uid) ?? null
     : null
@@ -617,7 +960,73 @@ function App() {
   const furnaceStorageResources = selectedMachine
     ? resourceOrder.filter((id) => availableResourceAmount(state, id) > 0 && canResourceEnterMachine(selectedMachine.machineId, id))
     : []
-  const unplacedMachines = machineOrder.filter((id) => unplacedMachineCounts[id] > 0)
+  const unplacedMachines = placeableFactoryMachineOrder.filter((id) => {
+    if (unplacedMachineCounts[id] < 1) return false
+    const query = factoryMachineSearch.trim().toLowerCase()
+    if (!query) return true
+    return id.toLowerCase().includes(query) || machines[id].name.toLowerCase().includes(query)
+  })
+  const factoryTools = factoryToolOrder.filter((id) => availableResourceAmount(state, id) > 0)
+  const selectedFactoryItemLabel = placingMachineId
+    ? machines[placingMachineId].name
+    : selectedFactoryTool
+      ? resourceLabels[selectedFactoryTool]
+      : 'Select a factory part or tool'
+  const factoryGridSize = factoryGridForState(state)
+  const factoryFloorUnlocked = hasFactoryFloor(state)
+  const factoryExpansionCost = factoryFoundationCost(state)
+  const canExpandFactory = canExpandFactoryFloor(state)
+  const nextFactoryLevel = Math.min(state.factoryFoundationLevel + 1, factoryFoundationSizes.length - 1)
+  const nextFactoryGridSize = factoryFoundationSizes[nextFactoryLevel]
+  const isFactoryMaxed = factoryExpansionCost.length < 1
+
+  const clampFactoryPan = (pan: FactoryPan, grid = factoryGridSize): FactoryPan => {
+    const viewport = factoryViewportRef.current
+    if (!viewport) return { x: 0, y: 0 }
+    const pixelSize = factoryGridPixelSize(grid)
+    const minX = Math.min(0, viewport.clientWidth - pixelSize.width - factoryViewportPadding * 2)
+    const minY = Math.min(0, viewport.clientHeight - pixelSize.height - factoryViewportPadding * 2)
+    return {
+      x: Math.max(minX, Math.min(0, pan.x)),
+      y: Math.max(minY, Math.min(0, pan.y)),
+    }
+  }
+
+  useEffect(() => {
+    setFactoryPan((current) => clampFactoryPan(current))
+  }, [factoryGridSize.width, factoryGridSize.height])
+
+  const machineAtFactoryCell = (x: number, y: number) => state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
+
+  const pipeConnectionsForInstance = (instance: MachineInstance): PipeConnections | undefined => {
+    if (!isPipeMachine(instance.machineId)) return undefined
+    return {
+      up: Boolean(machineAtFactoryCell(instance.x, instance.y - 1)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x, instance.y - 1)!.machineId)),
+      right: Boolean(machineAtFactoryCell(instance.x + 1, instance.y)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x + 1, instance.y)!.machineId)),
+      down: Boolean(machineAtFactoryCell(instance.x, instance.y + 1)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x, instance.y + 1)!.machineId)),
+      left: Boolean(machineAtFactoryCell(instance.x - 1, instance.y)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x - 1, instance.y)!.machineId)),
+    }
+  }
+
+  const brickedBlastFurnaceControllerForPart = (instance: MachineInstance) => {
+    if (instance.machineId !== 'brickedBlastFurnacePart') return null
+    for (let centerY = instance.y - 1; centerY <= instance.y; centerY += 1) {
+      for (let centerX = instance.x - 1; centerX <= instance.x; centerX += 1) {
+        const center = machineAtFactoryCell(centerX, centerY)
+        if (center?.machineId !== 'brickedBlastFurnace') continue
+        const complete = [0, 1].every((dy) =>
+          [0, 1].every((dx) => {
+            const candidate = machineAtFactoryCell(centerX + dx, centerY + dy)
+            if (!candidate) return false
+            if (dx === 0 && dy === 0) return candidate.machineId === 'brickedBlastFurnace'
+            return candidate.machineId === 'brickedBlastFurnacePart'
+          }),
+        )
+        if (complete) return center
+      }
+    }
+    return null
+  }
 
   const addFloatText = (label: string, targetId?: GatherTargetId, variant?: FloatText['variant']) => {
     const id = (floatTextIdRef.current += 1)
@@ -649,8 +1058,80 @@ function App() {
     setState((current) => craftRecipeInstant(current, recipe, 1))
   }
 
+  const handleFactoryExpand = () => {
+    setState((current) => {
+      const cost = factoryFoundationCost(current)
+      if (!canExpandFactoryFloor(current)) {
+        const missing = missingResourceLine(current, cost)
+        setTerminalNotice(missing ? `Missing ${missing}` : 'Factory floor is already max size.')
+        return current
+      }
+      const next = expandFactoryFloor(current)
+      const grid = factoryGridForState(next)
+      setTerminalNotice(current.factoryFoundationLevel < 1 ? `Factory foundation built (${grid.width}x${grid.height}).` : `Factory floor expanded to ${grid.width}x${grid.height}.`)
+      setIsFactoryExpandModalOpen(false)
+      return next
+    })
+  }
+
+  const handleFactoryPanPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    factoryPanDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: factoryPan.x,
+      originY: factoryPan.y,
+      dragged: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handleFactoryPanPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = factoryPanDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const dx = event.clientX - drag.startX
+    const dy = event.clientY - drag.startY
+    if (!drag.dragged && Math.hypot(dx, dy) >= factoryPanThreshold) drag.dragged = true
+    if (drag.dragged) {
+      suppressFactoryCellClickRef.current = true
+      setFactoryPan(clampFactoryPan({ x: drag.originX + dx, y: drag.originY + dy }))
+    }
+  }
+
+  const handleFactoryPanPointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = factoryPanDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    if (drag.dragged) window.setTimeout(() => (suppressFactoryCellClickRef.current = false), 0)
+    factoryPanDragRef.current = null
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
   const handleFactoryCellPress = (x: number, y: number, instance?: MachineInstance) => {
+    if (suppressFactoryCellClickRef.current) return
     if (instance) {
+      if (isFactoryRemoveMode) {
+        setState((current) => {
+          if (!canWrenchRemoveMachine(current)) {
+            setTerminalNotice('Need an iron or bronze wrench.')
+            setSelectedFactoryTool(null)
+            return current
+          }
+          const next = wrenchRemoveMachineInstance(current, instance.uid)
+          if (next !== current) setTerminalNotice(`${machines[instance.machineId].name} removed.`)
+          return next
+        })
+        return
+      }
+      if (instance.machineId === 'brickedBlastFurnacePart') {
+        const controller = brickedBlastFurnaceControllerForPart(instance)
+        if (controller) {
+          setSelectedMachineUid(controller.uid)
+          return
+        }
+        setTerminalNotice('Place BBF casings in a full 2x2 to form the furnace.')
+        return
+      }
       setSelectedMachineUid(instance.uid)
       return
     }
@@ -658,20 +1139,12 @@ function App() {
     setState((current) => {
       const next = placeMachineInstance(current, placingMachineId, x, y)
       if (next !== current) {
-        setPlacingMachineId(null)
-        setTerminalNotice(`${machines[placingMachineId].name} placed.`)
+        const remaining = availableUnplacedMachineCount(next, placingMachineId)
+        if (remaining < 1) setPlacingMachineId(null)
+        setTerminalNotice(`${machines[placingMachineId].name} placed${remaining > 0 ? ` (${remaining} left)` : ''}.`)
       }
       return next
     })
-  }
-
-  const handleRemoveSelectedMachine = () => {
-    if (!selectedMachine) return
-    const name = machines[selectedMachine.machineId].name
-    setState((current) => removeMachineInstance(current, selectedMachine.uid))
-    setPendingProcessInsert(null)
-    setSelectedMachineUid(null)
-    setTerminalNotice(`${name} returned to inventory.`)
   }
 
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
@@ -687,7 +1160,12 @@ function App() {
         setTerminalNotice(`${resourceLabels[selectedResource]} slot is full.`)
         return
       }
-      setPendingProcessInsert({ uid: selectedMachine.uid, slotId, resourceId: selectedResource, quantity: 1 })
+      setPendingProcessInsert({
+        uid: selectedMachine.uid,
+        slotId,
+        resourceId: selectedResource,
+        quantity: suggestedProcessInsertQuantity(selectedMachine, slotId, selectedResource, max),
+      })
       return
     }
     if (slot) {
@@ -707,7 +1185,12 @@ function App() {
       setTerminalNotice(`No ${resourceLabels[selectedResource]} available.`)
       return
     }
-    setPendingProcessInsert({ uid: selectedMachine.uid, slotId, resourceId: selectedResource, quantity: 1 })
+    setPendingProcessInsert({
+      uid: selectedMachine.uid,
+      slotId,
+      resourceId: selectedResource,
+      quantity: suggestedProcessInsertQuantity(selectedMachine, slotId, selectedResource, max),
+    })
   }
 
   const handleAdjustProcessQuantity = (delta: number) => {
@@ -756,6 +1239,18 @@ function App() {
     }
 
     handleInventorySlotPress(resourceId)
+  }
+
+  const firstEquipmentSlotForResource = (resourceId: ResourceId) => equipmentSlots.find((slotId) => equipmentSlotAccepts(slotId, resourceId)) ?? null
+
+  const handleInventorySlotDoubleClick = (event: ReactMouseEvent<HTMLButtonElement>, resourceId: ResourceId) => {
+    event.preventDefault()
+    const slotId = firstEquipmentSlotForResource(resourceId)
+    if (!slotId) {
+      setTerminalNotice(`${resourceLabels[resourceId]} cannot be equipped.`)
+      return
+    }
+    handleEquipResource(slotId, resourceId)
   }
 
   const handleCraftSlotPress = (slotIndex: number) => {
@@ -968,12 +1463,66 @@ function App() {
     setPage('terminal')
   }
 
-  const handleSelectRecipeGroup = (groupKey: string) => {
+  const handleRecipeBrowserAction = (recipe: Recipe) => {
+    if (recipeFitsTerminalGrid(recipe)) {
+      handleLoadRecipe(recipe)
+      return
+    }
+
+    if (!canCraft(state, recipe)) {
+      showMissingBatch(recipe, 1)
+      return
+    }
+
+    handleCraft(recipe)
+    setTerminalNotice(`${recipe.name} ${recipe.machineOutputs ? 'built' : 'crafted'}.`)
+    setIsRecipeModalOpen(false)
+  }
+
+  const handleSelectRecipeGroup = (groupKey: string, trackNavigation = false) => {
+    if (trackNavigation && (selectedRecipeGroupKey !== groupKey || selectedRecipeIndex !== 0)) pushNavigationSnapshot()
     setSelectedRecipeGroupKey(groupKey)
     setSelectedRecipeIndex(0)
   }
 
+  const handleCycleRecipeVariant = (direction: -1 | 1) => {
+    if (!selectedRecipeGroup || selectedRecipeGroup.recipes.length < 2) return
+    const nextIndex =
+      direction < 0
+        ? clampedSelectedRecipeIndex <= 0
+          ? selectedRecipeGroup.recipes.length - 1
+          : clampedSelectedRecipeIndex - 1
+        : (clampedSelectedRecipeIndex + 1) % selectedRecipeGroup.recipes.length
+    if (nextIndex === clampedSelectedRecipeIndex) return
+    pushNavigationSnapshot()
+    setSelectedRecipeIndex(nextIndex)
+  }
+
+  const triggerGatherTargetHighlight = (targetId: GatherTargetId) => {
+    if (gatherHighlightTimeoutRef.current) window.clearTimeout(gatherHighlightTimeoutRef.current)
+    setHighlightedGatherTarget(targetId)
+    gatherHighlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedGatherTarget(null)
+      gatherHighlightTimeoutRef.current = null
+    }, 2000)
+  }
+
   const handleJumpToResourceRecipe = (resourceId: ResourceId) => {
+    const gatherLocation = gatherAreaForResource(resourceId)
+    if (gatherLocation) {
+      pushNavigationSnapshot()
+      setGatherArea(gatherLocation.areaId)
+      setPage('gather')
+      setIsRecipeModalOpen(false)
+      setIsFactoryExpandModalOpen(false)
+      setMissingBatch(null)
+      setSelectedMachineUid(null)
+      setPendingProcessInsert(null)
+      triggerGatherTargetHighlight(gatherLocation.targetId)
+      setTerminalNotice(`${resourceLabels[resourceId]} comes from ${gatherLocation.targetName}.`)
+      return
+    }
+
     const targetOutput = { kind: 'resource' as const, id: resourceId, amount: 1 }
     const targetKey = recipeGroupKeyForOutput(targetOutput)
     const targetGroup = groupRecipesByOutput(recipeCatalog).find((group) => group.key === targetKey)
@@ -982,8 +1531,14 @@ function App() {
       return
     }
 
+    pushNavigationSnapshot()
     setTerminalMode('recipes')
     setRecipeSearch('')
+    setPage('terminal')
+    setIsRecipeModalOpen(true)
+    setIsFactoryExpandModalOpen(false)
+    setMissingBatch(null)
+    setSelectedMachineUid(null)
     handleSelectRecipeGroup(targetKey)
     setTerminalNotice(`Showing recipes for ${resourceLabels[resourceId]}.`)
   }
@@ -993,7 +1548,7 @@ function App() {
     addFloatText('reward claimed')
   }
 
-  const currentSaveBackup = useMemo(() => saveGame(state), [state])
+  const currentSaveBackup = useMemo(() => (isCreativeMode ? (localStorage.getItem(saveKey) ?? saveGame(loadGame(null))) : saveGame(state)), [isCreativeMode, state])
 
   const refreshServerSaves = async () => {
     try {
@@ -1069,24 +1624,39 @@ function App() {
 
   const handleReset = () => {
     localStorage.removeItem(saveKey)
+    setIsCreativeMode(false)
     setState(loadGame(null))
     handleClearGrid()
     setTerminalNotice('')
     setTerminalSearch('')
     setRecipeSearch('')
+    setFactoryMachineSearch('')
     setSelectedResource(null)
     setBatchQuantity(1)
     setPendingProcessInsert(null)
     setMissingBatch(null)
     setIsRecipeModalOpen(false)
     setIsSaveModalOpen(false)
+    setIsFactoryExpandModalOpen(false)
     setSaveBackupNotice('')
     setPlacingMachineId(null)
     setSelectedMachineUid(null)
     setSelectedRecipeGroupKey(null)
     setSelectedRecipeIndex(0)
+    setNavigationStack([])
+    setHighlightedGatherTarget(null)
     setPage('gather')
     addFloatText('fresh save')
+  }
+
+  const handleToggleCreativeMode = () => {
+    const nextCreative = !isCreativeMode
+    setPendingProcessInsert(null)
+    setPlacingMachineId(null)
+    setSelectedMachineUid(null)
+    setIsCreativeMode(nextCreative)
+    setState((currentState) => (nextCreative ? createCreativeState(currentState) : loadGame(localStorage.getItem(saveKey))))
+    addFloatText(nextCreative ? 'creative on' : 'creative off')
   }
 
   useEffect(() => {
@@ -1134,14 +1704,104 @@ function App() {
     )
   }
 
+  const captureNavigationSnapshot = (): NavigationSnapshot => ({
+    page,
+    gatherArea,
+    terminalMode,
+    recipeSearch,
+    selectedResource,
+    selectedMachineUid,
+    selectedRecipeGroupKey,
+    selectedRecipeIndex,
+    isRecipeModalOpen,
+    isFactoryExpandModalOpen,
+  })
+
+  const restoreNavigationSnapshot = (snapshot: NavigationSnapshot) => {
+    setPage(snapshot.page)
+    setGatherArea(snapshot.gatherArea)
+    setTerminalMode(snapshot.terminalMode)
+    setRecipeSearch(snapshot.recipeSearch)
+    setSelectedResource(snapshot.selectedResource)
+    setSelectedMachineUid(snapshot.selectedMachineUid)
+    setSelectedRecipeGroupKey(snapshot.selectedRecipeGroupKey)
+    setSelectedRecipeIndex(snapshot.selectedRecipeIndex)
+    setIsRecipeModalOpen(snapshot.isRecipeModalOpen)
+    setIsFactoryExpandModalOpen(snapshot.isFactoryExpandModalOpen)
+    setMissingBatch(null)
+    setPendingProcessInsert(null)
+    setHighlightedGatherTarget(null)
+  }
+
+  const pushNavigationSnapshot = () => {
+    const snapshot = captureNavigationSnapshot()
+    setNavigationStack((current) => [...current.slice(-7), snapshot])
+  }
+
+  const handleBackNavigation = () => {
+    const snapshot = navigationStack.at(-1)
+    if (snapshot) {
+      restoreNavigationSnapshot(snapshot)
+      setNavigationStack((current) => current.slice(0, -1))
+      return
+    }
+
+    if (missingBatch) {
+      setMissingBatch(null)
+      return
+    }
+    if (isFactoryExpandModalOpen) {
+      setIsFactoryExpandModalOpen(false)
+      return
+    }
+    if (isRecipeModalOpen) {
+      setIsRecipeModalOpen(false)
+      return
+    }
+    if (selectedMachineUid) {
+      setPendingProcessInsert(null)
+      setSelectedMachineUid(null)
+      return
+    }
+    if (isSaveModalOpen) {
+      setIsSaveModalOpen(false)
+      return
+    }
+    if (page !== 'gather') setPage('gather')
+  }
+
+  const handlePageNavigation = (nextPage: Page) => {
+    if (nextPage === page) return
+    pushNavigationSnapshot()
+    setPage(nextPage)
+    setSelectedMachineUid(null)
+    setIsRecipeModalOpen(false)
+    setIsFactoryExpandModalOpen(false)
+    setMissingBatch(null)
+    setPendingProcessInsert(null)
+  }
+
   return (
-    <main className="game-shell">
+    <main className={page === 'processing' ? 'game-shell processing-shell' : 'game-shell'}>
       <header className="game-header">
         <div>
           <p className="eyebrow">Block-tech idle</p>
           <h1>Click Foundry</h1>
         </div>
         <div className="header-actions">
+          <button type="button" className="icon-button global-back-button" aria-label="Back" title="Back" onClick={handleBackNavigation}>
+            <Undo2 size={18} />
+          </button>
+          <button
+            type="button"
+            className={isCreativeMode ? 'creative-toggle active' : 'creative-toggle'}
+            aria-pressed={isCreativeMode}
+            aria-label={isCreativeMode ? 'Turn creative mode off' : 'Turn creative mode on'}
+            title={isCreativeMode ? 'Creative mode on - not saving' : 'Creative mode'}
+            onClick={handleToggleCreativeMode}
+          >
+            32
+          </button>
           <button type="button" className="icon-button" aria-label="Save slots" title="Save slots" onClick={() => setIsSaveModalOpen(true)}>
             <Save size={18} />
           </button>
@@ -1152,19 +1812,19 @@ function App() {
       </header>
 
       <section className="page-tabs" aria-label="Game pages">
-        <button type="button" className={page === 'gather' ? 'active' : ''} onClick={() => setPage('gather')}>
+        <button type="button" className={page === 'gather' ? 'active' : ''} onClick={() => handlePageNavigation('gather')}>
           <Pickaxe size={18} />
           Gather
         </button>
-        <button type="button" className={page === 'terminal' ? 'active' : ''} onClick={() => setPage('terminal')}>
+        <button type="button" className={page === 'terminal' ? 'active' : ''} onClick={() => handlePageNavigation('terminal')}>
           <Database size={18} />
           Terminal
         </button>
-        <button type="button" className={page === 'processing' ? 'active' : ''} onClick={() => setPage('processing')}>
+        <button type="button" className={page === 'processing' ? 'active' : ''} onClick={() => handlePageNavigation('processing')}>
           <Factory size={18} />
           Processing
         </button>
-        <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => setPage('guide')}>
+        <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => handlePageNavigation('guide')}>
           <BookOpen size={18} />
           Guide
         </button>
@@ -1188,64 +1848,68 @@ function App() {
               const toolResource = tool.id === 'bareHand' ? null : (tool.id as ResourceId)
               const progressPercent = Math.min(100, (progress / target.maxHp) * 100)
               const targetFloats = floatTexts.filter((floatText) => floatText.targetId === targetId)
+              const hitButtonVerb =
+                targetId === 'rubberTree' ? 'Tap' : target.preferredTool === 'woodenShovel' || target.preferredTool === 'stoneShovel' ? 'Dig' : 'Mine'
+              const hitButtonLabel = `${hitButtonVerb} ${target.name}`
 
               return (
-                <article className="gather-panel" key={targetId}>
-                  <div className="mine-face">
-                    <div className="gather-block" aria-hidden="true">
-                      <PixelIcon id={gatherTargetIcons[targetId]} />
-                    </div>
-                    <div>
-                      <h2>{target.name}</h2>
-                      <p>{target.description}</p>
-                    </div>
-                  </div>
+                <article className={highlightedGatherTarget === targetId ? 'gather-panel resource-focus' : 'gather-panel'} data-gather-target={targetId} key={targetId}>
+                  <div className="gather-card-layout">
+                    <div className="gather-card-info">
+                      <div className="mine-face">
+                        <h2>{target.name}</h2>
+                      </div>
 
-                  <div className="break-panel">
-                    <div className="break-stats">
-                      <div className="stat-cell">
-                        <span className="stat-label">Tool</span>
-                        <strong className="stat-tool">
-                          <span className={toolResource ? 'stat-tool-icon' : 'stat-tool-icon bare-hand'}>
-                            {toolResource ? (
-                              <>
-                                <PixelIcon id={toolResource} />
-                                <DurabilityBar state={state} id={toolResource} />
-                              </>
-                            ) : (
-                              <span className="bare-hand-mark" aria-hidden="true" />
-                            )}
-                          </span>
-                          <span>{tool.name}</span>
-                        </strong>
-                      </div>
-                      <div className="stat-cell stat-drop">
-                        <span className="stat-label">Drop</span>
-                        <strong>
-                          {target.drops.map((drop) => (
-                            <span className="stat-drop-item" key={drop.id}>
-                              <span className="stat-drop-icon">
-                                <PixelIcon id={drop.id} />
+                      <div className="break-panel">
+                        <div className="break-stats">
+                          <div className="stat-cell">
+                            <strong className="stat-tool">
+                              <span className={toolResource ? 'stat-tool-icon' : 'stat-tool-icon bare-hand'}>
+                                {toolResource ? (
+                                  <>
+                                    <PixelIcon id={toolResource} />
+                                    <DurabilityBar state={state} id={toolResource} />
+                                  </>
+                                ) : (
+                                  <span className="bare-hand-mark" aria-hidden="true" />
+                                )}
                               </span>
-                              <span className="stat-drop-count">
-                                +{formatAmount(drop.amount)} / {formatAmount(state.resources[drop.id])}
-                              </span>
-                              <span className="stat-drop-name">{resourceLabels[drop.id]}</span>
-                            </span>
-                          ))}
-                        </strong>
+                              <span>{tool.name}</span>
+                            </strong>
+                          </div>
+                          <div className="stat-cell stat-drop">
+                            <strong>
+                              {target.drops.map((drop) => (
+                                <span className="stat-drop-item" key={drop.id}>
+                                  <span className="stat-drop-icon">
+                                    <PixelIcon id={drop.id} />
+                                  </span>
+                                  <span className="stat-drop-count">
+                                    +{formatAmount(drop.amount)} / {formatAmount(state.resources[drop.id])}
+                                  </span>
+                                  <span className="stat-drop-name">{resourceLabels[drop.id]}</span>
+                                </span>
+                              ))}
+                            </strong>
+                          </div>
+                        </div>
+                        {damage < 1 && <p className="gather-warning">Requires {tools[target.preferredTool].name}</p>}
                       </div>
                     </div>
-                    <div className="progress-track">
-                      <span style={{ width: `${progressPercent}%` }} />
-                    </div>
-                    {damage < 1 && <p className="gather-warning">Requires {tools[target.preferredTool].name}</p>}
-                    <button type="button" className="hit-button" disabled={damage < 1} onClick={() => handleGatherTarget(targetId)}>
-                      {target.preferredTool === 'stoneShovel' ? <Shovel size={20} /> : targetId === 'tree' ? <Axe size={20} /> : <Pickaxe size={20} />}
-                      Mine {target.name}
+
+                    <button type="button" className="resource-tap-target" disabled={damage < 1} aria-label={hitButtonLabel} onClick={() => handleGatherTarget(targetId)}>
+                      <span className="resource-tap-art-stack">
+                        <GatherTapArt iconId={gatherTargetIcons[targetId]} />
+                        <span className="progress-track resource-progress-track">
+                          <span style={{ width: `${progressPercent}%` }} />
+                        </span>
+                      </span>
                       <span className="float-layer tap-fx-layer" aria-hidden="true">
                         {targetFloats.map((floatText) => (
-                          <span className={floatText.variant === 'particle' ? 'hit-particles' : undefined} key={floatText.id} />
+                          <span
+                            className={floatText.variant === 'particle' ? `hit-particles hit-particles-${targetId}` : undefined}
+                            key={floatText.id}
+                          />
                         ))}
                       </span>
                     </button>
@@ -1287,6 +1951,7 @@ function App() {
                       title={resourceLabels[id]}
                       draggable
                       onClick={(event) => handleInventorySlotClick(event, id)}
+                      onDoubleClick={(event) => handleInventorySlotDoubleClick(event, id)}
                       onDragStart={(event) => handleInventoryDragStart(event, id)}
                       onPointerDown={(event) => handleInventoryPointerDown(event, id)}
                       key={id}
@@ -1519,7 +2184,7 @@ function App() {
                         ].join(' ')}
                         aria-label={output.label}
                         title={group.recipes.map((recipe) => recipe.name).join(' / ')}
-                        onClick={() => handleSelectRecipeGroup(group.key)}
+                        onClick={() => handleSelectRecipeGroup(group.key, true)}
                         key={group.key}
                       >
                         {output.kind === 'resource' ? <PixelIcon id={output.id} /> : <MachineGlyph id={output.id} />}
@@ -1543,11 +2208,7 @@ function App() {
                               <button
                                 type="button"
                                 aria-label="Previous recipe"
-                                onClick={() =>
-                                  setSelectedRecipeIndex((current) =>
-                                    current <= 0 ? selectedRecipeGroup.recipes.length - 1 : current - 1,
-                                  )
-                                }
+                                onClick={() => handleCycleRecipeVariant(-1)}
                               >
                                 <ChevronLeft size={15} />
                               </button>
@@ -1555,9 +2216,7 @@ function App() {
                               <button
                                 type="button"
                                 aria-label="Next recipe"
-                                onClick={() =>
-                                  setSelectedRecipeIndex((current) => (current + 1) % selectedRecipeGroup.recipes.length)
-                                }
+                                onClick={() => handleCycleRecipeVariant(1)}
                               >
                                 <ChevronRight size={15} />
                               </button>
@@ -1576,7 +2235,21 @@ function App() {
 
                       {selectedRecipeMissingLine && <p className="missing-line recipe-detail-warning">Missing {selectedRecipeMissingLine}</p>}
 
-                      {recipeFitsTerminalGrid(selectedRecipe) ? (
+                      {selectedRecipe.recipeType === 'processing' && (
+                        <div className="recipe-meta-row">
+                          <span>Time</span>
+                          <strong>{formatDuration(selectedRecipe.durationMs)}</strong>
+                        </div>
+                      )}
+
+                      {isFactoryFloorLayoutRecipe(selectedRecipe) && (
+                        <div className="recipe-slot-section factory-layout-section">
+                          <span>Factory Floor</span>
+                          <FactoryFloorLayoutPreview recipe={selectedRecipe} />
+                        </div>
+                      )}
+
+                      {!isFactoryFloorLayoutRecipe(selectedRecipe) && recipeFitsTerminalGrid(selectedRecipe) ? (
                         <div className="recipe-slot-section">
                           <span>Pattern</span>
                           <RecipePatternPreview recipe={selectedRecipe} state={state} onSelectResource={handleJumpToResourceRecipe} />
@@ -1634,10 +2307,15 @@ function App() {
                       <button
                         type="button"
                         className="load-recipe-button"
-                        disabled={!recipeFitsTerminalGrid(selectedRecipe)}
-                        onClick={() => handleLoadRecipe(selectedRecipe)}
+                        onClick={() => handleRecipeBrowserAction(selectedRecipe)}
                       >
-                        {recipeFitsTerminalGrid(selectedRecipe) ? 'Load recipe' : 'Station recipe'}
+                        {isFactoryFloorLayoutRecipe(selectedRecipe)
+                          ? 'Create factory parts'
+                          : recipeFitsTerminalGrid(selectedRecipe)
+                            ? 'Load recipe'
+                            : selectedRecipe.machineOutputs
+                              ? 'Build'
+                              : 'Craft'}
                       </button>
                     </aside>
                   )}
@@ -1667,7 +2345,7 @@ function App() {
                 {missingBatch.missingResources.length > 0 ? (
                   <div className="missing-slot-list">
                     {missingBatch.missingResources.map((amount) => (
-                      <ItemSlot amount={amount} disabled key={amount.id} />
+                      <ItemSlot amount={amount} disabled onClick={handleJumpToResourceRecipe} key={amount.id} />
                     ))}
                   </div>
                 ) : (
@@ -1694,52 +2372,203 @@ function App() {
             </div>
           </div>
 
-          <div className="processing-storage machine-placement-storage" aria-label="Placeable machine inventory">
-            {unplacedMachines.length > 0 ? (
-              unplacedMachines.map((id) => (
-                <button
-                  type="button"
-                  className={placingMachineId === id ? 'item-slot machine-inventory-slot selected' : 'item-slot machine-inventory-slot'}
-                  aria-label={`${machines[id].name} ${formatAmount(unplacedMachineCounts[id])}`}
-                  title={machines[id].name}
-                  onClick={() => setPlacingMachineId((current) => (current === id ? null : id))}
-                  key={id}
-                >
-                  <MachineGlyph id={id} />
-                  <span className="item-count">{formatAmount(unplacedMachineCounts[id])}</span>
-                </button>
-              ))
-            ) : (
-              <span className="empty-furnace-storage">No machines to place</span>
-            )}
-          </div>
-
-          <div className="factory-scroll">
-            <div className="factory-grid" aria-label="Factory grid">
-              {Array.from({ length: factoryGrid.width * factoryGrid.height }, (_, index) => {
-                const x = index % factoryGrid.width
-                const y = Math.floor(index / factoryGrid.width)
-                const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
-                const isMachineActive = Boolean(
-                  instance &&
-                    (instance.process.fuelRemainingMs > 0 ||
-                      instance.process.activeRecipeId ||
-                      (instance.machineId === 'steamBoiler' && instance.process.steamStoredMs > 0)),
-                )
-                return (
-                  <button
-                    type="button"
-                    className={instance ? `factory-cell occupied${isMachineActive ? ' active' : ''}` : placingMachineId ? 'factory-cell placing' : 'factory-cell'}
-                    aria-label={instance ? `${machines[instance.machineId].name} at ${x + 1}, ${y + 1}` : `Empty factory cell ${x + 1}, ${y + 1}`}
-                    onClick={() => handleFactoryCellPress(x, y, instance)}
-                    key={`${x}-${y}`}
-                  >
-                    {instance ? <MachineGlyph id={instance.machineId} active={isMachineActive} /> : <span />}
-                  </button>
-                )
-              })}
+          {!factoryFloorUnlocked ? (
+            <div className="factory-foundation-panel">
+              <div>
+                <span className="factory-tray-label">Factory Foundation</span>
+                <h3>Build 5x5 Floor</h3>
+                <p>Lay basic foundations before machines can be placed.</p>
+              </div>
+              <div className="factory-cost-row" aria-label="Factory foundation cost">
+                {factoryExpansionCost.map((amount) => (
+                  <ItemSlot amount={amount} disabled={availableResourceAmount(state, amount.id) < amount.amount} state={state} onClick={handleJumpToResourceRecipe} key={amount.id} />
+                ))}
+              </div>
+              <button type="button" className="load-recipe-button" disabled={!canExpandFactory} onClick={handleFactoryExpand}>
+                Build Foundation
+              </button>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="factory-inventory-panel" aria-label="Factory inventory and tools">
+                <div className="processing-storage machine-placement-storage" aria-label="Factory parts">
+                  <div className="factory-tray-head">
+                    <span className="factory-tray-label">Factory Parts</span>
+                    <input
+                      className="factory-machine-search"
+                      type="search"
+                      placeholder="Find"
+                      value={factoryMachineSearch}
+                      onChange={(event) => setFactoryMachineSearch(event.target.value)}
+                      aria-label="Search factory parts"
+                    />
+                  </div>
+                  <div className="machine-placement-slots">
+                    {unplacedMachines.length > 0 ? (
+                      unplacedMachines.map((id) => (
+                        <button
+                          type="button"
+                          className={placingMachineId === id ? 'item-slot machine-inventory-slot selected' : 'item-slot machine-inventory-slot'}
+                          aria-label={`${machines[id].name} ${formatAmount(unplacedMachineCounts[id])}`}
+                          title={machines[id].name}
+                          onClick={() => {
+                            setSelectedFactoryTool(null)
+                            setPlacingMachineId((current) => (current === id ? null : id))
+                          }}
+                          key={id}
+                        >
+                          <MachineGlyph id={id} />
+                          <span className="item-count">{formatAmount(unplacedMachineCounts[id])}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <span className="empty-furnace-storage">{factoryMachineSearch.trim() ? 'No matching parts' : 'No factory parts'}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="processing-storage factory-tool-storage" aria-label="Factory tools">
+                  <span className="factory-tray-label">Tools</span>
+                  <div className="factory-tool-slots">
+                    {factoryTools.length > 0 ? (
+                      factoryTools.map((id) => (
+                        <button
+                          type="button"
+                          className={selectedFactoryTool === id ? 'item-slot factory-tool-slot selected' : 'item-slot factory-tool-slot'}
+                          aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
+                          aria-pressed={selectedFactoryTool === id}
+                          title={`${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`}
+                          onClick={() => {
+                            setPlacingMachineId(null)
+                            setSelectedMachineUid(null)
+                            setSelectedFactoryTool((current) => (current === id ? null : id))
+                          }}
+                          key={id}
+                        >
+                          <PixelIcon id={id} />
+                          <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
+                          <DurabilityBar state={state} id={id} />
+                        </button>
+                      ))
+                    ) : (
+                      <span className="empty-furnace-storage">No tools</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className={placingMachineId || selectedFactoryTool ? 'factory-selection-name active' : 'factory-selection-name'} aria-live="polite">
+                  <span>Selected</span>
+                  <strong>{selectedFactoryItemLabel}</strong>
+                </div>
+              </div>
+
+              <div className="factory-expansion-row">
+                <div>
+                  <span className="factory-tray-label">Factory Floor</span>
+                  <strong>{isFactoryMaxed ? `Max ${factoryGridSize.width}x${factoryGridSize.height}` : `${factoryGridSize.width}x${factoryGridSize.height}`}</strong>
+                </div>
+                {!isFactoryMaxed && (
+                  <button type="button" className="factory-expand-button" onClick={() => setIsFactoryExpandModalOpen(true)}>
+                    Expand
+                  </button>
+                )}
+              </div>
+
+              <div
+                className="factory-pan-viewport"
+                ref={factoryViewportRef}
+                onPointerDown={handleFactoryPanPointerDown}
+                onPointerMove={handleFactoryPanPointerMove}
+                onPointerUp={handleFactoryPanPointerEnd}
+                onPointerCancel={handleFactoryPanPointerEnd}
+              >
+                <div className="factory-pan-content" style={{ transform: `translate(${factoryPan.x}px, ${factoryPan.y}px)` }}>
+                  <div className="factory-grid" style={{ gridTemplateColumns: `repeat(${factoryGridSize.width}, ${factoryCellSize}px)` }} aria-label="Factory grid">
+                    {Array.from({ length: factoryGridSize.width * factoryGridSize.height }, (_, index) => {
+                      const x = index % factoryGridSize.width
+                      const y = Math.floor(index / factoryGridSize.width)
+                      const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
+                      const bbfController = instance?.machineId === 'brickedBlastFurnacePart' ? brickedBlastFurnaceControllerForPart(instance) : null
+                      const isBbfController = instance?.machineId === 'brickedBlastFurnace'
+                      const isBbfMultiblockCell = isBbfController || Boolean(bbfController)
+                      const isMachineActive = Boolean(
+                        instance &&
+                          (instance.process.fuelRemainingMs > 0 ||
+                            instance.process.activeRecipeId ||
+                            (isSteamNetworkMachine(instance.machineId) && instance.process.steamStoredMs > 0) ||
+                            Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0) ||
+                            (isPipeMachine(instance.machineId) && availableConnectedSteam(state, instance) > 0)),
+                      )
+                      return (
+                        <button
+                          type="button"
+                          className={
+                            instance
+                              ? [
+                                  'factory-cell',
+                                  'occupied',
+                                  `machine-${instance.machineId}-cell`,
+                                  isMachineActive ? 'active' : '',
+                                  isFactoryRemoveMode ? 'removing' : '',
+                                  isBbfController ? 'multiblock-bbf-controller' : '',
+                                  bbfController ? 'multiblock-bbf-child' : '',
+                                ].filter(Boolean).join(' ')
+                              : placingMachineId
+                                ? 'factory-cell placing'
+                                : 'factory-cell'
+                          }
+                          aria-label={
+                            instance
+                              ? `${isBbfMultiblockCell ? machines.brickedBlastFurnace.name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}`
+                              : `Empty factory cell ${x + 1}, ${y + 1}`
+                          }
+                          onClick={() => handleFactoryCellPress(x, y, instance)}
+                          key={`${x}-${y}`}
+                        >
+                          {instance && !isBbfMultiblockCell ? (
+                            <MachineGlyph id={instance.machineId} active={isMachineActive} pipeConnections={pipeConnectionsForInstance(instance)} />
+                          ) : (
+                            <span />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {isFactoryExpandModalOpen && !isFactoryMaxed && (
+            <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setIsFactoryExpandModalOpen(false)}>
+              <section
+                className="missing-modal factory-expand-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Expand factory floor"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <div>
+                    <p className="eyebrow">Factory Floor</p>
+                    <h2>{factoryGridSize.width}x{factoryGridSize.height} to {nextFactoryGridSize.width}x{nextFactoryGridSize.height}</h2>
+                  </div>
+                  <button type="button" className="icon-button" aria-label="Close expansion requirements" onClick={() => setIsFactoryExpandModalOpen(false)}>
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="factory-cost-row factory-expand-costs" aria-label="Factory expansion requirements">
+                  {factoryExpansionCost.map((amount) => (
+                    <ItemSlot amount={amount} disabled={availableResourceAmount(state, amount.id) < amount.amount} state={state} onClick={handleJumpToResourceRecipe} key={amount.id} />
+                  ))}
+                </div>
+                {!canExpandFactory && <p className="missing-line">Missing {missingResourceLine(state, factoryExpansionCost)}</p>}
+                <button type="button" className="load-recipe-button" disabled={!canExpandFactory} onClick={handleFactoryExpand}>
+                  Expand Floor
+                </button>
+              </section>
+            </div>
+          )}
 
           {selectedMachine && (
             <div
@@ -1774,10 +2603,7 @@ function App() {
                     <X size={18} />
                   </button>
                 </div>
-                <button type="button" className="remove-machine-button" onClick={handleRemoveSelectedMachine}>
-                  Return Machine
-                </button>
-                {selectedMachine.machineId !== 'well' && (
+                {machineUsesProcessStorage(selectedMachine.machineId) && (
                 <div className="processing-storage furnace-storage" aria-label={`${machines[selectedMachine.machineId].name} storage`}>
                   {furnaceStorageResources.length > 0 ? (
                     furnaceStorageResources.map((id) => (
@@ -1802,10 +2628,35 @@ function App() {
                 <div className="machine-status-row">
                   <span>{machineStatus(state, selectedMachine)}</span>
                   {selectedMachine.machineId === 'steamBoiler' && (
-                    <strong>Steam {formatDuration(selectedMachine.process.steamStoredMs)}/{formatDuration(boilerSteamCapacityMs)}</strong>
+                    <strong>Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(boilerSteamCapacityMs)}L</strong>
                   )}
                   {selectedMachine.machineId === 'steamMacerator' && (
-                    <strong>Steam {formatDuration(availableConnectedSteam(state, selectedMachine))}</strong>
+                    <strong>
+                      Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamMaceratorCapacityMs)}L
+                      {' | '}
+                      Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
+                      {selectedMachineSteamCostLitres ? ` | Uses ${selectedMachineSteamCostLitres}L` : ''}
+                    </strong>
+                  )}
+                  {isSteamPoweredProcessMachine(selectedMachine.machineId) && selectedMachine.machineId !== 'steamMacerator' && (
+                    <strong>
+                      Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamMaceratorCapacityMs)}L
+                      {' | '}
+                      Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
+                      {selectedMachineSteamCostLitres ? ` | Uses ${selectedMachineSteamCostLitres}L` : ''}
+                    </strong>
+                  )}
+                  {selectedMachine.machineId === 'steamTank' && (
+                    <strong>
+                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamTankCapacityMs)}L
+                      {(selectedMachine.process.fluids.creosote ?? 0) > 0
+                        ? ` | Creosote ${formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/${ironTankFluidCapacityLitres}L`
+                        : ''}
+                      {(selectedMachine.process.fluids.water ?? 0) > 0 ? ` | Water ${formatLitres(selectedMachine.process.fluids.water ?? 0)}L/${ironTankFluidCapacityLitres}L` : ''}
+                    </strong>
+                  )}
+                  {selectedMachine.machineId === 'cokeOven' && (
+                    <strong>Creosote {formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/{selectedMachine.process.fluidCapacityLitres || cokeOvenFluidCapacityLitres}L</strong>
                   )}
                 </div>
                 {selectedMachine.machineId === 'well' ? (
@@ -1813,11 +2664,40 @@ function App() {
                     <MachineGlyph id="well" active />
                     <span>Supplies adjacent boilers</span>
                   </div>
+                ) : selectedMachine.machineId === 'steamTank' ? (
+                  <div className="well-interface">
+                    {(selectedMachine.process.fluids.creosote ?? 0) > 0 ? (
+                      <FluidTank label="Creosote" storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={ironTankFluidCapacityLitres} />
+                    ) : (selectedMachine.process.fluids.water ?? 0) > 0 ? (
+                      <FluidTank label="Water" storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={ironTankFluidCapacityLitres} />
+                    ) : (
+                      <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={steamTankCapacityMs} />
+                    )}
+                    <span>Stores steam or one fluid from connected pipes</span>
+                  </div>
+                ) : isPipeMachine(selectedMachine.machineId) ? (
+                  <div className="well-interface">
+                    <MachineGlyph id={selectedMachine.machineId} active />
+                    <span>Transfers steam at {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s</span>
+                  </div>
                 ) : (
-                <div className="furnace-interface">
-                  {(selectedMachine.machineId === 'furnace' || selectedMachine.machineId === 'steamMacerator') && (
+                <div className={`furnace-interface ${selectedMachine.machineId}-process-interface`}>
+                  {selectedMachine.machineId !== 'steamBoiler' && (
                   <div className="furnace-inputs">
                     <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                    {isSteamPoweredProcessMachine(selectedMachine.machineId) && (
+                      <>
+                        <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={steamMachineInternalCapacityMs} />
+                        <span className="steam-usage-line">{selectedMachineSteamCostLitres ? `${selectedMachineSteamCostLitres}L/craft` : 'No recipe'}</span>
+                      </>
+                    )}
+                    {selectedMachine.machineId === 'cokeOven' && (
+                      <FluidTank
+                        label="Creosote"
+                        storedLitres={selectedMachine.process.fluids.creosote ?? 0}
+                        capacityLitres={selectedMachine.process.fluidCapacityLitres || cokeOvenFluidCapacityLitres}
+                      />
+                    )}
                     {selectedMachine.machineId === 'furnace' && (
                     <div
                       className={selectedMachine.process.fuelRemainingMs > 0 ? 'furnace-flame active' : 'furnace-flame'}
@@ -1844,9 +2724,14 @@ function App() {
                     {selectedMachine.machineId === 'furnace' && (
                     <ProcessItemSlot slot={selectedMachine.process.fuel} label="Fuel" onClick={() => handleProcessSlotPress('fuel')} />
                     )}
+                    {selectedMachine.machineId === 'brickedBlastFurnace' && (
+                    <ProcessItemSlot slot={selectedMachine.process.fuel} label="Coke" onClick={() => handleProcessSlotPress('fuel')} />
+                    )}
                   </div>
                   )}
                   {selectedMachine.machineId === 'steamBoiler' && (
+                    <>
+                    <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={boilerSteamCapacityMs} />
                     <div className="furnace-inputs">
                       <div
                         className={selectedMachine.process.fuelRemainingMs > 0 ? 'furnace-flame active' : 'furnace-flame'}
@@ -1871,6 +2756,7 @@ function App() {
                       </div>
                       <ProcessItemSlot slot={selectedMachine.process.fuel} label="Fuel" onClick={() => handleProcessSlotPress('fuel')} />
                     </div>
+                    </>
                   )}
                   <div className="furnace-progress">
                     <span
@@ -1883,7 +2769,7 @@ function App() {
                       }}
                     />
                   </div>
-                  {(selectedMachine.machineId === 'furnace' || selectedMachine.machineId === 'steamMacerator') && (
+                  {selectedMachine.machineId !== 'steamBoiler' && (
                     <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
                   )}
                 </div>
