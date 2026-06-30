@@ -4783,10 +4783,15 @@ button.craft-output:disabled {
 }
 
 .quest-chapter-tabs {
-  display: grid;
+  display: flex;
   gap: 4px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 8px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
 .quest-chapter-tabs button {
@@ -4798,7 +4803,9 @@ button.craft-output:disabled {
   color: #f6f6f6;
   font-size: 0.62rem;
   font-weight: 900;
+  flex: 0 0 max(148px, calc((100% - 4px) / 2));
   min-height: 34px;
+  min-width: 0;
   padding: 4px;
   text-transform: uppercase;
 }
@@ -4816,6 +4823,7 @@ button.craft-output:disabled {
   gap: 6px;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .quest-book-head h2 {
@@ -4828,6 +4836,8 @@ button.craft-output:disabled {
   font-weight: 800;
   line-height: 1.15;
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .quest-map-scroll {
@@ -4841,6 +4851,7 @@ button.craft-output:disabled {
   border-radius: 0;
   border-right-color: #5e5e5e;
   max-height: min(54vh, 420px);
+  max-width: 100%;
   overflow: auto;
   overscroll-behavior: contain;
   padding: 8px;
@@ -6287,6 +6298,62 @@ button.recipe-jump-slot {
   .guide-page,
   .gather-panel {
     border-width: 2px;
+  }
+
+  .guide-page {
+    min-width: 0;
+    overflow: hidden;
+    padding: 6px;
+    width: 100%;
+  }
+
+  .quest-chapter-tabs {
+    margin-bottom: 6px;
+  }
+
+  .quest-chapter-tabs button {
+    flex-basis: max(136px, calc((100% - 4px) / 2));
+    font-size: 0.58rem;
+    line-height: 1;
+  }
+
+  .quest-book-head {
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .quest-book-head p:last-child {
+    display: none;
+  }
+
+  .quest-map-scroll {
+    box-sizing: border-box;
+    height: calc(100svh - var(--sticky-header-height) - var(--bottom-nav-clearance) - 156px);
+    max-height: none;
+    min-height: 270px;
+    overflow: auto;
+    padding: 6px;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .quest-node {
+    grid-template-columns: 34px minmax(0, 1fr) 14px;
+    min-height: 64px;
+    width: 128px;
+  }
+
+  .quest-node-icon,
+  .quest-detail-icon {
+    width: 32px;
+  }
+
+  .quest-node-icon .pixel-icon,
+  .quest-node-icon .machine-glyph,
+  .quest-detail-icon .pixel-icon,
+  .quest-detail-icon .machine-glyph {
+    height: 24px;
+    width: 24px;
   }
 
   .terminal-panel,
