@@ -118,5 +118,6 @@ function localSaveApi(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.GITHUB_PAGES === 'true' ? '/GregCompanion/' : '/',
   plugins: [react(), localSaveApi()],
 })
