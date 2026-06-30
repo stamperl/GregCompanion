@@ -4878,22 +4878,22 @@ button.craft-output:disabled {
 
 .quest-line-shadow {
   stroke: #5a5a5a;
-  stroke-width: 12px;
+  stroke-width: 9px;
 }
 
 .quest-lines path.locked {
   stroke: #8a8a8a;
-  stroke-width: 6px;
+  stroke-width: 5px;
 }
 
 .quest-lines path.open {
   stroke: #c2a846;
-  stroke-width: 7px;
+  stroke-width: 5px;
 }
 
 .quest-lines path.complete {
   stroke: #6da448;
-  stroke-width: 7px;
+  stroke-width: 5px;
 }
 
 .quest-line-joint {
@@ -4929,11 +4929,19 @@ button.craft-output:disabled {
   position: absolute;
   text-align: left;
   width: 142px;
+  z-index: 2;
 }
 
 .quest-node.locked {
+  background: #bfbfbf;
+  color: #4d4d4d;
   filter: grayscale(0.75);
-  opacity: 0.62;
+}
+
+.quest-node.locked .quest-node-icon,
+.quest-node.locked .quest-node-title,
+.quest-node.locked .quest-node-state {
+  opacity: 0.72;
 }
 
 .quest-node.ready {

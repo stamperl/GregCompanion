@@ -1607,7 +1607,7 @@ export const quests: Quest[] = [
     chapter: 'Getting Started',
     title: 'Make a wooden axe',
     description: 'Three planks and two sticks become your first speed upgrade.',
-    position: { x: 550, y: 60 },
+    position: { x: 640, y: 40 },
     icon: { type: 'resource', id: 'woodenAxe' },
     prerequisites: ['craftSticks'],
     requirements: {
@@ -1621,7 +1621,7 @@ export const quests: Quest[] = [
     chapter: 'Getting Started',
     title: 'Chop with the axe',
     description: 'Use the wooden axe to break a second log faster.',
-    position: { x: 720, y: 60 },
+    position: { x: 850, y: 40 },
     icon: { type: 'resource', id: 'log' },
     prerequisites: ['craftAxe'],
     requirements: {
@@ -1635,7 +1635,7 @@ export const quests: Quest[] = [
     chapter: 'Getting Started',
     title: 'Crack into stone',
     description: 'Make a wooden pickaxe and mine enough cobblestone for the first furnace shell.',
-    position: { x: 550, y: 200 },
+    position: { x: 640, y: 230 },
     icon: { type: 'gather', id: 'stone' },
     prerequisites: ['craftSticks'],
     requirements: {
