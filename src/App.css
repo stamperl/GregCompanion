@@ -5089,11 +5089,11 @@ button.craft-output:disabled {
 }
 
 .quest-claim-button.unclaimed {
-  background: #2f6fae;
-  border-color: #d7ecff;
-  border-bottom-color: #173d66;
-  border-right-color: #173d66;
-  color: #fff;
+  background: #6d5d22;
+  border-color: #fff1a8;
+  border-bottom-color: #32270a;
+  border-right-color: #32270a;
+  color: #fff7c8;
 }
 
 .achievement-toast-stack {
@@ -5107,27 +5107,29 @@ button.craft-output:disabled {
 }
 
 .achievement-toast {
-  background: #2f6fae;
-  border: 2px solid #d7ecff;
-  border-bottom-color: #173d66;
+  background: #4b4b4b;
+  border: 2px solid #fff1a8;
+  border-bottom-color: #27200a;
   border-radius: 0;
-  border-right-color: #173d66;
+  border-right-color: #27200a;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
-  color: #fff;
+  color: #fff7c8;
   display: grid;
   gap: 2px;
+  image-rendering: pixelated;
   padding: 7px 9px;
   text-align: left;
 }
 
 .achievement-toast span {
-  color: #d7ecff;
+  color: #e6c35a;
   font-size: 0.58rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .achievement-toast strong {
+  color: #f7f7f7;
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 0.76rem;
   line-height: 1.05;
