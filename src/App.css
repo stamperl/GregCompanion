@@ -6360,25 +6360,6 @@ button.recipe-jump-slot {
     -webkit-overflow-scrolling: touch;
   }
 
-  .quest-node {
-    grid-template-columns: 34px minmax(0, 1fr) 14px;
-    min-height: 64px;
-    width: 128px;
-  }
-
-  .quest-node-icon,
-  .quest-detail-icon {
-    width: 32px;
-  }
-
-  .quest-node-icon .pixel-icon,
-  .quest-node-icon .machine-glyph,
-  .quest-detail-icon .pixel-icon,
-  .quest-detail-icon .machine-glyph {
-    height: 24px;
-    width: 24px;
-  }
-
   .terminal-panel,
   .processing-panel {
     padding: 6px;

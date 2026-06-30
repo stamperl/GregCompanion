@@ -880,7 +880,7 @@ function QuestBook({
   const questById = new Map(quests.map((quest) => [quest.id, quest]))
   const nodeWidth = 142
   const nodeHeight = 74
-  const mapWidth = Math.max(980, ...chapterQuests.map((quest) => (quest.position?.x ?? 0) + 160))
+  const mapWidth = Math.max(980, ...chapterQuests.map((quest) => (quest.position?.x ?? 0) + nodeWidth + 18))
   const mapHeight = Math.max(360, ...chapterQuests.map((quest) => (quest.position?.y ?? 0) + 130))
 
   return (
@@ -938,7 +938,7 @@ function QuestBook({
               <button
                 type="button"
                 className={`quest-node ${status}${selected ? ' selected' : ''}`}
-                style={{ left: quest.position?.x ?? 0, top: quest.position?.y ?? 0 }}
+                style={{ left: quest.position?.x ?? 0, minHeight: nodeHeight, top: quest.position?.y ?? 0, width: nodeWidth }}
                 onClick={() => onSelectQuest(quest.id)}
                 key={quest.id}
               >
