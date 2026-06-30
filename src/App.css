@@ -5088,6 +5088,51 @@ button.craft-output:disabled {
   white-space: nowrap;
 }
 
+.quest-claim-button.unclaimed {
+  background: #2f6fae;
+  border-color: #d7ecff;
+  border-bottom-color: #173d66;
+  border-right-color: #173d66;
+  color: #fff;
+}
+
+.achievement-toast-stack {
+  display: grid;
+  gap: 6px;
+  max-width: min(310px, calc(100vw - 18px));
+  position: fixed;
+  right: max(8px, env(safe-area-inset-right));
+  top: calc(var(--sticky-header-height) + 10px);
+  z-index: 80;
+}
+
+.achievement-toast {
+  background: #2f6fae;
+  border: 2px solid #d7ecff;
+  border-bottom-color: #173d66;
+  border-radius: 0;
+  border-right-color: #173d66;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.achievement-toast span {
+  color: #d7ecff;
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.achievement-toast strong {
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 0.76rem;
+  line-height: 1.05;
+}
+
 .resource-pill {
   align-items: center;
   background: #9f9f9f;

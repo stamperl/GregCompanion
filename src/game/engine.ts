@@ -242,6 +242,7 @@ export function cloneState(state: GameState): GameState {
       process: cloneProcessState(instance.process),
     })),
     completedQuests: [...state.completedQuests],
+    claimedQuests: [...state.claimedQuests],
     unlockedQuests: [...state.unlockedQuests],
     craftedResources: [...state.craftedResources],
     equipment: { ...state.equipment },
@@ -1516,10 +1517,13 @@ export function tickGame(state: GameState, elapsedMs: number): TickResult {
   }
 
   next = tickMachineInstances(next, elapsedMs)
+  const questSync = autoCompleteQuests(next)
+  next = questSync.state
   next.lastSavedAt = Date.now()
   return {
     state: next,
     machineOutputs: combineResourceAmounts(machineOutputs),
+    questCompletions: questSync.completedQuestIds,
   }
 }
 
@@ -1573,6 +1577,10 @@ export function questPrerequisitesMet(state: GameState, quest: Quest) {
   return (quest.prerequisites ?? []).every((questId) => state.completedQuests.includes(questId))
 }
 
+function questPrerequisitesMetBySet(completedQuests: Set<QuestId>, quest: Quest) {
+  return (quest.prerequisites ?? []).every((questId) => completedQuests.has(questId))
+}
+
 export function questProgress(state: GameState, quest: Quest) {
   const objectives = questObjectives(quest)
   if (!objectives.length) return 1
@@ -1589,6 +1597,34 @@ export function canCompleteQuest(state: GameState, quest: Quest) {
   return questStatus(state, quest) === 'ready'
 }
 
+export function autoCompleteQuests(state: GameState): { state: GameState; completedQuestIds: QuestId[] } {
+  const completed = new Set(state.completedQuests)
+  const completedQuestIds: QuestId[] = []
+  let changed = true
+
+  while (changed) {
+    changed = false
+    for (const quest of quests) {
+      if (completed.has(quest.id)) continue
+      if (!questPrerequisitesMetBySet(completed, quest)) continue
+      if (!questObjectives(quest).every((objective) => questObjectiveProgress(state, objective).complete)) continue
+      completed.add(quest.id)
+      completedQuestIds.push(quest.id)
+      changed = true
+    }
+  }
+
+  if (!completedQuestIds.length) return { state, completedQuestIds }
+
+  const next = cloneState(state)
+  next.completedQuests.push(...completedQuestIds)
+  for (const questId of completedQuestIds) {
+    if (!next.unlockedQuests.includes(questId)) next.unlockedQuests.push(questId)
+  }
+  next.lastSavedAt = Date.now()
+  return { state: next, completedQuestIds }
+}
+
 export function completeQuest(state: GameState, questId: string) {
   const quest = quests.find((candidate) => candidate.id === questId)
   if (!quest || !canCompleteQuest(state, quest)) return state
@@ -1596,6 +1632,14 @@ export function completeQuest(state: GameState, questId: string) {
   const next = cloneState(state)
   next.completedQuests.push(quest.id)
   if (!next.unlockedQuests.includes(quest.id)) next.unlockedQuests.push(quest.id)
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function claimQuestReward(state: GameState, questId: QuestId) {
+  if (!state.completedQuests.includes(questId) || state.claimedQuests.includes(questId)) return state
+  const next = cloneState(state)
+  next.claimedQuests.push(questId)
   next.lastSavedAt = Date.now()
   return next
 }
@@ -1713,6 +1757,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       machineInstances: migrateMachineInstances(machinesState, factoryFoundationLevel, parsed.machineInstances),
       factoryFoundationLevel,
       completedQuests: parsed.completedQuests ?? [],
+      claimedQuests: parsed.claimedQuests ?? [],
       unlockedQuests: unlockedQuests as QuestId[],
       craftedResources: normalizeCraftedResources(parsed),
       equipment: normalizeEquipment(parsed.equipment),

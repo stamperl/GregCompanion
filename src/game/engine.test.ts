@@ -8,11 +8,10 @@ import {
   boilerSteamCapacityMs,
   canExpandFactoryFloor,
   cokeOvenFluidCapacityLitres,
-  canCompleteQuest,
   canCraft,
   canWrenchRemoveMachine,
+  claimQuestReward,
   collectProcessOutput,
-  completeQuest,
   createCreativeState,
   craftableQuantity,
   craftRecipeInstant,
@@ -288,19 +287,25 @@ describe('game engine', () => {
     expect(hitGatherTarget(state, 'copperVein').state.gatherProgress.copperVein).toBe(6)
   })
 
-  it('completes wood guide quests and opens the next graph step without rewards', () => {
+  it('auto-completes ready guide quests and leaves rewards unclaimed', () => {
     let state = createFactoryState(1000)
     state.resources.log = 1
 
     const quest = quests.find((candidate) => candidate.id === 'punchTree')!
     const nextQuest = quests.find((candidate) => candidate.id === 'craftPlanks')!
-    expect(canCompleteQuest(state, quest)).toBe(true)
+    expect(questStatus(state, quest)).toBe('ready')
     expect(questStatus(state, nextQuest)).toBe('locked')
 
-    state = completeQuest(state, 'punchTree')
+    const result = tickGame(state, 250)
+    state = result.state
+    expect(result.questCompletions).toEqual(['punchTree'])
     expect(state.completedQuests).toContain('punchTree')
+    expect(state.claimedQuests).not.toContain('punchTree')
     expect(questStatus(state, nextQuest)).toBe('available')
     expect(state.resources.plank).toBe(0)
+
+    state = claimQuestReward(state, 'punchTree')
+    expect(state.claimedQuests).toContain('punchTree')
   })
 
   it('shows locked quest book branches and tracks objective progress', () => {

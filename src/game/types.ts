@@ -290,6 +290,7 @@ export type GameState = {
   machineInstances: MachineInstance[]
   factoryFoundationLevel: number
   completedQuests: QuestId[]
+  claimedQuests: QuestId[]
   unlockedQuests: QuestId[]
   craftedResources: ResourceId[]
   equipment: EquipmentState
@@ -328,4 +329,5 @@ export type MachineInstance = {
 export type TickResult = {
   state: GameState
   machineOutputs: ResourceAmount[]
+  questCompletions: QuestId[]
 }

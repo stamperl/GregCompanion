@@ -1993,6 +1993,7 @@ export function createInitialState(now = Date.now()): GameState {
     machineInstances: [],
     factoryFoundationLevel: 0,
     completedQuests: [],
+    claimedQuests: [],
     unlockedQuests: ['punchTree'],
     craftedResources: [],
     equipment: { ...initialEquipment },

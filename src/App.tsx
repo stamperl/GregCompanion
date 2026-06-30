@@ -23,7 +23,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import './App.css'
-import { fuelDefinitions, gatherTargets, machines, processRecipes, questChapters, recipes, resourceLabels, tools } from './game/content'
+import { fuelDefinitions, gatherTargets, machines, processRecipes, questChapters, quests as questDefinitions, recipes, resourceLabels, tools } from './game/content'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -32,10 +32,9 @@ import {
   boilerSteamCapacityMs,
   cokeOvenFluidCapacityLitres,
   canWrenchRemoveMachine,
-  canCompleteQuest,
   canCraft,
+  claimQuestReward,
   collectProcessOutput,
-  completeQuest,
   createCreativeState,
   craftableQuantity,
   craftRecipeInstant,
@@ -110,6 +109,12 @@ type FloatText = {
   label: string
   variant?: 'break' | 'particle'
   targetId?: GatherTargetId
+}
+
+type AchievementToast = {
+  id: number
+  questId: QuestId
+  title: string
 }
 
 type ServerSaveSlot = {
@@ -803,18 +808,20 @@ function QuestDetail({
   quest,
   state,
   onClose,
-  onComplete,
+  onClaim,
   onSelectResource,
   onSelectMachine,
 }: {
   quest: Quest
   state: GameState
   onClose: () => void
-  onComplete: (questId: QuestId) => void
+  onClaim: (questId: QuestId) => void
   onSelectResource: (resourceId: ResourceId) => void
   onSelectMachine: (machineId: MachineId) => void
 }) {
   const status = questStatus(state, quest)
+  const claimed = state.claimedQuests.includes(quest.id)
+  const claimReady = status === 'completed' && !claimed
   const progressRows = questObjectives(quest).map((objective) => questObjectiveProgress(state, objective))
 
   return (
@@ -852,8 +859,13 @@ function QuestDetail({
             />
           ))}
         </div>
-        <button type="button" className="load-recipe-button" disabled={!canCompleteQuest(state, quest)} onClick={() => onComplete(quest.id)}>
-          {status === 'completed' ? 'Completed' : 'Complete quest'}
+        <button
+          type="button"
+          className={claimReady ? 'load-recipe-button quest-claim-button unclaimed' : 'load-recipe-button quest-claim-button'}
+          disabled={!claimReady}
+          onClick={() => onClaim(quest.id)}
+        >
+          {claimed ? 'Reward claimed' : status === 'completed' ? 'Claim reward' : 'Reward locked'}
         </button>
       </section>
     </div>
@@ -960,6 +972,7 @@ function QuestBook({
 function App() {
   const [state, setState] = useState<GameState>(() => loadGame(localStorage.getItem(saveKey)))
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
+  const [achievementToasts, setAchievementToasts] = useState<AchievementToast[]>([])
   const [page, setPage] = useState<Page>('gather')
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
@@ -998,6 +1011,8 @@ function App() {
   const [navigationStack, setNavigationStack] = useState<NavigationSnapshot[]>([])
   const [highlightedGatherTarget, setHighlightedGatherTarget] = useState<GatherTargetId | null>(null)
   const floatTextIdRef = useRef(0)
+  const achievementToastIdRef = useRef(0)
+  const knownCompletedQuestsRef = useRef(new Set<QuestId>(state.completedQuests))
   const gatherHighlightTimeoutRef = useRef<number | null>(null)
   const pointerDragRef = useRef<{ id: ResourceId; startX: number; startY: number; dragged: boolean } | null>(null)
   const factoryViewportRef = useRef<HTMLDivElement | null>(null)
@@ -1206,6 +1221,25 @@ function App() {
       setFloatTexts((current) => current.filter((floatText) => floatText.id !== id))
     }, 850)
   }
+
+  const dismissAchievementToast = (id: number) => {
+    setAchievementToasts((current) => current.filter((toast) => toast.id !== id))
+  }
+
+  const addAchievementToast = (questId: QuestId) => {
+    const quest = questDefinitions.find((candidate) => candidate.id === questId)
+    if (!quest) return
+    const id = (achievementToastIdRef.current += 1)
+    setAchievementToasts((current) => [...current.slice(-2), { id, questId, title: quest.title }])
+    window.setTimeout(() => dismissAchievementToast(id), 6500)
+  }
+
+  useEffect(() => {
+    const known = knownCompletedQuestsRef.current
+    const newlyCompleted = state.completedQuests.filter((questId) => !known.has(questId))
+    for (const questId of state.completedQuests) known.add(questId)
+    for (const questId of newlyCompleted) addAchievementToast(questId)
+  }, [state.completedQuests])
 
   const handleGatherTarget = (targetId: GatherTargetId) => {
     const target = gatherTargets[targetId]
@@ -1743,9 +1777,9 @@ function App() {
     setSelectedQuestId(questId)
   }
 
-  const handleCompleteQuest = (questId: QuestId) => {
-    setState((current) => completeQuest(current, questId))
-    addFloatText('quest complete')
+  const handleClaimQuestReward = (questId: QuestId) => {
+    setState((current) => claimQuestReward(current, questId))
+    addFloatText('reward claimed')
   }
 
   const currentSaveBackup = useMemo(() => (isCreativeMode ? (localStorage.getItem(saveKey) ?? saveGame(loadGame(null))) : saveGame(state)), [isCreativeMode, state])
@@ -1765,6 +1799,7 @@ function App() {
   const applyRestoredSave = (rawSave: string, notice: string) => {
     const restored = loadGame(rawSave)
     setState(restored)
+    knownCompletedQuestsRef.current = new Set(restored.completedQuests)
     localStorage.setItem(saveKey, saveGame(restored))
     handleClearGrid()
     setSelectedResource(null)
@@ -1825,7 +1860,9 @@ function App() {
   const handleReset = () => {
     localStorage.removeItem(saveKey)
     setIsCreativeMode(false)
-    setState(loadGame(null))
+    const freshState = loadGame(null)
+    setState(freshState)
+    knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
     handleClearGrid()
     setTerminalNotice('')
     setTerminalSearch('')
@@ -1839,6 +1876,7 @@ function App() {
     setIsSaveModalOpen(false)
     setIsFactoryExpandModalOpen(false)
     setSaveBackupNotice('')
+    setAchievementToasts([])
     setPlacingMachineId(null)
     setSelectedMachineUid(null)
     setSelectedQuestId(null)
@@ -1977,6 +2015,21 @@ function App() {
     if (page !== 'gather') setPage('gather')
   }
 
+  const handleAchievementToastClick = (toast: AchievementToast) => {
+    const quest = questDefinitions.find((candidate) => candidate.id === toast.questId)
+    if (!quest) return
+    pushNavigationSnapshot()
+    setActiveQuestChapterId(quest.chapterId ?? 'gettingStarted')
+    setPage('guide')
+    setIsRecipeModalOpen(false)
+    setIsFactoryExpandModalOpen(false)
+    setMissingBatch(null)
+    setPendingProcessInsert(null)
+    setSelectedMachineUid(null)
+    window.setTimeout(() => setSelectedQuestId(toast.questId), 0)
+    dismissAchievementToast(toast.id)
+  }
+
   const handlePageNavigation = (nextPage: Page) => {
     if (nextPage === page) return
     pushNavigationSnapshot()
@@ -2018,6 +2071,28 @@ function App() {
           </button>
         </div>
       </header>
+
+      <div className="achievement-toast-stack" aria-label="Quest achievements" aria-live="polite">
+        {achievementToasts.map((toast) => (
+          <button
+            type="button"
+            className="achievement-toast"
+            onPointerDown={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              handleAchievementToastClick(toast)
+            }}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+            }}
+            key={toast.id}
+          >
+            <span>Quest complete</span>
+            <strong>{toast.title}</strong>
+          </button>
+        ))}
+      </div>
 
       <section className="page-tabs" aria-label="Game pages">
         <button type="button" className={page === 'gather' ? 'active' : ''} onClick={() => handlePageNavigation('gather')}>
@@ -3057,7 +3132,7 @@ function App() {
           quest={selectedQuest}
           state={state}
           onClose={() => setSelectedQuestId(null)}
-          onComplete={handleCompleteQuest}
+          onClaim={handleClaimQuestReward}
           onSelectResource={handleJumpToResourceRecipe}
           onSelectMachine={handleJumpToMachineRecipe}
         />
