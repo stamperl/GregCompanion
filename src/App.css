@@ -4782,6 +4782,270 @@ button.craft-output:disabled {
   font-size: 0.9rem;
 }
 
+.quest-chapter-tabs {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 8px;
+}
+
+.quest-chapter-tabs button {
+  background: #4b4b4b;
+  border: 2px solid #e7e7e7;
+  border-bottom-color: #222;
+  border-radius: 0;
+  border-right-color: #222;
+  color: #f6f6f6;
+  font-size: 0.62rem;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 4px;
+  text-transform: uppercase;
+}
+
+.quest-chapter-tabs button.active {
+  border-color: #efe16a;
+  border-bottom-color: #7d6f20;
+  border-right-color: #7d6f20;
+  color: #fff8c7;
+}
+
+.quest-book-head {
+  align-items: start;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  margin-bottom: 8px;
+}
+
+.quest-book-head h2 {
+  margin: 0;
+}
+
+.quest-book-head p:last-child {
+  color: #3f3f3f;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.quest-map-scroll {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    #a8a8a8;
+  background-size: 38px 38px;
+  border: 2px solid #f0f0f0;
+  border-bottom-color: #5e5e5e;
+  border-radius: 0;
+  border-right-color: #5e5e5e;
+  max-height: min(54vh, 420px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  touch-action: pan-x pan-y;
+}
+
+.quest-map {
+  min-width: 100%;
+  position: relative;
+}
+
+.quest-lines {
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+}
+
+.quest-lines line {
+  stroke: #4f4f4f;
+  stroke-linecap: square;
+  stroke-width: 6px;
+}
+
+.quest-lines line.locked {
+  stroke: #7d7d7d;
+  stroke-dasharray: 9 8;
+}
+
+.quest-lines line.open {
+  stroke: #c2a846;
+}
+
+.quest-lines line.complete {
+  stroke: #6da448;
+}
+
+.quest-node {
+  align-items: center;
+  background: #b8b8b8;
+  border: 3px solid #ededed;
+  border-bottom-color: #575757;
+  border-radius: 0;
+  border-right-color: #575757;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  color: #242424;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: 42px minmax(0, 1fr) 18px;
+  min-height: 74px;
+  padding: 5px;
+  position: absolute;
+  text-align: left;
+  width: 142px;
+}
+
+.quest-node.locked {
+  filter: grayscale(0.75);
+  opacity: 0.62;
+}
+
+.quest-node.ready {
+  background: #b9ad66;
+  border-color: #fff2a6;
+  border-bottom-color: #7b6a20;
+  border-right-color: #7b6a20;
+}
+
+.quest-node.completed {
+  background: #9fb992;
+  border-color: #e3f5d7;
+  border-bottom-color: #4b7138;
+  border-right-color: #4b7138;
+}
+
+.quest-node.selected {
+  outline: 2px solid #fff8b5;
+  outline-offset: 2px;
+}
+
+.quest-node-icon,
+.quest-detail-icon {
+  align-items: center;
+  aspect-ratio: 1;
+  background: #8f8f8f;
+  border: 2px solid #efefef;
+  border-bottom-color: #555;
+  border-radius: 0;
+  border-right-color: #555;
+  display: grid;
+  justify-items: center;
+  width: 38px;
+}
+
+.quest-icon-art {
+  display: grid;
+  justify-items: center;
+}
+
+.quest-icon-art.muted {
+  opacity: 0.65;
+}
+
+.quest-node-icon .pixel-icon,
+.quest-node-icon .machine-glyph,
+.quest-detail-icon .pixel-icon,
+.quest-detail-icon .machine-glyph {
+  height: 28px;
+  width: 28px;
+}
+
+.quest-node-title {
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 0.64rem;
+  font-weight: 900;
+  line-height: 1.02;
+}
+
+.quest-node-state {
+  color: #3e3e3e;
+  font-size: 0.55rem;
+  font-weight: 900;
+  grid-column: 2 / 4;
+  text-transform: uppercase;
+}
+
+.quest-detail-modal {
+  max-width: 540px;
+}
+
+.quest-detail-hero {
+  align-items: center;
+  background: #adadad;
+  border: 2px solid #ededed;
+  border-bottom-color: #666;
+  border-radius: 0;
+  border-right-color: #666;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  margin-bottom: 8px;
+  padding: 8px;
+}
+
+.quest-detail-hero strong {
+  color: #5c4f15;
+  display: block;
+  font-size: 0.74rem;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.quest-detail-hero.completed strong {
+  color: #315c25;
+}
+
+.quest-detail-hero.locked strong {
+  color: #555;
+}
+
+.quest-detail-hero p {
+  color: #2f2f2f;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.quest-objective-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.quest-objective {
+  align-items: center;
+  background: #a4a4a4;
+  border: 2px solid #efefef;
+  border-bottom-color: #5b5b5b;
+  border-radius: 0;
+  border-right-color: #5b5b5b;
+  color: #222;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 46px;
+  padding: 4px;
+  text-align: left;
+}
+
+.quest-objective.complete {
+  background: #a9bd9d;
+}
+
+.quest-objective > span:nth-child(2) {
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.quest-objective strong {
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
 .resource-pill {
   align-items: center;
   background: #9f9f9f;

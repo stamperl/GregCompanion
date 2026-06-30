@@ -95,9 +95,30 @@ export type QuestId =
   | 'craftSticks'
   | 'craftAxe'
   | 'chopFaster'
+  | 'mineStone'
+  | 'buildFurnace'
+  | 'craftMortar'
   | 'firstDirt'
   | 'copperAndTin'
   | 'bronzeAge'
+  | 'gatherClay'
+  | 'makeBricks'
+  | 'buildFoundation'
+  | 'buildWell'
+  | 'makeSteam'
+  | 'pipeSteam'
+  | 'steamMaceratorQuest'
+  | 'steamForgeHammerQuest'
+  | 'steamUtilityBranch'
+  | 'treeTapQuest'
+  | 'cokeOvenQuest'
+  | 'creosoteQuest'
+  | 'bbfCasingsQuest'
+  | 'buildBbfQuest'
+  | 'firstSteel'
+  | 'steelPlateQuest'
+
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
 
@@ -196,9 +217,17 @@ export type ProcessRecipe = {
 
 export type Quest = {
   id: QuestId
+  chapterId?: QuestChapterId
   chapter: string
   title: string
   description: string
+  position?: {
+    x: number
+    y: number
+  }
+  icon?: QuestIcon
+  prerequisites?: QuestId[]
+  objectives?: QuestObjective[]
   requirements: {
     resources?: ResourceAmount[]
     machines?: MachineAmount[]
@@ -209,6 +238,23 @@ export type Quest = {
     unlocks?: QuestId[]
   }
 }
+
+export type QuestChapter = {
+  id: QuestChapterId
+  title: string
+  description: string
+}
+
+export type QuestIcon =
+  | { type: 'resource'; id: ResourceId }
+  | { type: 'machine'; id: MachineId }
+  | { type: 'gather'; id: GatherTargetId }
+
+export type QuestObjective =
+  | { type: 'resource'; id: ResourceId; amount: number; label?: string }
+  | { type: 'machine'; id: MachineId; amount: number; label?: string }
+  | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
+  | { type: 'factoryFoundation'; level: number; label?: string }
 
 export type Machine = {
   id: MachineId

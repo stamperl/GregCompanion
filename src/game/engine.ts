@@ -27,6 +27,7 @@ import type {
   ProcessSlot,
   ProcessSlotId,
   Quest,
+  QuestObjective,
   QuestId,
   Recipe,
   ResourceAmount,
@@ -1522,45 +1523,89 @@ export function tickGame(state: GameState, elapsedMs: number): TickResult {
   }
 }
 
+export type QuestStatus = 'locked' | 'available' | 'ready' | 'completed'
+
+export type QuestObjectiveProgress = {
+  objective: QuestObjective
+  label: string
+  current: number
+  required: number
+  complete: boolean
+}
+
+export function questObjectives(quest: Quest): QuestObjective[] {
+  if (quest.objectives?.length) return quest.objectives
+  return [
+    ...(quest.requirements.resources ?? []).map((amount): QuestObjective => ({ type: 'resource', id: amount.id, amount: amount.amount })),
+    ...(quest.requirements.machines ?? []).map((amount): QuestObjective => ({ type: 'machine', id: amount.id, amount: amount.amount })),
+  ]
+}
+
+function questObjectiveCurrent(state: GameState, objective: QuestObjective) {
+  if (objective.type === 'resource') return state.resources[objective.id]
+  if (objective.type === 'machine') return state.machines[objective.id]
+  if (objective.type === 'placedMachine') {
+    return state.machineInstances.filter((instance) => instance.machineId === objective.id).length
+  }
+  return state.factoryFoundationLevel
+}
+
+export function questObjectiveLabel(objective: QuestObjective) {
+  if (objective.label) return objective.label
+  if (objective.type === 'resource') return resourceLabels[objective.id]
+  if (objective.type === 'factoryFoundation') return `Factory foundation level ${objective.level}`
+  return machines[objective.id].name
+}
+
+export function questObjectiveProgress(state: GameState, objective: QuestObjective): QuestObjectiveProgress {
+  const required = objective.type === 'factoryFoundation' ? objective.level : objective.amount
+  const current = questObjectiveCurrent(state, objective)
+  return {
+    objective,
+    label: questObjectiveLabel(objective),
+    current,
+    required,
+    complete: current >= required,
+  }
+}
+
+export function questPrerequisitesMet(state: GameState, quest: Quest) {
+  return (quest.prerequisites ?? []).every((questId) => state.completedQuests.includes(questId))
+}
+
 export function questProgress(state: GameState, quest: Quest) {
-  const resourceRequirements = quest.requirements.resources ?? []
-  const machineRequirements = quest.requirements.machines ?? []
-  const resourceMet = resourceRequirements.filter((amount) => state.resources[amount.id] >= amount.amount).length
-  const machineMet = machineRequirements.filter((amount) => state.machines[amount.id] >= amount.amount).length
-  const total = resourceRequirements.length + machineRequirements.length
-  if (total === 0) return 1
-  return (resourceMet + machineMet) / total
+  const objectives = questObjectives(quest)
+  if (!objectives.length) return 1
+  return objectives.filter((objective) => questObjectiveProgress(state, objective).complete).length / objectives.length
+}
+
+export function questStatus(state: GameState, quest: Quest): QuestStatus {
+  if (state.completedQuests.includes(quest.id)) return 'completed'
+  if (!questPrerequisitesMet(state, quest)) return 'locked'
+  return questObjectives(quest).every((objective) => questObjectiveProgress(state, objective).complete) ? 'ready' : 'available'
 }
 
 export function canCompleteQuest(state: GameState, quest: Quest) {
-  if (!state.unlockedQuests.includes(quest.id)) return false
-  if (state.completedQuests.includes(quest.id)) return false
-  return hasResources(state, quest.requirements.resources) && hasMachines(state, quest.requirements.machines)
+  return questStatus(state, quest) === 'ready'
 }
 
 export function completeQuest(state: GameState, questId: string) {
   const quest = quests.find((candidate) => candidate.id === questId)
   if (!quest || !canCompleteQuest(state, quest)) return state
 
-  let next = addResources(state, quest.rewards.resources ?? [])
-  next = cloneState(next)
+  const next = cloneState(state)
   next.completedQuests.push(quest.id)
-  for (const unlock of quest.rewards.unlocks ?? []) {
-    if (!next.unlockedQuests.includes(unlock)) next.unlockedQuests.push(unlock)
-  }
-  for (const machine of quest.rewards.machines ?? []) {
-    next.machines[machine.id] += machine.amount
-  }
+  if (!next.unlockedQuests.includes(quest.id)) next.unlockedQuests.push(quest.id)
   next.lastSavedAt = Date.now()
   return next
 }
 
-export function visibleQuests(state: GameState) {
-  return quests.filter((quest) => state.unlockedQuests.includes(quest.id))
+export function visibleQuests(_state: GameState) {
+  return quests
 }
 
 export function nextQuest(state: GameState) {
-  return visibleQuests(state).find((quest) => !state.completedQuests.includes(quest.id)) ?? quests.at(-1)
+  return quests.find((quest) => questStatus(state, quest) !== 'completed') ?? quests.at(-1)
 }
 
 function migrateResources(resources: Record<ResourceId, number>) {

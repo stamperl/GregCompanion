@@ -23,7 +23,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import './App.css'
-import { fuelDefinitions, gatherTargets, machines, processRecipes, recipes, resourceLabels, tools } from './game/content'
+import { fuelDefinitions, gatherTargets, machines, processRecipes, questChapters, recipes, resourceLabels, tools } from './game/content'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -59,6 +59,9 @@ import {
   placeMachineInstance,
   processStackLimit,
   questProgress,
+  questObjectiveProgress,
+  questObjectives,
+  questStatus,
   recipeFitsTerminalGrid,
   recipesUsingInput,
   removeProcessSlot,
@@ -95,6 +98,8 @@ import type {
   ProcessSlot,
   ProcessSlotId,
   Quest,
+  QuestChapterId,
+  QuestId,
   Recipe,
   ResourceAmount,
   ResourceId,
@@ -136,6 +141,7 @@ type NavigationSnapshot = {
   recipeSearch: string
   selectedResource: ResourceId | null
   selectedMachineUid: string | null
+  selectedQuestId: QuestId | null
   selectedRecipeGroupKey: string | null
   selectedRecipeIndex: number
   isRecipeModalOpen: boolean
@@ -500,15 +506,6 @@ function ProcessItemSlot({
   )
 }
 
-function ResourcePill({ amount }: { amount: ResourceAmount }) {
-  return (
-    <span className="resource-pill">
-      <ItemSlot amount={amount} />
-      <span>{resourceLabels[amount.id]}</span>
-    </span>
-  )
-}
-
 function recipeOutputLabel(recipe: Recipe) {
   if (recipe.outputs.length > 0) {
     return recipe.outputs.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`).join(', ')
@@ -733,59 +730,224 @@ function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
   return hasToolTierUnlocked(state, 'ironPickaxe')
 }
 
-function QuestCard({
+function QuestIcon({ quest, muted = false }: { quest: Quest; muted?: boolean }) {
+  const icon = quest.icon
+  return (
+    <span className={muted ? 'quest-icon-art muted' : 'quest-icon-art'}>
+      {icon?.type === 'machine' ? (
+        <MachineGlyph id={icon.id} />
+      ) : icon?.type === 'gather' ? (
+        <PixelIcon id={gatherTargetIcons[icon.id]} />
+      ) : (
+        <PixelIcon id={icon?.id ?? quest.requirements.resources?.[0]?.id ?? 'log'} />
+      )}
+    </span>
+  )
+}
+
+function questStatusText(status: ReturnType<typeof questStatus>) {
+  if (status === 'completed') return 'Complete'
+  if (status === 'ready') return 'Ready'
+  if (status === 'available') return 'Open'
+  return 'Locked'
+}
+
+function QuestObjectiveRow({
+  progress,
+  state,
+  onSelectResource,
+  onSelectMachine,
+}: {
+  progress: ReturnType<typeof questObjectiveProgress>
+  state: GameState
+  onSelectResource: (resourceId: ResourceId) => void
+  onSelectMachine: (machineId: MachineId) => void
+}) {
+  const { objective } = progress
+  const current = Math.min(progress.current, progress.required)
+  const amountLabel = `${formatAmount(current)}/${formatAmount(progress.required)}`
+  const actionLabel = progress.complete ? 'Completed' : amountLabel
+
+  if (objective.type === 'resource') {
+    return (
+      <button type="button" className={progress.complete ? 'quest-objective complete' : 'quest-objective'} onClick={() => onSelectResource(objective.id)}>
+        <ItemSlot amount={{ id: objective.id, amount: objective.amount }} disabled={!progress.complete} state={state} />
+        <span>{progress.label}</span>
+        <strong>{actionLabel}</strong>
+      </button>
+    )
+  }
+
+  if (objective.type === 'machine' || objective.type === 'placedMachine') {
+    return (
+      <button type="button" className={progress.complete ? 'quest-objective complete' : 'quest-objective'} onClick={() => onSelectMachine(objective.id)}>
+        <MachineSlot id={objective.id} amount={objective.amount} muted={!progress.complete} />
+        <span>{progress.label}</span>
+        <strong>{actionLabel}</strong>
+      </button>
+    )
+  }
+
+  return (
+    <div className={progress.complete ? 'quest-objective complete' : 'quest-objective'}>
+      <span className="mini-slot">
+        <Factory size={18} />
+      </span>
+      <span>{progress.label}</span>
+      <strong>{actionLabel}</strong>
+    </div>
+  )
+}
+
+function QuestDetail({
   quest,
   state,
+  onClose,
   onComplete,
+  onSelectResource,
+  onSelectMachine,
 }: {
   quest: Quest
   state: GameState
-  onComplete: (questId: string) => void
+  onClose: () => void
+  onComplete: (questId: QuestId) => void
+  onSelectResource: (resourceId: ResourceId) => void
+  onSelectMachine: (machineId: MachineId) => void
 }) {
-  const completed = state.completedQuests.includes(quest.id)
+  const status = questStatus(state, quest)
+  const progressRows = questObjectives(quest).map((objective) => questObjectiveProgress(state, objective))
 
   return (
-    <article className={completed ? 'guide-card completed' : 'guide-card'}>
-      <div className="section-title">
-        <div>
-          <p className="eyebrow">{quest.chapter}</p>
-          <h3>{quest.title}</h3>
+    <div className="modal-backdrop compact-backdrop" role="presentation" onClick={onClose}>
+      <section className="missing-modal quest-detail-modal" role="dialog" aria-modal="true" aria-label={quest.title} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">{quest.chapter}</p>
+            <h2>{quest.title}</h2>
+          </div>
+          <button type="button" className="icon-button" aria-label="Close quest" onClick={onClose}>
+            <X size={18} />
+          </button>
         </div>
-        {completed && <Check size={20} />}
-      </div>
-      <p>{quest.description}</p>
-      <div className="progress-track quest-progress">
-        <span style={{ width: `${questProgress(state, quest) * 100}%` }} />
-      </div>
-      <div className="requirement-list">
-        {(quest.requirements.resources ?? []).map((amount) => (
-          <ResourcePill amount={amount} key={amount.id} />
-        ))}
-        {(quest.requirements.machines ?? []).map((amount) => (
-          <span className="resource-pill" key={amount.id}>
-            <MachineSlot id={amount.id} amount={amount.amount} muted={state.machines[amount.id] < amount.amount} />
-            <span>{machines[amount.id].name}</span>
+        <div className={`quest-detail-hero ${status}`}>
+          <span className="quest-detail-icon">
+            <QuestIcon quest={quest} muted={status === 'locked'} />
           </span>
-        ))}
-      </div>
-      {(quest.rewards.resources?.length || quest.rewards.machines?.length) && (
-        <div className="reward-list" aria-label={`${quest.title} rewards`}>
-          <span>Reward</span>
-          {(quest.rewards.resources ?? []).map((amount) => (
-            <ResourcePill amount={amount} key={amount.id} />
-          ))}
-          {(quest.rewards.machines ?? []).map((amount) => (
-            <span className="resource-pill" key={amount.id}>
-              <MachineSlot id={amount.id} amount={amount.amount} />
-              <span>{machines[amount.id].name}</span>
-            </span>
+          <div>
+            <strong>{questStatusText(status)}</strong>
+            <p>{quest.description}</p>
+          </div>
+        </div>
+        <div className="progress-track quest-progress">
+          <span style={{ width: `${questProgress(state, quest) * 100}%` }} />
+        </div>
+        <div className="quest-objective-list">
+          {progressRows.map((progress) => (
+            <QuestObjectiveRow
+              progress={progress}
+              state={state}
+              onSelectResource={onSelectResource}
+              onSelectMachine={onSelectMachine}
+              key={`${progress.objective.type}-${'id' in progress.objective ? progress.objective.id : progress.objective.level}`}
+            />
           ))}
         </div>
-      )}
-      <button type="button" disabled={completed || !canCompleteQuest(state, quest)} onClick={() => onComplete(quest.id)}>
-        {completed ? 'Claimed' : 'Claim reward'}
-      </button>
-    </article>
+        <button type="button" className="load-recipe-button" disabled={!canCompleteQuest(state, quest)} onClick={() => onComplete(quest.id)}>
+          {status === 'completed' ? 'Completed' : 'Complete quest'}
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function QuestBook({
+  quests,
+  state,
+  activeChapterId,
+  selectedQuestId,
+  onSelectChapter,
+  onSelectQuest,
+}: {
+  quests: Quest[]
+  state: GameState
+  activeChapterId: QuestChapterId
+  selectedQuestId: QuestId | null
+  onSelectChapter: (chapterId: QuestChapterId) => void
+  onSelectQuest: (questId: QuestId) => void
+}) {
+  const chapter = questChapters.find((candidate) => candidate.id === activeChapterId) ?? questChapters[0]
+  const chapterQuests = quests.filter((quest) => (quest.chapterId ?? 'gettingStarted') === chapter.id)
+  const questById = new Map(quests.map((quest) => [quest.id, quest]))
+  const mapWidth = Math.max(980, ...chapterQuests.map((quest) => (quest.position?.x ?? 0) + 160))
+  const mapHeight = Math.max(360, ...chapterQuests.map((quest) => (quest.position?.y ?? 0) + 130))
+
+  return (
+    <>
+      <div className="quest-chapter-tabs" aria-label="Quest chapters">
+        {questChapters.map((candidate) => (
+          <button
+            type="button"
+            className={candidate.id === chapter.id ? 'active' : ''}
+            onClick={() => onSelectChapter(candidate.id)}
+            key={candidate.id}
+          >
+            {candidate.title}
+          </button>
+        ))}
+      </div>
+      <div className="quest-book-head">
+        <div>
+          <p className="eyebrow">Quest book</p>
+          <h2>{chapter.title}</h2>
+        </div>
+        <p>{chapter.description}</p>
+      </div>
+      <div className="quest-map-scroll" aria-label={`${chapter.title} quest map`}>
+        <div className="quest-map" style={{ width: mapWidth, height: mapHeight }}>
+          <svg className="quest-lines" viewBox={`0 0 ${mapWidth} ${mapHeight}`} aria-hidden="true">
+            {chapterQuests.flatMap((quest) =>
+              (quest.prerequisites ?? []).map((parentId) => {
+                const parent = questById.get(parentId)
+                if (!parent || (parent.chapterId ?? 'gettingStarted') !== chapter.id || !parent.position || !quest.position) return null
+                const parentStatus = questStatus(state, parent)
+                const childStatus = questStatus(state, quest)
+                const className = parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'
+                return (
+                  <line
+                    className={className}
+                    x1={parent.position.x + 42}
+                    y1={parent.position.y + 42}
+                    x2={quest.position.x + 42}
+                    y2={quest.position.y + 42}
+                    key={`${parent.id}-${quest.id}`}
+                  />
+                )
+              }),
+            )}
+          </svg>
+          {chapterQuests.map((quest) => {
+            const status = questStatus(state, quest)
+            const selected = quest.id === selectedQuestId
+            return (
+              <button
+                type="button"
+                className={`quest-node ${status}${selected ? ' selected' : ''}`}
+                style={{ left: quest.position?.x ?? 0, top: quest.position?.y ?? 0 }}
+                onClick={() => onSelectQuest(quest.id)}
+                key={quest.id}
+              >
+                <span className="quest-node-icon">
+                  <QuestIcon quest={quest} muted={status === 'locked'} />
+                </span>
+                <span className="quest-node-title">{quest.title}</span>
+                <span className="quest-node-state">{questStatusText(status)}</span>
+                {status === 'completed' && <Check size={14} />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -800,6 +962,8 @@ function App() {
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
+  const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
+  const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [terminalNotice, setTerminalNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
@@ -898,6 +1062,7 @@ function App() {
 
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
   const guideQuests = useMemo(() => visibleQuests(state), [state])
+  const selectedQuest = useMemo(() => guideQuests.find((quest) => quest.id === selectedQuestId) ?? null, [guideQuests, selectedQuestId])
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
   const totalMachines = machineOrder.reduce((sum, id) => sum + state.machines[id], 0)
   const processRecipeCards = useMemo(
@@ -1518,6 +1683,7 @@ function App() {
       setMissingBatch(null)
       setSelectedMachineUid(null)
       setPendingProcessInsert(null)
+      setSelectedQuestId(null)
       triggerGatherTargetHighlight(gatherLocation.targetId)
       setTerminalNotice(`${resourceLabels[resourceId]} comes from ${gatherLocation.targetName}.`)
       return
@@ -1539,13 +1705,41 @@ function App() {
     setIsFactoryExpandModalOpen(false)
     setMissingBatch(null)
     setSelectedMachineUid(null)
+    setSelectedQuestId(null)
     handleSelectRecipeGroup(targetKey)
     setTerminalNotice(`Showing recipes for ${resourceLabels[resourceId]}.`)
   }
 
-  const handleCompleteQuest = (questId: string) => {
+  const handleJumpToMachineRecipe = (machineId: MachineId) => {
+    const targetOutput = { kind: 'machine' as const, id: machineId, amount: 1 }
+    const targetKey = recipeGroupKeyForOutput(targetOutput)
+    const targetGroup = groupRecipesByOutput(recipeCatalog).find((group) => group.key === targetKey)
+    if (!targetGroup) {
+      setTerminalNotice(`No recipe found for ${machines[machineId].name}.`)
+      return
+    }
+
+    pushNavigationSnapshot()
+    setTerminalMode('recipes')
+    setRecipeSearch('')
+    setPage('terminal')
+    setIsRecipeModalOpen(true)
+    setIsFactoryExpandModalOpen(false)
+    setMissingBatch(null)
+    setSelectedMachineUid(null)
+    setSelectedQuestId(null)
+    handleSelectRecipeGroup(targetKey)
+    setTerminalNotice(`Showing recipes for ${machines[machineId].name}.`)
+  }
+
+  const handleSelectQuest = (questId: QuestId) => {
+    if (selectedQuestId !== questId) pushNavigationSnapshot()
+    setSelectedQuestId(questId)
+  }
+
+  const handleCompleteQuest = (questId: QuestId) => {
     setState((current) => completeQuest(current, questId))
-    addFloatText('reward claimed')
+    addFloatText('quest complete')
   }
 
   const currentSaveBackup = useMemo(() => (isCreativeMode ? (localStorage.getItem(saveKey) ?? saveGame(loadGame(null))) : saveGame(state)), [isCreativeMode, state])
@@ -1641,6 +1835,7 @@ function App() {
     setSaveBackupNotice('')
     setPlacingMachineId(null)
     setSelectedMachineUid(null)
+    setSelectedQuestId(null)
     setSelectedRecipeGroupKey(null)
     setSelectedRecipeIndex(0)
     setNavigationStack([])
@@ -1711,6 +1906,7 @@ function App() {
     recipeSearch,
     selectedResource,
     selectedMachineUid,
+    selectedQuestId,
     selectedRecipeGroupKey,
     selectedRecipeIndex,
     isRecipeModalOpen,
@@ -1724,6 +1920,7 @@ function App() {
     setRecipeSearch(snapshot.recipeSearch)
     setSelectedResource(snapshot.selectedResource)
     setSelectedMachineUid(snapshot.selectedMachineUid)
+    setSelectedQuestId(snapshot.selectedQuestId)
     setSelectedRecipeGroupKey(snapshot.selectedRecipeGroupKey)
     setSelectedRecipeIndex(snapshot.selectedRecipeIndex)
     setIsRecipeModalOpen(snapshot.isRecipeModalOpen)
@@ -1748,6 +1945,10 @@ function App() {
 
     if (missingBatch) {
       setMissingBatch(null)
+      return
+    }
+    if (selectedQuestId) {
+      setSelectedQuestId(null)
       return
     }
     if (isFactoryExpandModalOpen) {
@@ -1777,6 +1978,7 @@ function App() {
     setSelectedMachineUid(null)
     setIsRecipeModalOpen(false)
     setIsFactoryExpandModalOpen(false)
+    setSelectedQuestId(null)
     setMissingBatch(null)
     setPendingProcessInsert(null)
   }
@@ -2833,20 +3035,26 @@ function App() {
 
       {page === 'guide' && (
         <section className="guide-page" aria-label="Quest guide">
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Optional guide</p>
-              <h2>Quest book</h2>
-            </div>
-            <BookOpen size={22} />
-          </div>
-
-          <div className="guide-list">
-            {guideQuests.map((quest) => (
-              <QuestCard quest={quest} state={state} onComplete={handleCompleteQuest} key={quest.id} />
-            ))}
-          </div>
+          <QuestBook
+            quests={guideQuests}
+            state={state}
+            activeChapterId={activeQuestChapterId}
+            selectedQuestId={selectedQuestId}
+            onSelectChapter={setActiveQuestChapterId}
+            onSelectQuest={handleSelectQuest}
+          />
         </section>
+      )}
+
+      {selectedQuest && (
+        <QuestDetail
+          quest={selectedQuest}
+          state={state}
+          onClose={() => setSelectedQuestId(null)}
+          onComplete={handleCompleteQuest}
+          onSelectResource={handleJumpToResourceRecipe}
+          onSelectMachine={handleJumpToMachineRecipe}
+        />
       )}
 
       {isSaveModalOpen && (

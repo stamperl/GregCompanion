@@ -33,6 +33,9 @@ import {
   missingForRecipe,
   placeMachineInstance,
   processStackLimit,
+  questObjectiveProgress,
+  questProgress,
+  questStatus,
   recipeFitsTerminalGrid,
   recipesUsingInput,
   removeMachineInstance,
@@ -43,6 +46,7 @@ import {
   terminalAvailableAmount,
   tickGame,
   unequipSlot,
+  visibleQuests,
   visibleRecipes,
   wrenchRemoveMachineInstance,
 } from './engine'
@@ -284,16 +288,43 @@ describe('game engine', () => {
     expect(hitGatherTarget(state, 'copperVein').state.gatherProgress.copperVein).toBe(6)
   })
 
-  it('completes wood guide quests and unlocks the next guide step', () => {
+  it('completes wood guide quests and opens the next graph step without rewards', () => {
     let state = createFactoryState(1000)
     state.resources.log = 1
 
     const quest = quests.find((candidate) => candidate.id === 'punchTree')!
+    const nextQuest = quests.find((candidate) => candidate.id === 'craftPlanks')!
     expect(canCompleteQuest(state, quest)).toBe(true)
+    expect(questStatus(state, nextQuest)).toBe('locked')
 
     state = completeQuest(state, 'punchTree')
     expect(state.completedQuests).toContain('punchTree')
-    expect(state.unlockedQuests).toContain('craftPlanks')
+    expect(questStatus(state, nextQuest)).toBe('available')
+    expect(state.resources.plank).toBe(0)
+  })
+
+  it('shows locked quest book branches and tracks objective progress', () => {
+    const state = createFactoryState(1000)
+    const furnaceQuest = quests.find((candidate) => candidate.id === 'buildFurnace')!
+
+    expect(visibleQuests(state)).toContain(furnaceQuest)
+    expect(questStatus(state, furnaceQuest)).toBe('locked')
+    expect(questProgress(state, furnaceQuest)).toBe(0)
+  })
+
+  it('tracks factory foundation and placed machine quest objectives', () => {
+    let state = createFactoryState(1000, 1)
+    const foundationQuest = quests.find((candidate) => candidate.id === 'buildFoundation')!
+    const steamQuest = quests.find((candidate) => candidate.id === 'makeSteam')!
+    const foundationObjective = foundationQuest.objectives![0]
+    const placedObjective = steamQuest.objectives!.find((objective) => objective.type === 'placedMachine')!
+
+    expect(questObjectiveProgress(state, foundationObjective).complete).toBe(true)
+    expect(questObjectiveProgress(state, placedObjective).complete).toBe(false)
+
+    state.machines.steamBoiler = 1
+    state = placeMachineInstance(state, 'steamBoiler', 0, 0)
+    expect(questObjectiveProgress(state, placedObjective).complete).toBe(true)
   })
 
   it('migrates old saves into the new wood-opening state shape', () => {
