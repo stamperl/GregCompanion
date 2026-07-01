@@ -146,6 +146,40 @@ export type StationType = 'hand' | 'furnace' | 'steam' | 'lv'
 
 export type RecipeType = 'crafting' | 'processing' | 'machine'
 
+export type ResourceCategory =
+  | 'raw'
+  | 'tool'
+  | 'fuel'
+  | 'fluid'
+  | 'ingot'
+  | 'dust'
+  | 'plate'
+  | 'rod'
+  | 'wire'
+  | 'component'
+  | 'machinePart'
+  | 'circuit'
+
+export type ResourceSpec = {
+  id: ResourceId
+  label: string
+  category: ResourceCategory
+  tier: Tier
+  iconKey?: string
+  sortGroup?: string
+}
+
+export type MachineProcessKind =
+  | 'none'
+  | 'furnace'
+  | 'waterSource'
+  | 'steamBoiler'
+  | 'steamStorage'
+  | 'steamPipe'
+  | 'steamProcess'
+  | 'cokeOven'
+  | 'blastFurnace'
+
 export type ToolId =
   | 'bareHand'
   | 'woodenAxe'
@@ -287,6 +321,21 @@ export type Machine = {
   consumes?: ResourceAmount[]
   intervalMs?: number
   unlockedBy?: QuestId
+}
+
+export type MachineSpec = Machine & {
+  placeable: boolean
+  glyphKey?: string
+  processKind: MachineProcessKind
+  pipeTransferLitresPerSecond?: number
+  steamCapacityLitres?: number
+  fluidCapacityLitres?: number
+  multiblock?: {
+    width: number
+    height: number
+    controller: MachineId
+    part: MachineId
+  }
 }
 
 export type Tool = {

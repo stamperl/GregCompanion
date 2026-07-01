@@ -7,12 +7,14 @@ import { dirname, resolve } from 'node:path'
 import {
   fuelDefinitions,
   gatherTargets,
+  machineRegistry,
   machines,
   processRecipes,
   questChapters,
   quests,
   recipes,
   resourceLabels,
+  resourceRegistry,
   tools,
 } from './content'
 import type { MachineAmount, QuestObjective, Recipe, ResourceAmount } from './types'
@@ -72,16 +74,31 @@ describe('content validation', () => {
   })
 
   it('keeps resource and machine records self-consistent', () => {
+    expect(Object.keys(resourceLabels), 'resource labels should be derived in registry order').toEqual(Object.keys(resourceRegistry))
+    expect(Object.keys(machines), 'machines should be derived in registry order').toEqual(Object.keys(machineRegistry))
+
+    for (const [id, spec] of Object.entries(resourceRegistry)) {
+      expect(spec.id, `resource registry ${id} should match its key`).toBe(id)
+      expect(spec.label, `resource registry ${id} label should match exported labels`).toBe(resourceLabels[id as keyof typeof resourceLabels])
+      expect(spec.category.trim(), `resource registry ${id} should have a category`).not.toBe('')
+      expect(spec.tier.trim(), `resource registry ${id} should have a tier`).not.toBe('')
+    }
+
     for (const [id, label] of Object.entries(resourceLabels)) {
       expect(label.trim(), `resource ${id} should have a label`).not.toBe('')
       expect(appCss, `resource ${id} should have a .pixel-${id} icon class`).toContain(`.pixel-${id}`)
     }
 
-    for (const [id, machine] of Object.entries(machines)) {
+    for (const [id, machine] of Object.entries(machineRegistry)) {
       expect(machine.id, `machine record ${id} should match its key`).toBe(id)
       expect(machine.name.trim(), `machine ${id} should have a name`).not.toBe('')
       expect(machine.description.trim(), `machine ${id} should have a description`).not.toBe('')
+      expect(typeof machine.placeable, `machine ${id} should declare placeability`).toBe('boolean')
+      expect(machine.processKind.trim(), `machine ${id} should declare a process kind`).not.toBe('')
       expect(appCss, `machine ${id} should have a .machine-${id} glyph class`).toContain(`.machine-${id}`)
+    }
+
+    for (const [id, machine] of Object.entries(machines)) {
       if (machine.produces) expectResourceAmountReferences(machine.produces, `${id} produces`)
       if (machine.consumes) expectResourceAmountReferences(machine.consumes, `${id} consumes`)
       if (machine.unlockedBy) expect(quests.some((quest) => quest.id === machine.unlockedBy), `${id} unlockedBy should reference a quest`).toBe(true)
