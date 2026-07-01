@@ -1387,7 +1387,7 @@ export const recipes: Recipe[] = [
       { id: 'redstoneDust', amount: 1 },
       { id: 'steelPlate', amount: 1 },
     ],
-    pattern: ['conductiveWire', 'vacuumTube', 'conductiveWire', 'resistor', 'basicBoard', 'resistor', 'redstoneDust', 'steelPlate', 'vacuumTube'],
+    pattern: ['conductiveWire', 'redstoneDust', 'conductiveWire', 'resistor', 'basicBoard', 'resistor', 'vacuumTube', 'steelPlate', 'vacuumTube'],
     outputs: [{ id: 'primitiveCircuit', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },

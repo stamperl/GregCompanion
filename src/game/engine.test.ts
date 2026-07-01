@@ -1692,6 +1692,17 @@ describe('game engine', () => {
     state.resources.steelPlate = 1
     const circuit = recipes.find((recipe) => recipe.id === 'craft_basic_electronic_circuit')!
 
+    expect(circuit.pattern).toEqual([
+      'conductiveWire',
+      'redstoneDust',
+      'conductiveWire',
+      'resistor',
+      'basicBoard',
+      'resistor',
+      'vacuumTube',
+      'steelPlate',
+      'vacuumTube',
+    ])
     expect(canCraft(state, circuit)).toBe(true)
     state = craftRecipeInstant(state, circuit, 1)
 
