@@ -2676,6 +2676,23 @@ button.craft-output:disabled {
   width: 46px;
 }
 
+.output-slot .output-machine-glyph {
+  align-items: center;
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+  z-index: 1;
+}
+
+.output-slot .output-machine-glyph .machine-glyph {
+  display: block;
+  flex: 0 0 28px;
+  height: 28px;
+  opacity: 1;
+  width: 28px;
+}
+
 .output-slot:disabled {
   cursor: not-allowed;
   opacity: 0.72;

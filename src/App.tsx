@@ -2351,7 +2351,9 @@ function App() {
                     terminalOutput.kind === 'resource' ? (
                       <PixelIcon id={terminalOutput.id} />
                     ) : (
-                      <MachineGlyph id={terminalOutput.id} />
+                      <span className="output-machine-glyph">
+                        <MachineGlyph id={terminalOutput.id} />
+                      </span>
                     )
                   ) : (
                     <span className="empty-output" />
