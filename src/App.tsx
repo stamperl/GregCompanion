@@ -100,7 +100,9 @@ import {
   recipeGroupOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
+import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
+import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
 import type {
   CraftSlot,
   EquipmentSlotId,
@@ -239,78 +241,6 @@ function isResourceId(value: string): value is ResourceId {
   return value in resourceLabels
 }
 
-function formatAmount(amount: number) {
-  if (amount >= 1000) return amount.toLocaleString()
-  return Number.isInteger(amount) ? `${amount}` : amount.toFixed(1)
-}
-
-function formatDuration(ms: number) {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return minutes > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : `${seconds}s`
-}
-
-function formatSteamLitres(ms: number) {
-  return Math.max(0, Math.floor(ms / 1000))
-}
-
-function formatLitres(litres: number) {
-  return Math.max(0, Math.floor(litres))
-}
-
-function DurabilityBar({ state, id }: { state: GameState; id: ResourceId }) {
-  const max = maxDurability(id)
-  if (max < 1 || state.resources[id] < 1) return null
-  const remaining = durabilityRemaining(state, id)
-  return (
-    <span className="durability-bar" title={`${formatAmount(remaining)}/${formatAmount(max)} uses`}>
-      <span style={{ width: `${Math.max(0, Math.min(100, (remaining / max) * 100))}%` }} />
-    </span>
-  )
-}
-
-function ItemSlot({
-  amount,
-  className = '',
-  disabled = false,
-  onClick,
-  state,
-}: {
-  amount: ResourceAmount
-  className?: string
-  disabled?: boolean
-  onClick?: (id: ResourceId) => void
-  state?: GameState
-}) {
-  const content = (
-    <>
-      <PixelIcon id={amount.id} />
-      <span className="item-count">{formatAmount(amount.amount)}</span>
-      {state && <DurabilityBar state={state} id={amount.id} />}
-    </>
-  )
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        className={disabled ? `mini-slot recipe-jump-slot muted ${className}` : `mini-slot recipe-jump-slot ${className}`}
-        aria-label={`Find ${resourceLabels[amount.id]}`}
-        title={`Find ${resourceLabels[amount.id]}`}
-        onClick={() => onClick(amount.id)}
-      >
-        {content}
-      </button>
-    )
-  }
-
-  return (
-    <span className={disabled ? `mini-slot muted ${className}` : `mini-slot ${className}`} title={resourceLabels[amount.id]}>
-      {content}
-    </span>
-  )
-}
-
 function RecipePatternPreview({
   recipe,
   state,
@@ -368,38 +298,6 @@ function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
       </div>
       <p>Place 4 BBF Casings as a 2x2 on the factory floor.</p>
     </div>
-  )
-}
-
-function MachineSlot({ id, amount = 1, muted = false }: { id: MachineId; amount?: number; muted?: boolean }) {
-  return (
-    <span className={muted ? 'mini-slot machine-slot muted' : 'mini-slot machine-slot'} title={machines[id].name}>
-      <MachineGlyph id={id} />
-      <span className="item-count">{formatAmount(amount)}</span>
-    </span>
-  )
-}
-
-function ProcessItemSlot({
-  slot,
-  label,
-  onClick,
-}: {
-  slot: ProcessSlot
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button type="button" className={slot ? 'process-slot filled' : 'process-slot'} aria-label={slot ? `${label} ${resourceLabels[slot.id]}` : label} onClick={onClick}>
-      {slot ? (
-        <>
-          <PixelIcon id={slot.id} />
-          <span className="item-count">{formatAmount(slot.amount)}</span>
-        </>
-      ) : (
-        <span className="process-slot-label">{label}</span>
-      )}
-    </button>
   )
 }
 
