@@ -53,7 +53,7 @@ import {
   boilerHasWater,
   boilerSteamCapacityMs,
   cokeOvenFluidCapacityLitres,
-  canWrenchRemoveMachine,
+  canCrowbarRemoveMachine,
   canCraft,
   claimQuestReward,
   collectProcessOutput,
@@ -78,7 +78,9 @@ import {
   maxDurability,
   missingForQuantity,
   missingForRecipe,
+  machinesCanConnect,
   placeMachineInstance,
+  pipeDirections,
   processStackLimit,
   questProgress,
   questObjectiveProgress,
@@ -107,12 +109,13 @@ import {
   canExpandFactoryFloor,
   terminalAvailableAmount,
   tickGame,
+  togglePipeSideDisabled,
   unassignAutoMiner,
   unequipSlot,
   visibleQuests,
   visibleRecipes,
   durabilityRemaining,
-  wrenchRemoveMachineInstance,
+  crowbarRemoveMachineInstance,
 } from './game/engine'
 import {
   groupRecipesByOutput,
@@ -130,6 +133,7 @@ import type {
   GameState,
   MachineId,
   MachineInstance,
+  PipeDirection,
   ProcessSlot,
   ProcessSlotId,
   Quest,
@@ -205,7 +209,14 @@ const machineOrder: MachineId[] = [
   'brickedBlastFurnace',
 ]
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
-const factoryToolOrder: ResourceId[] = ['bronzeWrench', 'ironWrench']
+const factoryToolOrder: ResourceId[] = ['bronzeCrowbar', 'ironCrowbar', 'bronzeWrench', 'ironWrench']
+
+const pipeDirectionOffsets: Record<PipeDirection, { dx: number; dy: number; label: string }> = {
+  north: { dx: 0, dy: -1, label: 'North' },
+  east: { dx: 1, dy: 0, label: 'East' },
+  south: { dx: 0, dy: 1, label: 'South' },
+  west: { dx: -1, dy: 0, label: 'West' },
+}
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
 
@@ -885,6 +896,7 @@ function App() {
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
   const [selectedFactoryTool, setSelectedFactoryTool] = useState<ResourceId | null>(null)
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(null)
+  const [selectedPipeConfigUid, setSelectedPipeConfigUid] = useState<string | null>(null)
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
   const [batchQuantity, setBatchQuantity] = useState(1)
@@ -908,7 +920,8 @@ function App() {
   const factoryPanDragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; dragged: boolean } | null>(null)
   const suppressFactoryCellClickRef = useRef(false)
   const suppressClickRef = useRef(false)
-  const isFactoryRemoveMode = selectedFactoryTool === 'bronzeWrench' || selectedFactoryTool === 'ironWrench'
+  const isFactoryRemoveMode = selectedFactoryTool === 'bronzeCrowbar' || selectedFactoryTool === 'ironCrowbar'
+  const isFactoryPipeConfigMode = selectedFactoryTool === 'bronzeWrench' || selectedFactoryTool === 'ironWrench'
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -939,7 +952,13 @@ function App() {
   }, [selectedMachineUid, state.machineInstances])
 
   useEffect(() => {
-    if (isFactoryRemoveMode && !canWrenchRemoveMachine(state)) setSelectedFactoryTool(null)
+    if (selectedPipeConfigUid && !state.machineInstances.some((instance) => instance.uid === selectedPipeConfigUid)) {
+      setSelectedPipeConfigUid(null)
+    }
+  }, [selectedPipeConfigUid, state.machineInstances])
+
+  useEffect(() => {
+    if (isFactoryRemoveMode && !canCrowbarRemoveMachine(state)) setSelectedFactoryTool(null)
   }, [isFactoryRemoveMode, state])
 
   useEffect(() => {
@@ -1019,6 +1038,7 @@ function App() {
   const selectedRecipe = selectedRecipeGroup?.recipes[clampedSelectedRecipeIndex]
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const selectedPipeConfig = state.machineInstances.find((instance) => instance.uid === selectedPipeConfigUid) ?? null
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
   const selectedMachineSteamCostLitres = selectedMachineRecipe?.steamCostLitres ?? null
   const selectedMachineEuCost = selectedMachineRecipe?.euCost ?? null
@@ -1088,7 +1108,7 @@ function App() {
     const connectsTo = (x: number, y: number) => {
       const neighbour = machineAtFactoryCell(x, y)
       if (!neighbour) return false
-      return isSteamPipe ? isSteamNetworkMachine(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId)
+      return machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamNetworkMachine(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
     }
     return {
       up: connectsTo(instance.x, instance.y - 1),
@@ -1241,15 +1261,24 @@ function App() {
     if (instance) {
       if (isFactoryRemoveMode) {
         setState((current) => {
-          if (!canWrenchRemoveMachine(current)) {
-            setTerminalNotice('Need an iron or bronze wrench.')
+          if (!canCrowbarRemoveMachine(current)) {
+            setTerminalNotice('Need an iron or bronze crowbar.')
             setSelectedFactoryTool(null)
             return current
           }
-          const next = wrenchRemoveMachineInstance(current, instance.uid)
+          const next = crowbarRemoveMachineInstance(current, instance.uid)
           if (next !== current) setTerminalNotice(`${machines[instance.machineId].name} removed.`)
           return next
         })
+        return
+      }
+      if (isFactoryPipeConfigMode) {
+        if (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId)) {
+          setSelectedMachineUid(null)
+          setSelectedPipeConfigUid(instance.uid)
+          return
+        }
+        setTerminalNotice('Wrench only configures pipes and cables.')
         return
       }
       if (instance.machineId === 'brickedBlastFurnacePart') {
@@ -1274,6 +1303,10 @@ function App() {
       }
       return next
     })
+  }
+
+  const handleTogglePipeSide = (uid: string, direction: PipeDirection) => {
+    setState((current) => togglePipeSideDisabled(current, uid, direction))
   }
 
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
@@ -2636,10 +2669,15 @@ function App() {
                           className={selectedFactoryTool === id ? 'item-slot factory-tool-slot selected' : 'item-slot factory-tool-slot'}
                           aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
                           aria-pressed={selectedFactoryTool === id}
-                          title={`${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`}
+                          title={
+                            id === 'bronzeCrowbar' || id === 'ironCrowbar'
+                              ? `${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`
+                              : `${resourceLabels[id]} - configure pipe and cable connections`
+                          }
                           onClick={() => {
                             setPlacingMachineId(null)
                             setSelectedMachineUid(null)
+                            setSelectedPipeConfigUid(null)
                             setSelectedFactoryTool((current) => (current === id ? null : id))
                           }}
                           key={id}
@@ -2767,6 +2805,77 @@ function App() {
                 <button type="button" className="load-recipe-button" disabled={!canExpandFactory} onClick={handleFactoryExpand}>
                   Expand Floor
                 </button>
+              </section>
+            </div>
+          )}
+
+          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId)) && (
+            <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
+              <section
+                className="missing-modal pipe-config-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Configure ${machines[selectedPipeConfig.machineId].name}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <div>
+                    <p className="eyebrow">Pipe Routing</p>
+                    <h2>{machines[selectedPipeConfig.machineId].name}</h2>
+                  </div>
+                  <button type="button" className="icon-button" aria-label="Close pipe routing" onClick={() => setSelectedPipeConfigUid(null)}>
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="pipe-config-grid" aria-label="Pipe routing directions">
+                  {[-1, 0, 1].flatMap((dy) =>
+                    [-1, 0, 1].map((dx) => {
+                      const neighbour = machineAtFactoryCell(selectedPipeConfig.x + dx, selectedPipeConfig.y + dy)
+                      const direction = pipeDirections.find((candidate) => {
+                        const offset = pipeDirectionOffsets[candidate]
+                        return offset.dx === dx && offset.dy === dy
+                      })
+                      const isCenter = dx === 0 && dy === 0
+                      const disabled = direction ? Boolean(selectedPipeConfig.pipeDisabledSides?.[direction]) : false
+                      const connected = Boolean(direction && neighbour && machinesCanConnect(selectedPipeConfig, neighbour))
+                      const className = [
+                        'pipe-config-cell',
+                        isCenter ? 'center' : '',
+                        direction ? 'toggle' : '',
+                        disabled ? 'disabled-side' : '',
+                        connected ? 'connected-side' : '',
+                      ].filter(Boolean).join(' ')
+                      const content = isCenter ? (
+                        <MachineGlyph id={selectedPipeConfig.machineId} active pipeConnections={pipeConnectionsForInstance(selectedPipeConfig)} />
+                      ) : neighbour ? (
+                        <MachineGlyph id={neighbour.machineId} active={connected} pipeConnections={pipeConnectionsForInstance(neighbour)} />
+                      ) : (
+                        <span className="empty-pipe-neighbour" />
+                      )
+                      if (!direction) {
+                        return (
+                          <span className={className} key={`${dx},${dy}`}>
+                            {content}
+                          </span>
+                        )
+                      }
+                      return (
+                        <button
+                          type="button"
+                          className={className}
+                          aria-pressed={!disabled}
+                          aria-label={`${disabled ? 'Enable' : 'Disable'} ${pipeDirectionOffsets[direction].label} connection`}
+                          onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
+                          key={`${dx},${dy}`}
+                        >
+                          {content}
+                          <strong>{pipeDirectionOffsets[direction].label}</strong>
+                        </button>
+                      )
+                    }),
+                  )}
+                </div>
+                <p className="pipe-config-note">Tap a side to block or restore that pipe connection.</p>
               </section>
             </div>
           )}

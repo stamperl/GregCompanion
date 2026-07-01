@@ -4,17 +4,19 @@ import { processRecipesProducingResource, recipesProducingResource, recipesUsing
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableConnectedEu,
+  availableConnectedSteam,
   availableResourceAmount,
   availableUnplacedMachineCount,
   assignAutoMiner,
   boilerHasWater,
   boilerSteamCapacityMs,
+  canCrowbarRemoveMachine,
   canExpandFactoryFloor,
   cokeOvenFluidCapacityLitres,
   canCraft,
-  canWrenchRemoveMachine,
   claimQuestReward,
   collectProcessOutput,
+  crowbarRemoveMachineInstance,
   createCreativeState,
   craftableQuantity,
   craftRecipeInstant,
@@ -44,6 +46,7 @@ import {
   removeMachineInstance,
   removeProcessSlot,
   searchTerminalRecipes,
+  setPipeSideDisabled,
   steamMaceratorCapacityMs,
   steamTankCapacityMs,
   steamTurbineEuCapacity,
@@ -53,7 +56,6 @@ import {
   unassignAutoMiner,
   visibleQuests,
   visibleRecipes,
-  wrenchRemoveMachineInstance,
 } from './engine'
 import type { CraftSlot, Recipe } from './types'
 
@@ -770,36 +772,36 @@ describe('game engine', () => {
     expect(state.resources.log).toBe(2)
   })
 
-  it('requires wrench durability to remove placed machines in factory remove mode', () => {
+  it('requires crowbar durability to remove placed machines in factory remove mode', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1
     state = placeMachineInstance(state, 'furnace', 0, 0)
     const furnace = state.machineInstances[0]
 
-    expect(canWrenchRemoveMachine(state)).toBe(false)
-    expect(wrenchRemoveMachineInstance(state, furnace.uid)).toBe(state)
+    expect(canCrowbarRemoveMachine(state)).toBe(false)
+    expect(crowbarRemoveMachineInstance(state, furnace.uid)).toBe(state)
 
-    state.resources.ironWrench = 1
-    state = wrenchRemoveMachineInstance(state, furnace.uid)
+    state.resources.ironCrowbar = 1
+    state = crowbarRemoveMachineInstance(state, furnace.uid)
 
     expect(state.machineInstances).toEqual([])
     expect(availableUnplacedMachineCount(state, 'furnace')).toBe(1)
-    expect(durabilityRemaining(state, 'ironWrench')).toBe(127)
+    expect(durabilityRemaining(state, 'ironCrowbar')).toBe(127)
   })
 
-  it('spends bronze wrench durability before iron when removing machines', () => {
+  it('spends bronze crowbar durability before iron when removing machines', () => {
     let state = createFactoryState(1000)
     state.machines.steamTank = 1
-    state.resources.ironWrench = 1
-    state.resources.bronzeWrench = 1
+    state.resources.ironCrowbar = 1
+    state.resources.bronzeCrowbar = 1
     state = placeMachineInstance(state, 'steamTank', 0, 0)
     const tank = state.machineInstances[0]
 
-    state = wrenchRemoveMachineInstance(state, tank.uid)
+    state = crowbarRemoveMachineInstance(state, tank.uid)
 
     expect(state.machineInstances).toEqual([])
-    expect(durabilityRemaining(state, 'bronzeWrench')).toBe(191)
-    expect(durabilityRemaining(state, 'ironWrench')).toBe(128)
+    expect(durabilityRemaining(state, 'bronzeCrowbar')).toBe(191)
+    expect(durabilityRemaining(state, 'ironCrowbar')).toBe(128)
   })
 
   it('loses internal steam buffer when a machine is removed and placed again', () => {
@@ -1421,15 +1423,15 @@ describe('game engine', () => {
     expect(availableUnplacedMachineCount(state, 'brickedBlastFurnacePart')).toBe(0)
     expect(availableUnplacedMachineCount(state, 'brickedBlastFurnace')).toBe(0)
 
-    state.resources.bronzeWrench = 1
+    state.resources.bronzeCrowbar = 1
     const controller = state.machineInstances.find((instance) => instance.machineId === 'brickedBlastFurnace')!
-    state = wrenchRemoveMachineInstance(state, controller.uid)
+    state = crowbarRemoveMachineInstance(state, controller.uid)
 
     expect(state.machineInstances).toHaveLength(0)
     expect(state.machines.brickedBlastFurnacePart).toBe(4)
     expect(state.machines.brickedBlastFurnace).toBe(0)
     expect(availableUnplacedMachineCount(state, 'brickedBlastFurnacePart')).toBe(4)
-    expect(durabilityRemaining(state, 'bronzeWrench')).toBe(191)
+    expect(durabilityRemaining(state, 'bronzeCrowbar')).toBe(191)
   })
 
   it('smelts unfired brick into brick in the primitive furnace', () => {
@@ -1611,6 +1613,30 @@ describe('game engine', () => {
     expect(tankProcess.steamCapacityMs).toBe(steamTankCapacityMs)
     expect(tankProcess.steamStoredMs).toBe(40000)
     expect(boilerProcess.steamStoredMs).toBe(40000)
+  })
+
+  it('lets pipe side configuration block and restore connected steam routing', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.copperPipe = 1
+    state.machines.steamMacerator = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    tank.process.steamStoredMs = steamTankCapacityMs
+
+    expect(availableConnectedSteam(state, macerator)).toBe(steamTankCapacityMs)
+
+    state = setPipeSideDisabled(state, pipe.uid, 'east', true)
+
+    expect(availableConnectedSteam(state, macerator)).toBe(0)
+
+    state = setPipeSideDisabled(state, pipe.uid, 'east', false)
+
+    expect(availableConnectedSteam(state, macerator)).toBe(steamTankCapacityMs)
   })
 
   it('fills an iron steam tank directly from an adjacent boiler', () => {
@@ -2361,6 +2387,28 @@ describe('game engine', () => {
       { id: 'bronzeIngot' },
       null,
     ]
+    const ironCrowbarGrid: CraftSlot[] = [
+      { id: 'ironRod' },
+      null,
+      null,
+      null,
+      { id: 'ironRod' },
+      null,
+      { id: 'ironPlate' },
+      { id: 'ironPlate' },
+      null,
+    ]
+    const bronzeCrowbarGrid: CraftSlot[] = [
+      { id: 'bronzeRod' },
+      null,
+      null,
+      null,
+      { id: 'bronzeRod' },
+      null,
+      { id: 'bronzePlate' },
+      { id: 'bronzePlate' },
+      null,
+    ]
 
     expect(findGridRecipe(axeGrid, recipes)?.id).toBe('craft_wooden_axe')
     expect(findGridRecipe(pickaxeGrid, recipes)?.id).toBe('craft_wooden_pickaxe')
@@ -2381,6 +2429,8 @@ describe('game engine', () => {
     expect(findGridRecipe(bronzeMortarGrid, recipes)?.id).toBe('craft_bronze_mortar')
     expect(findGridRecipe(ironWrenchGrid, recipes)?.id).toBe('craft_iron_wrench')
     expect(findGridRecipe(bronzeWrenchGrid, recipes)?.id).toBe('craft_bronze_wrench')
+    expect(findGridRecipe(ironCrowbarGrid, recipes)?.id).toBe('craft_iron_crowbar')
+    expect(findGridRecipe(bronzeCrowbarGrid, recipes)?.id).toBe('craft_bronze_crowbar')
   })
 
   it('mixes three copper dust and one tin dust into four bronze dust', () => {

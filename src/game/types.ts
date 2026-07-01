@@ -19,6 +19,8 @@ export type ResourceId =
   | 'ironWireCutters'
   | 'ironWrench'
   | 'bronzeWrench'
+  | 'ironCrowbar'
+  | 'bronzeCrowbar'
   | 'stone'
   | 'cobblestone'
   | 'gravel'
@@ -397,6 +399,7 @@ export type GameState = {
 }
 
 export type ProcessSlotId = 'input' | 'secondaryInput' | 'fuel' | 'output'
+export type PipeDirection = 'north' | 'east' | 'south' | 'west'
 
 export type MachineProcessState = {
   input: ProcessSlot
@@ -422,6 +425,7 @@ export type MachineInstance = {
   x: number
   y: number
   level: number
+  pipeDisabledSides?: Partial<Record<PipeDirection, boolean>>
   process: MachineProcessState
 }
 

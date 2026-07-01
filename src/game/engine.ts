@@ -50,6 +50,7 @@ import type {
   ProcessRecipe,
   ProcessSlot,
   ProcessSlotId,
+  PipeDirection,
   Quest,
   QuestObjective,
   QuestId,
@@ -141,6 +142,8 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   ironWireCutters: 128,
   ironWrench: 128,
   bronzeWrench: 192,
+  ironCrowbar: 128,
+  bronzeCrowbar: 192,
   mortar: 64,
   ironMortar: 128,
   bronzeMortar: 192,
@@ -151,6 +154,15 @@ const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
   mortar: ['bronzeMortar', 'ironMortar', 'mortar'],
   ironFile: ['bronzeFile', 'ironFile'],
   ironWrench: ['bronzeWrench', 'ironWrench'],
+  ironCrowbar: ['bronzeCrowbar', 'ironCrowbar'],
+}
+
+export const pipeDirections: PipeDirection[] = ['north', 'east', 'south', 'west']
+const oppositePipeDirection: Record<PipeDirection, PipeDirection> = {
+  north: 'south',
+  east: 'west',
+  south: 'north',
+  west: 'east',
 }
 
 function emptyProcessState(): MachineProcessState {
@@ -233,6 +245,15 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
   }
 }
 
+function normalizePipeDisabledSides(parsed?: Partial<Record<PipeDirection, boolean>>) {
+  const normalized: Partial<Record<PipeDirection, boolean>> = {}
+  if (!parsed) return normalized
+  for (const direction of pipeDirections) {
+    if (parsed[direction]) normalized[direction] = true
+  }
+  return normalized
+}
+
 const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
   helmet: [],
   chestplate: [],
@@ -274,6 +295,7 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
       x: Math.floor(instance.x ?? 0),
       y: Math.floor(instance.y ?? 0),
       level: Math.max(1, Math.floor(instance.level ?? 1)),
+      pipeDisabledSides: normalizePipeDisabledSides(instance.pipeDisabledSides),
       process: normalizeProcessState(instance.process),
     }))
 }
@@ -285,6 +307,7 @@ export function cloneState(state: GameState): GameState {
     machines: { ...state.machines },
     machineInstances: state.machineInstances.map((instance) => ({
       ...instance,
+      pipeDisabledSides: { ...instance.pipeDisabledSides },
       process: cloneProcessState(instance.process),
     })),
     completedQuests: [...state.completedQuests],
@@ -960,6 +983,28 @@ function machineAt(state: GameState, x: number, y: number) {
   return state.machineInstances.find((instance) => instance.x === x && instance.y === y)
 }
 
+function isConfigurableConnector(machineId: MachineId) {
+  return isSteamPipeMachine(machineId) || isEuCableMachine(machineId)
+}
+
+function directionBetween(from: MachineInstance, to: MachineInstance): PipeDirection | null {
+  if (to.x === from.x && to.y === from.y - 1) return 'north'
+  if (to.x === from.x + 1 && to.y === from.y) return 'east'
+  if (to.x === from.x && to.y === from.y + 1) return 'south'
+  if (to.x === from.x - 1 && to.y === from.y) return 'west'
+  return null
+}
+
+function connectorAllowsDirection(instance: MachineInstance, direction: PipeDirection) {
+  return !isConfigurableConnector(instance.machineId) || !instance.pipeDisabledSides?.[direction]
+}
+
+export function machinesCanConnect(from: MachineInstance, to: MachineInstance) {
+  const direction = directionBetween(from, to)
+  if (!direction) return false
+  return connectorAllowsDirection(from, direction) && connectorAllowsDirection(to, oppositePipeDirection[direction])
+}
+
 function brickedBlastFurnacePositions(state: GameState, centerX: number, centerY: number) {
   const positions = [
     { x: centerX, y: centerY },
@@ -1045,7 +1090,12 @@ function connectedFluidNetwork(state: GameState, start: MachineInstance) {
 
     for (const position of adjacentPositions(state, instance.x, instance.y)) {
       const next = machineAt(state, position.x, position.y)
-      if (next && (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well') && !visited.has(next.uid)) {
+      if (
+        next &&
+        machinesCanConnect(instance, next) &&
+        (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well') &&
+        !visited.has(next.uid)
+      ) {
         queue.push(next)
       }
     }
@@ -1070,7 +1120,7 @@ function connectedSteamNetwork(state: GameState, start: MachineInstance) {
 
     for (const position of adjacentPositions(state, instance.x, instance.y)) {
       const next = machineAt(state, position.x, position.y)
-      if (next && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
+      if (next && machinesCanConnect(instance, next) && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
     }
   }
   return network
@@ -1094,6 +1144,7 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
     for (const position of adjacentPositions(state, current.instance.x, current.instance.y)) {
       const next = machineAt(state, position.x, position.y)
       if (!next || !isEuNetworkMachine(next.machineId)) continue
+      if (!machinesCanConnect(current.instance, next)) continue
       const nextDistance = current.cableDistance + (isEuCableMachine(next.machineId) ? 1 : 0)
       const knownDistance = visited.get(next.uid)
       if (typeof knownDistance !== 'number' || nextDistance < knownDistance) {
@@ -1114,7 +1165,7 @@ function connectedEuProducers(state: GameState, start: MachineInstance) {
 function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance) {
   return adjacentPositions(state, tank.x, tank.y).some((position) => {
     const adjacent = machineAt(state, position.x, position.y)
-    return adjacent?.machineId === 'steamBoiler' || Boolean(adjacent && isSteamPipeMachine(adjacent.machineId))
+    return Boolean(adjacent && machinesCanConnect(tank, adjacent) && (adjacent.machineId === 'steamBoiler' || isSteamPipeMachine(adjacent.machineId)))
   })
 }
 
@@ -1313,6 +1364,27 @@ export function unassignAutoMiner(state: GameState, uid: string) {
   return next
 }
 
+export function setPipeSideDisabled(state: GameState, uid: string, direction: PipeDirection, disabled: boolean) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isConfigurableConnector(instance.machineId)) return state
+
+  const next = cloneState(state)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextInstance) return state
+  const sides = { ...nextInstance.pipeDisabledSides }
+  if (disabled) sides[direction] = true
+  else delete sides[direction]
+  nextInstance.pipeDisabledSides = sides
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function togglePipeSideDisabled(state: GameState, uid: string, direction: PipeDirection) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isConfigurableConnector(instance.machineId)) return state
+  return setPipeSideDisabled(state, uid, direction, !instance.pipeDisabledSides?.[direction])
+}
+
 export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTargetId, machineId?: MachineId) {
   return state.machineInstances.filter(
     (instance) =>
@@ -1357,13 +1429,13 @@ export function removeMachineInstance(state: GameState, uid: string) {
   return next
 }
 
-export function canWrenchRemoveMachine(state: GameState) {
-  return hasDurableUses(state, [{ id: 'ironWrench', amount: 1 }])
+export function canCrowbarRemoveMachine(state: GameState) {
+  return hasDurableUses(state, [{ id: 'ironCrowbar', amount: 1 }])
 }
 
-export function wrenchRemoveMachineInstance(state: GameState, uid: string) {
-  if (!canWrenchRemoveMachine(state)) return state
-  return removeMachineInstance(applyDurabilityCosts(state, [{ id: 'ironWrench', amount: 1 }]), uid)
+export function crowbarRemoveMachineInstance(state: GameState, uid: string) {
+  if (!canCrowbarRemoveMachine(state)) return state
+  return removeMachineInstance(applyDurabilityCosts(state, [{ id: 'ironCrowbar', amount: 1 }]), uid)
 }
 
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
@@ -2090,6 +2162,7 @@ function migrateMachineInstances(machinesState: Record<MachineId, number>, found
       x: index % grid.width,
       y: Math.floor(index / grid.width),
       level: 1,
+      pipeDisabledSides: {},
       process: emptyProcessState(),
     })
   }

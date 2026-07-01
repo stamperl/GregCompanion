@@ -1302,6 +1302,8 @@ button.craft-output:disabled {
 .pixel-ironWireCutters span,
 .pixel-ironWrench span,
 .pixel-bronzeWrench span,
+.pixel-ironCrowbar span,
+.pixel-bronzeCrowbar span,
 .pixel-mortar span,
 .pixel-ironMortar span,
 .pixel-bronzeMortar span,
@@ -1758,7 +1760,9 @@ button.craft-output:disabled {
 }
 
 .pixel-ironWrench,
-.pixel-bronzeWrench {
+.pixel-bronzeWrench,
+.pixel-ironCrowbar,
+.pixel-bronzeCrowbar {
   background: transparent;
   box-shadow: none;
 }
@@ -1774,6 +1778,17 @@ button.craft-output:disabled {
   width: 24px;
 }
 
+.pixel-ironCrowbar::before,
+.pixel-bronzeCrowbar::before {
+  background: linear-gradient(90deg, var(--p3), var(--p1) 52%, var(--p2));
+  clip-path: polygon(0 36%, 54% 36%, 72% 10%, 100% 10%, 82% 42%, 100% 74%, 72% 74%, 54% 64%, 0 64%);
+  height: 18px;
+  left: 2px;
+  top: 5px;
+  transform: rotate(-42deg);
+  width: 25px;
+}
+
 .pixel-ironWrench {
   --p1: #8f9aa0;
   --p2: #4f585e;
@@ -1781,6 +1796,18 @@ button.craft-output:disabled {
 }
 
 .pixel-bronzeWrench {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
+.pixel-ironCrowbar {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-bronzeCrowbar {
   --p1: #b7854c;
   --p2: #73522f;
   --p3: #dec279;
@@ -3644,6 +3671,114 @@ button.craft-output:disabled {
     repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
     linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
     #a06d35;
+}
+
+.pipe-config-modal {
+  max-width: min(92vw, 390px);
+}
+
+.pipe-config-grid {
+  background:
+    linear-gradient(90deg, rgba(70, 70, 70, 0.16) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(70, 70, 70, 0.16) 1px, transparent 1px),
+    #a8a8a8;
+  background-size: 12px 12px;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.pipe-config-cell {
+  align-items: center;
+  background: #8f8f8f;
+  border: 2px solid #cfcfcf;
+  border-bottom-color: #676767;
+  border-radius: 0;
+  border-right-color: #676767;
+  color: #242424;
+  display: grid;
+  font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 2px;
+  height: 58px;
+  justify-items: center;
+  min-width: 0;
+  padding: 3px;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.pipe-config-cell.toggle {
+  background: #9d9d9d;
+}
+
+.pipe-config-cell.connected-side {
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+}
+
+.pipe-config-cell.disabled-side {
+  background:
+    repeating-linear-gradient(135deg, rgba(42, 42, 42, 0.22) 0 4px, transparent 4px 8px),
+    #777;
+  color: #f4f0dc;
+}
+
+.pipe-config-cell.disabled-side::after {
+  background: #3a3a3a;
+  bottom: 5px;
+  content: "OFF";
+  font-size: 0.5rem;
+  left: 5px;
+  padding: 1px 3px;
+  position: absolute;
+}
+
+.pipe-config-cell.center {
+  background: #6f6a53;
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+}
+
+.pipe-config-cell .machine-glyph {
+  height: 34px;
+  width: 34px;
+}
+
+.pipe-config-cell.center .machine-glyph {
+  height: 42px;
+  width: 42px;
+}
+
+.pipe-config-cell strong {
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
+.empty-pipe-neighbour {
+  background: #7c7c7c;
+  display: block;
+  height: 18px;
+  opacity: 0.45;
+  width: 18px;
+}
+
+.pipe-config-note {
+  background: #9f9f9f;
+  border: 2px solid #777;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  color: #2d2d2d;
+  font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+  margin: 8px 0 0;
+  padding: 6px;
+  text-transform: uppercase;
 }
 
 .factory-cell.occupied.machine-steamTurbine-cell::before {
