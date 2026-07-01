@@ -8,7 +8,6 @@ import {
   Factory,
   Pickaxe,
   RotateCcw,
-  Save,
   Trash2,
   Undo2,
   X,
@@ -115,24 +114,6 @@ type AchievementToast = {
   id: number
   questId: QuestId
   title: string
-}
-
-type ServerSaveSlot = {
-  id: string
-  updatedAt: string
-  size: number
-}
-
-const serverSaveIdKey = 'block-tech-idle-server-save-id'
-
-function normalizeServerSaveId(value: string) {
-  return value.trim().replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 32) || 'phone'
-}
-
-function formatServerSaveDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Unknown time'
-  return date.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
 }
 
 type Page = 'gather' | 'terminal' | 'processing' | 'guide'
@@ -1026,12 +1007,7 @@ function App() {
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [terminalNotice, setTerminalNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
-  const [saveBackupNotice, setSaveBackupNotice] = useState('')
-  const [serverSaveId, setServerSaveId] = useState(() => localStorage.getItem(serverSaveIdKey) ?? 'phone')
-  const [serverSaves, setServerSaves] = useState<ServerSaveSlot[]>([])
-  const [isServerSaveBusy, setIsServerSaveBusy] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(false)
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
@@ -1820,81 +1796,6 @@ function App() {
     addFloatText('reward claimed')
   }
 
-  const currentSaveBackup = useMemo(() => (isCreativeMode ? (localStorage.getItem(saveKey) ?? saveGame(loadGame(null))) : saveGame(state)), [isCreativeMode, state])
-
-  const refreshServerSaves = async () => {
-    try {
-      const response = await fetch('/api/saves')
-      if (!response.ok) throw new Error('PC save server is not available.')
-      const data = (await response.json()) as { saves?: ServerSaveSlot[] }
-      setServerSaves(data.saves ?? [])
-    } catch {
-      setServerSaves([])
-      setSaveBackupNotice('PC saves need the local dev server running on this computer.')
-    }
-  }
-
-  const applyRestoredSave = (rawSave: string, notice: string) => {
-    const restored = loadGame(rawSave)
-    setState(restored)
-    knownCompletedQuestsRef.current = new Set(restored.completedQuests)
-    localStorage.setItem(saveKey, saveGame(restored))
-    handleClearGrid()
-    setSelectedResource(null)
-    setPendingProcessInsert(null)
-    setMissingBatch(null)
-    setSaveBackupNotice(notice)
-    addFloatText('save restored')
-  }
-
-  const handleSaveToPc = async () => {
-    const slotId = normalizeServerSaveId(serverSaveId)
-    setServerSaveId(slotId)
-    setIsServerSaveBusy(true)
-    setSaveBackupNotice('')
-
-    try {
-      const response = await fetch(`/api/saves/${encodeURIComponent(slotId)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ save: currentSaveBackup }),
-      })
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
-      if (!response.ok) throw new Error(data.error ?? 'Could not save to PC.')
-
-      localStorage.setItem(serverSaveIdKey, slotId)
-      setSaveBackupNotice(`Saved ${slotId} to this PC.`)
-      await refreshServerSaves()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not save to PC.'
-      setSaveBackupNotice(message)
-    } finally {
-      setIsServerSaveBusy(false)
-    }
-  }
-
-  const handleLoadFromPc = async (requestedSlotId = serverSaveId) => {
-    const slotId = normalizeServerSaveId(requestedSlotId)
-    setServerSaveId(slotId)
-    setIsServerSaveBusy(true)
-    setSaveBackupNotice('')
-
-    try {
-      const response = await fetch(`/api/saves/${encodeURIComponent(slotId)}`)
-      const data = (await response.json().catch(() => ({}))) as { save?: unknown; error?: string }
-      if (!response.ok || typeof data.save !== 'string') throw new Error(data.error ?? 'Could not load that PC save.')
-
-      applyRestoredSave(data.save, `Loaded ${slotId} from this PC.`)
-      localStorage.setItem(serverSaveIdKey, slotId)
-      await refreshServerSaves()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not load that PC save.'
-      setSaveBackupNotice(message)
-    } finally {
-      setIsServerSaveBusy(false)
-    }
-  }
-
   const handleReset = () => {
     localStorage.removeItem(saveKey)
     setIsCreativeMode(false)
@@ -1911,9 +1812,7 @@ function App() {
     setPendingProcessInsert(null)
     setMissingBatch(null)
     setIsRecipeModalOpen(false)
-    setIsSaveModalOpen(false)
     setIsFactoryExpandModalOpen(false)
-    setSaveBackupNotice('')
     setAchievementToasts([])
     setPlacingMachineId(null)
     setSelectedMachineUid(null)
@@ -1935,10 +1834,6 @@ function App() {
     setState((currentState) => (nextCreative ? createCreativeState(currentState) : loadGame(localStorage.getItem(saveKey))))
     addFloatText(nextCreative ? 'creative on' : 'creative off')
   }
-
-  useEffect(() => {
-    if (isSaveModalOpen) void refreshServerSaves()
-  }, [isSaveModalOpen])
 
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
   const terminalOutput = terminalMatch ? recipePrimaryOutput(terminalMatch) : undefined
@@ -2046,10 +1941,6 @@ function App() {
       setSelectedMachineUid(null)
       return
     }
-    if (isSaveModalOpen) {
-      setIsSaveModalOpen(false)
-      return
-    }
     if (page !== 'gather') setPage('gather')
   }
 
@@ -2100,9 +1991,6 @@ function App() {
             onClick={handleToggleCreativeMode}
           >
             32
-          </button>
-          <button type="button" className="icon-button" aria-label="Save slots" title="Save slots" onClick={() => setIsSaveModalOpen(true)}>
-            <Save size={18} />
           </button>
           <button type="button" className="icon-button" aria-label="Reset save" title="Reset save" onClick={handleReset}>
             <RotateCcw size={18} />
@@ -3187,64 +3075,6 @@ function App() {
           onSelectResource={handleJumpToResourceRecipe}
           onSelectMachine={handleJumpToMachineRecipe}
         />
-      )}
-
-      {isSaveModalOpen && (
-        <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setIsSaveModalOpen(false)}>
-          <section
-            className="missing-modal save-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Save backup"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="modal-head">
-              <div>
-                <p className="eyebrow">Save backup</p>
-                <h2>Keep your progress</h2>
-              </div>
-              <button type="button" className="icon-button" aria-label="Close save backup" onClick={() => setIsSaveModalOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <p className="save-help">Progress auto-saves on this phone. PC save slots let this computer keep named backups you can return to while the server is running.</p>
-
-            <div className="pc-save-panel" aria-label="PC save slots">
-              <label className="save-field">
-                <span>PC save slot</span>
-                <input
-                  value={serverSaveId}
-                  maxLength={32}
-                  placeholder="phone"
-                  onChange={(event) => setServerSaveId(event.target.value)}
-                  onBlur={() => setServerSaveId((value) => normalizeServerSaveId(value))}
-                />
-              </label>
-              <div className="save-actions">
-                <button type="button" className="load-recipe-button" disabled={isServerSaveBusy} onClick={handleSaveToPc}>
-                  Save to PC
-                </button>
-                <button type="button" className="load-recipe-button restore-button" disabled={isServerSaveBusy} onClick={() => void handleLoadFromPc()}>
-                  Load from PC
-                </button>
-              </div>
-              <div className="server-save-list" aria-label="Saved PC slots">
-                {serverSaves.length ? (
-                  serverSaves.map((slot) => (
-                    <button type="button" className="server-save-row" key={slot.id} disabled={isServerSaveBusy} onClick={() => void handleLoadFromPc(slot.id)}>
-                      <span>{slot.id}</span>
-                      <small>{formatServerSaveDate(slot.updatedAt)}</small>
-                    </button>
-                  ))
-                ) : (
-                  <p>No PC saves yet.</p>
-                )}
-              </div>
-            </div>
-            {saveBackupNotice && <p className="missing-line">{saveBackupNotice}</p>}
-          </section>
-        </div>
       )}
 
       {dragPreview && (
