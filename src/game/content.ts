@@ -2458,7 +2458,7 @@ export const quests: Quest[] = [
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
     title: 'Macerate wood pulp',
-    description: 'Run logs through the macerator so the circuit board has a workable fibre base.',
+    description: 'Run planks through the macerator so the circuit board has a workable fibre base.',
     position: { x: 790, y: 20 },
     icon: { type: 'resource', id: 'woodPulp' },
     prerequisites: ['insulateWireQuest'],

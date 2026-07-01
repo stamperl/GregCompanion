@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialState, fuelDefinitions, processRecipes, quests, recipes } from './content'
-import { recipesProducingResource, recipesUsingResource } from './recipeGraph'
+import { createInitialState, fuelDefinitions, gatherTargets, processRecipes, quests, recipes } from './content'
+import { processRecipesProducingResource, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableResourceAmount,
@@ -346,6 +346,20 @@ describe('game engine', () => {
     expect(vacuumTubes.prerequisites).toEqual(['cutRedAlloyWireQuest', 'makeGlassTubes'])
     expect(circuitBoard.prerequisites).toEqual(['pulpWoodQuest'])
     expect(firstCircuit.prerequisites).toEqual(['pressCircuitBoard', 'makeVacuumTubes', 'makeResistors', 'insulateWireQuest'])
+
+    const lvResourceObjectives = quests
+      .filter((quest) => quest.chapterId === 'lvFoundations')
+      .flatMap((quest) => quest.requirements.resources ?? [])
+
+    for (const objective of lvResourceObjectives) {
+      const craftingSources = recipesProducingResource(objective.id, recipes)
+      const processingSources = processRecipesProducingResource(objective.id, processRecipes)
+      const gatherSources = Object.values(gatherTargets).filter((target) => target.drops.some((drop) => drop.id === objective.id))
+      expect(
+        craftingSources.length + processingSources.length + gatherSources.length,
+        `${objective.id} should have a recipe, machine process, or gather source`,
+      ).toBeGreaterThan(0)
+    }
   })
 
   it('migrates old saves into the new wood-opening state shape', () => {

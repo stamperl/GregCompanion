@@ -1,4 +1,4 @@
-import type { MachineAmount, Recipe, ResourceAmount, ResourceId } from './types'
+import type { MachineAmount, ProcessRecipe, Recipe, ResourceAmount, ResourceId } from './types'
 
 export function recipeResourceInputs(recipe: Recipe): ResourceAmount[] {
   return [...recipe.inputs, ...(recipe.catalysts ?? []), ...(recipe.durabilityCosts ?? [])]
@@ -30,4 +30,12 @@ export function recipesProducingResource(resourceId: ResourceId, candidates: Rec
 
 export function recipesUsingResource(resourceId: ResourceId, candidates: Recipe[]) {
   return candidates.filter((recipe) => recipeUsesResource(recipe, resourceId))
+}
+
+export function processRecipeProducesResource(recipe: ProcessRecipe, resourceId: ResourceId) {
+  return recipe.output.id === resourceId
+}
+
+export function processRecipesProducingResource(resourceId: ResourceId, candidates: ProcessRecipe[]) {
+  return candidates.filter((recipe) => processRecipeProducesResource(recipe, resourceId))
 }
