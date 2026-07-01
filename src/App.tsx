@@ -49,6 +49,7 @@ import {
   availableConnectedEu,
   availableConnectedSteam,
   assignAutoMiner,
+  boilerSteamProductionLitresPerSecond,
   boilerHasWater,
   boilerSteamCapacityMs,
   cokeOvenFluidCapacityLitres,
@@ -1021,6 +1022,14 @@ function App() {
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
   const selectedMachineSteamCostLitres = selectedMachineRecipe?.steamCostLitres ?? null
   const selectedMachineEuCost = selectedMachineRecipe?.euCost ?? null
+  const selectedMachineSteamUsagePerSecond = selectedMachineRecipe && selectedMachineSteamCostLitres !== null
+    ? selectedMachineSteamCostLitres / (selectedMachineRecipe.durationMs / 1000)
+    : 0
+  const selectedMachineEuUsagePerSecond = selectedMachineRecipe && selectedMachineEuCost !== null
+    ? selectedMachineEuCost / (selectedMachineRecipe.durationMs / 1000)
+    : 0
+  const steamAutoMinerSteamUsagePerSecond = steamAutoMinerSteamUseLitres / (steamAutoMinerActionMs / 1000)
+  const lvAutoMinerEuUsagePerSecond = lvAutoMinerEuUse / (lvAutoMinerActionMs / 1000)
   const pendingProcessMachine = pendingProcessInsert
     ? state.machineInstances.find((instance) => instance.uid === pendingProcessInsert.uid) ?? null
     : null
@@ -2830,7 +2839,11 @@ function App() {
                 <div className="machine-status-row">
                   <span>{machineStatus(state, selectedMachine)}</span>
                   {selectedMachine.machineId === 'steamBoiler' && (
-                    <strong>Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(boilerSteamCapacityMs)}L</strong>
+                    <strong>
+                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(boilerSteamCapacityMs)}L
+                      {' | '}
+                      Produces {formatAmount(boilerSteamProductionLitresPerSecond)}L/s
+                    </strong>
                   )}
                   {selectedMachine.machineId === 'steamMacerator' && (
                     <strong>
@@ -2838,7 +2851,7 @@ function App() {
                       {' | '}
                       Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
                       {' | '}
-                      Uses {selectedMachineSteamCostLitres ?? 0}L
+                      Uses {formatAmount(selectedMachineSteamUsagePerSecond)}L/s
                     </strong>
                   )}
                   {isSteamPoweredMachine(selectedMachine.machineId) && selectedMachine.machineId !== 'steamMacerator' && !isAutoMinerMachine(selectedMachine.machineId) && (
@@ -2847,7 +2860,7 @@ function App() {
                       {' | '}
                       Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
                       {' | '}
-                      Uses {selectedMachineSteamCostLitres ?? 0}L
+                      Uses {formatAmount(selectedMachineSteamUsagePerSecond)}L/s
                     </strong>
                   )}
                   {selectedMachine.machineId === 'steamTank' && (
@@ -2868,7 +2881,9 @@ function App() {
                       {' | '}
                       Steam supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
                       {' | '}
-                      Uses up to {steamTurbineSteamUseLitresPerSecond}L/s
+                      Uses {formatAmount(steamTurbineSteamUseLitresPerSecond)}L/s
+                      {' | '}
+                      Makes {formatAmount(steamTurbineSteamUseLitresPerSecond * 2)} EU/s
                     </strong>
                   )}
                   {isEuPoweredMachine(selectedMachine.machineId) && !isAutoMinerMachine(selectedMachine.machineId) && (
@@ -2877,7 +2892,7 @@ function App() {
                       {' | '}
                       Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
                       {' | '}
-                      Uses {selectedMachineEuCost ?? 0} EU
+                      Uses {formatAmount(selectedMachineEuUsagePerSecond)} EU/s
                     </strong>
                   )}
                   {selectedMachine.machineId === 'steamAutoMiner' && (
@@ -2886,7 +2901,7 @@ function App() {
                       {' | '}
                       Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
                       {' | '}
-                      Uses {steamAutoMinerSteamUseLitres}L/action
+                      Uses {formatAmount(steamAutoMinerSteamUsagePerSecond)}L/s
                     </strong>
                   )}
                   {selectedMachine.machineId === 'lvAutoMiner' && (
@@ -2895,7 +2910,7 @@ function App() {
                       {' | '}
                       Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
                       {' | '}
-                      Uses {lvAutoMinerEuUse} EU/action
+                      Uses {formatAmount(lvAutoMinerEuUsagePerSecond)} EU/s
                     </strong>
                   )}
                 </div>
@@ -2930,7 +2945,7 @@ function App() {
                     <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={steamTurbineEuCapacity} />
                     <MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.activeRecipeId === 'generate_lv_eu'} />
                     <span>
-                      Uses up to {steamTurbineSteamUseLitresPerSecond}L/s steam to make {steamTurbineSteamUseLitresPerSecond * 2} EU/s
+                      Uses {formatAmount(steamTurbineSteamUseLitresPerSecond)}L/s steam to make {formatAmount(steamTurbineSteamUseLitresPerSecond * 2)} EU/s
                     </span>
                   </div>
                 ) : isAutoMinerMachine(selectedMachine.machineId) ? (
@@ -2971,13 +2986,13 @@ function App() {
                     {isSteamPoweredMachine(selectedMachine.machineId) && (
                       <>
                         <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={steamMachineInternalCapacityMs} />
-                        <span className="steam-usage-line">{selectedMachineSteamCostLitres ?? 0}L/craft</span>
+                        <span className="steam-usage-line">{formatAmount(selectedMachineSteamUsagePerSecond)}L/s</span>
                       </>
                     )}
                     {isEuPoweredMachine(selectedMachine.machineId) && (
                       <>
                         <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || 0} />
-                        <span className="steam-usage-line">{selectedMachineEuCost ?? 0} EU/craft</span>
+                        <span className="steam-usage-line">{formatAmount(selectedMachineEuUsagePerSecond)} EU/s</span>
                       </>
                     )}
                     {selectedMachine.machineId === 'cokeOven' && (

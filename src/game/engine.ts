@@ -106,6 +106,7 @@ export const cokeOvenFluidCapacityLitres = machineFluidCapacityLitres('cokeOven'
 export const ironTankFluidCapacityLitres = machineFluidCapacityLitres('steamTank')
 export const steamMachineInternalCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
 export const euPerSteamLitre = 2
+export const boilerSteamProductionLitresPerSecond = 2
 export const steamTurbineSteamUseLitresPerSecond = 8
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
@@ -1525,13 +1526,17 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
     return
   }
 
-  const produced = Math.min(elapsedMs, process.fuelRemainingMs, boilerSteamCapacityMs - process.steamStoredMs)
+  const burnMs = Math.min(elapsedMs, process.fuelRemainingMs, (boilerSteamCapacityMs - process.steamStoredMs) / boilerSteamProductionLitresPerSecond)
+  const produced = burnMs * boilerSteamProductionLitresPerSecond
   if (produced < 1) return
   process.activeRecipeId = 'make_steam'
   process.progressMs = 0
   process.durationMs = 0
-  burnProcessFuel(process, produced)
+  burnProcessFuel(process, burnMs)
   process.steamStoredMs += produced
+  if (process.steamStoredMs >= boilerSteamCapacityMs && process.fuelRemainingMs > 0) {
+    burnProcessFuel(process, elapsedMs - burnMs)
+  }
 }
 
 function tickSteamProcessMachine(state: GameState, instance: MachineInstance, elapsedMs: number) {

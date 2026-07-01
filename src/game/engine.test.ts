@@ -1493,7 +1493,7 @@ describe('game engine', () => {
     state = insertProcessSlot(state, distantBoiler.uid, 'fuel', 'log', 1)
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === adjacentBoiler.uid)!.process.steamStoredMs).toBe(1000)
+    expect(state.machineInstances.find((instance) => instance.uid === adjacentBoiler.uid)!.process.steamStoredMs).toBe(2000)
     expect(state.machineInstances.find((instance) => instance.uid === distantBoiler.uid)!.process.steamStoredMs).toBe(0)
   })
 
@@ -1514,10 +1514,10 @@ describe('game engine', () => {
     state = tickGame(state, 1000).state
 
     expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').map((instance) => instance.process.steamStoredMs)).toEqual([
-      1000,
-      1000,
-      1000,
-      1000,
+      2000,
+      2000,
+      2000,
+      2000,
     ])
   })
 
@@ -1537,21 +1537,21 @@ describe('game engine', () => {
     state = tickGame(state, 80000).state
 
     let process = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
-    expect(process.steamStoredMs).toBe(80000)
+    expect(process.steamStoredMs).toBe(128000)
     expect(process.fuelRemainingMs).toBe(0)
     expect(process.fuel?.amount).toBe(1)
 
     state = tickGame(state, 48000).state
     process = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
     expect(process.steamStoredMs).toBe(128000)
-    expect(process.fuelRemainingMs).toBe(32000)
-    expect(process.fuel).toBeNull()
+    expect(process.fuelRemainingMs).toBe(0)
+    expect(process.fuel?.amount).toBe(1)
 
     state = tickGame(state, 32000).state
     process = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
     expect(process.steamStoredMs).toBe(128000)
     expect(process.fuelRemainingMs).toBe(0)
-    expect(process.fuel).toBeNull()
+    expect(process.fuel?.amount).toBe(1)
   })
 
   it('does not ignite boiler fuel without adjacent well water', () => {
@@ -1587,7 +1587,7 @@ describe('game engine', () => {
     const boilerProcess = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
     expect(maceratorProcess.steamCapacityMs).toBe(steamMaceratorCapacityMs)
     expect(maceratorProcess.steamStoredMs).toBe(32000)
-    expect(boilerProcess.steamStoredMs).toBe(0)
+    expect(boilerProcess.steamStoredMs).toBe(32000)
   })
 
   it('fills an iron steam tank from a connected boiler through copper pipes at pipe speed', () => {
@@ -1893,10 +1893,6 @@ describe('game engine', () => {
 
     state = insertProcessSlot(state, boiler.uid, 'fuel', 'coal', 1)
     state = tickGame(state, 32000).state
-    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.progressMs).toBe(4000)
-
-    state = tickGame(state, 16000).state
-
     expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.output).toEqual({ id: 'copperDust', amount: 1 })
   })
 
