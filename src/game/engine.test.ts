@@ -2009,6 +2009,23 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.steamStoredMs ?? 0).toBeLessThan(32000)
   })
 
+  it('fills an unassigned steam auto miner buffer when connected to steam', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.steamAutoMiner = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamAutoMiner', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.process.steamStoredMs = steamTankCapacityMs
+    const miner = state.machineInstances.find((instance) => instance.machineId === 'steamAutoMiner')!
+
+    state = tickGame(state, 1000).state
+
+    const nextMiner = state.machineInstances.find((instance) => instance.uid === miner.uid)!
+    expect(nextMiner.process.steamStoredMs).toBeGreaterThan(0)
+    expect(nextMiner.process.activeRecipeId).toBeNull()
+    expect(state.resources.cobblestone).toBe(0)
+  })
+
   it('stacks multiple powered auto miners on the same resource', () => {
     let state = createFactoryState(1000)
     state.machines.steamTank = 1

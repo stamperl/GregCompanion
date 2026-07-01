@@ -6027,9 +6027,18 @@ button.craft-output:disabled {
   width: 34%;
 }
 
+.auto-miner-interface {
+  grid-template-columns: minmax(0, 1fr) 58px;
+  overflow: hidden;
+}
+
 .auto-miner-interface .machine-glyph {
   height: 58px;
   width: 58px;
+}
+
+.auto-miner-interface > span:last-child {
+  grid-column: 1 / -1;
 }
 
 .machine-cokeOven {

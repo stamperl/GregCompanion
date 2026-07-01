@@ -1744,6 +1744,16 @@ function applyAutoMinerDamage(state: GameState, targetId: GatherTargetId, damage
 }
 
 function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  if (instance.machineId === 'steamAutoMiner') {
+    instance.process.steamCapacityMs = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
+    instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, instance.process.steamCapacityMs)
+    fillInternalSteamFromConnectedStorage(state, instance, elapsedMs)
+  } else if (instance.machineId === 'lvAutoMiner') {
+    instance.process.euCapacity = machineEuCapacity(instance.machineId)
+    instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
+    fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+  }
+
   const targetId = state.autoMinerAssignments[instance.uid]
   if (!targetId || !canAutoMinerTarget(instance.machineId, targetId)) {
     instance.process.activeRecipeId = null
@@ -1753,8 +1763,6 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
   let remainingMs = elapsedMs
   let workedMs = 0
   if (instance.machineId === 'steamAutoMiner') {
-    instance.process.steamCapacityMs = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
-    instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, instance.process.steamCapacityMs)
     const steamCostPerMs = (steamAutoMinerSteamUseLitresPerSecond * steamMsPerLitre) / 1000
     while (remainingMs > 0) {
       fillInternalSteamFromConnectedStorage(state, instance, remainingMs)
@@ -1767,8 +1775,6 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
       workedMs += workMs
     }
   } else if (instance.machineId === 'lvAutoMiner') {
-    instance.process.euCapacity = machineEuCapacity(instance.machineId)
-    instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
     const euCostPerMs = lvAutoMinerEuUsePerSecond / 1000
     while (remainingMs > 0) {
       fillInternalEuFromConnectedStorage(state, instance, remainingMs)

@@ -3085,7 +3085,9 @@ function App() {
                     </div>
                   </div>
                 )}
-                <p className="furnace-help">Tap storage, then a valid slot to choose an amount. Tap Output to collect.</p>
+                {machineUsesProcessStorage(selectedMachine.machineId) && (
+                  <p className="furnace-help">Tap storage, then a valid slot to choose an amount. Tap Output to collect.</p>
+                )}
               </section>
             </div>
           )}
