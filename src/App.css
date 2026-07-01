@@ -3718,8 +3718,18 @@ button.craft-output:disabled {
 .factory-cell.occupied.machine-ironPipe-cell .machine-glyph,
 .factory-cell.occupied.machine-tinCable-cell .machine-glyph {
   filter: none;
-  height: 40px;
-  width: 40px;
+  height: 48px;
+  inset: -2px;
+  position: absolute;
+  width: 48px;
+}
+
+.factory-cell.occupied.machine-copperPipe-cell .pipe-svg,
+.factory-cell.occupied.machine-bronzePipe-cell .pipe-svg,
+.factory-cell.occupied.machine-ironPipe-cell .pipe-svg,
+.factory-cell.occupied.machine-tinCable-cell .pipe-svg {
+  height: 100%;
+  width: 100%;
 }
 
 .furnace-modal {
