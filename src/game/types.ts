@@ -20,7 +20,6 @@ export type ResourceId =
   | 'ironWrench'
   | 'bronzeWrench'
   | 'ironCrowbar'
-  | 'bronzeCrowbar'
   | 'stone'
   | 'cobblestone'
   | 'gravel'

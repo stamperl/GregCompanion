@@ -38,7 +38,6 @@ export const resourceRegistry = {
   ironWrench: { id: 'ironWrench', label: 'Iron Wrench', category: 'tool', tier: 'bronze' },
   bronzeWrench: { id: 'bronzeWrench', label: 'Bronze Wrench', category: 'tool', tier: 'bronze' },
   ironCrowbar: { id: 'ironCrowbar', label: 'Iron Crowbar', category: 'tool', tier: 'bronze' },
-  bronzeCrowbar: { id: 'bronzeCrowbar', label: 'Bronze Crowbar', category: 'tool', tier: 'bronze' },
   stone: { id: 'stone', label: 'Stone', category: 'raw', tier: 'manual' },
   cobblestone: { id: 'cobblestone', label: 'Cobblestone', category: 'raw', tier: 'manual' },
   gravel: { id: 'gravel', label: 'Gravel', category: 'raw', tier: 'manual' },
@@ -1507,20 +1506,6 @@ export const recipes: Recipe[] = [
     pattern: ['ironRod', null, null, null, 'ironRod', null, 'ironPlate', 'ironPlate', null],
     outputs: [{ id: 'ironCrowbar', amount: 1 }],
     unlockedBy: 'firstDirt',
-  },
-  {
-    id: 'craft_bronze_crowbar',
-    name: 'Craft Bronze Crowbar',
-    description: 'A softer bronze pry bar for repeated factory floor teardown work.',
-    tier: 'bronze',
-    durationMs: 2600,
-    inputs: [
-      { id: 'bronzeRod', amount: 2 },
-      { id: 'bronzePlate', amount: 2 },
-    ],
-    pattern: ['bronzeRod', null, null, null, 'bronzeRod', null, 'bronzePlate', 'bronzePlate', null],
-    outputs: [{ id: 'bronzeCrowbar', amount: 1 }],
-    unlockedBy: 'bronzeAge',
   },
   {
     id: 'file_iron_rod',

@@ -143,7 +143,6 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   ironWrench: 128,
   bronzeWrench: 192,
   ironCrowbar: 128,
-  bronzeCrowbar: 192,
   mortar: 64,
   ironMortar: 128,
   bronzeMortar: 192,
@@ -154,7 +153,6 @@ const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
   mortar: ['bronzeMortar', 'ironMortar', 'mortar'],
   ironFile: ['bronzeFile', 'ironFile'],
   ironWrench: ['bronzeWrench', 'ironWrench'],
-  ironCrowbar: ['bronzeCrowbar', 'ironCrowbar'],
 }
 
 export const pipeDirections: PipeDirection[] = ['north', 'east', 'south', 'west']

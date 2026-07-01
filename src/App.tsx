@@ -209,7 +209,7 @@ const machineOrder: MachineId[] = [
   'brickedBlastFurnace',
 ]
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
-const factoryToolOrder: ResourceId[] = ['bronzeCrowbar', 'ironCrowbar', 'bronzeWrench', 'ironWrench']
+const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWrench']
 
 const pipeDirectionOffsets: Record<PipeDirection, { dx: number; dy: number; label: string }> = {
   north: { dx: 0, dy: -1, label: 'North' },
@@ -920,7 +920,7 @@ function App() {
   const factoryPanDragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; dragged: boolean } | null>(null)
   const suppressFactoryCellClickRef = useRef(false)
   const suppressClickRef = useRef(false)
-  const isFactoryRemoveMode = selectedFactoryTool === 'bronzeCrowbar' || selectedFactoryTool === 'ironCrowbar'
+  const isFactoryRemoveMode = selectedFactoryTool === 'ironCrowbar'
   const isFactoryPipeConfigMode = selectedFactoryTool === 'bronzeWrench' || selectedFactoryTool === 'ironWrench'
 
   useEffect(() => {
@@ -1262,7 +1262,7 @@ function App() {
       if (isFactoryRemoveMode) {
         setState((current) => {
           if (!canCrowbarRemoveMachine(current)) {
-            setTerminalNotice('Need an iron or bronze crowbar.')
+            setTerminalNotice('Need an iron crowbar.')
             setSelectedFactoryTool(null)
             return current
           }
@@ -2670,7 +2670,7 @@ function App() {
                           aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
                           aria-pressed={selectedFactoryTool === id}
                           title={
-                            id === 'bronzeCrowbar' || id === 'ironCrowbar'
+                            id === 'ironCrowbar'
                               ? `${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`
                               : `${resourceLabels[id]} - configure pipe and cable connections`
                           }
