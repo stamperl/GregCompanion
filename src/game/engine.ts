@@ -5,10 +5,17 @@ import {
   initialEquipment,
   initialMachines,
   initialResources,
+  isEuCableMachine,
+  isEuNetworkMachine,
+  isEuPoweredMachine,
+  isEuProducerMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
   isSteamPoweredMachine,
   isSteamStorageMachine,
+  machineEuCableLossPerTile,
+  machineEuCapacity,
+  machineEuOutputPerSecond,
   machineFluidCapacityLitres,
   machinePipeTransferLitresPerSecond,
   machineSteamCapacityLitres,
@@ -96,6 +103,11 @@ export const steamTankCapacityMs = machineSteamCapacityLitres('steamTank') * ste
 export const cokeOvenFluidCapacityLitres = machineFluidCapacityLitres('cokeOven')
 export const ironTankFluidCapacityLitres = machineFluidCapacityLitres('steamTank')
 export const steamMachineInternalCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
+export const euPerSteamLitre = 2
+export const steamTurbineSteamUseLitresPerSecond = 8
+export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
+export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
+export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
 export const steamPipeTransferLitresPerSecond = Object.fromEntries(
   (Object.keys(machines) as MachineId[])
     .map((machineId) => [machineId, machinePipeTransferLitresPerSecond(machineId)] as const)
@@ -145,6 +157,8 @@ function emptyProcessState(): MachineProcessState {
     fuelDurationMs: 0,
     steamStoredMs: 0,
     steamCapacityMs: 0,
+    euStored: 0,
+    euCapacity: 0,
     fluids: {},
     fluidCapacityLitres: 0,
   }
@@ -167,6 +181,8 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     fuelDurationMs: process.fuelDurationMs,
     steamStoredMs: process.steamStoredMs,
     steamCapacityMs: process.steamCapacityMs,
+    euStored: process.euStored,
+    euCapacity: process.euCapacity,
     fluids: { ...process.fluids },
     fluidCapacityLitres: process.fluidCapacityLitres,
   }
@@ -201,6 +217,8 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     fuelDurationMs: Math.max(0, Math.floor(process.fuelDurationMs ?? 0)),
     steamStoredMs: Math.max(0, Math.floor(process.steamStoredMs ?? 0)),
     steamCapacityMs: Math.max(0, Math.floor(process.steamCapacityMs ?? 0)),
+    euStored: Math.max(0, process.euStored ?? 0),
+    euCapacity: Math.max(0, Math.floor(process.euCapacity ?? 0)),
     fluids: normalizeFluidStore(process.fluids),
     fluidCapacityLitres: Math.max(0, Math.floor(process.fluidCapacityLitres ?? 0)),
   }
@@ -1048,6 +1066,41 @@ function connectedSteamNetwork(state: GameState, start: MachineInstance) {
   return network
 }
 
+function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance) {
+  if (!isEuNetworkMachine(start.machineId)) return [] as Array<{ instance: MachineInstance; cableDistance: number }>
+  const visited = new Map<string, number>()
+  const queue = [{ instance: start, cableDistance: 0 }]
+  const network: Array<{ instance: MachineInstance; cableDistance: number }> = []
+
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    const previousDistance = visited.get(current.instance.uid)
+    if (typeof previousDistance === 'number' && previousDistance <= current.cableDistance) continue
+    visited.set(current.instance.uid, current.cableDistance)
+    network.push(current)
+
+    if (current.instance.uid !== start.uid && !isEuCableMachine(current.instance.machineId)) continue
+
+    for (const position of adjacentPositions(state, current.instance.x, current.instance.y)) {
+      const next = machineAt(state, position.x, position.y)
+      if (!next || !isEuNetworkMachine(next.machineId)) continue
+      const nextDistance = current.cableDistance + (isEuCableMachine(next.machineId) ? 1 : 0)
+      const knownDistance = visited.get(next.uid)
+      if (typeof knownDistance !== 'number' || nextDistance < knownDistance) {
+        queue.push({ instance: next, cableDistance: nextDistance })
+      }
+    }
+  }
+
+  return network
+}
+
+function connectedEuProducers(state: GameState, start: MachineInstance) {
+  return connectedEuNetworkWithDistance(state, start)
+    .filter((entry) => entry.instance.uid !== start.uid && isEuProducerMachine(entry.instance.machineId))
+    .sort((a, b) => a.cableDistance - b.cableDistance || a.instance.uid.localeCompare(b.instance.uid))
+}
+
 function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance) {
   return adjacentPositions(state, tank.x, tank.y).some((position) => {
     const adjacent = machineAt(state, position.x, position.y)
@@ -1069,6 +1122,10 @@ function connectedSteamTransferRateMs(state: GameState, start: MachineInstance) 
 
 export function availableConnectedSteam(state: GameState, instance: MachineInstance) {
   return connectedSteamStorage(state, instance).reduce((sum, storage) => sum + storage.process.steamStoredMs, 0)
+}
+
+export function availableConnectedEu(state: GameState, instance: MachineInstance) {
+  return connectedEuProducers(state, instance).reduce((sum, producer) => sum + producer.instance.process.euStored, 0)
 }
 
 function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId: FluidId) {
@@ -1141,6 +1198,48 @@ function fillSteamTankFromConnectedStorage(state: GameState, instance: MachineIn
 
 function recipeSteamCostMs(recipe: ProcessRecipe) {
   return (recipe.steamCostLitres ?? Math.ceil(recipe.durationMs / steamMsPerLitre)) * steamMsPerLitre
+}
+
+function recipeEuCost(recipe: ProcessRecipe) {
+  return recipe.euCost ?? Math.ceil(recipe.durationMs / 1000) * 8
+}
+
+function consumeConnectedEu(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
+  let remaining = amount
+  let deliveredTotal = 0
+
+  for (const producer of connectedEuProducers(state, instance)) {
+    if (remaining <= 0) break
+    const outputPerSecond = machineEuOutputPerSecond(producer.instance.machineId)
+    const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile
+    const deliverablePerSecond = Math.max(0, outputPerSecond - lossPerSecond)
+    const transferLimit = (deliverablePerSecond * elapsedMs) / 1000
+    if (transferLimit <= 0) continue
+
+    const routeLoss = (lossPerSecond * elapsedMs) / 1000
+    const stored = producer.instance.process.euStored
+    const availableAfterLoss = Math.max(0, stored - routeLoss)
+    const delivered = Math.min(remaining, transferLimit, availableAfterLoss)
+    if (delivered <= 0) continue
+
+    producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
+    remaining -= delivered
+    deliveredTotal += delivered
+  }
+
+  return deliveredTotal
+}
+
+function fillInternalEuFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const capacity = machineEuCapacity(instance.machineId)
+  if (capacity < 1) return 0
+  instance.process.euCapacity = capacity
+  instance.process.euStored = Math.min(instance.process.euStored, capacity)
+  const needed = capacity - instance.process.euStored
+  if (needed <= 0) return 0
+  const moved = consumeConnectedEu(state, instance, needed, elapsedMs)
+  instance.process.euStored += moved
+  return moved
 }
 
 function addToProcessOutput(output: ProcessSlot, produced: ResourceAmount): ProcessSlot {
@@ -1439,6 +1538,85 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
   }
 }
 
+function tickSteamTurbine(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.euCapacity = steamTurbineEuCapacity
+  process.euStored = Math.min(process.euStored, steamTurbineEuCapacity)
+  const freeEu = steamTurbineEuCapacity - process.euStored
+  if (freeEu <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+
+  const steamByRateMs = steamTurbineSteamUseLitresPerSecond * steamMsPerLitre * (elapsedMs / 1000)
+  const steamByEuCapacityMs = (freeEu / euPerSteamLitre) * steamMsPerLitre
+  const steamByPipeMs = connectedSteamTransferRateMs(state, instance) * (elapsedMs / 1000)
+  const requestedSteam = Math.min(steamByRateMs, steamByEuCapacityMs, steamByPipeMs)
+  if (requestedSteam <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+
+  const consumedSteam = consumeConnectedSteam(state, instance, requestedSteam)
+  if (consumedSteam <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+
+  process.euStored = Math.min(steamTurbineEuCapacity, process.euStored + (consumedSteam / steamMsPerLitre) * euPerSteamLitre)
+  process.activeRecipeId = 'generate_lv_eu'
+  process.progressMs = 0
+  process.durationMs = 0
+}
+
+function tickEuProcessMachine(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.euCapacity = machineEuCapacity(instance.machineId)
+  process.euStored = Math.min(process.euStored, process.euCapacity)
+  fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+  let remainingMs = elapsedMs
+
+  while (remainingMs > 0) {
+    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput)
+    const recipe = match?.recipe
+    if (!recipe || !canOutputAccept(process.output, recipe.output)) {
+      process.activeRecipeId = null
+      if (!recipe) {
+        process.progressMs = 0
+        process.durationMs = 0
+      }
+      break
+    }
+
+    fillInternalEuFromConnectedStorage(state, instance, remainingMs)
+    if (process.euStored <= 0) {
+      process.activeRecipeId = null
+      break
+    }
+
+    process.activeRecipeId = recipe.id
+    process.durationMs = recipe.durationMs
+    const euCost = recipeEuCost(recipe)
+    const remainingWorkMs = recipe.durationMs - process.progressMs
+    const maxWorkByEu = Math.floor((process.euStored * recipe.durationMs) / euCost)
+    const workMs = Math.min(remainingMs, remainingWorkMs, maxWorkByEu)
+    if (workMs < 1) break
+    const consumedEu = Math.min(process.euStored, (workMs * euCost) / recipe.durationMs)
+    process.euStored -= consumedEu
+    process.progressMs += workMs
+    remainingMs -= workMs
+
+    if (process.progressMs < recipe.durationMs) continue
+
+    process.input = decrementProcessSlot(process.input, match.inputCost.amount)
+    if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
+    process.output = addToProcessOutput(process.output, recipe.output)
+    process.progressMs = 0
+    process.activeRecipeId = null
+    process.durationMs = 0
+  }
+}
+
 function tickCokeOven(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const process = instance.process
   process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
@@ -1517,6 +1695,18 @@ export function tickMachineInstances(state: GameState, elapsedMs: number) {
       instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, steamTankCapacityMs)
       instance.process.fluidCapacityLitres = ironTankFluidCapacityLitres
     }
+    if (instance.machineId === 'steamTurbine') {
+      instance.process.euCapacity = steamTurbineEuCapacity
+      instance.process.euStored = Math.min(instance.process.euStored, steamTurbineEuCapacity)
+    }
+    if (isEuCableMachine(instance.machineId)) {
+      instance.process.euCapacity = 0
+      instance.process.euStored = 0
+    }
+    if (isEuPoweredMachine(instance.machineId)) {
+      instance.process.euCapacity = machineEuCapacity(instance.machineId)
+      instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
+    }
     if (instance.machineId === 'cokeOven') tickCokeOven(next, instance, elapsedMs)
     if (instance.machineId === 'brickedBlastFurnace') tickBrickedBlastFurnace(instance, elapsedMs)
   }
@@ -1525,6 +1715,12 @@ export function tickMachineInstances(state: GameState, elapsedMs: number) {
   }
   for (const instance of next.machineInstances) {
     if (isSteamPoweredMachine(instance.machineId)) tickSteamProcessMachine(next, instance, elapsedMs)
+  }
+  for (const instance of next.machineInstances) {
+    if (isEuProducerMachine(instance.machineId)) tickSteamTurbine(next, instance, elapsedMs)
+  }
+  for (const instance of next.machineInstances) {
+    if (isEuPoweredMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
   }
   next.lastSavedAt = Date.now()
   return next

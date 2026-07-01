@@ -1877,14 +1877,18 @@ button.craft-output:disabled {
 
 .pixel-copperWire,
 .pixel-conductiveWire,
-.pixel-redAlloyWire {
+.pixel-redAlloyWire,
+.pixel-tinWire,
+.pixel-tinCable {
   background: transparent;
   box-shadow: none;
 }
 
 .pixel-copperWire::before,
 .pixel-conductiveWire::before,
-.pixel-redAlloyWire::before {
+.pixel-redAlloyWire::before,
+.pixel-tinWire::before,
+.pixel-tinCable::before {
   background: var(--p1);
   box-shadow:
     0 4px 0 rgba(0, 0, 0, 0.28),
@@ -1898,7 +1902,9 @@ button.craft-output:disabled {
 
 .pixel-copperWire::after,
 .pixel-conductiveWire::after,
-.pixel-redAlloyWire::after {
+.pixel-redAlloyWire::after,
+.pixel-tinWire::after,
+.pixel-tinCable::after {
   display: none;
 }
 
@@ -2008,15 +2014,28 @@ button.craft-output:disabled {
   --p3: #f0ad68;
 }
 
+.pixel-tinWire {
+  --p1: #d8dde0;
+  --p2: #6f7b81;
+  --p3: #f2f5f4;
+}
+
 .pixel-conductiveWire {
   --p1: #d9823d;
   --p2: #6e351c;
   --p3: #0f0f0f;
 }
 
-.pixel-conductiveWire::before {
+.pixel-tinCable {
+  --p1: #d8dde0;
+  --p2: #454b50;
+  --p3: #111;
+}
+
+.pixel-conductiveWire::before,
+.pixel-tinCable::before {
   background:
-    linear-gradient(90deg, #d9823d 0 24%, #0f0f0f 24% 76%, #d9823d 76% 100%);
+    linear-gradient(90deg, var(--p1) 0 24%, #0f0f0f 24% 76%, var(--p1) 76% 100%);
   box-shadow:
     0 4px 0 rgba(0, 0, 0, 0.28),
     inset 0 2px 0 rgba(255, 255, 255, 0.14),
@@ -3445,7 +3464,8 @@ button.craft-output:disabled {
 .factory-cell.occupied.machine-steamCompressor-cell::before,
 .factory-cell.occupied.machine-steamExtractor-cell::before,
 .factory-cell.occupied.machine-steamAlloySmelter-cell::before,
-.factory-cell.occupied.machine-steamFurnace-cell::before {
+.factory-cell.occupied.machine-steamFurnace-cell::before,
+.factory-cell.occupied.machine-steamTurbine-cell::before {
   background:
     radial-gradient(circle at 3px 3px, #2e2e2e 0 2px, transparent 3px),
     radial-gradient(circle at calc(100% - 3px) 3px, #2e2e2e 0 2px, transparent 3px),
@@ -3504,11 +3524,34 @@ button.craft-output:disabled {
     #a06d35;
 }
 
+.factory-cell.occupied.machine-steamTurbine-cell::before {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(232, 249, 255, 0.95) 0 3px, rgba(117, 191, 212, 0.95) 4px 6px, transparent 7px),
+    conic-gradient(from 45deg at 50% 48%, rgba(73, 51, 31, 0.95) 0 12%, transparent 12% 25%, rgba(73, 51, 31, 0.95) 25% 37%, transparent 37% 50%, rgba(73, 51, 31, 0.95) 50% 62%, transparent 62% 75%, rgba(73, 51, 31, 0.95) 75% 87%, transparent 87%),
+    radial-gradient(circle at 50% 48%, rgba(222, 194, 121, 0.95) 0 13px, rgba(183, 133, 76, 0.95) 14px 18px, transparent 19px),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
+.factory-cell.occupied.machine-lvWiremill-cell::before {
+  background:
+    linear-gradient(90deg, transparent 0 18%, rgba(216, 221, 224, 0.9) 18% 28%, transparent 28% 72%, rgba(63, 71, 75, 0.9) 72% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 40%, rgba(21, 21, 21, 0.95) 40% 48%, transparent 48% 58%, rgba(21, 21, 21, 0.95) 58% 66%, transparent 66%),
+    radial-gradient(circle at 36% 54%, rgba(216, 221, 224, 0.95) 0 5px, rgba(111, 123, 129, 0.95) 6px 8px, transparent 9px),
+    radial-gradient(circle at 64% 54%, rgba(216, 221, 224, 0.95) 0 5px, rgba(111, 123, 129, 0.95) 6px 8px, transparent 9px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(0, 0, 0, 0.22)),
+    #747d82;
+}
+
 .factory-cell.occupied.machine-steamForgeHammer-cell .machine-glyph,
 .factory-cell.occupied.machine-steamCompressor-cell .machine-glyph,
 .factory-cell.occupied.machine-steamExtractor-cell .machine-glyph,
 .factory-cell.occupied.machine-steamAlloySmelter-cell .machine-glyph,
-.factory-cell.occupied.machine-steamFurnace-cell .machine-glyph {
+.factory-cell.occupied.machine-steamFurnace-cell .machine-glyph,
+.factory-cell.occupied.machine-steamTurbine-cell .machine-glyph,
+.factory-cell.occupied.machine-lvWiremill-cell .machine-glyph {
   height: 30px;
   width: 30px;
 }
@@ -3631,19 +3674,22 @@ button.craft-output:disabled {
 
 .factory-cell.occupied.machine-copperPipe-cell::before,
 .factory-cell.occupied.machine-bronzePipe-cell::before,
-.factory-cell.occupied.machine-ironPipe-cell::before {
+.factory-cell.occupied.machine-ironPipe-cell::before,
+.factory-cell.occupied.machine-tinCable-cell::before {
   display: none;
 }
 
 .factory-cell.occupied.machine-copperPipe-cell::after,
 .factory-cell.occupied.machine-bronzePipe-cell::after,
-.factory-cell.occupied.machine-ironPipe-cell::after {
+.factory-cell.occupied.machine-ironPipe-cell::after,
+.factory-cell.occupied.machine-tinCable-cell::after {
   display: none;
 }
 
 .factory-cell.occupied.machine-copperPipe-cell .machine-glyph,
 .factory-cell.occupied.machine-bronzePipe-cell .machine-glyph,
-.factory-cell.occupied.machine-ironPipe-cell .machine-glyph {
+.factory-cell.occupied.machine-ironPipe-cell .machine-glyph,
+.factory-cell.occupied.machine-tinCable-cell .machine-glyph {
   filter: none;
   height: 40px;
   width: 40px;
@@ -3820,6 +3866,12 @@ button.craft-output:disabled {
   background:
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 8px),
     linear-gradient(180deg, #d08c42, #815029 58%, #49301f);
+}
+
+.energy-tank-gauge span {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 8px),
+    linear-gradient(180deg, #fff2a8, #d5ad36 58%, #7b651e);
 }
 
 .steam-tank-readout {
@@ -5503,7 +5555,8 @@ button.craft-output:disabled {
 
 .machine-copperPipe,
 .machine-bronzePipe,
-.machine-ironPipe {
+.machine-ironPipe,
+.machine-tinCable {
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.22) 0 10%, transparent 11%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.18));
@@ -5527,9 +5580,16 @@ button.craft-output:disabled {
   --m3: #d8dde0;
 }
 
+.machine-tinCable {
+  --m1: #151515;
+  --m2: #d8dde0;
+  --m3: #f2f5f4;
+}
+
 .machine-copperPipe .pipe-svg,
 .machine-bronzePipe .pipe-svg,
-.machine-ironPipe .pipe-svg {
+.machine-ironPipe .pipe-svg,
+.machine-tinCable .pipe-svg {
   display: block;
   height: 100%;
   inset: 0;
@@ -5540,7 +5600,8 @@ button.craft-output:disabled {
 
 .machine-copperPipe .pipe-svg path,
 .machine-bronzePipe .pipe-svg path,
-.machine-ironPipe .pipe-svg path {
+.machine-ironPipe .pipe-svg path,
+.machine-tinCable .pipe-svg path {
   fill: none;
   stroke-linecap: butt;
   stroke-linejoin: round;
@@ -5548,25 +5609,79 @@ button.craft-output:disabled {
 
 .machine-copperPipe .pipe-outline,
 .machine-bronzePipe .pipe-outline,
-.machine-ironPipe .pipe-outline {
+.machine-ironPipe .pipe-outline,
+.machine-tinCable .pipe-outline {
   stroke: var(--m2);
   stroke-width: 18;
 }
 
 .machine-copperPipe .pipe-body,
 .machine-bronzePipe .pipe-body,
-.machine-ironPipe .pipe-body {
+.machine-ironPipe .pipe-body,
+.machine-tinCable .pipe-body {
   stroke: var(--m1);
   stroke-width: 13;
 }
 
 .machine-copperPipe .pipe-highlight,
 .machine-bronzePipe .pipe-highlight,
-.machine-ironPipe .pipe-highlight {
+.machine-ironPipe .pipe-highlight,
+.machine-tinCable .pipe-highlight {
   opacity: 0.82;
   stroke: var(--m3);
   stroke-dasharray: 8 4;
   stroke-width: 5;
+}
+
+.machine-steamTurbine {
+  --m1: #b7854c;
+  --m2: #49331f;
+  --m3: #dec279;
+  background:
+    radial-gradient(circle at 50% 48%, #e8f9ff 0 6%, #75bfd4 7% 12%, transparent 13%),
+    conic-gradient(from 45deg at 50% 48%, #49331f 0 12%, transparent 12% 25%, #49331f 25% 37%, transparent 37% 50%, #49331f 50% 62%, transparent 62% 75%, #49331f 75% 87%, transparent 87%),
+    radial-gradient(circle at 50% 48%, #dec279 0 25%, #b7854c 26% 38%, #49331f 39% 49%, transparent 50%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamTurbine span {
+  background: #e8f9ff;
+  box-shadow:
+    6px 0 0 #75bfd4,
+    12px 0 0 #e8f9ff,
+    5px 13px 0 #49331f;
+  height: 12%;
+  left: 17%;
+  top: 15%;
+  width: 12%;
+}
+
+.machine-lvWiremill {
+  --m1: #8f9aa0;
+  --m2: #3f474b;
+  --m3: #d8dde0;
+  background:
+    linear-gradient(90deg, transparent 0 18%, #d8dde0 18% 28%, transparent 28% 72%, #3f474b 72% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 40%, #151515 40% 48%, transparent 48% 58%, #151515 58% 66%, transparent 66%),
+    radial-gradient(circle at 36% 54%, #d8dde0 0 11%, #6f7b81 12% 17%, transparent 18%),
+    radial-gradient(circle at 64% 54%, #d8dde0 0 11%, #6f7b81 12% 17%, transparent 18%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #d8dde0 0 18%, #8f9aa0 18% 78%, #3f474b 78%);
+}
+
+.machine-lvWiremill span {
+  background: #151515;
+  box-shadow:
+    8px 0 0 #151515,
+    4px -8px 0 #d8dde0,
+    12px -8px 0 #6f7b81,
+    4px 9px 0 #d8dde0,
+    12px 9px 0 #6f7b81;
+  height: 10%;
+  left: 28%;
+  top: 52%;
+  width: 16%;
 }
 
 .machine-steamMacerator {
@@ -5788,12 +5903,15 @@ button.craft-output:disabled {
 .machine-copperPipe.active,
 .machine-bronzePipe.active,
 .machine-ironPipe.active,
+.machine-tinCable.active,
 .machine-steamMacerator.active,
 .machine-steamForgeHammer.active,
 .machine-steamCompressor.active,
 .machine-steamExtractor.active,
 .machine-steamAlloySmelter.active,
 .machine-steamFurnace.active,
+.machine-steamTurbine.active,
+.machine-lvWiremill.active,
 .machine-cokeOven.active,
 .machine-brickedBlastFurnace.active {
   animation: furnace-glyph-glow 0.7s steps(2, end) infinite;

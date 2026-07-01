@@ -1,4 +1,4 @@
-import { isSteamPipeMachine } from '../game/content'
+import { isEuCableMachine, isSteamPipeMachine } from '../game/content'
 import type { MachineId, ResourceId } from '../game/types'
 
 export type PipeConnections = {
@@ -55,13 +55,14 @@ function pipePath(connections?: PipeConnections) {
 }
 
 export function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
+  const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id)
   const className = [
     'machine-glyph',
     `machine-${id}`,
     active ? 'active' : '',
-    isSteamPipeMachine(id) ? pipeConnectionClass(pipeConnections) : '',
+    isConnector ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
-  if (isSteamPipeMachine(id)) {
+  if (isConnector) {
     const path = pipePath(pipeConnections)
     return (
       <span className={className} aria-hidden="true">

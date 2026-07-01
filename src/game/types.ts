@@ -63,6 +63,8 @@ export type ResourceId =
   | 'steelIngot'
   | 'steelPlate'
   | 'steelRod'
+  | 'tinWire'
+  | 'tinCable'
   | 'copperWire'
   | 'glass'
   | 'glassTube'
@@ -96,6 +98,9 @@ export type MachineId =
   | 'steamExtractor'
   | 'steamAlloySmelter'
   | 'steamFurnace'
+  | 'steamTurbine'
+  | 'tinCable'
+  | 'lvWiremill'
   | 'cokeOven'
   | 'brickedBlastFurnacePart'
   | 'brickedBlastFurnace'
@@ -140,6 +145,11 @@ export type QuestId =
   | 'pulpWoodQuest'
   | 'pressCircuitBoard'
   | 'firstLvCircuit'
+  | 'buildSteamTurbineQuest'
+  | 'makeTinCableQuest'
+  | 'routeLvPowerQuest'
+  | 'buildLvWiremillQuest'
+  | 'runLvWiremillQuest'
 
 export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations'
 
@@ -180,6 +190,9 @@ export type MachineProcessKind =
   | 'steamStorage'
   | 'steamPipe'
   | 'steamProcess'
+  | 'steamToEu'
+  | 'euCable'
+  | 'euProcess'
   | 'cokeOven'
   | 'blastFurnace'
 
@@ -264,6 +277,7 @@ export type ProcessRecipe = {
   machineId: MachineId
   durationMs: number
   steamCostLitres?: number
+  euCost?: number
   input: ResourceAmount
   secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
@@ -333,6 +347,9 @@ export type MachineSpec = Machine & {
   pipeTransferLitresPerSecond?: number
   steamCapacityLitres?: number
   fluidCapacityLitres?: number
+  euCapacity?: number
+  euOutputPerSecond?: number
+  euCableLossPerTile?: number
   multiblock?: {
     width: number
     height: number
@@ -388,6 +405,8 @@ export type MachineProcessState = {
   fuelDurationMs: number
   steamStoredMs: number
   steamCapacityMs: number
+  euStored: number
+  euCapacity: number
   fluids: Partial<Record<FluidId, number>>
   fluidCapacityLitres: number
 }

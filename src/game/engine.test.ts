@@ -3,6 +3,7 @@ import { createInitialState, fuelDefinitions, gatherTargets, processRecipes, que
 import { processRecipesProducingResource, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
+  availableConnectedEu,
   availableResourceAmount,
   availableUnplacedMachineCount,
   boilerHasWater,
@@ -43,6 +44,7 @@ import {
   searchTerminalRecipes,
   steamMaceratorCapacityMs,
   steamTankCapacityMs,
+  steamTurbineEuCapacity,
   terminalAvailableAmount,
   tickGame,
   unequipSlot,
@@ -436,6 +438,9 @@ describe('game engine', () => {
       'steamExtractor',
       'steamAlloySmelter',
       'steamFurnace',
+      'steamTurbine',
+      'tinCable',
+      'lvWiremill',
       'cokeOven',
       'brickedBlastFurnacePart',
       'brickedBlastFurnace',
@@ -446,6 +451,9 @@ describe('game engine', () => {
     expect(state.machines.copperPipe).toBe(0)
     expect(state.machines.bronzePipe).toBe(0)
     expect(state.machines.ironPipe).toBe(0)
+    expect(state.machines.steamTurbine).toBe(0)
+    expect(state.machines.tinCable).toBe(0)
+    expect(state.machines.lvWiremill).toBe(0)
     expect(state.machines.steamMacerator).toBe(0)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.brickedBlastFurnace).toBe(0)
@@ -1847,6 +1855,74 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.output).toEqual({ id: 'copperDust', amount: 1 })
   })
 
+  it('generates LV EU from connected steam in a steam turbine', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamBoiler = 1
+    state.machines.steamTurbine = 1
+    state = placeMachineInstance(state, 'steamBoiler', 0, 0)
+    state = placeMachineInstance(state, 'steamTurbine', 1, 0)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs = 128000
+
+    state = tickGame(state, 10000).state
+
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    expect(turbine.process.euStored).toBe(160)
+    expect(turbine.process.euCapacity).toBe(steamTurbineEuCapacity)
+  })
+
+  it('does not run an LV Wiremill without connected EU', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvWiremill = 1
+    state.resources.tinPlate = 1
+    state = placeMachineInstance(state, 'lvWiremill', 0, 0)
+    const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinPlate', 1)
+
+    state = tickGame(state, 5000).state
+
+    const process = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!.process
+    expect(process.progressMs).toBe(0)
+    expect(process.output).toBeNull()
+  })
+
+  it('runs an LV Wiremill through tin cable and applies per-tile power loss', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state.machines.tinCable = 1
+    state.machines.lvWiremill = 1
+    state.resources.tinPlate = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    state = placeMachineInstance(state, 'lvWiremill', 2, 0)
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
+    state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 100
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinPlate', 1)
+
+    expect(availableConnectedEu(state, state.machineInstances.find((instance) => instance.uid === wiremill.uid)!)).toBe(100)
+    state = tickGame(state, 5000).state
+
+    const nextTurbine = state.machineInstances.find((instance) => instance.uid === turbine.uid)!
+    const nextWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
+    expect(nextWiremill.process.output).toEqual({ id: 'tinWire', amount: 2 })
+    expect(nextWiremill.process.euStored).toBe(32)
+    expect(nextTurbine.process.euStored).toBe(31)
+  })
+
+  it('loses internal EU buffers when a machine is removed and placed again', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    const firstTurbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    state.machineInstances.find((instance) => instance.uid === firstTurbine.uid)!.process.euStored = 100
+
+    state = removeMachineInstance(state, firstTurbine.uid)
+    state = placeMachineInstance(state, 'steamTurbine', 1, 0)
+
+    expect(state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.process.euStored).toBe(0)
+  })
+
   it('searches terminal recipes by output and ingredient labels', () => {
     const outputMatches = searchTerminalRecipes('wooden axe').map((recipe) => recipe.id)
     const ingredientMatches = searchTerminalRecipes('plank').map((recipe) => recipe.id)
@@ -1924,6 +2000,8 @@ describe('game engine', () => {
       'build_steam_extractor',
       'build_steam_alloy_smelter',
       'build_steam_furnace',
+      'build_steam_turbine',
+      'build_lv_wiremill',
     ])
     expect(searchTerminalRecipes('dynamo').map((recipe) => recipe.id)).toEqual([])
   })

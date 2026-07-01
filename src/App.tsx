@@ -25,6 +25,10 @@ import './App.css'
 import {
   fuelDefinitions,
   gatherTargets,
+  isEuCableMachine,
+  isEuNetworkMachine,
+  isEuPoweredMachine,
+  isEuProducerMachine,
   isPlaceableMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
@@ -40,6 +44,7 @@ import {
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
+  availableConnectedEu,
   availableConnectedSteam,
   boilerHasWater,
   boilerSteamCapacityMs,
@@ -83,7 +88,10 @@ import {
   steamMaceratorCapacityMs,
   steamMachineInternalCapacityMs,
   steamPipeTransferLitresPerSecond,
+  steamTurbineEuCapacity,
+  steamTurbineSteamUseLitresPerSecond,
   steamTankCapacityMs,
+  tinCableLossEuPerTile,
   ironTankFluidCapacityLitres,
   canExpandFactoryFloor,
   terminalAvailableAmount,
@@ -175,6 +183,9 @@ const machineOrder: MachineId[] = [
   'steamExtractor',
   'steamAlloySmelter',
   'steamFurnace',
+  'steamTurbine',
+  'tinCable',
+  'lvWiremill',
   'cokeOven',
   'brickedBlastFurnacePart',
   'brickedBlastFurnace',
@@ -367,6 +378,25 @@ function FluidTank({ label, storedLitres, capacityLitres }: { label: string; sto
   )
 }
 
+function EnergyTank({ storedEu, capacityEu }: { storedEu: number; capacityEu: number }) {
+  const stored = Math.floor(storedEu)
+  const capacity = Math.floor(capacityEu)
+  const fillPercent = capacityEu > 0 ? Math.max(0, Math.min(100, (storedEu / capacityEu) * 100)) : 0
+
+  return (
+    <div className="steam-tank energy-tank" aria-label={`EU buffer ${stored} of ${capacity}`}>
+      <div className="steam-tank-gauge energy-tank-gauge">
+        <span style={{ height: `${fillPercent}%` }} />
+      </div>
+      <div className="steam-tank-readout">
+        <span>EU buffer</span>
+        <strong>{stored} EU</strong>
+        <small>{capacity} EU max</small>
+      </div>
+    </div>
+  )
+}
+
 function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
   const recipeOutput = recipeGroupOutput(group.recipes[0])
   const output = recipeOutput ?? group.output
@@ -484,7 +514,8 @@ function machineUsesProcessStorage(machineId: MachineId) {
     machineId === 'steamBoiler' ||
     machineId === 'cokeOven' ||
     machineId === 'brickedBlastFurnace' ||
-    isSteamPoweredMachine(machineId)
+    isSteamPoweredMachine(machineId) ||
+    isEuPoweredMachine(machineId)
   )
 }
 
@@ -498,6 +529,12 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     return process.steamStoredMs > 0 ? 'Holding steam' : 'Empty tank'
   }
   if (isSteamPipeMachine(instance.machineId)) return `${steamPipeTransferLitresPerSecond[instance.machineId] ?? 0}L/s transfer`
+  if (isEuCableMachine(instance.machineId)) return `${tinCableLossEuPerTile} EU/tile loss`
+  if (isEuProducerMachine(instance.machineId)) {
+    if (process.euStored >= steamTurbineEuCapacity) return 'EU full'
+    if (availableConnectedSteam(state, instance) < 1) return 'No steam'
+    return process.activeRecipeId ? 'Generating EU' : 'Ready'
+  }
   if (instance.machineId === 'steamBoiler') {
     if (!boilerHasWater(state, instance)) return 'No water'
     if (process.steamStoredMs >= boilerSteamCapacityMs && process.fuelRemainingMs > 0) return 'Venting full tank'
@@ -538,6 +575,12 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if (!recipe) return 'No input'
     if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
     if (process.steamStoredMs + availableConnectedSteam(state, instance) < 1) return 'No steam'
+    return process.activeRecipeId ? 'Running' : 'Ready'
+  }
+  if (isEuPoweredMachine(instance.machineId)) {
+    if (!recipe) return 'No input'
+    if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    if (process.euStored + availableConnectedEu(state, instance) < 1) return 'No power'
     return process.activeRecipeId ? 'Running' : 'Ready'
   }
   if (!recipe) return 'No input'
@@ -919,7 +962,7 @@ function App() {
           name: recipe.name,
           description: recipe.description,
           tier: recipe.tier,
-          stationType: recipe.machineId === 'furnace' ? 'furnace' : 'steam',
+          stationType: isEuPoweredMachine(recipe.machineId) ? 'lv' : recipe.machineId === 'furnace' ? 'furnace' : 'steam',
           recipeType: 'processing',
           durationMs: recipe.durationMs,
           inputs: [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.fuelInput ? [recipe.fuelInput] : [])],
@@ -956,6 +999,7 @@ function App() {
   const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
   const selectedMachineSteamCostLitres = selectedMachineRecipe?.steamCostLitres ?? null
+  const selectedMachineEuCost = selectedMachineRecipe?.euCost ?? null
   const pendingProcessMachine = pendingProcessInsert
     ? state.machineInstances.find((instance) => instance.uid === pendingProcessInsert.uid) ?? null
     : null
@@ -1007,12 +1051,19 @@ function App() {
   const machineAtFactoryCell = (x: number, y: number) => state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
 
   const pipeConnectionsForInstance = (instance: MachineInstance): PipeConnections | undefined => {
-    if (!isSteamPipeMachine(instance.machineId)) return undefined
+    const isSteamPipe = isSteamPipeMachine(instance.machineId)
+    const isEuCable = isEuCableMachine(instance.machineId)
+    if (!isSteamPipe && !isEuCable) return undefined
+    const connectsTo = (x: number, y: number) => {
+      const neighbour = machineAtFactoryCell(x, y)
+      if (!neighbour) return false
+      return isSteamPipe ? isSteamNetworkMachine(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId)
+    }
     return {
-      up: Boolean(machineAtFactoryCell(instance.x, instance.y - 1)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x, instance.y - 1)!.machineId)),
-      right: Boolean(machineAtFactoryCell(instance.x + 1, instance.y)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x + 1, instance.y)!.machineId)),
-      down: Boolean(machineAtFactoryCell(instance.x, instance.y + 1)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x, instance.y + 1)!.machineId)),
-      left: Boolean(machineAtFactoryCell(instance.x - 1, instance.y)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x - 1, instance.y)!.machineId)),
+      up: connectsTo(instance.x, instance.y - 1),
+      right: connectsTo(instance.x + 1, instance.y),
+      down: connectsTo(instance.x, instance.y + 1),
+      left: connectsTo(instance.x - 1, instance.y),
     }
   }
 
@@ -2523,8 +2574,10 @@ function App() {
                           (instance.process.fuelRemainingMs > 0 ||
                             instance.process.activeRecipeId ||
                             (isSteamNetworkMachine(instance.machineId) && instance.process.steamStoredMs > 0) ||
+                            (isEuNetworkMachine(instance.machineId) && instance.process.euStored > 0) ||
                             Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0) ||
-                            (isSteamPipeMachine(instance.machineId) && availableConnectedSteam(state, instance) > 0)),
+                            (isSteamPipeMachine(instance.machineId) && availableConnectedSteam(state, instance) > 0) ||
+                            (isEuCableMachine(instance.machineId) && availableConnectedEu(state, instance) > 0)),
                       )
                       return (
                         <button
@@ -2685,6 +2738,21 @@ function App() {
                   {selectedMachine.machineId === 'cokeOven' && (
                     <strong>Creosote {formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/{selectedMachine.process.fluidCapacityLitres || cokeOvenFluidCapacityLitres}L</strong>
                   )}
+                  {isEuProducerMachine(selectedMachine.machineId) && (
+                    <strong>
+                      EU {Math.floor(selectedMachine.process.euStored)}/{steamTurbineEuCapacity}
+                      {' | '}
+                      Steam supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
+                    </strong>
+                  )}
+                  {isEuPoweredMachine(selectedMachine.machineId) && (
+                    <strong>
+                      Internal {Math.floor(selectedMachine.process.euStored)}/{selectedMachine.process.euCapacity || 0} EU
+                      {' | '}
+                      Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
+                      {selectedMachineEuCost ? ` | Uses ${selectedMachineEuCost} EU` : ''}
+                    </strong>
+                  )}
                 </div>
                 {selectedMachine.machineId === 'well' ? (
                   <div className="well-interface">
@@ -2707,6 +2775,19 @@ function App() {
                     <MachineGlyph id={selectedMachine.machineId} active />
                     <span>Transfers steam at {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s</span>
                   </div>
+                ) : isEuCableMachine(selectedMachine.machineId) ? (
+                  <div className="well-interface">
+                    <MachineGlyph id={selectedMachine.machineId} active />
+                    <span>Loses {tinCableLossEuPerTile} EU per cable tile in a powered route</span>
+                  </div>
+                ) : isEuProducerMachine(selectedMachine.machineId) ? (
+                  <div className="well-interface">
+                    <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={steamTurbineEuCapacity} />
+                    <MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.activeRecipeId === 'generate_lv_eu'} />
+                    <span>
+                      Uses up to {steamTurbineSteamUseLitresPerSecond}L/s steam to make {steamTurbineSteamUseLitresPerSecond * 2} EU/s
+                    </span>
+                  </div>
                 ) : (
                 <div className={`furnace-interface ${selectedMachine.machineId}-process-interface`}>
                   {selectedMachine.machineId !== 'steamBoiler' && (
@@ -2719,6 +2800,12 @@ function App() {
                       <>
                         <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={steamMachineInternalCapacityMs} />
                         <span className="steam-usage-line">{selectedMachineSteamCostLitres ? `${selectedMachineSteamCostLitres}L/craft` : 'No recipe'}</span>
+                      </>
+                    )}
+                    {isEuPoweredMachine(selectedMachine.machineId) && (
+                      <>
+                        <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || 0} />
+                        <span className="steam-usage-line">{selectedMachineEuCost ? `${selectedMachineEuCost} EU/craft` : 'No recipe'}</span>
                       </>
                     )}
                     {selectedMachine.machineId === 'cokeOven' && (

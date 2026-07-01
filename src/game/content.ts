@@ -81,6 +81,8 @@ export const resourceRegistry = {
   steelIngot: { id: 'steelIngot', label: 'Steel Ingot', category: 'ingot', tier: 'steam' },
   steelPlate: { id: 'steelPlate', label: 'Steel Plate', category: 'plate', tier: 'steam' },
   steelRod: { id: 'steelRod', label: 'Steel Rod', category: 'rod', tier: 'steam' },
+  tinWire: { id: 'tinWire', label: 'Tin Wire', category: 'wire', tier: 'lv' },
+  tinCable: { id: 'tinCable', label: 'Tin Cable', category: 'wire', tier: 'lv' },
   copperWire: { id: 'copperWire', label: 'Copper Wire', category: 'wire', tier: 'steam' },
   glass: { id: 'glass', label: 'Glass', category: 'component', tier: 'steam' },
   glassTube: { id: 'glassTube', label: 'Glass Tube', category: 'component', tier: 'steam' },
@@ -382,6 +384,34 @@ export const machineRegistry = {
     processKind: 'steamProcess',
     steamCapacityLitres: 32,
   },
+  steamTurbine: {
+    id: 'steamTurbine',
+    name: 'Steam Turbine',
+    description: 'Converts steam pressure into early LV power for electric machines.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'steamToEu',
+    euCapacity: 256,
+    euOutputPerSecond: 16,
+  },
+  tinCable: {
+    id: 'tinCable',
+    name: 'Tin Cable',
+    description: 'A lossy LV cable. Each tile in a route wastes a little power.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'euCable',
+    euCableLossPerTile: 1,
+  },
+  lvWiremill: {
+    id: 'lvWiremill',
+    name: 'LV Wiremill',
+    description: 'The first electric machine: turns plates into cleaner wire with EU.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'euProcess',
+    euCapacity: 64,
+  },
   cokeOven: {
     id: 'cokeOven',
     name: 'Coke Oven',
@@ -429,12 +459,28 @@ export function isSteamPoweredMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'steamProcess'
 }
 
+export function isEuProducerMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'steamToEu'
+}
+
+export function isEuCableMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'euCable'
+}
+
+export function isEuPoweredMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'euProcess'
+}
+
+export function isEuNetworkMachine(machineId: MachineId) {
+  return isEuProducerMachine(machineId) || isEuCableMachine(machineId) || isEuPoweredMachine(machineId)
+}
+
 export function isSteamStorageMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'steamBoiler' || machineRegistry[machineId].processKind === 'steamStorage'
 }
 
 export function isSteamNetworkMachine(machineId: MachineId) {
-  return isSteamStorageMachine(machineId) || isSteamPipeMachine(machineId) || isSteamPoweredMachine(machineId)
+  return isSteamStorageMachine(machineId) || isSteamPipeMachine(machineId) || isSteamPoweredMachine(machineId) || isEuProducerMachine(machineId)
 }
 
 export function machinePipeTransferLitresPerSecond(machineId: MachineId) {
@@ -447,6 +493,18 @@ export function machineSteamCapacityLitres(machineId: MachineId) {
 
 export function machineFluidCapacityLitres(machineId: MachineId) {
   return machines[machineId].fluidCapacityLitres ?? 0
+}
+
+export function machineEuCapacity(machineId: MachineId) {
+  return machines[machineId].euCapacity ?? 0
+}
+
+export function machineEuOutputPerSecond(machineId: MachineId) {
+  return machines[machineId].euOutputPerSecond ?? 0
+}
+
+export function machineEuCableLossPerTile(machineId: MachineId) {
+  return machines[machineId].euCableLossPerTile ?? 0
 }
 
 export const recipes: Recipe[] = [
@@ -1009,6 +1067,57 @@ export const recipes: Recipe[] = [
     unlockedBy: 'bronzeAge',
   },
   {
+    id: 'build_steam_turbine',
+    name: 'Build Steam Turbine',
+    description: 'Steel, bronze, and the first circuit turn steam into LV power.',
+    tier: 'lv',
+    durationMs: 8500,
+    inputs: [
+      { id: 'steamCasing', amount: 1 },
+      { id: 'steelPlate', amount: 2 },
+      { id: 'bronzePlate', amount: 2 },
+      { id: 'tinWire', amount: 2 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['steelPlate', 'tinWire', 'steelPlate', 'bronzePlate', 'primitiveCircuit', 'bronzePlate', null, 'steamCasing', null],
+    outputs: [],
+    machineOutputs: [{ id: 'steamTurbine', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'build_tin_cable',
+    name: 'Build Tin Cables',
+    description: 'Insulate tin wire into lossy LV cable sections for the factory floor.',
+    tier: 'lv',
+    durationMs: 3200,
+    inputs: [
+      { id: 'tinWire', amount: 4 },
+      { id: 'rubber', amount: 2 },
+    ],
+    pattern: ['tinWire', 'rubber', 'tinWire', null, null, null, 'tinWire', 'rubber', 'tinWire'],
+    outputs: [],
+    machineOutputs: [{ id: 'tinCable', amount: 4 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'build_lv_wiremill',
+    name: 'Build LV Wiremill',
+    description: 'A first electric machine frame that draws wire more cleanly than hand cutters.',
+    tier: 'lv',
+    durationMs: 8500,
+    inputs: [
+      { id: 'steamCasing', amount: 1 },
+      { id: 'steelPlate', amount: 2 },
+      { id: 'ironRod', amount: 2 },
+      { id: 'tinWire', amount: 2 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['tinWire', 'steelPlate', 'tinWire', 'ironRod', 'primitiveCircuit', 'ironRod', null, 'steamCasing', null],
+    outputs: [],
+    machineOutputs: [{ id: 'lvWiremill', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
     id: 'build_coke_oven',
     name: 'Build Coke Oven',
     description: 'A slow refractory oven for charcoal, coal coke, and first creosote.',
@@ -1364,6 +1473,19 @@ export const recipes: Recipe[] = [
     pattern: [null, 'ironWireCutters', null, null, 'copperPlate', null, null, null, null],
     outputs: [{ id: 'copperWire', amount: 2 }],
     unlockedBy: 'copperAndTin',
+  },
+  {
+    id: 'cut_tin_wire',
+    name: 'Cut Tin Wire',
+    description: 'Cut a tin plate into bare LV cable wire.',
+    tier: 'lv',
+    durationMs: 2400,
+    inputs: [{ id: 'tinPlate', amount: 1 }],
+    catalysts: [{ id: 'ironWireCutters', amount: 1 }],
+    durabilityCosts: [{ id: 'ironWireCutters', amount: 1 }],
+    pattern: [null, 'ironWireCutters', null, null, 'tinPlate', null, null, null, null],
+    outputs: [{ id: 'tinWire', amount: 2 }],
+    unlockedBy: 'steelPlateQuest',
   },
   {
     id: 'file_glass_tube',
@@ -1860,6 +1982,39 @@ export const processRecipes: ProcessRecipe[] = [
     steamCostLitres: 16,
     input: { id: 'sand', amount: 1 },
     output: { id: 'glass', amount: 1 },
+  },
+  {
+    id: 'lv_wiremill_tin_wire',
+    name: 'LV Wiremill Tin Wire',
+    description: 'Draw tin plate into clean LV cable wire.',
+    tier: 'lv',
+    machineId: 'lvWiremill',
+    durationMs: 4000,
+    euCost: 32,
+    input: { id: 'tinPlate', amount: 1 },
+    output: { id: 'tinWire', amount: 2 },
+  },
+  {
+    id: 'lv_wiremill_copper_wire',
+    name: 'LV Wiremill Copper Wire',
+    description: 'Draw copper plate into extra bare wire with electric rollers.',
+    tier: 'lv',
+    machineId: 'lvWiremill',
+    durationMs: 4000,
+    euCost: 32,
+    input: { id: 'copperPlate', amount: 1 },
+    output: { id: 'copperWire', amount: 3 },
+  },
+  {
+    id: 'lv_wiremill_red_alloy_wire',
+    name: 'LV Wiremill Red Alloy Wire',
+    description: 'Draw red alloy plate into signal wire without chewing through cutters.',
+    tier: 'lv',
+    machineId: 'lvWiremill',
+    durationMs: 4000,
+    euCost: 32,
+    input: { id: 'redAlloyPlate', amount: 1 },
+    output: { id: 'redAlloyWire', amount: 3 },
   },
   {
     id: 'steel_from_coal_coke',
@@ -2492,6 +2647,78 @@ export const quests: Quest[] = [
     prerequisites: ['pressCircuitBoard', 'makeVacuumTubes', 'makeResistors', 'insulateWireQuest'],
     requirements: {
       resources: [{ id: 'primitiveCircuit', amount: 1 }],
+    },
+    rewards: {},
+  },
+  {
+    id: 'buildSteamTurbineQuest',
+    chapterId: 'lvFoundations',
+    chapter: 'LV Foundations',
+    title: 'Build a steam turbine',
+    description: 'Use the first circuit to turn boiler steam into awkward early LV power.',
+    position: { x: 1330, y: 140 },
+    icon: { type: 'machine', id: 'steamTurbine' },
+    prerequisites: ['firstLvCircuit'],
+    requirements: {
+      machines: [{ id: 'steamTurbine', amount: 1 }],
+    },
+    rewards: {},
+  },
+  {
+    id: 'makeTinCableQuest',
+    chapterId: 'lvFoundations',
+    chapter: 'LV Foundations',
+    title: 'Make tin cable',
+    description: 'Cut tin wire and wrap it in rubber so LV power can leave the turbine.',
+    position: { x: 1510, y: 140 },
+    icon: { type: 'machine', id: 'tinCable' },
+    prerequisites: ['buildSteamTurbineQuest'],
+    requirements: {
+      machines: [{ id: 'tinCable', amount: 4 }],
+    },
+    rewards: {},
+  },
+  {
+    id: 'routeLvPowerQuest',
+    chapterId: 'lvFoundations',
+    chapter: 'LV Foundations',
+    title: 'Route LV power',
+    description: 'Place a steam turbine and cable on the factory floor. Longer tin cable runs waste more EU.',
+    position: { x: 1690, y: 140 },
+    icon: { type: 'machine', id: 'tinCable' },
+    prerequisites: ['makeTinCableQuest'],
+    objectives: [
+      { type: 'placedMachine', id: 'steamTurbine', amount: 1, label: 'Placed Steam Turbine' },
+      { type: 'placedMachine', id: 'tinCable', amount: 1, label: 'Placed Tin Cable' },
+    ],
+    requirements: {},
+    rewards: {},
+  },
+  {
+    id: 'buildLvWiremillQuest',
+    chapterId: 'lvFoundations',
+    chapter: 'LV Foundations',
+    title: 'Build the LV wiremill',
+    description: 'The first electric machine makes wire faster and wastes less material.',
+    position: { x: 1870, y: 140 },
+    icon: { type: 'machine', id: 'lvWiremill' },
+    prerequisites: ['routeLvPowerQuest'],
+    requirements: {
+      machines: [{ id: 'lvWiremill', amount: 1 }],
+    },
+    rewards: {},
+  },
+  {
+    id: 'runLvWiremillQuest',
+    chapterId: 'lvFoundations',
+    chapter: 'LV Foundations',
+    title: 'Run the LV wiremill',
+    description: 'Feed plates into the powered Wiremill and start replacing hand-cut wire.',
+    position: { x: 2050, y: 140 },
+    icon: { type: 'resource', id: 'tinWire' },
+    prerequisites: ['buildLvWiremillQuest'],
+    requirements: {
+      resources: [{ id: 'tinWire', amount: 8 }],
     },
     rewards: {},
   },
