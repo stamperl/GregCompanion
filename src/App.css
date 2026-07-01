@@ -1973,6 +1973,38 @@ button.craft-output:disabled {
   --p3: #f3a093;
 }
 
+.pixel-conductiveWire {
+  --p1: #232323;
+  --p2: #0f0f0f;
+  --p3: #d9823d;
+}
+
+.pixel-conductiveWire::before {
+  background:
+    linear-gradient(90deg, #d9823d 0 14%, transparent 14% 86%, #d9823d 86% 100%),
+    linear-gradient(180deg, transparent 0 28%, #0f0f0f 28% 72%, transparent 72%),
+    linear-gradient(90deg, transparent 0 18%, #232323 18% 82%, transparent 82%);
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    0 5px 0 #0f0f0f,
+    inset 0 2px 0 rgba(255, 255, 255, 0.12);
+  height: 11px;
+  left: 2px;
+  top: 7px;
+  width: 22px;
+}
+
+.pixel-conductiveWire::after {
+  background:
+    linear-gradient(90deg, transparent 0 26%, #2f6e4f 26% 42%, transparent 42% 58%, #2f6e4f 58% 74%, transparent 74%),
+    linear-gradient(180deg, transparent 0 36%, #4b4b4b 36% 62%, transparent 62%);
+  height: 18px;
+  left: 3px;
+  top: 4px;
+  width: 20px;
+}
+
 .pixel-glass,
 .pixel-glassTube {
   --p1: #b8d8dd;
