@@ -1973,6 +1973,35 @@ button.craft-output:disabled {
   --p3: #f3a093;
 }
 
+.pixel-copperWire {
+  --p1: #d9823d;
+  --p2: #6e351c;
+  --p3: #f0ad68;
+}
+
+.pixel-copperWire::before {
+  background:
+    linear-gradient(90deg, transparent 0 6%, #f0ad68 6% 18%, transparent 18% 30%, #d9823d 30% 42%, transparent 42% 54%, #b85d2d 54% 66%, transparent 66% 78%, #6e351c 78% 92%, transparent 92%),
+    linear-gradient(180deg, transparent 0 26%, #d9823d 26% 38%, transparent 38% 58%, #6e351c 58% 70%, transparent 70%);
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    0 4px 0 rgba(110, 53, 28, 0.9),
+    inset 0 1px 0 rgba(255, 236, 184, 0.32);
+  height: 12px;
+  left: 2px;
+  top: 7px;
+  width: 22px;
+}
+
+.pixel-copperWire::after {
+  background: linear-gradient(90deg, #f0ad68, #d9823d 45%, #6e351c);
+  height: 3px;
+  left: 4px;
+  top: 17px;
+  width: 18px;
+}
+
 .pixel-conductiveWire {
   --p1: #232323;
   --p2: #0f0f0f;
