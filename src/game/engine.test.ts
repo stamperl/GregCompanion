@@ -988,6 +988,59 @@ describe('game engine', () => {
     expect(durabilityRemaining(state, 'bronzeFile')).toBe(160)
   })
 
+  it('crafts iron wire cutters from plates and rods using a file', () => {
+    let state = createFactoryState(1000)
+    state.resources.ironPlate = 2
+    state.resources.ironRod = 2
+    state.resources.ironFile = 1
+    const cutters = recipes.find((recipe) => recipe.id === 'craft_iron_wire_cutters')!
+
+    state = craftRecipeInstant(state, cutters, 1)
+
+    expect(state.resources.ironPlate).toBe(0)
+    expect(state.resources.ironRod).toBe(0)
+    expect(state.resources.ironFile).toBe(1)
+    expect(state.resources.ironWireCutters).toBe(1)
+    expect(durabilityRemaining(state, 'ironFile')).toBe(95)
+    expect(durabilityRemaining(state, 'ironWireCutters')).toBe(128)
+  })
+
+  it('cuts copper wire from copper plates with wire cutters', () => {
+    let state = createFactoryState(1000)
+    state.resources.copperPlate = 1
+    state.resources.copperRod = 1
+    state.resources.ironFile = 1
+    state.resources.ironWireCutters = 1
+    const copperWire = recipes.find((recipe) => recipe.id === 'cut_copper_wire')!
+    const oldRodGrid: CraftSlot[] = [null, { id: 'ironFile' }, null, null, { id: 'copperRod' }, null, null, null, null]
+
+    state = craftRecipeInstant(state, copperWire, 1)
+
+    expect(state.resources.copperPlate).toBe(0)
+    expect(state.resources.copperRod).toBe(1)
+    expect(state.resources.copperWire).toBe(2)
+    expect(durabilityRemaining(state, 'ironWireCutters')).toBe(127)
+    expect(findGridRecipe(oldRodGrid, recipes)?.id).not.toBe('cut_copper_wire')
+  })
+
+  it('hammers red alloy plates and cuts them into red alloy wire', () => {
+    let state = createFactoryState(1000)
+    state.resources.redAlloyIngot = 2
+    state.resources.ironHammer = 1
+    state.resources.ironWireCutters = 1
+    const plate = recipes.find((recipe) => recipe.id === 'red_alloy_plate')!
+    const wire = recipes.find((recipe) => recipe.id === 'cut_red_alloy_wire')!
+
+    state = craftRecipeInstant(state, plate, 1)
+    state = craftRecipeInstant(state, wire, 1)
+
+    expect(state.resources.redAlloyIngot).toBe(0)
+    expect(state.resources.redAlloyPlate).toBe(0)
+    expect(state.resources.redAlloyWire).toBe(2)
+    expect(durabilityRemaining(state, 'ironHammer')).toBe(159)
+    expect(durabilityRemaining(state, 'ironWireCutters')).toBe(127)
+  })
+
   it('uses upgraded mortars for grinding and spends the upgraded durability first', () => {
     let state = createFactoryState(1000)
     state.resources.copperIngot = 2
@@ -1973,6 +2026,7 @@ describe('game engine', () => {
     const ironShovelGrid: CraftSlot[] = [null, { id: 'ironIngot' }, null, null, { id: 'stick' }, null, null, { id: 'stick' }, null]
     const ironFileGrid: CraftSlot[] = [null, { id: 'ironPlate' }, null, null, { id: 'ironPlate' }, null, null, { id: 'stick' }, null]
     const bronzeFileGrid: CraftSlot[] = [null, { id: 'bronzePlate' }, null, null, { id: 'bronzePlate' }, null, null, { id: 'stick' }, null]
+    const ironWireCuttersGrid: CraftSlot[] = [{ id: 'ironPlate' }, null, { id: 'ironPlate' }, null, { id: 'ironRod' }, null, { id: 'ironRod' }, { id: 'ironFile' }, null]
     const mortarGrid: CraftSlot[] = [
       { id: 'cobblestone' },
       { id: 'flint' },
@@ -2042,6 +2096,7 @@ describe('game engine', () => {
     expect(findGridRecipe(ironHammerGrid, recipes)?.id).toBe('craft_iron_hammer')
     expect(findGridRecipe(ironFileGrid, recipes)?.id).toBe('craft_iron_file')
     expect(findGridRecipe(bronzeFileGrid, recipes)?.id).toBe('craft_bronze_file')
+    expect(findGridRecipe(ironWireCuttersGrid, recipes)?.id).toBe('craft_iron_wire_cutters')
     expect(findGridRecipe(mortarGrid, recipes)?.id).toBe('craft_mortar')
     expect(findGridRecipe(ironMortarGrid, recipes)?.id).toBe('craft_iron_mortar')
     expect(findGridRecipe(bronzeMortarGrid, recipes)?.id).toBe('craft_bronze_mortar')

@@ -102,6 +102,7 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   ironHammer: 160,
   ironFile: 96,
   bronzeFile: 160,
+  ironWireCutters: 128,
   ironWrench: 128,
   bronzeWrench: 192,
   mortar: 64,

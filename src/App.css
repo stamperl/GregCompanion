@@ -1240,6 +1240,7 @@ button.craft-output:disabled {
 .pixel-ironHammer span,
 .pixel-ironFile span,
 .pixel-bronzeFile span,
+.pixel-ironWireCutters span,
 .pixel-ironWrench span,
 .pixel-bronzeWrench span,
 .pixel-mortar span,
@@ -1253,6 +1254,7 @@ button.craft-output:disabled {
 .pixel-tinIngot span,
 .pixel-ironPlate span,
 .pixel-bronzePlate span,
+.pixel-redAlloyPlate span,
 .pixel-ironRod span,
 .pixel-copperRod span,
 .pixel-tinRod span,
@@ -1638,7 +1640,8 @@ button.craft-output:disabled {
 }
 
 .pixel-ironFile,
-.pixel-bronzeFile {
+.pixel-bronzeFile,
+.pixel-ironWireCutters {
   background: transparent;
   box-shadow: none;
 }
@@ -1674,6 +1677,25 @@ button.craft-output:disabled {
   --p1: #b7854c;
   --p2: #73522f;
   --p3: #dec279;
+}
+
+.pixel-ironWireCutters::before {
+  background: linear-gradient(135deg, #d5dde0 0 20%, #8f9aa0 20% 74%, #4f585e 74%);
+  clip-path: polygon(8% 12%, 48% 44%, 78% 6%, 98% 20%, 62% 52%, 98% 84%, 80% 98%, 48% 60%, 8% 92%, 0 72%, 34% 52%, 0 30%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-ironWireCutters::after {
+  background:
+    radial-gradient(circle at 50% 50%, #222 0 22%, transparent 23%),
+    linear-gradient(90deg, #c79c54 0 44%, transparent 44% 56%, #c79c54 56% 100%);
+  height: 12px;
+  left: 5px;
+  top: 13px;
+  width: 16px;
 }
 
 .pixel-ironWrench,
@@ -1834,6 +1856,7 @@ button.craft-output:disabled {
 .pixel-copperPlate,
 .pixel-tinPlate,
 .pixel-bronzePlate,
+.pixel-redAlloyPlate,
 .pixel-steelPlate {
   background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 82%, var(--p2) 82%);
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18), inset -4px -4px 0 rgba(0, 0, 0, 0.22);
@@ -1843,6 +1866,7 @@ button.craft-output:disabled {
 .pixel-copperPlate::before,
 .pixel-tinPlate::before,
 .pixel-bronzePlate::before,
+.pixel-redAlloyPlate::before,
 .pixel-steelPlate::before {
   background: rgba(0, 0, 0, 0.22);
   height: 2px;
@@ -1904,6 +1928,13 @@ button.craft-output:disabled {
   --p2: #73522f;
   --p3: #dec279;
   --p4: #49331f;
+}
+
+.pixel-redAlloyPlate {
+  --p1: #b83a30;
+  --p2: #611916;
+  --p3: #f3a093;
+  --p4: #32100e;
 }
 
 .pixel-steelPlate {
@@ -2449,17 +2480,6 @@ button.craft-output:disabled {
     linear-gradient(90deg, transparent 0 16%, #d8c46f 16% 24%, transparent 24% 76%, #d8c46f 76% 84%, transparent 84%),
     linear-gradient(180deg, #b58c52, #5d3c22);
   box-shadow: inset 0 0 0 3px #2e1d12;
-}
-
-.pixel-conductiveWire {
-  --p1: #d8c46f;
-  --p2: #235740;
-  --p3: #f2e68d;
-  --p4: #172d23;
-}
-
-.pixel-conductiveWire::after {
-  background: #235740;
 }
 
 .pixel-resistor {
