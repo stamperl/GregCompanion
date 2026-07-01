@@ -1861,8 +1861,11 @@ button.craft-output:disabled {
 .pixel-copperWire::before,
 .pixel-conductiveWire::before,
 .pixel-redAlloyWire::before {
-  background: linear-gradient(180deg, var(--p3) 0 24%, var(--p1) 24% 76%, var(--p2) 76% 100%);
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.28);
+  background: var(--p1);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 0 var(--p2);
   height: 8px;
   left: 2px;
   top: 9px;
@@ -1872,11 +1875,7 @@ button.craft-output:disabled {
 .pixel-copperWire::after,
 .pixel-conductiveWire::after,
 .pixel-redAlloyWire::after {
-  background: rgba(255, 255, 255, 0.28);
-  height: 2px;
-  left: 4px;
-  top: 10px;
-  width: 16px;
+  display: none;
 }
 
 .pixel-tinPlate {
@@ -1979,9 +1978,18 @@ button.craft-output:disabled {
 }
 
 .pixel-conductiveWire {
-  --p1: #2f6e4f;
-  --p2: #173826;
-  --p3: #63a378;
+  --p1: #d9823d;
+  --p2: #6e351c;
+  --p3: #0f0f0f;
+}
+
+.pixel-conductiveWire::before {
+  background:
+    linear-gradient(90deg, #d9823d 0 24%, #0f0f0f 24% 76%, #d9823d 76% 100%);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
 }
 
 .pixel-glass,
