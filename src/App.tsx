@@ -1941,7 +1941,7 @@ function App() {
   }, [isSaveModalOpen])
 
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
-  const outputResource = terminalMatch?.outputs[0]?.id
+  const terminalOutput = terminalMatch ? recipePrimaryOutput(terminalMatch) : undefined
   const selectedRecipeMissing = selectedRecipe ? missingForRecipe(state, selectedRecipe) : undefined
   const selectedRecipeMissingLine = selectedRecipe ? missingLine(state, selectedRecipe) : ''
   const selectedRecipeOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
@@ -2347,8 +2347,16 @@ function App() {
                   aria-label={terminalMatch ? `Craft ${recipeOutputLabel(terminalMatch)}` : 'No craft output'}
                   onClick={handleCraftFromGrid}
                 >
-                  {outputResource ? <PixelIcon id={outputResource} /> : <span className="empty-output" />}
-                  {terminalMatch && <span className="item-count output-count">{formatAmount(terminalMatch.outputs[0]?.amount ?? 1)}</span>}
+                  {terminalOutput ? (
+                    terminalOutput.kind === 'resource' ? (
+                      <PixelIcon id={terminalOutput.id} />
+                    ) : (
+                      <MachineGlyph id={terminalOutput.id} />
+                    )
+                  ) : (
+                    <span className="empty-output" />
+                  )}
+                  {terminalOutput && <span className="item-count output-count">{formatAmount(terminalOutput.amount)}</span>}
                 </button>
               </div>
             </div>
