@@ -22,7 +22,21 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import './App.css'
-import { fuelDefinitions, gatherTargets, machines, processRecipes, questChapters, quests as questDefinitions, recipes, resourceLabels, tools } from './game/content'
+import {
+  fuelDefinitions,
+  gatherTargets,
+  isPlaceableMachine,
+  isSteamNetworkMachine,
+  isSteamPipeMachine,
+  isSteamPoweredMachine,
+  machines,
+  processRecipes,
+  questChapters,
+  quests as questDefinitions,
+  recipes,
+  resourceLabels,
+  tools,
+} from './game/content'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -162,7 +176,7 @@ const machineOrder: MachineId[] = [
   'brickedBlastFurnacePart',
   'brickedBlastFurnace',
 ]
-const placeableFactoryMachineOrder = machineOrder.filter((id) => id !== 'brickedBlastFurnace')
+const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
 const factoryToolOrder: ResourceId[] = ['bronzeWrench', 'ironWrench']
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
@@ -278,32 +292,6 @@ type PipeConnections = {
   left: boolean
 }
 
-function isPipeMachine(machineId: MachineId) {
-  return machineId === 'copperPipe' || machineId === 'bronzePipe' || machineId === 'ironPipe'
-}
-
-function isSteamPoweredProcessMachine(machineId: MachineId) {
-  return (
-    machineId === 'steamMacerator' ||
-    machineId === 'steamForgeHammer' ||
-    machineId === 'steamCompressor' ||
-    machineId === 'steamExtractor' ||
-    machineId === 'steamAlloySmelter' ||
-    machineId === 'steamFurnace'
-  )
-}
-
-function isSteamNetworkMachine(machineId: MachineId) {
-  return (
-    machineId === 'steamBoiler' ||
-    machineId === 'steamTank' ||
-    isSteamPoweredProcessMachine(machineId) ||
-    machineId === 'copperPipe' ||
-    machineId === 'bronzePipe' ||
-    machineId === 'ironPipe'
-  )
-}
-
 function pipeConnectionClass(connections?: PipeConnections) {
   if (!connections) return ''
   return [
@@ -339,9 +327,9 @@ function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; 
     'machine-glyph',
     `machine-${id}`,
     active ? 'active' : '',
-    isPipeMachine(id) ? pipeConnectionClass(pipeConnections) : '',
+    isSteamPipeMachine(id) ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
-  if (isPipeMachine(id)) {
+  if (isSteamPipeMachine(id)) {
     const path = pipePath(pipeConnections)
     return (
       <span className={className} aria-hidden="true">
@@ -676,7 +664,7 @@ function machineUsesProcessStorage(machineId: MachineId) {
     machineId === 'steamBoiler' ||
     machineId === 'cokeOven' ||
     machineId === 'brickedBlastFurnace' ||
-    isSteamPoweredProcessMachine(machineId)
+    isSteamPoweredMachine(machineId)
   )
 }
 
@@ -689,7 +677,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if ((process.fluids.water ?? 0) > 0) return 'Holding water'
     return process.steamStoredMs > 0 ? 'Holding steam' : 'Empty tank'
   }
-  if (isPipeMachine(instance.machineId)) return `${steamPipeTransferLitresPerSecond[instance.machineId] ?? 0}L/s transfer`
+  if (isSteamPipeMachine(instance.machineId)) return `${steamPipeTransferLitresPerSecond[instance.machineId] ?? 0}L/s transfer`
   if (instance.machineId === 'steamBoiler') {
     if (!boilerHasWater(state, instance)) return 'No water'
     if (process.steamStoredMs >= boilerSteamCapacityMs && process.fuelRemainingMs > 0) return 'Venting full tank'
@@ -726,7 +714,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if (process.output && (process.output.id !== blastRecipe.output.id || process.output.amount + blastRecipe.output.amount > processStackLimit)) return 'Output full'
     return process.activeRecipeId ? 'Blasting' : 'Ready'
   }
-  if (isSteamPoweredProcessMachine(instance.machineId)) {
+  if (isSteamPoweredMachine(instance.machineId)) {
     if (!recipe) return 'No input'
     if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
     if (process.steamStoredMs + availableConnectedSteam(state, instance) < 1) return 'No steam'
@@ -1199,7 +1187,7 @@ function App() {
   const machineAtFactoryCell = (x: number, y: number) => state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
 
   const pipeConnectionsForInstance = (instance: MachineInstance): PipeConnections | undefined => {
-    if (!isPipeMachine(instance.machineId)) return undefined
+    if (!isSteamPipeMachine(instance.machineId)) return undefined
     return {
       up: Boolean(machineAtFactoryCell(instance.x, instance.y - 1)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x, instance.y - 1)!.machineId)),
       right: Boolean(machineAtFactoryCell(instance.x + 1, instance.y)?.machineId && isSteamNetworkMachine(machineAtFactoryCell(instance.x + 1, instance.y)!.machineId)),
@@ -2716,7 +2704,7 @@ function App() {
                             instance.process.activeRecipeId ||
                             (isSteamNetworkMachine(instance.machineId) && instance.process.steamStoredMs > 0) ||
                             Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0) ||
-                            (isPipeMachine(instance.machineId) && availableConnectedSteam(state, instance) > 0)),
+                            (isSteamPipeMachine(instance.machineId) && availableConnectedSteam(state, instance) > 0)),
                       )
                       return (
                         <button
@@ -2857,7 +2845,7 @@ function App() {
                       {selectedMachineSteamCostLitres ? ` | Uses ${selectedMachineSteamCostLitres}L` : ''}
                     </strong>
                   )}
-                  {isSteamPoweredProcessMachine(selectedMachine.machineId) && selectedMachine.machineId !== 'steamMacerator' && (
+                  {isSteamPoweredMachine(selectedMachine.machineId) && selectedMachine.machineId !== 'steamMacerator' && (
                     <strong>
                       Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamMaceratorCapacityMs)}L
                       {' | '}
@@ -2894,7 +2882,7 @@ function App() {
                     )}
                     <span>Stores steam or one fluid from connected pipes</span>
                   </div>
-                ) : isPipeMachine(selectedMachine.machineId) ? (
+                ) : isSteamPipeMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">
                     <MachineGlyph id={selectedMachine.machineId} active />
                     <span>Transfers steam at {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s</span>
@@ -2907,7 +2895,7 @@ function App() {
                     {selectedMachine.machineId === 'steamAlloySmelter' && (
                       <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                     )}
-                    {isSteamPoweredProcessMachine(selectedMachine.machineId) && (
+                    {isSteamPoweredMachine(selectedMachine.machineId) && (
                       <>
                         <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={steamMachineInternalCapacityMs} />
                         <span className="steam-usage-line">{selectedMachineSteamCostLitres ? `${selectedMachineSteamCostLitres}L/craft` : 'No recipe'}</span>

@@ -417,6 +417,38 @@ export const machineRegistry = {
 
 export const machines: Record<MachineId, MachineSpec> = machineRegistry
 
+export function isPlaceableMachine(machineId: MachineId) {
+  return machineRegistry[machineId].placeable
+}
+
+export function isSteamPipeMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'steamPipe'
+}
+
+export function isSteamPoweredMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'steamProcess'
+}
+
+export function isSteamStorageMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'steamBoiler' || machineRegistry[machineId].processKind === 'steamStorage'
+}
+
+export function isSteamNetworkMachine(machineId: MachineId) {
+  return isSteamStorageMachine(machineId) || isSteamPipeMachine(machineId) || isSteamPoweredMachine(machineId)
+}
+
+export function machinePipeTransferLitresPerSecond(machineId: MachineId) {
+  return machines[machineId].pipeTransferLitresPerSecond ?? 0
+}
+
+export function machineSteamCapacityLitres(machineId: MachineId) {
+  return machines[machineId].steamCapacityLitres ?? 0
+}
+
+export function machineFluidCapacityLitres(machineId: MachineId) {
+  return machines[machineId].fluidCapacityLitres ?? 0
+}
+
 export const recipes: Recipe[] = [
   {
     id: 'craft_planks',

@@ -5,6 +5,13 @@ import {
   initialEquipment,
   initialMachines,
   initialResources,
+  isSteamNetworkMachine,
+  isSteamPipeMachine,
+  isSteamPoweredMachine,
+  isSteamStorageMachine,
+  machineFluidCapacityLitres,
+  machinePipeTransferLitresPerSecond,
+  machineSteamCapacityLitres,
   machines,
   processRecipes,
   quests,
@@ -75,17 +82,17 @@ export const factoryFoundationCosts: Record<number, ResourceAmount[]> = {
 }
 export const processStackLimit = 64
 export const steamMsPerLitre = 1000
-export const boilerSteamCapacityMs = 128 * steamMsPerLitre
-export const steamMaceratorCapacityMs = 32 * steamMsPerLitre
-export const steamTankCapacityMs = 512 * steamMsPerLitre
-export const cokeOvenFluidCapacityLitres = 128
-export const ironTankFluidCapacityLitres = 512
-export const steamMachineInternalCapacityMs = 32 * steamMsPerLitre
-export const steamPipeTransferLitresPerSecond: Partial<Record<MachineId, number>> = {
-  copperPipe: 4,
-  bronzePipe: 8,
-  ironPipe: 16,
-}
+export const boilerSteamCapacityMs = machineSteamCapacityLitres('steamBoiler') * steamMsPerLitre
+export const steamMaceratorCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
+export const steamTankCapacityMs = machineSteamCapacityLitres('steamTank') * steamMsPerLitre
+export const cokeOvenFluidCapacityLitres = machineFluidCapacityLitres('cokeOven')
+export const ironTankFluidCapacityLitres = machineFluidCapacityLitres('steamTank')
+export const steamMachineInternalCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
+export const steamPipeTransferLitresPerSecond = Object.fromEntries(
+  (Object.keys(machines) as MachineId[])
+    .map((machineId) => [machineId, machinePipeTransferLitresPerSecond(machineId)] as const)
+    .filter(([, transferRate]) => transferRate > 0),
+) as Partial<Record<MachineId, number>>
 
 const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   woodenAxe: 32,
@@ -981,41 +988,8 @@ export function boilerHasWater(state: GameState, boiler: MachineInstance) {
   return adjacentPositions(state, boiler.x, boiler.y).some((position) => machineAt(state, position.x, position.y)?.machineId === 'well')
 }
 
-function isSteamNetworkMachine(machineId: MachineId) {
-  return (
-    machineId === 'steamBoiler' ||
-    machineId === 'steamTank' ||
-    machineId === 'steamMacerator' ||
-    isSteamPoweredMachine(machineId) ||
-    machineId === 'copperPipe' ||
-    machineId === 'bronzePipe' ||
-    machineId === 'ironPipe'
-  )
-}
-
-function isSteamPoweredMachine(machineId: MachineId) {
-  return (
-    machineId === 'steamMacerator' ||
-    machineId === 'steamForgeHammer' ||
-    machineId === 'steamCompressor' ||
-    machineId === 'steamExtractor' ||
-    machineId === 'steamAlloySmelter' ||
-    machineId === 'steamFurnace'
-  )
-}
-
-function isSteamStorageMachine(machineId: MachineId) {
-  return machineId === 'steamBoiler' || machineId === 'steamTank'
-}
-
-function isSteamPipeMachine(machineId: MachineId) {
-  return typeof steamPipeTransferLitresPerSecond[machineId] === 'number'
-}
-
 function machineFluidCapacity(machineId: MachineId) {
-  if (machineId === 'cokeOven') return cokeOvenFluidCapacityLitres
-  if (machineId === 'steamTank') return ironTankFluidCapacityLitres
-  return 0
+  return machineFluidCapacityLitres(machineId)
 }
 
 function storedFluidTypes(process: MachineProcessState) {
