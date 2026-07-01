@@ -19,6 +19,14 @@ import {
   resourceLabels,
   tools,
 } from './content'
+import {
+  recipeMachineInputs,
+  recipeMachineOutputs,
+  recipeResourceInputs,
+  recipeResourceOutputs,
+  recipesProducingResource,
+  recipesUsingResource,
+} from './recipeGraph'
 import type {
   CraftSlot,
   EquipmentSlotId,
@@ -744,15 +752,11 @@ export function searchTerminalRecipes(query: string, candidates = recipes) {
   if (!normalized) return candidates
 
   return candidates.filter((recipe) => {
-    const resourceMatches = [...recipe.inputs, ...recipe.outputs].some((amount) => {
+    const resourceMatches = [...recipeResourceInputs(recipe), ...recipeResourceOutputs(recipe)].some((amount) => {
       const label = resourceLabels[amount.id].toLowerCase()
       return amount.id.toLowerCase().includes(normalized) || label.includes(normalized)
     })
-    const catalystMatches = [...(recipe.catalysts ?? []), ...(recipe.durabilityCosts ?? [])].some((amount) => {
-      const label = resourceLabels[amount.id].toLowerCase()
-      return amount.id.toLowerCase().includes(normalized) || label.includes(normalized)
-    })
-    const machineMatches = [...(recipe.machineInputs ?? []), ...(recipe.machineOutputs ?? [])].some((amount) => {
+    const machineMatches = [...recipeMachineInputs(recipe), ...recipeMachineOutputs(recipe)].some((amount) => {
       const machine = machines[amount.id]
       return amount.id.toLowerCase().includes(normalized) || machine.name.toLowerCase().includes(normalized)
     })
@@ -767,7 +771,6 @@ export function searchTerminalRecipes(query: string, candidates = recipes) {
       recipe.name.toLowerCase().includes(normalized) ||
       recipe.description.toLowerCase().includes(normalized) ||
       resourceMatches ||
-      catalystMatches ||
       machineMatches ||
       fuelMatches
     )
@@ -775,16 +778,11 @@ export function searchTerminalRecipes(query: string, candidates = recipes) {
 }
 
 export function recipesForOutput(resourceId: ResourceId, candidates = recipes) {
-  return candidates.filter((recipe) => recipe.outputs.some((amount) => amount.id === resourceId))
+  return recipesProducingResource(resourceId, candidates)
 }
 
 export function recipesUsingInput(resourceId: ResourceId, candidates = recipes) {
-  return candidates.filter(
-    (recipe) =>
-      recipe.inputs.some((amount) => amount.id === resourceId) ||
-      recipe.catalysts?.some((amount) => amount.id === resourceId) ||
-      recipe.durabilityCosts?.some((amount) => amount.id === resourceId),
-  )
+  return recipesUsingResource(resourceId, candidates)
 }
 
 function canCraftByRequirements(state: GameState, recipe: Recipe) {

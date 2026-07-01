@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialState, fuelDefinitions, processRecipes, quests, recipes } from './content'
+import { recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableResourceAmount,
@@ -1903,6 +1904,11 @@ describe('game engine', () => {
 
     expect(usages).toContain('craft_sticks')
     expect(usages).toContain('craft_wooden_pickaxe')
+  })
+
+  it('indexes recipe graph resource producers and users', () => {
+    expect(recipesProducingResource('plank', recipes).map((recipe) => recipe.id)).toContain('craft_planks')
+    expect(recipesUsingResource('mortar', recipes).map((recipe) => recipe.id)).toContain('grind_iron_ingot')
   })
 
   it('loads craftable recipes into the terminal grid and tracks available storage', () => {
