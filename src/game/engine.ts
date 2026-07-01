@@ -110,10 +110,12 @@ export const steamTurbineSteamUseLitresPerSecond = 8
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
 export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
-export const steamAutoMinerDamagePerSecond = 0.35
-export const steamAutoMinerSteamUseLitresPerSecond = 4
-export const lvAutoMinerDamagePerSecond = 1
-export const lvAutoMinerEuUsePerSecond = 8
+export const steamAutoMinerActionDamage = 10
+export const steamAutoMinerActionMs = 5000
+export const steamAutoMinerSteamUseLitres = 16
+export const lvAutoMinerActionDamage = 16
+export const lvAutoMinerActionMs = 4000
+export const lvAutoMinerEuUse = 16
 export const steamPipeTransferLitresPerSecond = Object.fromEntries(
   (Object.keys(machines) as MachineId[])
     .map((machineId) => [machineId, machinePipeTransferLitresPerSecond(machineId)] as const)
@@ -1757,40 +1759,45 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
   const targetId = state.autoMinerAssignments[instance.uid]
   if (!targetId || !canAutoMinerTarget(instance.machineId, targetId)) {
     instance.process.activeRecipeId = null
+    instance.process.progressMs = 0
+    instance.process.durationMs = 0
     return
   }
 
-  let remainingMs = elapsedMs
-  let workedMs = 0
+  const actionMs = instance.machineId === 'steamAutoMiner' ? steamAutoMinerActionMs : lvAutoMinerActionMs
+  const damage = instance.machineId === 'steamAutoMiner' ? steamAutoMinerActionDamage : lvAutoMinerActionDamage
+  instance.process.durationMs = actionMs
+  instance.process.progressMs += elapsedMs
+  let completedAction = false
+
   if (instance.machineId === 'steamAutoMiner') {
-    const steamCostPerMs = (steamAutoMinerSteamUseLitresPerSecond * steamMsPerLitre) / 1000
-    while (remainingMs > 0) {
-      fillInternalSteamFromConnectedStorage(state, instance, remainingMs)
-      if (instance.process.steamStoredMs <= 0) break
-      const workMs = Math.min(remainingMs, instance.process.steamStoredMs / steamCostPerMs)
-      if (workMs < 1) break
-      instance.process.steamStoredMs = Math.max(0, instance.process.steamStoredMs - workMs * steamCostPerMs)
-      applyAutoMinerDamage(state, targetId, (workMs / 1000) * steamAutoMinerDamagePerSecond)
-      remainingMs -= workMs
-      workedMs += workMs
+    const steamCostMs = steamAutoMinerSteamUseLitres * steamMsPerLitre
+    while (instance.process.progressMs >= actionMs) {
+      fillInternalSteamFromConnectedStorage(state, instance, actionMs)
+      if (instance.process.steamStoredMs < steamCostMs) {
+        instance.process.progressMs = actionMs
+        break
+      }
+      instance.process.steamStoredMs -= steamCostMs
+      applyAutoMinerDamage(state, targetId, damage)
+      instance.process.progressMs -= actionMs
+      completedAction = true
     }
   } else if (instance.machineId === 'lvAutoMiner') {
-    const euCostPerMs = lvAutoMinerEuUsePerSecond / 1000
-    while (remainingMs > 0) {
-      fillInternalEuFromConnectedStorage(state, instance, remainingMs)
-      if (instance.process.euStored <= 0) break
-      const workMs = Math.min(remainingMs, instance.process.euStored / euCostPerMs)
-      if (workMs < 1) break
-      instance.process.euStored = Math.max(0, instance.process.euStored - workMs * euCostPerMs)
-      applyAutoMinerDamage(state, targetId, (workMs / 1000) * lvAutoMinerDamagePerSecond)
-      remainingMs -= workMs
-      workedMs += workMs
+    while (instance.process.progressMs >= actionMs) {
+      fillInternalEuFromConnectedStorage(state, instance, actionMs)
+      if (instance.process.euStored < lvAutoMinerEuUse) {
+        instance.process.progressMs = actionMs
+        break
+      }
+      instance.process.euStored -= lvAutoMinerEuUse
+      applyAutoMinerDamage(state, targetId, damage)
+      instance.process.progressMs -= actionMs
+      completedAction = true
     }
   }
 
-  instance.process.activeRecipeId = workedMs > 0 ? `auto_mine_${targetId}` : null
-  instance.process.progressMs = 0
-  instance.process.durationMs = 0
+  instance.process.activeRecipeId = completedAction || (instance.process.progressMs > 0 && isAutoMinerPowered(state, instance)) ? `auto_mine_${targetId}` : null
 }
 
 export function tickMachineInstances(state: GameState, elapsedMs: number) {

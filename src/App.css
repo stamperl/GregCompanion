@@ -6041,6 +6041,11 @@ button.craft-output:disabled {
   grid-column: 1 / -1;
 }
 
+.auto-miner-action-progress {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
 .machine-cokeOven {
   --m1: #9c4f35;
   --m2: #4a241c;

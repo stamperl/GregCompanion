@@ -2004,9 +2004,27 @@ describe('game engine', () => {
     state = assignAutoMiner(state, miner.uid, 'stone')
     state = tickGame(state, 70000).state
 
-    expect(state.resources.cobblestone).toBe(1)
+    expect(state.resources.cobblestone).toBe(5)
     expect(state.gatherProgress.stone).toBeGreaterThan(0)
     expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.steamStoredMs ?? 0).toBeLessThan(32000)
+  })
+
+  it('does not deal auto miner damage before the action lands', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.steamAutoMiner = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamAutoMiner', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.process.steamStoredMs = steamTankCapacityMs
+    const miner = state.machineInstances.find((instance) => instance.machineId === 'steamAutoMiner')!
+
+    state = assignAutoMiner(state, miner.uid, 'stone')
+    state = tickGame(state, 4000).state
+
+    const nextMiner = state.machineInstances.find((instance) => instance.uid === miner.uid)!
+    expect(nextMiner.process.progressMs).toBe(4000)
+    expect(state.gatherProgress.stone ?? 0).toBe(0)
+    expect(state.resources.cobblestone).toBe(0)
   })
 
   it('fills an unassigned steam auto miner buffer when connected to steam', () => {
@@ -2040,7 +2058,7 @@ describe('game engine', () => {
     state = assignAutoMiner(state, miners[1].uid, 'stone')
     state = tickGame(state, 35000).state
 
-    expect(state.resources.cobblestone).toBe(1)
+    expect(state.resources.cobblestone).toBe(5)
   })
 
   it('runs LV auto miners from connected EU and clears assignment when removed', () => {
@@ -2056,7 +2074,7 @@ describe('game engine', () => {
     expect(isAutoMinerPowered(state, miner)).toBe(true)
     state = tickGame(state, 25000).state
 
-    expect(state.resources.sand).toBe(1)
+    expect(state.resources.sand).toBe(4)
     state = unassignAutoMiner(state, miner.uid)
     expect(state.autoMinerAssignments[miner.uid]).toBeUndefined()
     state = assignAutoMiner(state, miner.uid, 'sandPatch')
