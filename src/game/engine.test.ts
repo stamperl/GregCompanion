@@ -1287,15 +1287,15 @@ describe('game engine', () => {
     let state = createFactoryState(1000)
     state.resources.clay = 1
     state.resources.unfiredBrick = 1
-    state.resources.ironPlate = 16
+    state.resources.ironPlate = 19
     state.resources.brick = 8
     state.resources.bronzePlate = 14
-    state.resources.bronzeRod = 5
-    state.resources.copperPlate = 2
-    state.resources.copperRod = 3
-    state.resources.ironRod = 1
+    state.resources.bronzeRod = 6
+    state.resources.copperPlate = 5
+    state.resources.copperRod = 7
+    state.resources.ironRod = 4
     state.resources.steamCasing = 2
-    state.resources.bronzeMortar = 1
+    state.resources.bronzeMortar = 2
     const unfiredBrick = recipes.find((recipe) => recipe.id === 'craft_unfired_brick')!
     const bucket = recipes.find((recipe) => recipe.id === 'craft_bucket')!
     const well = recipes.find((recipe) => recipe.id === 'build_well')!
@@ -1325,6 +1325,46 @@ describe('game engine', () => {
     expect(state.machines.bronzePipe).toBe(4)
     expect(state.machines.ironPipe).toBe(4)
     expect(state.machines.steamMacerator).toBe(1)
+  })
+
+  it('uses filled 3x3 grids for machine crafts except the primitive furnace and BBF floor layout', () => {
+    const machineCrafts = recipes.filter((recipe) => recipe.machineOutputs?.length)
+    const exceptions = new Set(['build_furnace', 'build_bricked_blast_furnace'])
+
+    for (const recipe of machineCrafts) {
+      if (exceptions.has(recipe.id)) continue
+      expect(recipe.pattern, `${recipe.id} should define a shaped 3x3 machine recipe`).toHaveLength(9)
+      expect(recipe.pattern?.every(Boolean), `${recipe.id} should fill every slot`).toBe(true)
+    }
+
+    expect(recipes.find((recipe) => recipe.id === 'build_furnace')?.pattern?.filter(Boolean)).toHaveLength(8)
+    expect(recipes.find((recipe) => recipe.id === 'build_bricked_blast_furnace')?.recipeType).toBe('machine')
+  })
+
+  it('crafts LV casing and hull before LV machines consume hulls', () => {
+    let state = createFactoryState(1000)
+    state.resources.steelPlate = 13
+    state.resources.ironPlate = 4
+    state.resources.tinWire = 8
+    state.resources.bronzePlate = 1
+    state.resources.bronzeRod = 2
+    state.resources.primitiveCircuit = 1
+
+    const casing = recipes.find((recipe) => recipe.id === 'craft_lv_machine_casing')!
+    const hull = recipes.find((recipe) => recipe.id === 'craft_lv_machine_hull')!
+    const turbine = recipes.find((recipe) => recipe.id === 'build_steam_turbine')!
+
+    expect(casing.pattern?.every(Boolean)).toBe(true)
+    expect(hull.pattern?.every(Boolean)).toBe(true)
+    expect(turbine.inputs).toContainEqual({ id: 'lvMachineHull', amount: 1 })
+
+    state = craftRecipeInstant(state, casing, 1)
+    state = craftRecipeInstant(state, hull, 1)
+    state = craftRecipeInstant(state, turbine, 1)
+
+    expect(state.resources.lvMachineCasing).toBe(0)
+    expect(state.resources.lvMachineHull).toBe(0)
+    expect(state.machines.steamTurbine).toBe(1)
   })
 
   it('crafts BBF casing items and assembles them into factory multiblock parts', () => {
@@ -2001,7 +2041,6 @@ describe('game engine', () => {
       'build_steam_alloy_smelter',
       'build_steam_furnace',
       'build_steam_turbine',
-      'build_lv_wiremill',
     ])
     expect(searchTerminalRecipes('dynamo').map((recipe) => recipe.id)).toEqual([])
   })

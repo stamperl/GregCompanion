@@ -80,6 +80,8 @@ export type ResourceId =
   | 'cokeOvenBrick'
   | 'firebrick'
   | 'bbfCasing'
+  | 'lvMachineCasing'
+  | 'lvMachineHull'
   | 'basicBoard'
   | 'conductiveWire'
   | 'primitiveCircuit'
