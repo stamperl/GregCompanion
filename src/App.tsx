@@ -100,6 +100,7 @@ import {
   recipeGroupOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
+import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
 import type {
   CraftSlot,
   EquipmentSlotId,
@@ -265,85 +266,6 @@ function DurabilityBar({ state, id }: { state: GameState; id: ResourceId }) {
   return (
     <span className="durability-bar" title={`${formatAmount(remaining)}/${formatAmount(max)} uses`}>
       <span style={{ width: `${Math.max(0, Math.min(100, (remaining / max) * 100))}%` }} />
-    </span>
-  )
-}
-
-function PixelIcon({ id }: { id: ResourceId }) {
-  return (
-    <span className={`pixel-icon pixel-${id}`} aria-hidden="true">
-      <span />
-    </span>
-  )
-}
-
-function GatherTapArt({ iconId }: { iconId: ResourceId }) {
-  return (
-    <span className="gather-tap-fallback" aria-hidden="true">
-      <PixelIcon id={iconId} />
-    </span>
-  )
-}
-
-type PipeConnections = {
-  up: boolean
-  right: boolean
-  down: boolean
-  left: boolean
-}
-
-function pipeConnectionClass(connections?: PipeConnections) {
-  if (!connections) return ''
-  return [
-    connections.up ? 'pipe-up' : '',
-    connections.right ? 'pipe-right' : '',
-    connections.down ? 'pipe-down' : '',
-    connections.left ? 'pipe-left' : '',
-  ].filter(Boolean).join(' ')
-}
-
-function pipePath(connections?: PipeConnections) {
-  const pipeConnections = connections ?? { up: false, right: true, down: false, left: true }
-  const { up, right, down, left } = pipeConnections
-  const count = [up, right, down, left].filter(Boolean).length
-  if (count < 1) return 'M0 20 L40 20'
-  if (left && right && !up && !down) return 'M0 20 L40 20'
-  if (up && down && !left && !right) return 'M20 0 L20 40'
-  if (up && right && count === 2) return 'M20 0 L20 20 L40 20'
-  if (right && down && count === 2) return 'M40 20 L20 20 L20 40'
-  if (down && left && count === 2) return 'M20 40 L20 20 L0 20'
-  if (left && up && count === 2) return 'M0 20 L20 20 L20 0'
-
-  return [
-    up ? 'M20 20 L20 0' : '',
-    right ? 'M20 20 L40 20' : '',
-    down ? 'M20 20 L20 40' : '',
-    left ? 'M20 20 L0 20' : '',
-  ].filter(Boolean).join(' ')
-}
-
-function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
-  const className = [
-    'machine-glyph',
-    `machine-${id}`,
-    active ? 'active' : '',
-    isSteamPipeMachine(id) ? pipeConnectionClass(pipeConnections) : '',
-  ].filter(Boolean).join(' ')
-  if (isSteamPipeMachine(id)) {
-    const path = pipePath(pipeConnections)
-    return (
-      <span className={className} aria-hidden="true">
-        <svg className="pipe-svg" viewBox="0 0 40 40" focusable="false">
-          <path className="pipe-outline" d={path} />
-          <path className="pipe-body" d={path} />
-          <path className="pipe-highlight" d={path} />
-        </svg>
-      </span>
-    )
-  }
-  return (
-    <span className={className} aria-hidden="true">
-      <span />
     </span>
   )
 }
