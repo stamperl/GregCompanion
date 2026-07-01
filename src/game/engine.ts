@@ -5,6 +5,8 @@ import {
   initialEquipment,
   initialMachines,
   initialResources,
+  canAutoMinerTarget,
+  isAutoMinerMachine,
   isEuCableMachine,
   isEuNetworkMachine,
   isEuPoweredMachine,
@@ -108,6 +110,10 @@ export const steamTurbineSteamUseLitresPerSecond = 8
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
 export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
+export const steamAutoMinerDamagePerSecond = 0.35
+export const steamAutoMinerSteamUseLitresPerSecond = 4
+export const lvAutoMinerDamagePerSecond = 1
+export const lvAutoMinerEuUsePerSecond = 8
 export const steamPipeTransferLitresPerSecond = Object.fromEntries(
   (Object.keys(machines) as MachineId[])
     .map((machineId) => [machineId, machinePipeTransferLitresPerSecond(machineId)] as const)
@@ -285,6 +291,7 @@ export function cloneState(state: GameState): GameState {
     equipment: { ...state.equipment },
     durability: { ...state.durability },
     gatherProgress: { ...state.gatherProgress },
+    autoMinerAssignments: { ...state.autoMinerAssignments },
     machineProgress: { ...state.machineProgress },
   }
 }
@@ -1128,6 +1135,12 @@ export function availableConnectedEu(state: GameState, instance: MachineInstance
   return connectedEuProducers(state, instance).reduce((sum, producer) => sum + producer.instance.process.euStored, 0)
 }
 
+export function isAutoMinerPowered(state: GameState, instance: MachineInstance) {
+  if (instance.machineId === 'steamAutoMiner') return instance.process.steamStoredMs + availableConnectedSteam(state, instance) > 0
+  if (instance.machineId === 'lvAutoMiner') return instance.process.euStored + availableConnectedEu(state, instance) > 0
+  return false
+}
+
 function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId: FluidId) {
   return connectedFluidNetwork(state, start).filter((instance) => instance.uid !== start.uid && canStoreFluid(instance, fluidId))
 }
@@ -1171,7 +1184,7 @@ function consumeConnectedSteam(state: GameState, instance: MachineInstance, amou
 }
 
 function fillInternalSteamFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
-  const capacity = isSteamPoweredMachine(instance.machineId) ? steamMachineInternalCapacityMs : 0
+  const capacity = isSteamPoweredMachine(instance.machineId) ? machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre : 0
   if (capacity < 1) return 0
   instance.process.steamCapacityMs = capacity
   instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
@@ -1278,6 +1291,34 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   return next
 }
 
+export function assignAutoMiner(state: GameState, uid: string, targetId: GatherTargetId) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isAutoMinerMachine(instance.machineId) || !canAutoMinerTarget(instance.machineId, targetId)) return state
+
+  const next = cloneState(state)
+  next.autoMinerAssignments[uid] = targetId
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function unassignAutoMiner(state: GameState, uid: string) {
+  if (!state.autoMinerAssignments[uid]) return state
+
+  const next = cloneState(state)
+  delete next.autoMinerAssignments[uid]
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTargetId, machineId?: MachineId) {
+  return state.machineInstances.filter(
+    (instance) =>
+      isAutoMinerMachine(instance.machineId) &&
+      (!machineId || instance.machineId === machineId) &&
+      state.autoMinerAssignments[instance.uid] === targetId,
+  ).length
+}
+
 export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
@@ -1307,6 +1348,7 @@ export function removeMachineInstance(state: GameState, uid: string) {
     (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
   )
   next.machineInstances = next.machineInstances.filter((candidate) => candidate.uid !== uid)
+  delete next.autoMinerAssignments[uid]
   next.lastSavedAt = Date.now()
   if (returned.length > 0) next = addResources(next, returned)
   return next
@@ -1685,6 +1727,66 @@ function tickBrickedBlastFurnace(instance: MachineInstance, elapsedMs: number) {
   }
 }
 
+function addGatherDropsInPlace(state: GameState, targetId: GatherTargetId, cycles: number) {
+  if (cycles < 1) return
+  for (const drop of gatherTargets[targetId].drops) {
+    state.resources[drop.id] += drop.amount * cycles
+  }
+}
+
+function applyAutoMinerDamage(state: GameState, targetId: GatherTargetId, damage: number) {
+  if (damage <= 0) return
+  const target = gatherTargets[targetId]
+  const progress = (state.gatherProgress[targetId] ?? 0) + damage
+  const cycles = Math.floor(progress / target.maxHp)
+  state.gatherProgress[targetId] = progress % target.maxHp
+  addGatherDropsInPlace(state, targetId, cycles)
+}
+
+function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const targetId = state.autoMinerAssignments[instance.uid]
+  if (!targetId || !canAutoMinerTarget(instance.machineId, targetId)) {
+    instance.process.activeRecipeId = null
+    return
+  }
+
+  let remainingMs = elapsedMs
+  let workedMs = 0
+  if (instance.machineId === 'steamAutoMiner') {
+    instance.process.steamCapacityMs = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
+    instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, instance.process.steamCapacityMs)
+    const steamCostPerMs = (steamAutoMinerSteamUseLitresPerSecond * steamMsPerLitre) / 1000
+    while (remainingMs > 0) {
+      fillInternalSteamFromConnectedStorage(state, instance, remainingMs)
+      if (instance.process.steamStoredMs <= 0) break
+      const workMs = Math.min(remainingMs, instance.process.steamStoredMs / steamCostPerMs)
+      if (workMs < 1) break
+      instance.process.steamStoredMs = Math.max(0, instance.process.steamStoredMs - workMs * steamCostPerMs)
+      applyAutoMinerDamage(state, targetId, (workMs / 1000) * steamAutoMinerDamagePerSecond)
+      remainingMs -= workMs
+      workedMs += workMs
+    }
+  } else if (instance.machineId === 'lvAutoMiner') {
+    instance.process.euCapacity = machineEuCapacity(instance.machineId)
+    instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
+    const euCostPerMs = lvAutoMinerEuUsePerSecond / 1000
+    while (remainingMs > 0) {
+      fillInternalEuFromConnectedStorage(state, instance, remainingMs)
+      if (instance.process.euStored <= 0) break
+      const workMs = Math.min(remainingMs, instance.process.euStored / euCostPerMs)
+      if (workMs < 1) break
+      instance.process.euStored = Math.max(0, instance.process.euStored - workMs * euCostPerMs)
+      applyAutoMinerDamage(state, targetId, (workMs / 1000) * lvAutoMinerDamagePerSecond)
+      remainingMs -= workMs
+      workedMs += workMs
+    }
+  }
+
+  instance.process.activeRecipeId = workedMs > 0 ? `auto_mine_${targetId}` : null
+  instance.process.progressMs = 0
+  instance.process.durationMs = 0
+}
+
 export function tickMachineInstances(state: GameState, elapsedMs: number) {
   const next = cloneState(state)
   for (const instance of next.machineInstances) {
@@ -1714,13 +1816,16 @@ export function tickMachineInstances(state: GameState, elapsedMs: number) {
     if (instance.machineId === 'steamTank') fillSteamTankFromConnectedStorage(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
-    if (isSteamPoweredMachine(instance.machineId)) tickSteamProcessMachine(next, instance, elapsedMs)
+    if (isSteamPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickSteamProcessMachine(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
     if (isEuProducerMachine(instance.machineId)) tickSteamTurbine(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
-    if (isEuPoweredMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
+    if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
+  }
+  for (const instance of next.machineInstances) {
+    if (isAutoMinerMachine(instance.machineId)) tickAutoMiner(next, instance, elapsedMs)
   }
   next.lastSavedAt = Date.now()
   return next
@@ -1973,6 +2078,19 @@ function migrateMachineInstances(machinesState: Record<MachineId, number>, found
   return migrated.filter((instance) => isInsideGridSize(grid, instance.x, instance.y))
 }
 
+function normalizeAutoMinerAssignments(parsed: Partial<GameState>, instances: MachineInstance[]) {
+  const normalized: Record<string, GatherTargetId> = {}
+  const instanceByUid = new Map(instances.map((instance) => [instance.uid, instance]))
+  for (const [uid, targetId] of Object.entries(parsed.autoMinerAssignments ?? {})) {
+    const instance = instanceByUid.get(uid)
+    if (!instance || !isAutoMinerMachine(instance.machineId)) continue
+    if (targetId in gatherTargets && canAutoMinerTarget(instance.machineId, targetId as GatherTargetId)) {
+      normalized[uid] = targetId as GatherTargetId
+    }
+  }
+  return normalized
+}
+
 export function loadGame(raw: string | null, now = Date.now()): GameState {
   if (!raw) return createInitialState(now)
 
@@ -1987,13 +2105,14 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
 
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
+    const machineInstances = migrateMachineInstances(machinesState, factoryFoundationLevel, parsed.machineInstances)
 
     return {
       ...fresh,
       ...savedState,
       resources: migrateResources({ ...fresh.resources, ...parsed.resources }),
       machines: machinesState,
-      machineInstances: migrateMachineInstances(machinesState, factoryFoundationLevel, parsed.machineInstances),
+      machineInstances,
       factoryFoundationLevel,
       completedQuests: parsed.completedQuests ?? [],
       claimedQuests: parsed.claimedQuests ?? [],
@@ -2002,6 +2121,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       equipment: normalizeEquipment(parsed.equipment),
       durability: normalizeDurability(parsed.durability),
       gatherProgress: parsed.gatherProgress ?? {},
+      autoMinerAssignments: normalizeAutoMinerAssignments(parsed, machineInstances),
       machineProgress: parsed.machineProgress ?? {},
       lastSavedAt: now,
       version: 1,

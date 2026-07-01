@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialState, fuelDefinitions, gatherTargets, processRecipes, quests, recipes } from './content'
+import { canAutoMinerTarget, createInitialState, fuelDefinitions, gatherTargets, processRecipes, quests, recipes } from './content'
 import { processRecipesProducingResource, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableConnectedEu,
   availableResourceAmount,
   availableUnplacedMachineCount,
+  assignAutoMiner,
   boilerHasWater,
   boilerSteamCapacityMs,
   canExpandFactoryFloor,
@@ -27,6 +28,7 @@ import {
   getBestToolForTarget,
   hitGatherTarget,
   insertProcessSlot,
+  isAutoMinerPowered,
   loadGame,
   makeGridForRecipe,
   maxDurability,
@@ -48,6 +50,7 @@ import {
   terminalAvailableAmount,
   tickGame,
   unequipSlot,
+  unassignAutoMiner,
   visibleQuests,
   visibleRecipes,
   wrenchRemoveMachineInstance,
@@ -438,9 +441,11 @@ describe('game engine', () => {
       'steamExtractor',
       'steamAlloySmelter',
       'steamFurnace',
+      'steamAutoMiner',
       'steamTurbine',
       'tinCable',
       'lvWiremill',
+      'lvAutoMiner',
       'cokeOven',
       'brickedBlastFurnacePart',
       'brickedBlastFurnace',
@@ -1963,6 +1968,85 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.process.euStored).toBe(0)
   })
 
+  it('crafts steam and LV auto miners from full shaped machine grids', () => {
+    const steamRecipe = recipes.find((recipe) => recipe.id === 'build_steam_auto_miner')!
+    const lvRecipe = recipes.find((recipe) => recipe.id === 'build_lv_auto_miner')!
+
+    expect(findGridRecipe(makeGridForRecipe(steamRecipe), recipes)?.machineOutputs).toEqual([{ id: 'steamAutoMiner', amount: 1 }])
+    expect(findGridRecipe(makeGridForRecipe(lvRecipe), recipes)?.machineOutputs).toEqual([{ id: 'lvAutoMiner', amount: 1 }])
+  })
+
+  it('keeps steam auto miners limited to basic mine resources', () => {
+    expect(canAutoMinerTarget('steamAutoMiner', 'stone')).toBe(true)
+    expect(canAutoMinerTarget('steamAutoMiner', 'ironVein')).toBe(true)
+    expect(canAutoMinerTarget('steamAutoMiner', 'coalSeam')).toBe(true)
+    expect(canAutoMinerTarget('steamAutoMiner', 'redstoneVein')).toBe(false)
+    expect(canAutoMinerTarget('steamAutoMiner', 'tree')).toBe(false)
+  })
+
+  it('lets LV auto miners target non-tree resources only', () => {
+    expect(canAutoMinerTarget('lvAutoMiner', 'redstoneVein')).toBe(true)
+    expect(canAutoMinerTarget('lvAutoMiner', 'sandPatch')).toBe(true)
+    expect(canAutoMinerTarget('lvAutoMiner', 'tree')).toBe(false)
+    expect(canAutoMinerTarget('lvAutoMiner', 'rubberTree')).toBe(false)
+  })
+
+  it('runs a powered steam auto miner as passive gather damage', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.steamAutoMiner = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamAutoMiner', 1, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    tank.process.steamStoredMs = steamTankCapacityMs
+    const miner = state.machineInstances.find((instance) => instance.machineId === 'steamAutoMiner')!
+
+    state = assignAutoMiner(state, miner.uid, 'stone')
+    state = tickGame(state, 70000).state
+
+    expect(state.resources.cobblestone).toBe(1)
+    expect(state.gatherProgress.stone).toBeGreaterThan(0)
+    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.steamStoredMs ?? 0).toBeLessThan(32000)
+  })
+
+  it('stacks multiple powered auto miners on the same resource', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.steamAutoMiner = 2
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamAutoMiner', 1, 0)
+    state = placeMachineInstance(state, 'steamAutoMiner', 0, 1)
+    state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.process.steamStoredMs = steamTankCapacityMs
+    const miners = state.machineInstances.filter((instance) => instance.machineId === 'steamAutoMiner')
+
+    state = assignAutoMiner(state, miners[0].uid, 'stone')
+    state = assignAutoMiner(state, miners[1].uid, 'stone')
+    state = tickGame(state, 35000).state
+
+    expect(state.resources.cobblestone).toBe(1)
+  })
+
+  it('runs LV auto miners from connected EU and clears assignment when removed', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state.machines.lvAutoMiner = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'lvAutoMiner', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.process.euStored = steamTurbineEuCapacity
+    const miner = state.machineInstances.find((instance) => instance.machineId === 'lvAutoMiner')!
+
+    state = assignAutoMiner(state, miner.uid, 'sandPatch')
+    expect(isAutoMinerPowered(state, miner)).toBe(true)
+    state = tickGame(state, 25000).state
+
+    expect(state.resources.sand).toBe(1)
+    state = unassignAutoMiner(state, miner.uid)
+    expect(state.autoMinerAssignments[miner.uid]).toBeUndefined()
+    state = assignAutoMiner(state, miner.uid, 'sandPatch')
+    state = removeMachineInstance(state, miner.uid)
+    expect(state.autoMinerAssignments[miner.uid]).toBeUndefined()
+  })
+
   it('searches terminal recipes by output and ingredient labels', () => {
     const outputMatches = searchTerminalRecipes('wooden axe').map((recipe) => recipe.id)
     const ingredientMatches = searchTerminalRecipes('plank').map((recipe) => recipe.id)
@@ -2040,6 +2124,7 @@ describe('game engine', () => {
       'build_steam_extractor',
       'build_steam_alloy_smelter',
       'build_steam_furnace',
+      'build_steam_auto_miner',
       'build_steam_turbine',
     ])
     expect(searchTerminalRecipes('dynamo').map((recipe) => recipe.id)).toEqual([])

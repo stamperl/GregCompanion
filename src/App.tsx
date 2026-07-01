@@ -25,6 +25,8 @@ import './App.css'
 import {
   fuelDefinitions,
   gatherTargets,
+  canAutoMinerTarget,
+  isAutoMinerMachine,
   isEuCableMachine,
   isEuNetworkMachine,
   isEuPoweredMachine,
@@ -46,6 +48,7 @@ import {
   availableUnplacedMachineCount,
   availableConnectedEu,
   availableConnectedSteam,
+  assignAutoMiner,
   boilerHasWater,
   boilerSteamCapacityMs,
   cokeOvenFluidCapacityLitres,
@@ -67,6 +70,7 @@ import {
   getBestToolForTarget,
   hasFactoryFloor,
   hitGatherTarget,
+  isAutoMinerPowered,
   insertProcessSlot,
   loadGame,
   makeGridForRecipe,
@@ -96,6 +100,7 @@ import {
   canExpandFactoryFloor,
   terminalAvailableAmount,
   tickGame,
+  unassignAutoMiner,
   unequipSlot,
   visibleQuests,
   visibleRecipes,
@@ -183,9 +188,11 @@ const machineOrder: MachineId[] = [
   'steamExtractor',
   'steamAlloySmelter',
   'steamFurnace',
+  'steamAutoMiner',
   'steamTurbine',
   'tinCable',
   'lvWiremill',
+  'lvAutoMiner',
   'cokeOven',
   'brickedBlastFurnacePart',
   'brickedBlastFurnace',
@@ -509,6 +516,7 @@ function findSelectedProcessRecipe(instance: MachineInstance | null) {
 }
 
 function machineUsesProcessStorage(machineId: MachineId) {
+  if (isAutoMinerMachine(machineId)) return false
   return (
     machineId === 'furnace' ||
     machineId === 'steamBoiler' ||
@@ -534,6 +542,12 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if (process.euStored >= steamTurbineEuCapacity) return 'EU full'
     if (availableConnectedSteam(state, instance) < 1) return 'No steam'
     return process.activeRecipeId ? 'Generating EU' : 'Ready'
+  }
+  if (isAutoMinerMachine(instance.machineId)) {
+    const assignedTarget = state.autoMinerAssignments[instance.uid]
+    if (!assignedTarget) return 'No assignment'
+    if (!isAutoMinerPowered(state, instance)) return 'No power'
+    return process.activeRecipeId ? `Mining ${gatherTargets[assignedTarget].name}` : 'Ready'
   }
   if (instance.machineId === 'steamBoiler') {
     if (!boilerHasWater(state, instance)) return 'No water'
@@ -974,6 +988,7 @@ function App() {
   )
   const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
   const unplacedMachineCounts = Object.fromEntries(machineOrder.map((id) => [id, availableUnplacedMachineCount(state, id)])) as Record<MachineId, number>
+  const autoMinerInstances = state.machineInstances.filter((instance) => isAutoMinerMachine(instance.machineId))
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
   const filteredResources = inventoryResources.filter((id) => {
     const query = terminalSearch.trim().toLowerCase()
@@ -1129,6 +1144,26 @@ function App() {
       const result = hitGatherTarget(current, targetId)
       addFloatText('', targetId, 'particle')
       return result.state
+    })
+  }
+
+  const handleAssignAutoMiner = (targetId: GatherTargetId, machineId: MachineId) => {
+    setState((current) => {
+      const miner = current.machineInstances.find(
+        (instance) => instance.machineId === machineId && !current.autoMinerAssignments[instance.uid] && canAutoMinerTarget(instance.machineId, targetId),
+      )
+      if (!miner) return current
+      return assignAutoMiner(current, miner.uid, targetId)
+    })
+  }
+
+  const handleUnassignAutoMiner = (targetId: GatherTargetId, machineId: MachineId) => {
+    setState((current) => {
+      const miner = current.machineInstances.find(
+        (instance) => instance.machineId === machineId && current.autoMinerAssignments[instance.uid] === targetId,
+      )
+      if (!miner) return current
+      return unassignAutoMiner(current, miner.uid)
     })
   }
 
@@ -1920,6 +1955,25 @@ function App() {
               const hitButtonVerb =
                 targetId === 'rubberTree' ? 'Tap' : target.preferredTool === 'woodenShovel' || target.preferredTool === 'stoneShovel' ? 'Dig' : 'Mine'
               const hitButtonLabel = `${hitButtonVerb} ${target.name}`
+              const steamMinerCompatible = canAutoMinerTarget('steamAutoMiner', targetId)
+              const lvMinerCompatible = canAutoMinerTarget('lvAutoMiner', targetId)
+              const assignedSteamMiners = autoMinerInstances.filter(
+                (instance) => instance.machineId === 'steamAutoMiner' && state.autoMinerAssignments[instance.uid] === targetId,
+              )
+              const assignedLvMiners = autoMinerInstances.filter(
+                (instance) => instance.machineId === 'lvAutoMiner' && state.autoMinerAssignments[instance.uid] === targetId,
+              )
+              const unassignedSteamMiners = autoMinerInstances.filter(
+                (instance) => instance.machineId === 'steamAutoMiner' && !state.autoMinerAssignments[instance.uid] && steamMinerCompatible,
+              )
+              const unassignedLvMiners = autoMinerInstances.filter(
+                (instance) => instance.machineId === 'lvAutoMiner' && !state.autoMinerAssignments[instance.uid] && lvMinerCompatible,
+              )
+              const showAutoMinerControls =
+                assignedSteamMiners.length > 0 ||
+                assignedLvMiners.length > 0 ||
+                unassignedSteamMiners.length > 0 ||
+                unassignedLvMiners.length > 0
 
               return (
                 <article className={highlightedGatherTarget === targetId ? 'gather-panel resource-focus' : 'gather-panel'} data-gather-target={targetId} key={targetId}>
@@ -1964,6 +2018,57 @@ function App() {
                         </div>
                         {damage < 1 && <p className="gather-warning">Requires {tools[target.preferredTool].name}</p>}
                       </div>
+                      {showAutoMinerControls && (
+                        <div className="auto-miner-controls" aria-label={`${target.name} auto miners`}>
+                          <span>Auto miners</span>
+                          {steamMinerCompatible && (
+                            <div className="auto-miner-control">
+                              <strong>
+                                Steam {assignedSteamMiners.filter((instance) => isAutoMinerPowered(state, instance)).length}/{assignedSteamMiners.length}
+                              </strong>
+                              <button
+                                type="button"
+                                disabled={assignedSteamMiners.length < 1}
+                                aria-label={`Remove steam auto miner from ${target.name}`}
+                                onClick={() => handleUnassignAutoMiner(targetId, 'steamAutoMiner')}
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                disabled={unassignedSteamMiners.length < 1}
+                                aria-label={`Assign steam auto miner to ${target.name}`}
+                                onClick={() => handleAssignAutoMiner(targetId, 'steamAutoMiner')}
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
+                          {lvMinerCompatible && (
+                            <div className="auto-miner-control">
+                              <strong>
+                                LV {assignedLvMiners.filter((instance) => isAutoMinerPowered(state, instance)).length}/{assignedLvMiners.length}
+                              </strong>
+                              <button
+                                type="button"
+                                disabled={assignedLvMiners.length < 1}
+                                aria-label={`Remove LV auto miner from ${target.name}`}
+                                onClick={() => handleUnassignAutoMiner(targetId, 'lvAutoMiner')}
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                disabled={unassignedLvMiners.length < 1}
+                                aria-label={`Assign LV auto miner to ${target.name}`}
+                                onClick={() => handleAssignAutoMiner(targetId, 'lvAutoMiner')}
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <button type="button" className="resource-tap-target" disabled={damage < 1} aria-label={hitButtonLabel} onClick={() => handleGatherTarget(targetId)}>
@@ -2729,7 +2834,7 @@ function App() {
                       {selectedMachineSteamCostLitres ? ` | Uses ${selectedMachineSteamCostLitres}L` : ''}
                     </strong>
                   )}
-                  {isSteamPoweredMachine(selectedMachine.machineId) && selectedMachine.machineId !== 'steamMacerator' && (
+                  {isSteamPoweredMachine(selectedMachine.machineId) && selectedMachine.machineId !== 'steamMacerator' && !isAutoMinerMachine(selectedMachine.machineId) && (
                     <strong>
                       Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamMaceratorCapacityMs)}L
                       {' | '}
@@ -2756,12 +2861,26 @@ function App() {
                       Steam supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
                     </strong>
                   )}
-                  {isEuPoweredMachine(selectedMachine.machineId) && (
+                  {isEuPoweredMachine(selectedMachine.machineId) && !isAutoMinerMachine(selectedMachine.machineId) && (
                     <strong>
                       Internal {Math.floor(selectedMachine.process.euStored)}/{selectedMachine.process.euCapacity || 0} EU
                       {' | '}
                       Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
                       {selectedMachineEuCost ? ` | Uses ${selectedMachineEuCost} EU` : ''}
+                    </strong>
+                  )}
+                  {selectedMachine.machineId === 'steamAutoMiner' && (
+                    <strong>
+                      Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(selectedMachine.process.steamCapacityMs || steamMachineInternalCapacityMs)}L
+                      {' | '}
+                      Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
+                    </strong>
+                  )}
+                  {selectedMachine.machineId === 'lvAutoMiner' && (
+                    <strong>
+                      Internal {Math.floor(selectedMachine.process.euStored)}/{selectedMachine.process.euCapacity || 0} EU
+                      {' | '}
+                      Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
                     </strong>
                   )}
                 </div>
@@ -2797,6 +2916,20 @@ function App() {
                     <MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.activeRecipeId === 'generate_lv_eu'} />
                     <span>
                       Uses up to {steamTurbineSteamUseLitresPerSecond}L/s steam to make {steamTurbineSteamUseLitresPerSecond * 2} EU/s
+                    </span>
+                  </div>
+                ) : isAutoMinerMachine(selectedMachine.machineId) ? (
+                  <div className="well-interface auto-miner-interface">
+                    {selectedMachine.machineId === 'steamAutoMiner' ? (
+                      <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={selectedMachine.process.steamCapacityMs || steamMachineInternalCapacityMs} />
+                    ) : (
+                      <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || 0} />
+                    )}
+                    <MachineGlyph id={selectedMachine.machineId} active={Boolean(selectedMachine.process.activeRecipeId)} />
+                    <span>
+                      {state.autoMinerAssignments[selectedMachine.uid]
+                        ? `Assigned to ${gatherTargets[state.autoMinerAssignments[selectedMachine.uid]].name}`
+                        : 'Assign this miner from a valid resource card.'}
                     </span>
                   </div>
                 ) : (

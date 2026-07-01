@@ -411,6 +411,65 @@
   white-space: normal;
 }
 
+.auto-miner-controls {
+  align-items: center;
+  background: #9f9f9f;
+  border: 2px solid #efefef;
+  border-bottom-color: #5f5f5f;
+  border-radius: 0;
+  border-right-color: #5f5f5f;
+  color: #242424;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  text-transform: uppercase;
+}
+
+.auto-miner-controls > span {
+  color: #4b4b4b;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+  width: 100%;
+}
+
+.auto-miner-control {
+  align-items: center;
+  display: grid;
+  flex: 1 1 96px;
+  gap: 3px;
+  grid-template-columns: minmax(0, 1fr) 24px 24px;
+}
+
+.auto-miner-control strong {
+  font-size: 0.66rem;
+  line-height: 1;
+  min-width: 0;
+}
+
+.auto-miner-control button {
+  align-items: center;
+  background: #4a4a4a;
+  border: 2px solid #eeeeee;
+  border-bottom-color: #1d1d1d;
+  border-radius: 0;
+  border-right-color: #1d1d1d;
+  color: #f4f0dc;
+  display: grid;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 900;
+  height: 24px;
+  justify-content: center;
+  padding: 0;
+}
+
+.auto-miner-control button:disabled {
+  color: #777;
+  opacity: 0.5;
+}
+
 .gather-panels {
   display: grid;
   gap: 10px;
@@ -3597,6 +3656,16 @@ button.craft-output:disabled {
     #a06d35;
 }
 
+.factory-cell.occupied.machine-steamAutoMiner-cell::before {
+  background:
+    linear-gradient(135deg, transparent 0 42%, rgba(48, 34, 22, 0.96) 42% 51%, rgba(222, 194, 121, 0.96) 51% 57%, transparent 57%),
+    radial-gradient(circle at 64% 36%, rgba(216, 221, 224, 0.94) 0 4px, rgba(73, 51, 31, 0.96) 5px 8px, transparent 9px),
+    linear-gradient(90deg, transparent 0 18%, rgba(73, 51, 31, 0.95) 18% 30%, transparent 30% 70%, rgba(73, 51, 31, 0.95) 70% 82%, transparent 82%),
+    repeating-linear-gradient(90deg, rgba(255, 235, 163, 0.18) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(0, 0, 0, 0.26)),
+    #a06d35;
+}
+
 .factory-cell.occupied.machine-lvWiremill-cell::before {
   background:
     linear-gradient(90deg, transparent 0 18%, rgba(216, 221, 224, 0.9) 18% 28%, transparent 28% 72%, rgba(63, 71, 75, 0.9) 72% 82%, transparent 82%),
@@ -3608,13 +3677,25 @@ button.craft-output:disabled {
     #747d82;
 }
 
+.factory-cell.occupied.machine-lvAutoMiner-cell::before {
+  background:
+    linear-gradient(135deg, transparent 0 40%, rgba(21, 21, 21, 0.96) 40% 49%, rgba(216, 221, 224, 0.96) 49% 56%, transparent 56%),
+    radial-gradient(circle at 63% 36%, rgba(170, 232, 246, 0.95) 0 4px, rgba(63, 71, 75, 0.96) 5px 8px, transparent 9px),
+    linear-gradient(90deg, transparent 0 18%, rgba(216, 221, 224, 0.9) 18% 28%, transparent 28% 72%, rgba(63, 71, 75, 0.9) 72% 82%, transparent 82%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(0, 0, 0, 0.22)),
+    #747d82;
+}
+
 .factory-cell.occupied.machine-steamForgeHammer-cell .machine-glyph,
 .factory-cell.occupied.machine-steamCompressor-cell .machine-glyph,
 .factory-cell.occupied.machine-steamExtractor-cell .machine-glyph,
 .factory-cell.occupied.machine-steamAlloySmelter-cell .machine-glyph,
 .factory-cell.occupied.machine-steamFurnace-cell .machine-glyph,
+.factory-cell.occupied.machine-steamAutoMiner-cell .machine-glyph,
 .factory-cell.occupied.machine-steamTurbine-cell .machine-glyph,
-.factory-cell.occupied.machine-lvWiremill-cell .machine-glyph {
+.factory-cell.occupied.machine-lvWiremill-cell .machine-glyph,
+.factory-cell.occupied.machine-lvAutoMiner-cell .machine-glyph {
   height: 30px;
   width: 30px;
 }
@@ -5898,6 +5979,59 @@ button.craft-output:disabled {
   width: 23%;
 }
 
+.machine-steamAutoMiner {
+  --m1: #b7854c;
+  --m2: #49331f;
+  --m3: #dec279;
+  background:
+    radial-gradient(circle at 65% 36%, #d8dde0 0 9%, #49331f 10% 16%, transparent 17%),
+    linear-gradient(135deg, transparent 0 40%, #49331f 40% 51%, #dec279 51% 58%, transparent 58%),
+    linear-gradient(90deg, transparent 0 17%, #49331f 17% 28%, transparent 28% 72%, #49331f 72% 83%, transparent 83%),
+    repeating-linear-gradient(90deg, rgba(255, 239, 176, 0.16) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #dec279 0 18%, #b7854c 18% 78%, #49331f 78%);
+}
+
+.machine-steamAutoMiner span {
+  background: #49331f;
+  box-shadow:
+    7px -5px 0 #dec279,
+    14px -10px 0 #d8dde0,
+    18px -6px 0 #49331f;
+  height: 13%;
+  left: 20%;
+  top: 58%;
+  width: 34%;
+}
+
+.machine-lvAutoMiner {
+  --m1: #8f9aa0;
+  --m2: #3f474b;
+  --m3: #d8dde0;
+  background:
+    radial-gradient(circle at 64% 35%, #aae8f6 0 8%, #3f474b 9% 16%, transparent 17%),
+    linear-gradient(135deg, transparent 0 39%, #151515 39% 50%, #d8dde0 50% 58%, transparent 58%),
+    linear-gradient(90deg, transparent 0 18%, #d8dde0 18% 28%, transparent 28% 72%, #3f474b 72% 82%, transparent 82%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #d8dde0 0 18%, #8f9aa0 18% 78%, #3f474b 78%);
+}
+
+.machine-lvAutoMiner span {
+  background: #151515;
+  box-shadow:
+    7px -5px 0 #d8dde0,
+    14px -10px 0 #aae8f6,
+    18px -6px 0 #3f474b;
+  height: 13%;
+  left: 20%;
+  top: 58%;
+  width: 34%;
+}
+
+.auto-miner-interface .machine-glyph {
+  height: 58px;
+  width: 58px;
+}
+
 .machine-cokeOven {
   --m1: #9c4f35;
   --m2: #4a241c;
@@ -5983,8 +6117,10 @@ button.craft-output:disabled {
 .machine-steamExtractor.active,
 .machine-steamAlloySmelter.active,
 .machine-steamFurnace.active,
+.machine-steamAutoMiner.active,
 .machine-steamTurbine.active,
 .machine-lvWiremill.active,
+.machine-lvAutoMiner.active,
 .machine-cokeOven.active,
 .machine-brickedBlastFurnace.active {
   animation: furnace-glyph-glow 0.7s steps(2, end) infinite;

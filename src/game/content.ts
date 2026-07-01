@@ -386,6 +386,15 @@ export const machineRegistry = {
     processKind: 'steamProcess',
     steamCapacityLitres: 32,
   },
+  steamAutoMiner: {
+    id: 'steamAutoMiner',
+    name: 'Steam Auto Miner',
+    description: 'A crude steam drill that slowly chips basic mine resources without hand work.',
+    tier: 'steam',
+    placeable: true,
+    processKind: 'steamProcess',
+    steamCapacityLitres: 32,
+  },
   steamTurbine: {
     id: 'steamTurbine',
     name: 'Steam Turbine',
@@ -409,6 +418,15 @@ export const machineRegistry = {
     id: 'lvWiremill',
     name: 'LV Wiremill',
     description: 'The first electric machine: turns plates into cleaner wire with EU.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'euProcess',
+    euCapacity: 64,
+  },
+  lvAutoMiner: {
+    id: 'lvAutoMiner',
+    name: 'LV Auto Miner',
+    description: 'An electric mining head that passively works any current non-tree resource.',
     tier: 'lv',
     placeable: true,
     processKind: 'euProcess',
@@ -473,6 +491,10 @@ export function isEuPoweredMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'euProcess'
 }
 
+export function isAutoMinerMachine(machineId: MachineId) {
+  return machineId === 'steamAutoMiner' || machineId === 'lvAutoMiner'
+}
+
 export function isEuNetworkMachine(machineId: MachineId) {
   return isEuProducerMachine(machineId) || isEuCableMachine(machineId) || isEuPoweredMachine(machineId)
 }
@@ -507,6 +529,14 @@ export function machineEuOutputPerSecond(machineId: MachineId) {
 
 export function machineEuCableLossPerTile(machineId: MachineId) {
   return machines[machineId].euCableLossPerTile ?? 0
+}
+
+export const steamAutoMinerTargets: readonly GatherTargetId[] = ['stone', 'ironVein', 'copperVein', 'tinVein', 'coalSeam']
+
+export function canAutoMinerTarget(machineId: MachineId, targetId: GatherTargetId) {
+  if (machineId === 'steamAutoMiner') return steamAutoMinerTargets.includes(targetId)
+  if (machineId === 'lvAutoMiner') return targetId !== 'tree' && targetId !== 'rubberTree'
+  return false
 }
 
 export const recipes: Recipe[] = [
@@ -1069,6 +1099,24 @@ export const recipes: Recipe[] = [
     unlockedBy: 'bronzeAge',
   },
   {
+    id: 'build_steam_auto_miner',
+    name: 'Build Steam Auto Miner',
+    description: 'A bronze-framed mining head that burns through steam for slow passive ore work.',
+    tier: 'steam',
+    durationMs: 7600,
+    inputs: [
+      { id: 'steamCasing', amount: 1 },
+      { id: 'bronzePlate', amount: 4 },
+      { id: 'bronzeRod', amount: 2 },
+      { id: 'ironPickaxe', amount: 1 },
+      { id: 'ironHammer', amount: 1 },
+    ],
+    pattern: ['bronzePlate', 'bronzeRod', 'bronzePlate', 'ironPickaxe', 'steamCasing', 'ironHammer', 'bronzePlate', 'bronzeRod', 'bronzePlate'],
+    outputs: [],
+    machineOutputs: [{ id: 'steamAutoMiner', amount: 1 }],
+    unlockedBy: 'bronzeAge',
+  },
+  {
     id: 'craft_lv_machine_casing',
     name: 'Craft LV Machine Casing',
     description: 'Steel plates riveted into the first low-voltage machine casing.',
@@ -1144,6 +1192,25 @@ export const recipes: Recipe[] = [
     pattern: ['tinWire', 'ironRod', 'tinWire', 'steelPlate', 'lvMachineHull', 'steelPlate', 'ironRod', 'primitiveCircuit', 'ironRod'],
     outputs: [],
     machineOutputs: [{ id: 'lvWiremill', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'build_lv_auto_miner',
+    name: 'Build LV Auto Miner',
+    description: 'An LV machine hull, circuit, and mining head for faster passive resource work.',
+    tier: 'lv',
+    durationMs: 9000,
+    inputs: [
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'steelPlate', amount: 3 },
+      { id: 'tinWire', amount: 2 },
+      { id: 'primitiveCircuit', amount: 1 },
+      { id: 'ironPickaxe', amount: 1 },
+      { id: 'ironShovel', amount: 1 },
+    ],
+    pattern: ['tinWire', 'steelPlate', 'tinWire', 'ironPickaxe', 'lvMachineHull', 'primitiveCircuit', 'steelPlate', 'ironShovel', 'steelPlate'],
+    outputs: [],
+    machineOutputs: [{ id: 'lvAutoMiner', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },
   {
@@ -2788,6 +2855,7 @@ export function createInitialState(now = Date.now()): GameState {
     equipment: { ...initialEquipment },
     durability: {},
     gatherProgress: {},
+    autoMinerAssignments: {},
     machineProgress: {},
     lastSavedAt: now,
   }

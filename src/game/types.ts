@@ -100,9 +100,11 @@ export type MachineId =
   | 'steamExtractor'
   | 'steamAlloySmelter'
   | 'steamFurnace'
+  | 'steamAutoMiner'
   | 'steamTurbine'
   | 'tinCable'
   | 'lvWiremill'
+  | 'lvAutoMiner'
   | 'cokeOven'
   | 'brickedBlastFurnacePart'
   | 'brickedBlastFurnace'
@@ -389,6 +391,7 @@ export type GameState = {
   equipment: EquipmentState
   durability: Partial<Record<ResourceId, number>>
   gatherProgress: Partial<Record<GatherTargetId, number>>
+  autoMinerAssignments: Record<string, GatherTargetId>
   machineProgress: Partial<Record<MachineId, number>>
   lastSavedAt: number
 }
