@@ -1697,6 +1697,18 @@ export const processRecipes: ProcessRecipe[] = [
     output: { id: 'redAlloyIngot', amount: 1 },
   },
   {
+    id: 'steam_alloy_red_alloy_ingot',
+    name: 'Steam Alloy Red Alloy From Ingot',
+    description: 'Alloy a copper ingot with redstone dust into the first red alloy ingot.',
+    tier: 'steam',
+    machineId: 'steamAlloySmelter',
+    durationMs: 9000,
+    steamCostLitres: 32,
+    input: { id: 'copperIngot', amount: 1 },
+    secondaryInput: { id: 'redstoneDust', amount: 4 },
+    output: { id: 'redAlloyIngot', amount: 1 },
+  },
+  {
     id: 'smelt_glass',
     name: 'Smelt Glass',
     description: 'Fuse silica sand into rough glass panes.',
