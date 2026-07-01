@@ -3002,6 +3002,42 @@ button.craft-output:disabled {
   padding: 3px;
 }
 
+.machine-selected-item {
+  align-items: center;
+  background: #a7a7a7;
+  border: 2px solid #efefef;
+  border-bottom-color: #6f6f6f;
+  border-right-color: #6f6f6f;
+  color: #333;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 28px;
+  padding: 3px 8px;
+}
+
+.machine-selected-item.active {
+  background: #b8b48a;
+  border-color: #fff4a8;
+  border-bottom-color: #7b6a25;
+  border-right-color: #7b6a25;
+}
+
+.machine-selected-item span {
+  color: #333;
+  font: 950 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.machine-selected-item strong {
+  color: #1d1d1d;
+  font: 900 0.76rem "Courier New", ui-monospace, monospace;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .place-machine-buttons {
   display: flex;
   flex-wrap: wrap;

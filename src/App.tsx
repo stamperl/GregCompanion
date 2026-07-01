@@ -1012,6 +1012,7 @@ function App() {
   const furnaceStorageResources = selectedMachine
     ? resourceOrder.filter((id) => availableResourceAmount(state, id) > 0 && canResourceEnterMachine(selectedMachine.machineId, id))
     : []
+  const selectedMachineStorageResource = selectedResource && furnaceStorageResources.includes(selectedResource) ? selectedResource : null
   const unplacedMachines = placeableFactoryMachineOrder.filter((id) => {
     if (unplacedMachineCounts[id] < 1) return false
     const query = factoryMachineSearch.trim().toLowerCase()
@@ -2684,26 +2685,36 @@ function App() {
                   </button>
                 </div>
                 {machineUsesProcessStorage(selectedMachine.machineId) && (
-                <div className="processing-storage furnace-storage" aria-label={`${machines[selectedMachine.machineId].name} storage`}>
-                  {furnaceStorageResources.length > 0 ? (
-                    furnaceStorageResources.map((id) => (
-                      <button
-                        type="button"
-                        className={selectedResource === id ? 'item-slot selected' : 'item-slot'}
-                        aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
-                        title={resourceLabels[id]}
-                        onClick={() => setSelectedResource(id)}
-                        key={id}
-                      >
-                        <PixelIcon id={id} />
-                        <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
-                        <DurabilityBar state={state} id={id} />
-                      </button>
-                    ))
-                  ) : (
-                    <span className="empty-furnace-storage">No valid inputs or fuels</span>
-                  )}
-                </div>
+                <>
+                  <div className="processing-storage furnace-storage" aria-label={`${machines[selectedMachine.machineId].name} storage`}>
+                    {furnaceStorageResources.length > 0 ? (
+                      furnaceStorageResources.map((id) => (
+                        <button
+                          type="button"
+                          className={selectedResource === id ? 'item-slot selected' : 'item-slot'}
+                          aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
+                          title={resourceLabels[id]}
+                          onClick={() => setSelectedResource(id)}
+                          key={id}
+                        >
+                          <PixelIcon id={id} />
+                          <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
+                          <DurabilityBar state={state} id={id} />
+                        </button>
+                      ))
+                    ) : (
+                      <span className="empty-furnace-storage">No valid inputs or fuels</span>
+                    )}
+                  </div>
+                  <div className={selectedMachineStorageResource ? 'machine-selected-item active' : 'machine-selected-item'} aria-live="polite">
+                    <span>Selected</span>
+                    <strong>
+                      {selectedMachineStorageResource
+                        ? `${resourceLabels[selectedMachineStorageResource]} x${formatAmount(availableResourceAmount(state, selectedMachineStorageResource))}`
+                        : 'Tap an item above'}
+                    </strong>
+                  </div>
+                </>
                 )}
                 <div className="machine-status-row">
                   <span>{machineStatus(state, selectedMachine)}</span>
