@@ -333,6 +333,21 @@ describe('game engine', () => {
     expect(questObjectiveProgress(state, placedObjective).complete).toBe(true)
   })
 
+  it('guides LV circuit prep through the missing material branches', () => {
+    const questIds = new Set(quests.map((quest) => quest.id))
+    for (const id of ['cutRedAlloyWireQuest', 'makeCarbonDustQuest', 'pulpWoodQuest'] as const) {
+      expect(questIds.has(id), `${id} should be part of the LV guide`).toBe(true)
+    }
+
+    const vacuumTubes = quests.find((quest) => quest.id === 'makeVacuumTubes')!
+    const circuitBoard = quests.find((quest) => quest.id === 'pressCircuitBoard')!
+    const firstCircuit = quests.find((quest) => quest.id === 'firstLvCircuit')!
+
+    expect(vacuumTubes.prerequisites).toEqual(['cutRedAlloyWireQuest', 'makeGlassTubes'])
+    expect(circuitBoard.prerequisites).toEqual(['pulpWoodQuest'])
+    expect(firstCircuit.prerequisites).toEqual(['pressCircuitBoard', 'makeVacuumTubes', 'makeResistors', 'insulateWireQuest'])
+  })
+
   it('migrates old saves into the new wood-opening state shape', () => {
     const state = loadGame(
       JSON.stringify({
