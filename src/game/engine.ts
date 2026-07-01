@@ -119,6 +119,7 @@ const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
 function emptyProcessState(): MachineProcessState {
   return {
     input: null,
+    secondaryInput: null,
     fuel: null,
     output: null,
     activeRecipeId: null,
@@ -140,6 +141,7 @@ function cloneProcessSlot(slot: ProcessSlot): ProcessSlot {
 function cloneProcessState(process: MachineProcessState): MachineProcessState {
   return {
     input: cloneProcessSlot(process.input),
+    secondaryInput: cloneProcessSlot(process.secondaryInput),
     fuel: cloneProcessSlot(process.fuel),
     output: cloneProcessSlot(process.output),
     activeRecipeId: process.activeRecipeId,
@@ -173,6 +175,7 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
   if (!process) return emptyProcessState()
   return {
     input: normalizeProcessSlot(process.input),
+    secondaryInput: normalizeProcessSlot(process.secondaryInput),
     fuel: normalizeProcessSlot(process.fuel),
     output: normalizeProcessSlot(process.output),
     activeRecipeId: process.activeRecipeId ?? null,
@@ -475,7 +478,7 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
     if (state.equipment.shovel === 'stoneShovel') return tools.stoneShovel
     if (state.equipment.shovel === 'woodenShovel') return tools.woodenShovel
   }
-  if ((targetId === 'copperVein' || targetId === 'tinVein' || targetId === 'coalSeam') && state.equipment.pickaxe === 'ironPickaxe') {
+  if ((targetId === 'copperVein' || targetId === 'tinVein' || targetId === 'redstoneVein' || targetId === 'coalSeam') && state.equipment.pickaxe === 'ironPickaxe') {
     return tools.ironPickaxe
   }
   return tools.bareHand
@@ -836,14 +839,61 @@ function nextMachineUid(state: GameState, machineId: MachineId) {
   return uid
 }
 
+type MatchedProcessRecipe = {
+  recipe: ProcessRecipe
+  inputCost: ResourceAmount
+  secondaryInputCost?: ResourceAmount
+}
+
+function isAlloySmelterIngredient(resourceId: ResourceId) {
+  return resourceId.endsWith('Ingot') || resourceId.endsWith('Dust')
+}
+
+function isAlloySmelterOutput(resourceId: ResourceId) {
+  return resourceId.endsWith('Ingot')
+}
+
+function processSlotCanPay(slot: ProcessSlot, cost: ResourceAmount) {
+  return Boolean(slot && slot.id === cost.id && slot.amount >= cost.amount)
+}
+
+function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot): MatchedProcessRecipe | undefined {
+  if (!recipe.secondaryInput) {
+    if (secondaryInput) return undefined
+    return processSlotCanPay(input, recipe.input) ? { recipe, inputCost: recipe.input } : undefined
+  }
+
+  if (!secondaryInput) return undefined
+  if (recipe.machineId === 'steamAlloySmelter') {
+    if (!isAlloySmelterIngredient(recipe.input.id) || !isAlloySmelterIngredient(recipe.secondaryInput.id) || !isAlloySmelterOutput(recipe.output.id)) return undefined
+  }
+  if (processSlotCanPay(input, recipe.input) && processSlotCanPay(secondaryInput, recipe.secondaryInput)) {
+    return { recipe, inputCost: recipe.input, secondaryInputCost: recipe.secondaryInput }
+  }
+  if (processSlotCanPay(input, recipe.secondaryInput) && processSlotCanPay(secondaryInput, recipe.input)) {
+    return { recipe, inputCost: recipe.secondaryInput, secondaryInputCost: recipe.input }
+  }
+  return undefined
+}
+
+function findMatchedProcessRecipe(machineId: MachineId, input: ProcessSlot, secondaryInput: ProcessSlot = null) {
+  return processRecipes
+    .filter((recipe) => recipe.machineId === machineId)
+    .map((recipe) => matchProcessRecipeInputs(recipe, input, secondaryInput))
+    .find((match): match is MatchedProcessRecipe => Boolean(match))
+}
+
 function findProcessRecipeForInput(machineId: MachineId, input: ProcessSlot) {
   if (!input) return undefined
-  return processRecipes.find((recipe) => recipe.machineId === machineId && recipe.input.id === input.id && input.amount >= recipe.input.amount)
+  return findMatchedProcessRecipe(machineId, input)?.recipe
 }
 
 function findProcessRecipeForInputAndFuel(machineId: MachineId, input: ProcessSlot, fuel: ProcessSlot) {
-  const candidates = processRecipes.filter((recipe) => recipe.machineId === machineId && recipe.input.id === input?.id && input.amount >= recipe.input.amount)
-  return candidates.find((recipe) => !recipe.fuelInput || (fuel?.id === recipe.fuelInput.id && fuel.amount >= recipe.fuelInput.amount))
+  const candidates = processRecipes
+    .filter((recipe) => recipe.machineId === machineId)
+    .map((recipe) => matchProcessRecipeInputs(recipe, input, null))
+    .filter((match): match is MatchedProcessRecipe => Boolean(match))
+  return candidates.find((match) => !match.recipe.fuelInput || (fuel?.id === match.recipe.fuelInput.id && fuel.amount >= match.recipe.fuelInput.amount))?.recipe
 }
 
 function canOutputAccept(output: ProcessSlot, produced: ResourceAmount) {
@@ -1169,7 +1219,7 @@ export function removeMachineInstance(state: GameState, uid: string) {
     const positions = brickedBlastFurnacePositions(state, multiblockCenter.x, multiblockCenter.y)
     const positionKeys = new Set(positions.map((position) => `${position.x},${position.y}`))
     const controller = machineAt(next, multiblockCenter.x, multiblockCenter.y)
-    const returned = [controller?.process.input, controller?.process.fuel, controller?.process.output].filter(
+    const returned = [controller?.process.input, controller?.process.secondaryInput, controller?.process.fuel, controller?.process.output].filter(
       (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
     )
     next.machineInstances = next.machineInstances.filter((candidate) => !positionKeys.has(`${candidate.x},${candidate.y}`))
@@ -1181,7 +1231,9 @@ export function removeMachineInstance(state: GameState, uid: string) {
   }
 
   let next = cloneState(state)
-  const returned = [instance.process.input, instance.process.fuel, instance.process.output].filter((slot): slot is NonNullable<ProcessSlot> => Boolean(slot))
+  const returned = [instance.process.input, instance.process.secondaryInput, instance.process.fuel, instance.process.output].filter(
+    (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
+  )
   next.machineInstances = next.machineInstances.filter((candidate) => candidate.uid !== uid)
   next.lastSavedAt = Date.now()
   if (returned.length > 0) next = addResources(next, returned)
@@ -1198,7 +1250,23 @@ export function wrenchRemoveMachineInstance(state: GameState, uid: string) {
 }
 
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
-  if (slotId === 'input') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.input.id === resourceId)
+  if (slotId === 'input') {
+    return processRecipes.some(
+      (recipe) =>
+        recipe.machineId === machineId &&
+        (recipe.input.id === resourceId || Boolean(recipe.secondaryInput && recipe.secondaryInput.id === resourceId)) &&
+        (machineId !== 'steamAlloySmelter' || isAlloySmelterIngredient(resourceId)),
+    )
+  }
+  if (slotId === 'secondaryInput') {
+    return processRecipes.some(
+      (recipe) =>
+        recipe.machineId === machineId &&
+        Boolean(recipe.secondaryInput) &&
+        (recipe.input.id === resourceId || recipe.secondaryInput?.id === resourceId) &&
+        (machineId !== 'steamAlloySmelter' || isAlloySmelterIngredient(resourceId)),
+    )
+  }
   if (slotId === 'fuel') {
     if (machineId === 'brickedBlastFurnace') {
       return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.fuelInput?.id === resourceId)
@@ -1238,7 +1306,7 @@ export function removeProcessSlot(state: GameState, uid: string, slotId: Process
   const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
   if (!nextInstance) return state
   nextInstance.process[slotId] = null
-  if (slotId === 'input') {
+  if (slotId === 'input' || slotId === 'secondaryInput') {
     nextInstance.process.activeRecipeId = null
     nextInstance.process.progressMs = 0
     nextInstance.process.durationMs = 0
@@ -1358,7 +1426,8 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
-    const recipe = findProcessRecipeForInput(instance.machineId, process.input)
+    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput)
+    const recipe = match?.recipe
     if (!recipe || !canOutputAccept(process.output, recipe.output)) {
       process.activeRecipeId = null
       if (!recipe) {
@@ -1388,7 +1457,8 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
 
     if (process.progressMs < recipe.durationMs) continue
 
-    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.input = decrementProcessSlot(process.input, match.inputCost.amount)
+    if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
     process.output = addToProcessOutput(process.output, recipe.output)
     process.progressMs = 0
     process.activeRecipeId = null

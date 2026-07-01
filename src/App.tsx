@@ -191,7 +191,7 @@ type GatherAreaId = 'forest' | 'lake' | 'mine'
 const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTargetId[] }> = [
   { id: 'forest', label: 'Forest', targets: ['tree', 'rubberTree'] },
   { id: 'lake', label: 'Lake', targets: ['sandPatch', 'clayPatch', 'gravelPatch'] },
-  { id: 'mine', label: 'Mine', targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'coalSeam'] },
+  { id: 'mine', label: 'Mine', targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'redstoneVein', 'coalSeam'] },
 ]
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tree: 'log',
@@ -203,6 +203,7 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   gravelPatch: 'gravel',
   copperVein: 'copperOre',
   tinVein: 'tinOre',
+  redstoneVein: 'redstoneDust',
   coalSeam: 'coal',
 }
 
@@ -622,7 +623,23 @@ function missingResourceLine(state: GameState, costs: ResourceAmount[]) {
 }
 
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: Exclude<ProcessSlotId, 'output'>, resourceId: ResourceId) {
-  if (slotId === 'input') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.input.id === resourceId)
+  if (slotId === 'input') {
+    return processRecipes.some(
+      (recipe) =>
+        recipe.machineId === machineId &&
+        (recipe.input.id === resourceId || Boolean(recipe.secondaryInput && recipe.secondaryInput.id === resourceId)) &&
+        (machineId !== 'steamAlloySmelter' || resourceId.endsWith('Ingot') || resourceId.endsWith('Dust')),
+    )
+  }
+  if (slotId === 'secondaryInput') {
+    return processRecipes.some(
+      (recipe) =>
+        recipe.machineId === machineId &&
+        Boolean(recipe.secondaryInput) &&
+        (recipe.input.id === resourceId || recipe.secondaryInput?.id === resourceId) &&
+        (machineId !== 'steamAlloySmelter' || resourceId.endsWith('Ingot') || resourceId.endsWith('Dust')),
+    )
+  }
   if (machineId === 'brickedBlastFurnace') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.fuelInput?.id === resourceId)
   return (machineId === 'furnace' || machineId === 'steamBoiler') && resourceId in fuelDefinitions
 }
@@ -642,10 +659,34 @@ function suggestedProcessInsertQuantity(
   const recipe =
     slotId === 'fuel'
       ? candidates.find((candidate) => candidate.fuelInput?.id === resourceId)
-      : candidates.find((candidate) => candidate.input.id === resourceId)
-  const required = slotId === 'fuel' ? recipe?.fuelInput?.amount : recipe?.input.amount
+      : candidates.find((candidate) => candidate.input.id === resourceId || candidate.secondaryInput?.id === resourceId)
+  const required =
+    slotId === 'fuel'
+      ? recipe?.fuelInput?.amount
+      : recipe?.input.id === resourceId
+        ? recipe.input.amount
+        : recipe?.secondaryInput?.id === resourceId
+          ? recipe.secondaryInput.amount
+          : undefined
   const wanted = required ? Math.max(1, required - currentAmount) : 1
   return Math.max(1, Math.min(wanted, available, processStackLimit - currentAmount))
+}
+
+function processSlotCanPay(slot: ProcessSlot, amount: ResourceAmount) {
+  return Boolean(slot && slot.id === amount.id && slot.amount >= amount.amount)
+}
+
+function findSelectedProcessRecipe(instance: MachineInstance | null) {
+  if (!instance?.process.input) return undefined
+  return processRecipes.find((recipe) => {
+    if (recipe.machineId !== instance.machineId) return false
+    if (!recipe.secondaryInput) return !instance.process.secondaryInput && processSlotCanPay(instance.process.input, recipe.input)
+    if (!instance.process.secondaryInput) return false
+    return (
+      (processSlotCanPay(instance.process.input, recipe.input) && processSlotCanPay(instance.process.secondaryInput, recipe.secondaryInput)) ||
+      (processSlotCanPay(instance.process.input, recipe.secondaryInput) && processSlotCanPay(instance.process.secondaryInput, recipe.input))
+    )
+  })
 }
 
 function machineUsesProcessStorage(machineId: MachineId) {
@@ -660,7 +701,7 @@ function machineUsesProcessStorage(machineId: MachineId) {
 
 function machineStatus(state: GameState, instance: MachineInstance) {
   const process = instance.process
-  const recipe = process.input ? processRecipes.find((candidate) => candidate.machineId === instance.machineId && candidate.input.id === process.input?.id) : undefined
+  const recipe = findSelectedProcessRecipe(instance)
   if (instance.machineId === 'well') return 'Supplying water'
   if (instance.machineId === 'steamTank') {
     if ((process.fluids.creosote ?? 0) > 0) return 'Holding creosote'
@@ -1097,7 +1138,7 @@ function App() {
           stationType: recipe.machineId === 'furnace' ? 'furnace' : 'steam',
           recipeType: 'processing',
           durationMs: recipe.durationMs,
-          inputs: recipe.fuelInput ? [recipe.input, recipe.fuelInput] : [recipe.input],
+          inputs: [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.fuelInput ? [recipe.fuelInput] : [])],
           outputs: [recipe.output],
           requiredMachine: recipe.machineId,
         }),
@@ -1129,10 +1170,7 @@ function App() {
   const selectedRecipe = selectedRecipeGroup?.recipes[clampedSelectedRecipeIndex]
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
-  const selectedMachineRecipe =
-    selectedMachine?.process.input
-      ? processRecipes.find((recipe) => recipe.machineId === selectedMachine.machineId && recipe.input.id === selectedMachine.process.input?.id)
-      : undefined
+  const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
   const selectedMachineSteamCostLitres = selectedMachineRecipe?.steamCostLitres ?? null
   const pendingProcessMachine = pendingProcessInsert
     ? state.machineInstances.find((instance) => instance.uid === pendingProcessInsert.uid) ?? null
@@ -2968,6 +3006,9 @@ function App() {
                   {selectedMachine.machineId !== 'steamBoiler' && (
                   <div className="furnace-inputs">
                     <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                    {selectedMachine.machineId === 'steamAlloySmelter' && (
+                      <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
+                    )}
                     {isSteamPoweredProcessMachine(selectedMachine.machineId) && (
                       <>
                         <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={steamMachineInternalCapacityMs} />

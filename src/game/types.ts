@@ -25,6 +25,7 @@ export type ResourceId =
   | 'ironOre'
   | 'copperOre'
   | 'tinOre'
+  | 'redstoneDust'
   | 'crushedIronOre'
   | 'crushedCopperOre'
   | 'crushedTinOre'
@@ -62,6 +63,14 @@ export type ResourceId =
   | 'steelPlate'
   | 'steelRod'
   | 'copperWire'
+  | 'glass'
+  | 'glassTube'
+  | 'woodPulp'
+  | 'carbonDust'
+  | 'redAlloyIngot'
+  | 'redAlloyWire'
+  | 'resistor'
+  | 'vacuumTube'
   | 'bronzeBlend'
   | 'steamCasing'
   | 'cokeOvenBrick'
@@ -117,8 +126,17 @@ export type QuestId =
   | 'buildBbfQuest'
   | 'firstSteel'
   | 'steelPlateQuest'
+  | 'findRedstone'
+  | 'smeltRedAlloy'
+  | 'extractRubberQuest'
+  | 'insulateWireQuest'
+  | 'makeGlassTubes'
+  | 'makeResistors'
+  | 'makeVacuumTubes'
+  | 'pressCircuitBoard'
+  | 'firstLvCircuit'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
 
@@ -149,6 +167,7 @@ export type GatherTargetId =
   | 'ironVein'
   | 'copperVein'
   | 'tinVein'
+  | 'redstoneVein'
   | 'coalSeam'
 
 export type FluidId = 'water' | 'creosote'
@@ -207,6 +226,7 @@ export type ProcessRecipe = {
   durationMs: number
   steamCostLitres?: number
   input: ResourceAmount
+  secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
   output: ResourceAmount
   fluidOutput?: {
@@ -300,10 +320,11 @@ export type GameState = {
   lastSavedAt: number
 }
 
-export type ProcessSlotId = 'input' | 'fuel' | 'output'
+export type ProcessSlotId = 'input' | 'secondaryInput' | 'fuel' | 'output'
 
 export type MachineProcessState = {
   input: ProcessSlot
+  secondaryInput: ProcessSlot
   fuel: ProcessSlot
   output: ProcessSlot
   activeRecipeId: string | null

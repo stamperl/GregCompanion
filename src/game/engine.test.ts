@@ -426,6 +426,29 @@ describe('game engine', () => {
     expect(state.machineInstances[1]).toMatchObject({ machineId: 'steamBoiler', x: 1, y: 0, level: 1 })
   })
 
+  it('migrates old machine process states with an empty secondary input slot', () => {
+    const state = loadGame(
+      JSON.stringify({
+        factoryFoundationLevel: 2,
+        machines: { steamAlloySmelter: 1 },
+        machineInstances: [
+          {
+            uid: 'old-alloy',
+            machineId: 'steamAlloySmelter',
+            x: 0,
+            y: 0,
+            level: 1,
+            process: { input: { id: 'copperDust', amount: 2 }, output: null },
+          },
+        ],
+      }),
+      1000,
+    )
+
+    expect(state.machineInstances[0].process.input).toEqual({ id: 'copperDust', amount: 2 })
+    expect(state.machineInstances[0].process.secondaryInput).toBeNull()
+  })
+
   it('migrates old empty saves to locked factory and clamps saved factory foundation levels', () => {
     expect(loadGame(JSON.stringify({ resources: { log: 1 } }), 1000).factoryFoundationLevel).toBe(0)
     expect(loadGame(JSON.stringify({ factoryFoundationLevel: -4 }), 1000).factoryFoundationLevel).toBe(0)
@@ -1606,6 +1629,24 @@ describe('game engine', () => {
     expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_steel_plate')?.input).toEqual({ id: 'steelIngot', amount: 2 })
   })
 
+  it('crafts the first basic electronic circuit from LV foundation parts', () => {
+    let state = createInitialState(1000)
+    state.resources.basicBoard = 1
+    state.resources.conductiveWire = 2
+    state.resources.resistor = 2
+    state.resources.vacuumTube = 2
+    state.resources.redstoneDust = 1
+    state.resources.steelPlate = 1
+    const circuit = recipes.find((recipe) => recipe.id === 'craft_basic_electronic_circuit')!
+
+    expect(canCraft(state, circuit)).toBe(true)
+    state = craftRecipeInstant(state, circuit, 1)
+
+    expect(state.resources.primitiveCircuit).toBe(1)
+    expect(state.resources.basicBoard).toBe(0)
+    expect(state.resources.conductiveWire).toBe(0)
+  })
+
   it('uses different steam costs for steam macerator recipes', () => {
     expect(processRecipes.find((recipe) => recipe.id === 'steam_crush_iron_ore')?.steamCostLitres).toBe(32)
     expect(processRecipes.find((recipe) => recipe.id === 'steam_grind_crushed_iron_ore')?.steamCostLitres).toBe(16)
@@ -1632,6 +1673,56 @@ describe('game engine', () => {
     const maceratorProcess = state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process
     expect(maceratorProcess.output).toEqual({ id: 'crushedIronOre', amount: 2 })
     expect(maceratorProcess.steamStoredMs).toBe(0)
+  })
+
+  it('alloys copper and tin in either slot order into bronze ingots', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 1
+    state.machines.steamAlloySmelter = 1
+    state.resources.coal = 1
+    state.resources.copperIngot = 2
+    state.resources.tinIngot = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+    state = placeMachineInstance(state, 'steamAlloySmelter', 2, 0)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const alloySmelter = state.machineInstances.find((instance) => instance.machineId === 'steamAlloySmelter')!
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'coal', 1)
+    state = tickGame(state, 32000).state
+    state = insertProcessSlot(state, alloySmelter.uid, 'input', 'tinIngot', 1)
+    state = insertProcessSlot(state, alloySmelter.uid, 'secondaryInput', 'copperIngot', 2)
+
+    state = tickGame(state, 7000).state
+
+    const process = state.machineInstances.find((instance) => instance.uid === alloySmelter.uid)!.process
+    expect(process.output).toEqual({ id: 'bronzeIngot', amount: 3 })
+    expect(process.input).toBeNull()
+    expect(process.secondaryInput).toBeNull()
+  })
+
+  it('only accepts dusts or ingots in the alloy smelter inputs', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamAlloySmelter = 1
+    state.resources.rubber = 1
+    state.resources.copperDust = 1
+    state = placeMachineInstance(state, 'steamAlloySmelter', 0, 0)
+    const alloySmelter = state.machineInstances.find((instance) => instance.machineId === 'steamAlloySmelter')!
+
+    const rejected = insertProcessSlot(state, alloySmelter.uid, 'input', 'rubber', 1)
+    const accepted = insertProcessSlot(state, alloySmelter.uid, 'input', 'copperDust', 1)
+
+    expect(rejected).toBe(state)
+    expect(accepted.machineInstances[0].process.input).toEqual({ id: 'copperDust', amount: 1 })
+  })
+
+  it('defines alloy smelter recipes as ingot outputs only', () => {
+    const alloyRecipes = processRecipes.filter((recipe) => recipe.machineId === 'steamAlloySmelter')
+
+    expect(alloyRecipes.every((recipe) => recipe.output.id.endsWith('Ingot'))).toBe(true)
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_bronze')?.output).toEqual({ id: 'bronzeIngot', amount: 3 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_bronze')?.secondaryInput).toEqual({ id: 'tinDust', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy')?.output).toEqual({ id: 'redAlloyIngot', amount: 1 })
   })
 
   it('pauses a steam macerator without connected steam and resumes when steam is available', () => {
