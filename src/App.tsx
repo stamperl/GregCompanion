@@ -186,6 +186,7 @@ type RecipeDisplayOutput =
   | { kind: 'resource'; id: ResourceId; amount: number; label: string }
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
 
+const autoSaveIntervalMs = 5000
 const machineOrder: MachineId[] = [
   'furnace',
   'well',
@@ -977,6 +978,24 @@ function App() {
     return slots
   }
 
+  const pendingSaveRef = useRef<{ state: GameState; slotId: SaveSlotId } | null>(null)
+  const saveTimerRef = useRef<number | null>(null)
+
+  const cancelPendingSave = () => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = null
+    }
+    pendingSaveRef.current = null
+  }
+
+  const flushPendingSave = () => {
+    const pending = pendingSaveRef.current
+    cancelPendingSave()
+    if (!pending) return
+    void persistGameState(pending.state, pending.slotId).then(refreshSaveSlots)
+  }
+
   useEffect(() => {
     const updateMobileGate = () => setIsMobileClient(isMobileClientAllowed())
     const pointerQuery = window.matchMedia('(pointer: coarse)')
@@ -1063,8 +1082,27 @@ function App() {
 
   useEffect(() => {
     if (!hasLoadedSave || isCreativeMode || page === 'home') return
-    void persistGameState(state, selectedSaveSlotId).then(refreshSaveSlots)
+    pendingSaveRef.current = { state, slotId: selectedSaveSlotId }
+    if (saveTimerRef.current === null) {
+      saveTimerRef.current = window.setTimeout(() => {
+        saveTimerRef.current = null
+        flushPendingSave()
+      }, autoSaveIntervalMs)
+    }
   }, [hasLoadedSave, isCreativeMode, page, selectedSaveSlotId, state])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushPendingSave()
+    }
+    window.addEventListener('pagehide', flushPendingSave)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', flushPendingSave)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      flushPendingSave()
+    }
+  }, [])
 
   useEffect(() => {
     if (selectedResource && terminalAvailableAmount(state, terminalGrid, selectedResource) < 1) {
@@ -1874,6 +1912,7 @@ function App() {
   }
 
   const handleReset = async () => {
+    cancelPendingSave()
     await clearSavedGame(selectedSaveSlotId)
     setIsCreativeMode(false)
     await refreshSaveSlots()
@@ -1939,12 +1978,14 @@ function App() {
       addFloatText('creative not saved')
       return
     }
+    cancelPendingSave()
     await persistGameState(state, selectedSaveSlotId)
     await refreshSaveSlots()
     addFloatText('saved')
   }
 
   const handleGoHome = () => {
+    flushPendingSave()
     setPage('home')
     setPendingProcessInsert(null)
     setMissingBatch(null)

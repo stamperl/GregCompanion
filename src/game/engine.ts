@@ -218,7 +218,7 @@ function normalizeProcessSlot(slot: unknown): ProcessSlot {
   if (!slot || typeof slot !== 'object') return null
   const candidate = slot as Partial<NonNullable<ProcessSlot>>
   if (!candidate.id || !(candidate.id in resourceLabels)) return null
-  const amount = Math.max(1, Math.min(processStackLimit, Math.floor(candidate.amount ?? 0)))
+  const amount = Math.min(processStackLimit, Math.floor(candidate.amount ?? 0))
   return amount > 0 ? { id: candidate.id, amount } : null
 }
 
@@ -574,9 +574,11 @@ export function hitGatherTarget(state: GameState, targetId: GatherTargetId) {
     return { state: next, completed: false, drops: [] as ResourceAmount[], tool, toolBroke }
   }
 
-  next.gatherProgress[targetId] = 0
-  const withDrops = addResources(next, target.drops)
-  return { state: withDrops, completed: true, drops: target.drops, tool, toolBroke }
+  const cycles = Math.floor(progress / target.maxHp)
+  next.gatherProgress[targetId] = progress % target.maxHp
+  const drops = target.drops.map((drop) => ({ ...drop, amount: drop.amount * cycles }))
+  const withDrops = addResources(next, drops)
+  return { state: withDrops, completed: true, drops, tool, toolBroke }
 }
 
 export function isRecipeVisible(state: GameState, recipe: Recipe) {
@@ -1235,15 +1237,18 @@ function consumeConnectedSteam(state: GameState, instance: MachineInstance, amou
   return amount - remaining
 }
 
-function fillInternalSteamFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
+function steamTransferAllowanceMs(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  return Math.max(0, Math.floor((connectedSteamTransferRateMs(state, instance) * elapsedMs) / 1000))
+}
+
+function fillInternalSteamFromConnectedStorage(state: GameState, instance: MachineInstance, transferLimitMs: number) {
   const capacity = isSteamPoweredMachine(instance.machineId) ? machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre : 0
   if (capacity < 1) return 0
   instance.process.steamCapacityMs = capacity
   instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
   const needed = capacity - instance.process.steamStoredMs
   if (needed < 1) return 0
-  const transferLimit = Math.max(0, Math.floor((connectedSteamTransferRateMs(state, instance) * elapsedMs) / 1000))
-  const moved = consumeConnectedSteam(state, instance, Math.min(needed, transferLimit))
+  const moved = consumeConnectedSteam(state, instance, Math.min(needed, Math.max(0, Math.floor(transferLimitMs))))
   instance.process.steamStoredMs += moved
   return moved
 }
@@ -1613,7 +1618,8 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
   const process = instance.process
   process.steamCapacityMs = steamMachineInternalCapacityMs
   process.steamStoredMs = Math.min(process.steamStoredMs, steamMachineInternalCapacityMs)
-  fillInternalSteamFromConnectedStorage(state, instance, elapsedMs)
+  let transferBudgetMs = steamTransferAllowanceMs(state, instance, elapsedMs)
+  transferBudgetMs -= fillInternalSteamFromConnectedStorage(state, instance, transferBudgetMs)
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
@@ -1628,7 +1634,7 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
       break
     }
 
-    fillInternalSteamFromConnectedStorage(state, instance, remainingMs)
+    transferBudgetMs -= fillInternalSteamFromConnectedStorage(state, instance, transferBudgetMs)
     if (process.steamStoredMs < 1) {
       process.activeRecipeId = null
       break
@@ -1707,7 +1713,6 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
       break
     }
 
-    fillInternalEuFromConnectedStorage(state, instance, remainingMs)
     if (process.euStored <= 0) {
       process.activeRecipeId = null
       break
@@ -1824,7 +1829,7 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
   if (instance.machineId === 'steamAutoMiner') {
     instance.process.steamCapacityMs = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
     instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, instance.process.steamCapacityMs)
-    fillInternalSteamFromConnectedStorage(state, instance, elapsedMs)
+    fillInternalSteamFromConnectedStorage(state, instance, steamTransferAllowanceMs(state, instance, elapsedMs))
   } else if (instance.machineId === 'lvAutoMiner') {
     instance.process.euCapacity = machineEuCapacity(instance.machineId)
     instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
@@ -1848,7 +1853,7 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
   if (instance.machineId === 'steamAutoMiner') {
     const steamCostMs = steamAutoMinerSteamUseLitres * steamMsPerLitre
     while (instance.process.progressMs >= actionMs) {
-      fillInternalSteamFromConnectedStorage(state, instance, actionMs)
+      fillInternalSteamFromConnectedStorage(state, instance, steamTransferAllowanceMs(state, instance, actionMs))
       if (instance.process.steamStoredMs < steamCostMs) {
         instance.process.progressMs = actionMs
         break
@@ -1935,7 +1940,7 @@ export function tickGame(state: GameState, elapsedMs: number): TickResult {
     if (cycles < 1) continue
 
     if (machine.consumes) {
-      const consumption = machine.consumes.map((amount) => ({ ...amount, amount: amount.amount * cycles }))
+      const consumption = machine.consumes.map((amount) => ({ ...amount, amount: amount.amount * cycles * count }))
       if (!hasResources(next, consumption)) continue
       next = subtractResources(next, consumption)
     }
@@ -2184,8 +2189,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
   if (!raw) return createInitialState(now)
 
   try {
-    const parsed = JSON.parse(raw) as Partial<GameState> & { activeCrafts?: unknown }
-    const { activeCrafts: _ignoredActiveCrafts, ...savedState } = parsed
+    const parsed = JSON.parse(raw) as Partial<GameState>
     const fresh = createInitialState(now)
     const unlockedQuests = parsed.unlockedQuests?.length ? [...parsed.unlockedQuests] : [...fresh.unlockedQuests]
     if (!unlockedQuests.includes('punchTree') && !parsed.completedQuests?.includes('punchTree')) {
@@ -2198,7 +2202,6 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
 
     return {
       ...fresh,
-      ...savedState,
       resources: migrateResources({ ...fresh.resources, ...parsed.resources }),
       machines: machinesState,
       machineInstances,
