@@ -241,6 +241,19 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   redstoneVein: 'redstoneDust',
   coalSeam: 'coal',
 }
+const craftSlotHitboxScale = 0.64
+
+function isCenteredCraftSlotHit(element: HTMLElement, clientX: number, clientY: number) {
+  const rect = element.getBoundingClientRect()
+  if (rect.width < 1 || rect.height < 1) return false
+
+  const activeWidth = rect.width * craftSlotHitboxScale
+  const activeHeight = rect.height * craftSlotHitboxScale
+  const left = rect.left + (rect.width - activeWidth) / 2
+  const top = rect.top + (rect.height - activeHeight) / 2
+
+  return clientX >= left && clientX <= left + activeWidth && clientY >= top && clientY <= top + activeHeight
+}
 
 function saveSlotsFallbackLabel(slotId: SaveSlotId) {
   return `Save ${slotId.replace('slot-', '')}`
@@ -1482,7 +1495,9 @@ function App() {
     handleEquipResource(slotId, resourceId)
   }
 
-  const handleCraftSlotPress = (slotIndex: number) => {
+  const handleCraftSlotPress = (event: ReactMouseEvent<HTMLButtonElement>, slotIndex: number) => {
+    if (event.detail !== 0 && !isCenteredCraftSlotHit(event.currentTarget, event.clientX, event.clientY)) return
+
     if (terminalGrid[slotIndex]) {
       setTerminalGrid((current) => current.map((slot, index) => (index === slotIndex ? null : slot)))
       return
@@ -1507,6 +1522,8 @@ function App() {
 
   const handleDropOnCraftSlot = (event: DragEvent<HTMLButtonElement>, slotIndex: number) => {
     event.preventDefault()
+    if (!isCenteredCraftSlotHit(event.currentTarget, event.clientX, event.clientY)) return
+
     const resourceId = event.dataTransfer.getData('text/plain')
     if (!isResourceId(resourceId)) return
     setSelectedResource(resourceId)
@@ -1603,6 +1620,7 @@ function App() {
       const slotElement = element?.closest<HTMLElement>('[data-craft-slot]')
       const slotIndex = slotElement ? Number(slotElement.dataset.craftSlot) : Number.NaN
       if (!Number.isInteger(slotIndex)) return
+      if (!slotElement || !isCenteredCraftSlotHit(slotElement, upEvent.clientX, upEvent.clientY)) return
 
       setSelectedResource(drag.id)
       placeResourceInGridAt(drag.id, slotIndex)
@@ -2401,7 +2419,7 @@ function App() {
                     className={slot ? (slot.ghost ? 'craft-slot ghost' : 'craft-slot filled') : 'craft-slot'}
                     aria-label={slot ? `Remove ${resourceLabels[slot.id]}` : `Empty crafting slot ${index + 1}`}
                     data-craft-slot={index}
-                    onClick={() => handleCraftSlotPress(index)}
+                    onClick={(event) => handleCraftSlotPress(event, index)}
                     onDragOver={handleCraftSlotDragOver}
                     onDrop={(event) => handleDropOnCraftSlot(event, index)}
                     key={`${slot?.id ?? 'empty'}-${slot?.ghost ? 'ghost' : 'real'}-${index}`}
