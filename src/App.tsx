@@ -118,7 +118,7 @@ import {
   crowbarRemoveMachineInstance,
 } from './game/engine'
 import { defaultSaveSlotId, listSaveSlots, clearSavedGame, loadSavedGame, persistGameState, type SaveSlotId, type SaveSlotSummary } from './game/saveStorage'
-import { deploymentInfo } from './game/deployment'
+import { deploymentInfo, hasNewerDeployment, reloadLatestDeployment } from './game/deployment'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
@@ -875,6 +875,7 @@ function App() {
   const [page, setPage] = useState<Page>('home')
   const [selectedSaveSlotId, setSelectedSaveSlotId] = useState<SaveSlotId>(defaultSaveSlotId)
   const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
   const [terminalSearch, setTerminalSearch] = useState('')
@@ -945,6 +946,33 @@ function App() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    const checkForUpdate = async () => {
+      try {
+        if ((await hasNewerDeployment()) && !cancelled) setIsUpdateAvailable(true)
+      } catch {
+        // Update checks should never interrupt the game.
+      }
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void checkForUpdate()
+    }
+
+    void checkForUpdate()
+    window.addEventListener('focus', checkForUpdate)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    const interval = window.setInterval(checkForUpdate, 60_000)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', checkForUpdate)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       setState((current) => {
         if (page === 'home') return current
@@ -955,6 +983,10 @@ function App() {
 
     return () => window.clearInterval(interval)
   }, [isCreativeMode, page])
+
+  useEffect(() => {
+    if (isUpdateAvailable && page === 'home') reloadLatestDeployment()
+  }, [isUpdateAvailable, page])
 
   useEffect(() => {
     if (!hasLoadedSave || isCreativeMode || page === 'home') return
@@ -1929,6 +1961,11 @@ function App() {
             <h1>Click Foundry</h1>
           </button>
           <div className="header-actions">
+            {isUpdateAvailable && (
+              <button type="button" className="deploy-update-button" onClick={reloadLatestDeployment}>
+                Update
+              </button>
+            )}
             <button type="button" className="icon-button global-back-button" aria-label="Home" title="Home" onClick={handleBackNavigation}>
               <Home size={18} />
             </button>

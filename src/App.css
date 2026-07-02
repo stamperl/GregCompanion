@@ -7102,6 +7102,20 @@ button.recipe-jump-slot {
   gap: 6px;
 }
 
+.deploy-update-button {
+  background: #6d5d22;
+  border: 2px solid #fff8aa;
+  border-bottom-color: #4b3f12;
+  border-radius: 0;
+  border-right-color: #4b3f12;
+  color: #fff7d2;
+  cursor: pointer;
+  font: 950 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 32px;
+  padding: 0 7px;
+  text-transform: uppercase;
+}
+
 .global-back-button {
   position: relative;
   z-index: 30;
