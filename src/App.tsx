@@ -1313,7 +1313,6 @@ function App() {
       originY: factoryPan.y,
       dragged: false,
     }
-    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handleFactoryPanPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1321,7 +1320,10 @@ function App() {
     if (!drag || drag.pointerId !== event.pointerId) return
     const dx = event.clientX - drag.startX
     const dy = event.clientY - drag.startY
-    if (!drag.dragged && Math.hypot(dx, dy) >= factoryPanThreshold) drag.dragged = true
+    if (!drag.dragged && Math.hypot(dx, dy) >= factoryPanThreshold) {
+      drag.dragged = true
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
     if (drag.dragged) {
       suppressFactoryCellClickRef.current = true
       setFactoryPan(clampFactoryPan({ x: drag.originX + dx, y: drag.originY + dy }))
@@ -1333,7 +1335,7 @@ function App() {
     if (!drag || drag.pointerId !== event.pointerId) return
     if (drag.dragged) window.setTimeout(() => (suppressFactoryCellClickRef.current = false), 0)
     factoryPanDragRef.current = null
-    event.currentTarget.releasePointerCapture(event.pointerId)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
   const handleFactoryCellPress = (x: number, y: number, instance?: MachineInstance) => {
