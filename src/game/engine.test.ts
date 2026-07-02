@@ -1926,10 +1926,10 @@ describe('game engine', () => {
   it('does not run an LV Wiremill without connected EU', () => {
     let state = createFactoryState(1000)
     state.machines.lvWiremill = 1
-    state.resources.tinPlate = 1
+    state.resources.tinIngot = 1
     state = placeMachineInstance(state, 'lvWiremill', 0, 0)
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
-    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinPlate', 1)
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)
 
     state = tickGame(state, 5000).state
 
@@ -1943,14 +1943,14 @@ describe('game engine', () => {
     state.machines.steamTurbine = 1
     state.machines.tinCable = 1
     state.machines.lvWiremill = 1
-    state.resources.tinPlate = 1
+    state.resources.tinIngot = 1
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
     state = placeMachineInstance(state, 'tinCable', 1, 0)
     state = placeMachineInstance(state, 'lvWiremill', 2, 0)
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
     state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 100
-    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinPlate', 1)
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)
 
     expect(availableConnectedEu(state, state.machineInstances.find((instance) => instance.uid === wiremill.uid)!)).toBe(100)
     state = tickGame(state, 5000).state
@@ -1960,6 +1960,33 @@ describe('game engine', () => {
     expect(nextWiremill.process.output).toEqual({ id: 'tinWire', amount: 2 })
     expect(nextWiremill.process.euStored).toBe(32)
     expect(nextTurbine.process.euStored).toBe(31)
+  })
+
+  it('uses base ingots for LV Wiremill wire recipes', () => {
+    expect(processRecipes.find((recipe) => recipe.id === 'lv_wiremill_tin_wire')?.input).toEqual({
+      id: 'tinIngot',
+      amount: 1,
+    })
+    expect(processRecipes.find((recipe) => recipe.id === 'lv_wiremill_tin_wire')?.output).toEqual({
+      id: 'tinWire',
+      amount: 2,
+    })
+    expect(processRecipes.find((recipe) => recipe.id === 'lv_wiremill_copper_wire')?.input).toEqual({
+      id: 'copperIngot',
+      amount: 1,
+    })
+    expect(processRecipes.find((recipe) => recipe.id === 'lv_wiremill_copper_wire')?.output).toEqual({
+      id: 'copperWire',
+      amount: 2,
+    })
+    expect(processRecipes.find((recipe) => recipe.id === 'lv_wiremill_red_alloy_wire')?.input).toEqual({
+      id: 'redAlloyIngot',
+      amount: 1,
+    })
+    expect(processRecipes.find((recipe) => recipe.id === 'lv_wiremill_red_alloy_wire')?.output).toEqual({
+      id: 'redAlloyWire',
+      amount: 2,
+    })
   })
 
   it('loses internal EU buffers when a machine is removed and placed again', () => {
