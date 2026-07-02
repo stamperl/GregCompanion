@@ -1776,6 +1776,21 @@ describe('game engine', () => {
     expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_steel_plate')?.input).toEqual({ id: 'steelIngot', amount: 2 })
   })
 
+  it('gives every plate a steam forge hammer machine recipe from ingots', () => {
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_copper_plate')?.input).toEqual({ id: 'copperIngot', amount: 2 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_copper_plate')?.output).toEqual({ id: 'copperPlate', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_tin_plate')?.input).toEqual({ id: 'tinIngot', amount: 2 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_tin_plate')?.output).toEqual({ id: 'tinPlate', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_iron_plate')?.input).toEqual({ id: 'ironIngot', amount: 2 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_iron_plate')?.output).toEqual({ id: 'ironPlate', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_bronze_plate')?.input).toEqual({ id: 'bronzeIngot', amount: 2 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_bronze_plate')?.output).toEqual({ id: 'bronzePlate', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_steel_plate')?.input).toEqual({ id: 'steelIngot', amount: 2 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_steel_plate')?.output).toEqual({ id: 'steelPlate', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_red_alloy_plate')?.input).toEqual({ id: 'redAlloyIngot', amount: 2 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_hammer_red_alloy_plate')?.output).toEqual({ id: 'redAlloyPlate', amount: 1 })
+  })
+
   it('crafts the first basic electronic circuit from LV foundation parts', () => {
     let state = createInitialState(1000)
     state.resources.basicBoard = 1
