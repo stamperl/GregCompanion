@@ -6,9 +6,7 @@ import {
   Check,
   Database,
   Factory,
-  Home,
   Pickaxe,
-  RotateCcw,
   Save,
   Trash2,
   Undo2,
@@ -163,6 +161,20 @@ type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide'
 type TerminalMode = 'recipes' | 'uses'
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryPan = { x: number; y: number }
+type NavigationSnapshot = {
+  page: Page
+  gatherArea: GatherAreaId
+  terminalMode: TerminalMode
+  recipeSearch: string
+  selectedResource: ResourceId | null
+  selectedMachineUid: string | null
+  selectedPipeConfigUid: string | null
+  selectedQuestId: QuestId | null
+  selectedRecipeGroupKey: string | null
+  selectedRecipeIndex: number
+  isRecipeModalOpen: boolean
+  isFactoryExpandModalOpen: boolean
+}
 type PendingProcessInsert = {
   uid: string
   slotId: Exclude<ProcessSlotId, 'output'>
@@ -906,6 +918,7 @@ function App() {
   } | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const [factoryPan, setFactoryPan] = useState<FactoryPan>({ x: 0, y: 0 })
+  const [navigationStack, setNavigationStack] = useState<NavigationSnapshot[]>([])
   const [highlightedGatherTarget, setHighlightedGatherTarget] = useState<GatherTargetId | null>(null)
   const floatTextIdRef = useRef(0)
   const achievementToastIdRef = useRef(0)
@@ -1817,6 +1830,7 @@ function App() {
     setSelectedQuestId(null)
     setSelectedRecipeGroupKey(null)
     setSelectedRecipeIndex(0)
+    setNavigationStack([])
     setHighlightedGatherTarget(null)
     setPage('gather')
     addFloatText('new save')
@@ -1844,6 +1858,7 @@ function App() {
     setState(savedState)
     knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
     setIsCreativeMode(false)
+    setNavigationStack([])
     setPage('gather')
   }
 
@@ -1866,6 +1881,7 @@ function App() {
     setSelectedMachineUid(null)
     setSelectedPipeConfigUid(null)
     setSelectedQuestId(null)
+    setNavigationStack([])
   }
 
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
@@ -1909,10 +1925,78 @@ function App() {
     )
   }
 
-  const pushNavigationSnapshot = () => undefined
+  const captureNavigationSnapshot = (): NavigationSnapshot => ({
+    page,
+    gatherArea,
+    terminalMode,
+    recipeSearch,
+    selectedResource,
+    selectedMachineUid,
+    selectedPipeConfigUid,
+    selectedQuestId,
+    selectedRecipeGroupKey,
+    selectedRecipeIndex,
+    isRecipeModalOpen,
+    isFactoryExpandModalOpen,
+  })
+
+  const restoreNavigationSnapshot = (snapshot: NavigationSnapshot) => {
+    setPage(snapshot.page)
+    setGatherArea(snapshot.gatherArea)
+    setTerminalMode(snapshot.terminalMode)
+    setRecipeSearch(snapshot.recipeSearch)
+    setSelectedResource(snapshot.selectedResource)
+    setSelectedMachineUid(snapshot.selectedMachineUid)
+    setSelectedPipeConfigUid(snapshot.selectedPipeConfigUid)
+    setSelectedQuestId(snapshot.selectedQuestId)
+    setSelectedRecipeGroupKey(snapshot.selectedRecipeGroupKey)
+    setSelectedRecipeIndex(snapshot.selectedRecipeIndex)
+    setIsRecipeModalOpen(snapshot.isRecipeModalOpen)
+    setIsFactoryExpandModalOpen(snapshot.isFactoryExpandModalOpen)
+    setMissingBatch(null)
+    setPendingProcessInsert(null)
+    setHighlightedGatherTarget(null)
+  }
+
+  const pushNavigationSnapshot = () => {
+    const snapshot = captureNavigationSnapshot()
+    setNavigationStack((current) => [...current.slice(-7), snapshot])
+  }
 
   const handleBackNavigation = () => {
-    handleGoHome()
+    const snapshot = navigationStack.at(-1)
+    if (snapshot) {
+      restoreNavigationSnapshot(snapshot)
+      setNavigationStack((current) => current.slice(0, -1))
+      return
+    }
+
+    if (missingBatch) {
+      setMissingBatch(null)
+      return
+    }
+    if (selectedPipeConfigUid) {
+      setSelectedPipeConfigUid(null)
+      return
+    }
+    if (selectedQuestId) {
+      setSelectedQuestId(null)
+      return
+    }
+    if (isFactoryExpandModalOpen) {
+      setIsFactoryExpandModalOpen(false)
+      return
+    }
+    if (isRecipeModalOpen) {
+      setIsRecipeModalOpen(false)
+      return
+    }
+    if (selectedMachineUid) {
+      setPendingProcessInsert(null)
+      setSelectedMachineUid(null)
+      return
+    }
+    if (page !== 'home') setPage('home')
   }
 
   const handleAchievementToastClick = (toast: AchievementToast) => {
@@ -1966,8 +2050,8 @@ function App() {
                 Update
               </button>
             )}
-            <button type="button" className="icon-button global-back-button" aria-label="Home" title="Home" onClick={handleBackNavigation}>
-              <Home size={18} />
+            <button type="button" className="icon-button global-back-button" aria-label="Back" title="Back" onClick={handleBackNavigation}>
+              <ChevronLeft size={18} />
             </button>
             <button type="button" className="icon-button" aria-label="Save game" title={`Save ${selectedSaveSlotId.replace('slot-', '')}`} onClick={handleManualSave}>
               <Save size={18} />
@@ -1981,9 +2065,6 @@ function App() {
               onClick={handleToggleCreativeMode}
             >
               32
-            </button>
-            <button type="button" className="icon-button" aria-label="Reset save" title="Reset save" onClick={handleReset}>
-              <RotateCcw size={18} />
             </button>
           </div>
         </header>
