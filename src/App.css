@@ -7623,3 +7623,29 @@ button.button-primary:disabled,
   flex-wrap: wrap;
   gap: 6px;
 }
+
+.icon-button:not(:disabled):active,
+.page-tabs button:not(:disabled):active,
+.hit-button:not(:disabled):active,
+.guide-card button:not(:disabled):active,
+.load-recipe-button:not(:disabled):active,
+.recipe-hint button:not(:disabled):active,
+.recipe-open-button:not(:disabled):active,
+.home-action:not(:disabled):active,
+.home-save-name-form button:not(:disabled):active,
+.quest-chapter-tabs button:not(:disabled):active,
+.gather-area-tabs button:not(:disabled):active,
+.batch-step-row button:not(:disabled):active,
+.batch-action-row button:not(:disabled):active,
+.compact-actions button:not(:disabled):active,
+.mode-tabs button:not(:disabled):active {
+  box-shadow: none;
+  transform: translateY(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float-layer span,
+  .float-layer .hit-particles {
+    animation-duration: 1ms;
+  }
+}

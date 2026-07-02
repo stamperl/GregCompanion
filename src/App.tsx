@@ -1356,6 +1356,12 @@ function App() {
     setState((current) => {
       const result = hitGatherTarget(current, targetId)
       addFloatText('', targetId, 'particle')
+      if (result.completed) {
+        for (const drop of result.drops) {
+          addFloatText(`+${formatAmount(drop.amount)} ${resourceLabels[drop.id]}`, targetId, 'break')
+        }
+      }
+      if (result.toolBroke) addFloatText(`${resourceLabels[result.toolBroke]} broke`, targetId)
       return result.state
     })
   }
@@ -2467,12 +2473,13 @@ function App() {
                         </span>
                       </span>
                       <span className="float-layer tap-fx-layer" aria-hidden="true">
-                        {targetFloats.map((floatText) => (
-                          <span
-                            className={floatText.variant === 'particle' ? `hit-particles hit-particles-${targetId}` : undefined}
-                            key={floatText.id}
-                          />
-                        ))}
+                        {targetFloats.map((floatText) =>
+                          floatText.variant === 'particle' ? (
+                            <span className={`hit-particles hit-particles-${targetId}`} key={floatText.id} />
+                          ) : floatText.label ? (
+                            <span key={floatText.id}>{floatText.label}</span>
+                          ) : null,
+                        )}
                       </span>
                     </button>
                   </div>
