@@ -115,7 +115,7 @@ import {
   durabilityRemaining,
   crowbarRemoveMachineInstance,
 } from './game/engine'
-import { clearSavedGame, loadSavedGame, persistGameState } from './game/saveStorage'
+import { clearSavedGame, hasSavedGame, loadSavedGame, persistGameState } from './game/saveStorage'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
@@ -156,7 +156,7 @@ type AchievementToast = {
   title: string
 }
 
-type Page = 'gather' | 'terminal' | 'processing' | 'guide'
+type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide'
 type TerminalMode = 'recipes' | 'uses'
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryPan = { x: number; y: number }
@@ -878,7 +878,8 @@ function App() {
   const [hasLoadedSave, setHasLoadedSave] = useState(false)
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
   const [achievementToasts, setAchievementToasts] = useState<AchievementToast[]>([])
-  const [page, setPage] = useState<Page>('gather')
+  const [page, setPage] = useState<Page>('home')
+  const [hasLocalSave, setHasLocalSave] = useState(false)
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
   const [terminalSearch, setTerminalSearch] = useState('')
@@ -926,11 +927,13 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
-    void loadSavedGame()
+    void Promise.all([loadSavedGame(), hasSavedGame()])
       .then((savedState) => {
         if (cancelled) return
-        setState(savedState)
-        knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
+        const [loadedState, saveExists] = savedState
+        setState(loadedState)
+        setHasLocalSave(saveExists)
+        knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
         setHasLoadedSave(true)
       })
       .catch(() => {
@@ -955,7 +958,7 @@ function App() {
 
   useEffect(() => {
     if (!hasLoadedSave || isCreativeMode) return
-    void persistGameState(state)
+    void persistGameState(state).then(() => setHasLocalSave(true))
   }, [hasLoadedSave, isCreativeMode, state])
 
   useEffect(() => {
@@ -1761,6 +1764,7 @@ function App() {
   const handleReset = async () => {
     await clearSavedGame()
     setIsCreativeMode(false)
+    setHasLocalSave(false)
     const freshState = loadGame(null)
     setState(freshState)
     knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
@@ -1802,6 +1806,22 @@ function App() {
       setIsCreativeMode(false)
     }
     addFloatText(nextCreative ? 'creative on' : 'creative off')
+  }
+
+  const handleContinueFromHome = () => {
+    setNavigationStack([])
+    setPage('gather')
+  }
+
+  const handleLoadLocalSave = async () => {
+    const savedState = await loadSavedGame()
+    setState(savedState)
+    setHasLocalSave(await hasSavedGame())
+    knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
+    setIsCreativeMode(false)
+    setNavigationStack([])
+    setPage('gather')
+    addFloatText('save loaded')
   }
 
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
@@ -1910,7 +1930,7 @@ function App() {
       setSelectedMachineUid(null)
       return
     }
-    if (page !== 'gather') setPage('gather')
+    if (page !== 'home') setPage('home')
   }
 
   const handleAchievementToastClick = (toast: AchievementToast) => {
@@ -1940,32 +1960,41 @@ function App() {
     setPendingProcessInsert(null)
   }
 
+  const shellClassName = page === 'home' ? 'game-shell home-shell' : page === 'processing' ? 'game-shell processing-shell' : 'game-shell'
+  const saveStatus = !hasLoadedSave
+    ? 'Loading local save...'
+    : hasLocalSave
+      ? `Local save ready - ${new Date(state.lastSavedAt).toLocaleString()}`
+      : 'No local save yet'
+
   return (
-    <main className={page === 'processing' ? 'game-shell processing-shell' : 'game-shell'}>
-      <header className="game-header">
-        <div>
-          <p className="eyebrow">Block-tech idle</p>
-          <h1>Click Foundry</h1>
-        </div>
-        <div className="header-actions">
-          <button type="button" className="icon-button global-back-button" aria-label="Back" title="Back" onClick={handleBackNavigation}>
-            <Undo2 size={18} />
-          </button>
-          <button
-            type="button"
-            className={isCreativeMode ? 'creative-toggle active' : 'creative-toggle'}
-            aria-pressed={isCreativeMode}
-            aria-label={isCreativeMode ? 'Turn creative mode off' : 'Turn creative mode on'}
-            title={isCreativeMode ? 'Creative mode on - not saving' : 'Creative mode'}
-            onClick={handleToggleCreativeMode}
-          >
-            32
-          </button>
-          <button type="button" className="icon-button" aria-label="Reset save" title="Reset save" onClick={handleReset}>
-            <RotateCcw size={18} />
-          </button>
-        </div>
-      </header>
+    <main className={shellClassName}>
+      {page !== 'home' && (
+        <header className="game-header">
+          <div>
+            <p className="eyebrow">Block-tech idle</p>
+            <h1>Click Foundry</h1>
+          </div>
+          <div className="header-actions">
+            <button type="button" className="icon-button global-back-button" aria-label="Back" title="Back" onClick={handleBackNavigation}>
+              <Undo2 size={18} />
+            </button>
+            <button
+              type="button"
+              className={isCreativeMode ? 'creative-toggle active' : 'creative-toggle'}
+              aria-pressed={isCreativeMode}
+              aria-label={isCreativeMode ? 'Turn creative mode off' : 'Turn creative mode on'}
+              title={isCreativeMode ? 'Creative mode on - not saving' : 'Creative mode'}
+              onClick={handleToggleCreativeMode}
+            >
+              32
+            </button>
+            <button type="button" className="icon-button" aria-label="Reset save" title="Reset save" onClick={handleReset}>
+              <RotateCcw size={18} />
+            </button>
+          </div>
+        </header>
+      )}
 
       <div className="achievement-toast-stack" aria-label="Quest achievements" aria-live="polite">
         {achievementToasts.map((toast) => (
@@ -1989,24 +2018,61 @@ function App() {
         ))}
       </div>
 
-      <section className="page-tabs" aria-label="Game pages">
-        <button type="button" className={page === 'gather' ? 'active' : ''} onClick={() => handlePageNavigation('gather')}>
-          <Pickaxe size={18} />
-          Gather
-        </button>
-        <button type="button" className={page === 'terminal' ? 'active' : ''} onClick={() => handlePageNavigation('terminal')}>
-          <Database size={18} />
-          Terminal
-        </button>
-        <button type="button" className={page === 'processing' ? 'active' : ''} onClick={() => handlePageNavigation('processing')}>
-          <Factory size={18} />
-          Processing
-        </button>
-        <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => handlePageNavigation('guide')}>
-          <BookOpen size={18} />
-          Guide
-        </button>
-      </section>
+      {page === 'home' && (
+        <section className="home-panel" aria-label="Click Foundry home">
+          <div className="home-hero">
+            <div className="home-foundry-mark" aria-hidden="true">
+              <span className="home-foundry-stack">
+                <MachineGlyph id="furnace" active />
+                <MachineGlyph id="steamBoiler" active />
+                <MachineGlyph id="steamTurbine" active />
+              </span>
+              <span className="home-conveyor">
+                <PixelIcon id="ironOre" />
+                <PixelIcon id="coal" />
+                <PixelIcon id="ironPlate" />
+              </span>
+            </div>
+            <div>
+              <p className="eyebrow">Block-tech idle</p>
+              <h1>Click Foundry</h1>
+              <p className="home-save-status">{saveStatus}</p>
+            </div>
+          </div>
+          <div className="home-actions">
+            <button type="button" className="home-action primary" disabled={!hasLoadedSave} onClick={handleContinueFromHome}>
+              Continue
+            </button>
+            <button type="button" className="home-action" disabled={!hasLoadedSave || !hasLocalSave} onClick={handleLoadLocalSave}>
+              Load Local Save
+            </button>
+            <button type="button" className="home-action danger" disabled={!hasLoadedSave} onClick={handleReset}>
+              New Game
+            </button>
+          </div>
+        </section>
+      )}
+
+      {page !== 'home' && (
+        <section className="page-tabs" aria-label="Game pages">
+          <button type="button" className={page === 'gather' ? 'active' : ''} onClick={() => handlePageNavigation('gather')}>
+            <Pickaxe size={18} />
+            Gather
+          </button>
+          <button type="button" className={page === 'terminal' ? 'active' : ''} onClick={() => handlePageNavigation('terminal')}>
+            <Database size={18} />
+            Terminal
+          </button>
+          <button type="button" className={page === 'processing' ? 'active' : ''} onClick={() => handlePageNavigation('processing')}>
+            <Factory size={18} />
+            Processing
+          </button>
+          <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => handlePageNavigation('guide')}>
+            <BookOpen size={18} />
+            Guide
+          </button>
+        </section>
+      )}
 
       {page === 'gather' && (
         <section className="tap-panel" aria-label="Manual gathering">

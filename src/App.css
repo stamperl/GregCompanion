@@ -4841,6 +4841,165 @@ button.craft-output:disabled {
   line-height: 0.95;
 }
 
+.game-shell.home-shell {
+  align-content: center;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: max(18px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+}
+
+.home-panel {
+  background: #c7c7c7;
+  border: 3px solid #f2f2f2;
+  border-bottom-color: #6f6f6f;
+  border-radius: 0;
+  border-right-color: #6f6f6f;
+  box-shadow: 0 3px 0 #2f2f2f;
+  display: grid;
+  gap: 12px;
+  margin: 0 auto;
+  max-width: 520px;
+  padding: 12px;
+  width: 100%;
+}
+
+.home-hero {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 44%),
+    #a6a6a6;
+  border: 3px solid #f2f2f2;
+  border-bottom-color: #6f6f6f;
+  border-radius: 0;
+  border-right-color: #6f6f6f;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(112px, 0.72fr) minmax(0, 1fr);
+  min-height: 188px;
+  overflow: hidden;
+  padding: 10px;
+  position: relative;
+}
+
+.home-hero::before {
+  background:
+    linear-gradient(90deg, rgba(74, 74, 74, 0.22) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(74, 74, 74, 0.18) 1px, transparent 1px);
+  background-size: 18px 18px;
+  content: "";
+  inset: 0;
+  opacity: 0.45;
+  position: absolute;
+}
+
+.home-hero > * {
+  position: relative;
+}
+
+.home-hero h1 {
+  color: #2d2d2d;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(2.45rem, 14vw, 4rem);
+  line-height: 0.88;
+  margin: 0;
+}
+
+.home-save-status {
+  background: #8d8d8d;
+  border: 2px solid #6f6f6f;
+  border-bottom-color: #f2f2f2;
+  border-right-color: #f2f2f2;
+  color: #202020;
+  font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+  margin: 12px 0 0;
+  padding: 6px;
+  text-transform: uppercase;
+}
+
+.home-foundry-mark {
+  align-self: stretch;
+  background:
+    linear-gradient(180deg, transparent 0 62%, rgba(47, 47, 47, 0.42) 62% 100%),
+    #83836f;
+  border: 3px solid #f2f2f2;
+  border-bottom-color: #5c5c5c;
+  border-right-color: #5c5c5c;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 150px;
+  padding: 8px;
+}
+
+.home-foundry-stack {
+  align-items: end;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.home-foundry-stack .machine-glyph {
+  align-self: end;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.38));
+  height: 44px;
+  width: 44px;
+}
+
+.home-foundry-stack .machine-steamBoiler {
+  height: 58px;
+  width: 58px;
+}
+
+.home-conveyor {
+  align-items: center;
+  background:
+    repeating-linear-gradient(90deg, #5d5d5d 0 8px, #454545 8px 16px);
+  border: 2px solid #2f2f2f;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 32px;
+  padding: 4px;
+}
+
+.home-conveyor .pixel-icon {
+  height: 24px;
+  width: 24px;
+}
+
+.home-actions {
+  display: grid;
+  gap: 7px;
+}
+
+.home-action {
+  background: #4b4b4b;
+  border: 2px solid #e7e7e7;
+  border-bottom-color: #222;
+  border-radius: 0;
+  border-right-color: #222;
+  color: #fff;
+  cursor: pointer;
+  font: 900 0.9rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 42px;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+
+.home-action.primary {
+  background: #6d5d22;
+  border-color: #fff8aa;
+  border-bottom-color: #4b3f12;
+  border-right-color: #4b3f12;
+}
+
+.home-action.danger {
+  background: #5f5f5f;
+}
+
+.home-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .game-header .eyebrow,
 .guide-page .eyebrow,
 .tap-panel .eyebrow {

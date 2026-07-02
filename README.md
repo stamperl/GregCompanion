@@ -25,6 +25,8 @@ npm run ios:open
 
 `npm run ios:open` needs a Mac with Xcode. Browser builds keep using `localStorage`; the iOS shell uses Capacitor Preferences for local on-device saves.
 
+For the GitHub Pages version on iPhone, open the site in Safari, use Share, then Add to Home Screen. The web app installs as a standalone shortcut and uses the phone browser's local storage for saves.
+
 ## Prototype Scope
 
 - Tree breaking with per-block hit progress, log drops, planks, sticks, and a wooden axe speed upgrade.

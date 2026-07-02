@@ -43,6 +43,10 @@ export async function loadSavedGame(now = Date.now()) {
   return loadGame(await readRawSave(), now)
 }
 
+export async function hasSavedGame() {
+  return (await readRawSave()) !== null
+}
+
 export async function persistGameState(state: GameState) {
   await writeRawSave(saveGame(state))
 }
