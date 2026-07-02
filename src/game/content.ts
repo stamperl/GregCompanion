@@ -218,7 +218,7 @@ export const gatherTargets: Record<GatherTargetId, GatherTarget> = {
     description: 'Wet clay beside still water. A shovel lifts workable lumps.',
     maxHp: 35,
     drops: [{ id: 'clay', amount: 1 }],
-    preferredTool: 'stoneShovel',
+    preferredTool: 'woodenShovel',
   },
   sandPatch: {
     id: 'sandPatch',

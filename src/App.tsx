@@ -653,14 +653,24 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   return process.activeRecipeId ? 'Smelting' : 'Ready'
 }
 
-function hasToolTierUnlocked(state: GameState, resourceId: ResourceId) {
+function hasResourceUnlocked(state: GameState, resourceId: ResourceId) {
   return state.craftedResources.includes(resourceId) || state.resources[resourceId] > 0 || Object.values(state.equipment).includes(resourceId)
+}
+
+function hasToolTierUnlocked(state: GameState, resourceId: ResourceId) {
+  if (resourceId === 'woodenShovel') return (['woodenShovel', 'stoneShovel', 'ironShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'stoneShovel') return (['stoneShovel', 'ironShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'woodenPickaxe') return (['woodenPickaxe', 'stonePickaxe', 'ironPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'stonePickaxe') return (['stonePickaxe', 'ironPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'woodenAxe') return (['woodenAxe', 'stoneAxe', 'ironAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'stoneAxe') return (['stoneAxe', 'ironAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  return hasResourceUnlocked(state, resourceId)
 }
 
 function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
   if (targetId === 'tree') return true
   if (targetId === 'rubberTree') return hasToolTierUnlocked(state, 'treeTap')
-  if (targetId === 'clayPatch') return hasToolTierUnlocked(state, 'stoneShovel')
+  if (targetId === 'clayPatch') return hasToolTierUnlocked(state, 'woodenShovel')
   if (targetId === 'sandPatch') return hasToolTierUnlocked(state, 'woodenShovel')
   if (targetId === 'gravelPatch') return hasToolTierUnlocked(state, 'woodenShovel')
   if (targetId === 'stone') {
