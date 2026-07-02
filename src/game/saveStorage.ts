@@ -12,7 +12,12 @@ export type SaveSlotSummary = {
   exists: boolean
 }
 
-type SaveIndex = Partial<Record<SaveSlotId, { updatedAt: string }>>
+type SaveSlotMetadata = {
+  updatedAt?: string
+  name?: string
+}
+
+type SaveIndex = Partial<Record<SaveSlotId, SaveSlotMetadata>>
 
 export const defaultSaveSlotId: SaveSlotId = 'slot-1'
 export const saveSlots: Array<{ id: SaveSlotId; label: string }> = [
@@ -80,6 +85,10 @@ async function writeSaveIndex(index: SaveIndex) {
   await writeStorageKey(saveIndexKey, JSON.stringify(index))
 }
 
+function cleanSaveName(name: string) {
+  return name.trim().replace(/\s+/g, ' ').slice(0, 28)
+}
+
 export async function migrateLegacySaveSlot() {
   const index = await readSaveIndex()
   const legacyRaw = await readStorageKey(saveKey)
@@ -87,7 +96,7 @@ export async function migrateLegacySaveSlot() {
   if (!legacyRaw || firstSlotRaw) return index
 
   await writeStorageKey(slotSaveKey(defaultSaveSlotId), legacyRaw)
-  const migratedIndex = { ...index, [defaultSaveSlotId]: { updatedAt: new Date().toISOString() } }
+  const migratedIndex = { ...index, [defaultSaveSlotId]: { ...index[defaultSaveSlotId], updatedAt: new Date().toISOString() } }
   await writeSaveIndex(migratedIndex)
   await removeStorageKey(saveKey)
   return migratedIndex
@@ -100,9 +109,9 @@ export async function listSaveSlots() {
       const raw = await readStorageKey(slotSaveKey(slot.id))
       return {
         id: slot.id,
-        label: slot.label,
+        label: index[slot.id]?.name || slot.label,
         updatedAt: index[slot.id]?.updatedAt ?? null,
-        exists: Boolean(index[slot.id] || raw),
+        exists: Boolean(raw),
       }
     }),
   )
@@ -116,14 +125,32 @@ export async function readRawSave(slotId: SaveSlotId = defaultSaveSlotId) {
 export async function writeRawSave(raw: string, slotId: SaveSlotId = defaultSaveSlotId) {
   await writeStorageKey(slotSaveKey(slotId), raw)
   const index = await readSaveIndex()
-  index[slotId] = { updatedAt: new Date().toISOString() }
+  index[slotId] = { ...index[slotId], updatedAt: new Date().toISOString() }
   await writeSaveIndex(index)
 }
 
 export async function clearRawSave(slotId: SaveSlotId = defaultSaveSlotId) {
   await removeStorageKey(slotSaveKey(slotId))
   const index = await readSaveIndex()
-  delete index[slotId]
+  if (index[slotId]?.name) {
+    index[slotId] = { name: index[slotId]?.name }
+  } else {
+    delete index[slotId]
+  }
+  await writeSaveIndex(index)
+}
+
+export async function renameSaveSlot(slotId: SaveSlotId, name: string) {
+  const index = await readSaveIndex()
+  const cleanedName = cleanSaveName(name)
+  const current = index[slotId] ?? {}
+  if (cleanedName) {
+    index[slotId] = { ...current, name: cleanedName }
+  } else if (current.updatedAt) {
+    index[slotId] = { updatedAt: current.updatedAt }
+  } else {
+    delete index[slotId]
+  }
   await writeSaveIndex(index)
 }
 

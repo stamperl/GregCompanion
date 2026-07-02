@@ -115,7 +115,7 @@ import {
   durabilityRemaining,
   crowbarRemoveMachineInstance,
 } from './game/engine'
-import { defaultSaveSlotId, listSaveSlots, clearSavedGame, loadSavedGame, persistGameState, type SaveSlotId, type SaveSlotSummary } from './game/saveStorage'
+import { defaultSaveSlotId, listSaveSlots, clearSavedGame, loadSavedGame, persistGameState, renameSaveSlot, type SaveSlotId, type SaveSlotSummary } from './game/saveStorage'
 import { deploymentInfo, hasNewerDeployment, reloadLatestDeployment } from './game/deployment'
 import {
   groupRecipesByOutput,
@@ -924,6 +924,7 @@ function App() {
   const [page, setPage] = useState<Page>('home')
   const [selectedSaveSlotId, setSelectedSaveSlotId] = useState<SaveSlotId>(defaultSaveSlotId)
   const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
+  const [saveNameDraft, setSaveNameDraft] = useState('')
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
   const [isMobileClient, setIsMobileClient] = useState(() => isMobileClientAllowed())
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
@@ -1054,6 +1055,11 @@ function App() {
   useEffect(() => {
     if (isUpdateAvailable && page === 'home') reloadLatestDeployment()
   }, [isUpdateAvailable, page])
+
+  useEffect(() => {
+    const selectedSlot = saveSlotSummaries.find((slot) => slot.id === selectedSaveSlotId)
+    setSaveNameDraft(selectedSlot?.label ?? saveSlotsFallbackLabel(selectedSaveSlotId))
+  }, [selectedSaveSlotId, saveSlotSummaries])
 
   useEffect(() => {
     if (!hasLoadedSave || isCreativeMode || page === 'home') return
@@ -1923,6 +1929,11 @@ function App() {
     setPage('gather')
   }
 
+  const handleRenameSelectedSave = async () => {
+    await renameSaveSlot(selectedSaveSlotId, saveNameDraft)
+    await refreshSaveSlots()
+  }
+
   const handleManualSave = async () => {
     if (isCreativeMode) {
       addFloatText('creative not saved')
@@ -2179,7 +2190,7 @@ function App() {
               <span className="home-foundry-stack">
                 <MachineGlyph id="furnace" active />
                 <MachineGlyph id="steamBoiler" active />
-                <MachineGlyph id="steamTurbine" active />
+                <MachineGlyph id="steamTank" active />
               </span>
               <span className="home-conveyor">
                 <PixelIcon id="ironOre" />
@@ -2187,9 +2198,9 @@ function App() {
                 <PixelIcon id="ironPlate" />
               </span>
             </div>
-            <div>
+            <div className="home-copy">
               <p className="eyebrow">Block-tech idle</p>
-              <h1>Click Foundry</h1>
+              <h1><span>Click</span><span>Foundry</span></h1>
               <p className="home-save-status">{saveStatus}</p>
               <p className="home-deploy-version">Pages v{deploymentInfo.version} - {deployedAtLabel}</p>
             </div>
@@ -2208,6 +2219,23 @@ function App() {
               </button>
             ))}
           </div>
+          <form
+            className="home-save-name-form"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleRenameSelectedSave()
+            }}
+          >
+            <label htmlFor="home-save-name">Save name</label>
+            <input
+              id="home-save-name"
+              maxLength={28}
+              value={saveNameDraft}
+              onBlur={() => void handleRenameSelectedSave()}
+              onChange={(event) => setSaveNameDraft(event.target.value)}
+            />
+            <button type="submit">Rename</button>
+          </form>
           <div className="home-actions">
             <button type="button" className="home-action primary" disabled={!hasLoadedSave} onClick={handleContinueFromHome}>
               Continue {selectedSaveLabel}
