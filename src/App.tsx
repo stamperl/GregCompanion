@@ -259,6 +259,20 @@ function saveSlotsFallbackLabel(slotId: SaveSlotId) {
   return `Save ${slotId.replace('slot-', '')}`
 }
 
+function isMobileClientAllowed() {
+  if (import.meta.env.DEV) return true
+  if (typeof window === 'undefined') return true
+
+  const userAgent = window.navigator.userAgent
+  const maxTouchPoints = window.navigator.maxTouchPoints ?? 0
+  const mobileUserAgent = /Android|iPhone|iPod|IEMobile|Mobile|CriOS|FxiOS/i.test(userAgent)
+  const iPadOs = /Macintosh/i.test(userAgent) && maxTouchPoints > 1
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+  const compactScreen = Math.min(window.screen.width, window.screen.height) <= 900
+
+  return compactScreen && (mobileUserAgent || iPadOs || (coarsePointer && maxTouchPoints > 0))
+}
+
 function gatherAreaForResource(resourceId: ResourceId) {
   const target = Object.values(gatherTargets).find((candidate) => candidate.drops.some((drop) => drop.id === resourceId))
   if (!target) return null
@@ -901,6 +915,7 @@ function App() {
   const [selectedSaveSlotId, setSelectedSaveSlotId] = useState<SaveSlotId>(defaultSaveSlotId)
   const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
+  const [isMobileClient, setIsMobileClient] = useState(() => isMobileClientAllowed())
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
   const [terminalSearch, setTerminalSearch] = useState('')
@@ -950,6 +965,22 @@ function App() {
     setSaveSlotSummaries(slots)
     return slots
   }
+
+  useEffect(() => {
+    const updateMobileGate = () => setIsMobileClient(isMobileClientAllowed())
+    const pointerQuery = window.matchMedia('(pointer: coarse)')
+
+    updateMobileGate()
+    window.addEventListener('resize', updateMobileGate)
+    window.addEventListener('orientationchange', updateMobileGate)
+    pointerQuery.addEventListener('change', updateMobileGate)
+
+    return () => {
+      window.removeEventListener('resize', updateMobileGate)
+      window.removeEventListener('orientationchange', updateMobileGate)
+      pointerQuery.removeEventListener('change', updateMobileGate)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -2055,6 +2086,25 @@ function App() {
       ? `${selectedSaveLabel} ready - ${selectedSaveSlot.updatedAt ? new Date(selectedSaveSlot.updatedAt).toLocaleString() : 'saved'}`
       : `${selectedSaveLabel} is empty`
   const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleString()
+
+  if (!isMobileClient) {
+    return (
+      <main className="mobile-gate-shell">
+        <section className="mobile-gate-panel" aria-label="Mobile only">
+          <div className="mobile-gate-glyph" aria-hidden="true">
+            <MachineGlyph id="steamBoiler" active />
+            <MachineGlyph id="tinCable" active />
+            <MachineGlyph id="lvWiremill" active />
+          </div>
+          <p className="eyebrow">Desktop detected</p>
+          <h1>Nice try, factory overlord.</h1>
+          <p>This foundry runs on pocket power only. Put the spreadsheet away, grab your phone, and go touch some grass before the boiler files a complaint.</p>
+          <strong>Open Click Foundry on mobile to play.</strong>
+          <span>Pages v{deploymentInfo.version} - {deployedAtLabel}</span>
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main className={shellClassName}>
