@@ -6,20 +6,20 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-and-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -39,18 +39,17 @@ jobs:
           GITHUB_PAGES: 'true'
           VITE_DEPLOY_VERSION: ${{ github.sha }}
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Publish static site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf ../gh-pages-dist
+          git worktree add --detach ../gh-pages-dist
+          cd ../gh-pages-dist
+          git checkout --orphan gh-pages
+          git rm -rf . || true
+          cp -a "$GITHUB_WORKSPACE/dist/." .
+          touch .nojekyll
+          git add -A
+          git commit -m "Deploy ${GITHUB_SHA}"
+          git push origin HEAD:gh-pages --force
