@@ -840,8 +840,15 @@ function QuestBook({
   const questById = new Map(quests.map((quest) => [quest.id, quest]))
   const nodeWidth = 142
   const nodeHeight = 74
-  const mapWidth = Math.max(980, ...chapterQuests.map((quest) => (quest.position?.x ?? 0) + nodeWidth + 18))
-  const mapHeight = Math.max(360, ...chapterQuests.map((quest) => (quest.position?.y ?? 0) + 130))
+  const mapMargin = 16
+  const questXs = chapterQuests.map((quest) => quest.position?.x ?? 0)
+  const questYs = chapterQuests.map((quest) => quest.position?.y ?? 0)
+  const offsetX = mapMargin - (questXs.length ? Math.min(...questXs) : 0)
+  const offsetY = mapMargin - (questYs.length ? Math.min(...questYs) : 0)
+  const questX = (quest: Quest) => (quest.position?.x ?? 0) + offsetX
+  const questY = (quest: Quest) => (quest.position?.y ?? 0) + offsetY
+  const mapWidth = Math.max(360, ...chapterQuests.map((quest) => questX(quest) + nodeWidth + mapMargin))
+  const mapHeight = Math.max(160, ...chapterQuests.map((quest) => questY(quest) + nodeHeight + mapMargin))
 
   return (
     <>
@@ -874,10 +881,10 @@ function QuestBook({
                 const parentStatus = questStatus(state, parent)
                 const childStatus = questStatus(state, quest)
                 const className = parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'
-                const startX = parent.position.x + nodeWidth
-                const startY = parent.position.y + nodeHeight / 2
-                const endX = quest.position.x
-                const endY = quest.position.y + nodeHeight / 2
+                const startX = questX(parent) + nodeWidth
+                const startY = questY(parent) + nodeHeight / 2
+                const endX = questX(quest)
+                const endY = questY(quest) + nodeHeight / 2
                 const midX = startX + Math.max(24, (endX - startX) / 2)
                 const path = `M ${startX} ${startY} H ${midX} V ${endY} H ${endX}`
                 return (
@@ -898,7 +905,7 @@ function QuestBook({
               <button
                 type="button"
                 className={`quest-node ${status}${selected ? ' selected' : ''}`}
-                style={{ left: quest.position?.x ?? 0, minHeight: nodeHeight, top: quest.position?.y ?? 0, width: nodeWidth }}
+                style={{ left: questX(quest), minHeight: nodeHeight, top: questY(quest), width: nodeWidth }}
                 onClick={() => onSelectQuest(quest.id)}
                 key={quest.id}
               >
@@ -1153,6 +1160,12 @@ function App() {
     })
     return () => window.cancelAnimationFrame(frame)
   }, [page, gatherArea, highlightedGatherTarget])
+
+  const gatherPouchItems = useMemo(() => {
+    const targets = gatherAreas.find((area) => area.id === gatherArea)?.targets ?? []
+    const dropIds = [...new Set(targets.flatMap((targetId) => gatherTargets[targetId].drops.map((drop) => drop.id)))]
+    return dropIds.filter((id) => state.resources[id] > 0)
+  }, [gatherArea, state])
 
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
   const guideQuests = useMemo(() => visibleQuests(state), [state])
@@ -2467,6 +2480,16 @@ function App() {
               )
             })}
           </div>
+          {gatherPouchItems.length > 0 && (
+            <div className="gather-pouch" aria-label="Gathered materials">
+              <span className="gather-pouch-label">Pouch</span>
+              <div className="gather-pouch-items">
+                {gatherPouchItems.map((id) => (
+                  <ItemSlot amount={{ id, amount: state.resources[id] }} state={state} onClick={handleJumpToResourceRecipe} key={id} />
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -2519,7 +2542,10 @@ function App() {
                 ))}
               </>
             ) : (
-              <p className="empty-storage">No stored items</p>
+              <div className="empty-storage">
+                <p>No stored items</p>
+                <span>Gather materials, then craft them here.</span>
+              </div>
             )}
           </div>
 

@@ -473,6 +473,7 @@
 .gather-panels {
   display: grid;
   gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
 .gather-area-tabs {
@@ -1157,15 +1158,26 @@ button.craft-output:disabled {
 }
 
 .empty-storage {
-  align-items: center;
+  align-content: center;
   color: #4d4d4d;
-  display: flex;
-  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  display: grid;
+  gap: 4px;
   grid-column: 1 / -1;
-  justify-content: center;
+  justify-items: center;
   margin: 0;
   min-height: 118px;
+  text-align: center;
+}
+
+.empty-storage p {
+  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
   text-transform: uppercase;
+}
+
+.empty-storage span {
+  color: var(--muted-strong);
+  font: 700 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
 .item-slot,
@@ -7583,4 +7595,31 @@ button.button-primary:disabled,
   .machine-glyph.active {
     animation: none;
   }
+}
+
+.gather-pouch {
+  align-items: center;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 0 var(--bevel-drop);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.gather-pouch-label {
+  color: var(--muted-strong);
+  font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.gather-pouch-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
