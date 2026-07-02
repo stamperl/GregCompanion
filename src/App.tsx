@@ -89,8 +89,6 @@ import {
   recipeFitsTerminalGrid,
   recipesUsingInput,
   removeProcessSlot,
-  saveGame,
-  saveKey,
   searchTerminalRecipes,
   steamMaceratorCapacityMs,
   steamMachineInternalCapacityMs,
@@ -117,6 +115,7 @@ import {
   durabilityRemaining,
   crowbarRemoveMachineInstance,
 } from './game/engine'
+import { clearSavedGame, loadSavedGame, persistGameState } from './game/saveStorage'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
@@ -875,7 +874,8 @@ function QuestBook({
 }
 
 function App() {
-  const [state, setState] = useState<GameState>(() => loadGame(localStorage.getItem(saveKey)))
+  const [state, setState] = useState<GameState>(() => loadGame(null))
+  const [hasLoadedSave, setHasLoadedSave] = useState(false)
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
   const [achievementToasts, setAchievementToasts] = useState<AchievementToast[]>([])
   const [page, setPage] = useState<Page>('gather')
@@ -924,6 +924,25 @@ function App() {
   const isFactoryPipeConfigMode = selectedFactoryTool === 'bronzeWrench' || selectedFactoryTool === 'ironWrench'
 
   useEffect(() => {
+    let cancelled = false
+
+    void loadSavedGame()
+      .then((savedState) => {
+        if (cancelled) return
+        setState(savedState)
+        knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
+        setHasLoadedSave(true)
+      })
+      .catch(() => {
+        if (!cancelled) setHasLoadedSave(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       setState((current) => {
         const ticked = tickGame(current, 250).state
@@ -935,9 +954,9 @@ function App() {
   }, [isCreativeMode])
 
   useEffect(() => {
-    if (isCreativeMode) return
-    localStorage.setItem(saveKey, saveGame(state))
-  }, [isCreativeMode, state])
+    if (!hasLoadedSave || isCreativeMode) return
+    void persistGameState(state)
+  }, [hasLoadedSave, isCreativeMode, state])
 
   useEffect(() => {
     if (selectedResource && terminalAvailableAmount(state, terminalGrid, selectedResource) < 1) {
@@ -1739,8 +1758,8 @@ function App() {
     addFloatText('reward claimed')
   }
 
-  const handleReset = () => {
-    localStorage.removeItem(saveKey)
+  const handleReset = async () => {
+    await clearSavedGame()
     setIsCreativeMode(false)
     const freshState = loadGame(null)
     setState(freshState)
@@ -1768,13 +1787,20 @@ function App() {
     addFloatText('fresh save')
   }
 
-  const handleToggleCreativeMode = () => {
+  const handleToggleCreativeMode = async () => {
     const nextCreative = !isCreativeMode
     setPendingProcessInsert(null)
     setPlacingMachineId(null)
     setSelectedMachineUid(null)
-    setIsCreativeMode(nextCreative)
-    setState((currentState) => (nextCreative ? createCreativeState(currentState) : loadGame(localStorage.getItem(saveKey))))
+    if (nextCreative) {
+      setIsCreativeMode(true)
+      setState((currentState) => createCreativeState(currentState))
+    } else {
+      const savedState = await loadSavedGame()
+      setState(savedState)
+      knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
+      setIsCreativeMode(false)
+    }
     addFloatText(nextCreative ? 'creative on' : 'creative off')
   }
 

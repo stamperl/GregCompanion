@@ -9,15 +9,22 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
+    "cap:sync": "npm run build && cap sync",
+    "ios:add": "cap add ios",
+    "ios:open": "cap open ios",
     "update:data": "tsx scripts/update-data.ts"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
+    "@capacitor/preferences": "^8.0.1",
     "adm-zip": "^0.5.17",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@types/adm-zip": "^0.5.8",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
