@@ -8,6 +8,7 @@ import {
   Factory,
   Pickaxe,
   Save,
+  Sparkles,
   Trash2,
   Undo2,
   X,
@@ -914,6 +915,11 @@ function QuestBook({
                 </span>
                 <span className="quest-node-title">{quest.title}</span>
                 <span className="quest-node-state">{questStatusText(status)}</span>
+                {status === 'available' && (
+                  <span className="quest-node-progress" aria-hidden="true">
+                    <span style={{ width: `${Math.round(questProgress(state, quest) * 100)}%` }} />
+                  </span>
+                )}
                 {status === 'completed' && <Check size={14} />}
               </button>
             )
@@ -2166,7 +2172,8 @@ function App() {
     : selectedSaveSlot?.exists
       ? `${selectedSaveLabel} ready - ${selectedSaveSlot.updatedAt ? new Date(selectedSaveSlot.updatedAt).toLocaleString() : 'saved'}`
       : `${selectedSaveLabel} is empty`
-  const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleString()
+  const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  const buildLabel = deploymentInfo.version === 'local' ? 'Local build' : `Build ${deploymentInfo.version}`
 
   if (!isMobileClient) {
     return (
@@ -2181,7 +2188,7 @@ function App() {
           <h1>Nice try, factory overlord.</h1>
           <p>This foundry runs on pocket power only. Put the spreadsheet away, grab your phone, and go touch some grass before the boiler files a complaint.</p>
           <strong>Open Click Foundry on mobile to play.</strong>
-          <span>Pages v{deploymentInfo.version} - {deployedAtLabel}</span>
+          <span>{buildLabel} · {deployedAtLabel}</span>
         </section>
       </main>
     )
@@ -2215,7 +2222,7 @@ function App() {
               title={isCreativeMode ? 'Creative mode on - not saving' : 'Creative mode'}
               onClick={handleToggleCreativeMode}
             >
-              32
+              <Sparkles size={18} />
             </button>
           </div>
         </header>
@@ -2262,7 +2269,7 @@ function App() {
               <p className="eyebrow">Block-tech idle</p>
               <h1><span>Click</span><span>Foundry</span></h1>
               <p className="home-save-status">{saveStatus}</p>
-              <p className="home-deploy-version">Pages v{deploymentInfo.version} - {deployedAtLabel}</p>
+              <p className="home-deploy-version">{buildLabel} · {deployedAtLabel}</p>
             </div>
           </div>
           <div className="home-save-slots" aria-label="Save slots">

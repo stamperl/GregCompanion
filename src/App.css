@@ -3053,7 +3053,7 @@ button.craft-output:disabled {
 
 .processing-head h2 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: 1rem;
   line-height: 1;
   margin: 0;
@@ -3304,7 +3304,7 @@ button.craft-output:disabled {
 
 .factory-foundation-panel h3 {
   color: var(--ink-strong);
-  font: 950 1rem "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   margin: 2px 0;
 }
 
@@ -4313,7 +4313,7 @@ button.craft-output:disabled {
 
 .process-quantity-head h3 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: 0.92rem;
   line-height: 1;
   margin: 0;
@@ -4848,7 +4848,7 @@ button.craft-output:disabled {
 
 .game-header h1 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: clamp(1.55rem, 8vw, 2.6rem);
   line-height: 0.95;
 }
@@ -4898,7 +4898,7 @@ button.craft-output:disabled {
 
 .mobile-gate-panel h1 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: clamp(2rem, 8vw, 3.5rem);
   line-height: 0.92;
   margin: 0;
@@ -5012,10 +5012,11 @@ button.craft-output:disabled {
 
 .home-hero h1 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
-  font-size: clamp(2rem, 9vw, 3.25rem);
-  line-height: 0.9;
+  font-family: var(--display-font);
+  font-size: clamp(1.4rem, 6.4vw, 2.3rem);
+  line-height: 1;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .home-hero h1 span {
@@ -5380,7 +5381,7 @@ button.craft-output:disabled {
 .guide-page h2,
 .terminal-topline h2 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: 1rem;
   line-height: 1.05;
 }
@@ -5697,7 +5698,7 @@ button.craft-output:disabled {
 .machine-card h3,
 .recipe-detail h3 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: 0.9rem;
 }
 
@@ -6049,7 +6050,7 @@ button.craft-output:disabled {
 
 .achievement-toast strong {
   color: #f7f7f7;
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: 0.76rem;
   line-height: 1.05;
 }
@@ -6763,7 +6764,7 @@ button.craft-output:disabled {
 
 .missing-modal h2 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: 0.95rem;
   line-height: 1.1;
   margin: 0;
@@ -6786,7 +6787,7 @@ button.craft-output:disabled {
 
 .recipe-modal h2 {
   color: var(--ink-strong);
-  font-family: "Courier New", ui-monospace, monospace;
+  font-family: var(--display-font);
   font-size: 1rem;
 }
 
@@ -7648,4 +7649,20 @@ button.button-primary:disabled,
   .float-layer .hit-particles {
     animation-duration: 1ms;
   }
+}
+
+.quest-node-progress {
+  background: var(--bevel-well);
+  border: 1px solid var(--bevel-dark);
+  display: block;
+  height: 6px;
+  margin-top: 3px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.quest-node-progress span {
+  background: linear-gradient(90deg, #6da448, #d0c46a);
+  display: block;
+  height: 100%;
 }

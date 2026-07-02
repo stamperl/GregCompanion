@@ -1,4 +1,21 @@
+@font-face {
+  font-display: swap;
+  font-family: Silkscreen;
+  font-style: normal;
+  font-weight: 400;
+  src: url('./assets/fonts/silkscreen-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-display: swap;
+  font-family: Silkscreen;
+  font-style: normal;
+  font-weight: 700;
+  src: url('./assets/fonts/silkscreen-700.woff2') format('woff2');
+}
+
 :root {
+  --display-font: Silkscreen, 'Courier New', ui-monospace, monospace;
   --copper: #a8642d;
   --copper-deep: #8a5222;
   --field: #e8dfcd;
