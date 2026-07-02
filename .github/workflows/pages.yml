@@ -30,10 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set deployment metadata
+        run: echo "VITE_DEPLOYED_AT=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+
       - name: Build
         run: npm run build
         env:
           GITHUB_PAGES: 'true'
+          VITE_DEPLOY_VERSION: ${{ github.sha }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

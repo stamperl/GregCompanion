@@ -6,8 +6,10 @@ import {
   Check,
   Database,
   Factory,
+  Home,
   Pickaxe,
   RotateCcw,
+  Save,
   Trash2,
   Undo2,
   X,
@@ -115,7 +117,8 @@ import {
   durabilityRemaining,
   crowbarRemoveMachineInstance,
 } from './game/engine'
-import { clearSavedGame, hasSavedGame, loadSavedGame, persistGameState } from './game/saveStorage'
+import { defaultSaveSlotId, listSaveSlots, clearSavedGame, loadSavedGame, persistGameState, type SaveSlotId, type SaveSlotSummary } from './game/saveStorage'
+import { deploymentInfo } from './game/deployment'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
@@ -160,19 +163,6 @@ type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide'
 type TerminalMode = 'recipes' | 'uses'
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryPan = { x: number; y: number }
-type NavigationSnapshot = {
-  page: Page
-  gatherArea: GatherAreaId
-  terminalMode: TerminalMode
-  recipeSearch: string
-  selectedResource: ResourceId | null
-  selectedMachineUid: string | null
-  selectedQuestId: QuestId | null
-  selectedRecipeGroupKey: string | null
-  selectedRecipeIndex: number
-  isRecipeModalOpen: boolean
-  isFactoryExpandModalOpen: boolean
-}
 type PendingProcessInsert = {
   uid: string
   slotId: Exclude<ProcessSlotId, 'output'>
@@ -238,6 +228,10 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tinVein: 'tinOre',
   redstoneVein: 'redstoneDust',
   coalSeam: 'coal',
+}
+
+function saveSlotsFallbackLabel(slotId: SaveSlotId) {
+  return `Save ${slotId.replace('slot-', '')}`
 }
 
 function gatherAreaForResource(resourceId: ResourceId) {
@@ -879,7 +873,8 @@ function App() {
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
   const [achievementToasts, setAchievementToasts] = useState<AchievementToast[]>([])
   const [page, setPage] = useState<Page>('home')
-  const [hasLocalSave, setHasLocalSave] = useState(false)
+  const [selectedSaveSlotId, setSelectedSaveSlotId] = useState<SaveSlotId>(defaultSaveSlotId)
+  const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
   const [terminalSearch, setTerminalSearch] = useState('')
@@ -910,7 +905,6 @@ function App() {
   } | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const [factoryPan, setFactoryPan] = useState<FactoryPan>({ x: 0, y: 0 })
-  const [navigationStack, setNavigationStack] = useState<NavigationSnapshot[]>([])
   const [highlightedGatherTarget, setHighlightedGatherTarget] = useState<GatherTargetId | null>(null)
   const floatTextIdRef = useRef(0)
   const achievementToastIdRef = useRef(0)
@@ -924,15 +918,20 @@ function App() {
   const isFactoryRemoveMode = selectedFactoryTool === 'ironCrowbar'
   const isFactoryPipeConfigMode = selectedFactoryTool === 'bronzeWrench' || selectedFactoryTool === 'ironWrench'
 
+  const refreshSaveSlots = async () => {
+    const slots = await listSaveSlots()
+    setSaveSlotSummaries(slots)
+    return slots
+  }
+
   useEffect(() => {
     let cancelled = false
 
-    void Promise.all([loadSavedGame(), hasSavedGame()])
-      .then((savedState) => {
+    void Promise.all([loadSavedGame(defaultSaveSlotId), listSaveSlots()])
+      .then(([loadedState, slots]) => {
         if (cancelled) return
-        const [loadedState, saveExists] = savedState
         setState(loadedState)
-        setHasLocalSave(saveExists)
+        setSaveSlotSummaries(slots)
         knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
         setHasLoadedSave(true)
       })
@@ -948,18 +947,19 @@ function App() {
   useEffect(() => {
     const interval = window.setInterval(() => {
       setState((current) => {
+        if (page === 'home') return current
         const ticked = tickGame(current, 250).state
         return isCreativeMode ? createCreativeState(ticked) : ticked
       })
     }, 250)
 
     return () => window.clearInterval(interval)
-  }, [isCreativeMode])
+  }, [isCreativeMode, page])
 
   useEffect(() => {
-    if (!hasLoadedSave || isCreativeMode) return
-    void persistGameState(state).then(() => setHasLocalSave(true))
-  }, [hasLoadedSave, isCreativeMode, state])
+    if (!hasLoadedSave || isCreativeMode || page === 'home') return
+    void persistGameState(state, selectedSaveSlotId).then(refreshSaveSlots)
+  }, [hasLoadedSave, isCreativeMode, page, selectedSaveSlotId, state])
 
   useEffect(() => {
     if (selectedResource && terminalAvailableAmount(state, terminalGrid, selectedResource) < 1) {
@@ -1762,9 +1762,9 @@ function App() {
   }
 
   const handleReset = async () => {
-    await clearSavedGame()
+    await clearSavedGame(selectedSaveSlotId)
     setIsCreativeMode(false)
-    setHasLocalSave(false)
+    await refreshSaveSlots()
     const freshState = loadGame(null)
     setState(freshState)
     knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
@@ -1785,10 +1785,9 @@ function App() {
     setSelectedQuestId(null)
     setSelectedRecipeGroupKey(null)
     setSelectedRecipeIndex(0)
-    setNavigationStack([])
     setHighlightedGatherTarget(null)
     setPage('gather')
-    addFloatText('fresh save')
+    addFloatText('new save')
   }
 
   const handleToggleCreativeMode = async () => {
@@ -1800,7 +1799,7 @@ function App() {
       setIsCreativeMode(true)
       setState((currentState) => createCreativeState(currentState))
     } else {
-      const savedState = await loadSavedGame()
+      const savedState = await loadSavedGame(selectedSaveSlotId)
       setState(savedState)
       knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
       setIsCreativeMode(false)
@@ -1808,20 +1807,33 @@ function App() {
     addFloatText(nextCreative ? 'creative on' : 'creative off')
   }
 
-  const handleContinueFromHome = () => {
-    setNavigationStack([])
+  const handleContinueFromHome = async () => {
+    const savedState = await loadSavedGame(selectedSaveSlotId)
+    setState(savedState)
+    knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
+    setIsCreativeMode(false)
     setPage('gather')
   }
 
-  const handleLoadLocalSave = async () => {
-    const savedState = await loadSavedGame()
-    setState(savedState)
-    setHasLocalSave(await hasSavedGame())
-    knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
-    setIsCreativeMode(false)
-    setNavigationStack([])
-    setPage('gather')
-    addFloatText('save loaded')
+  const handleManualSave = async () => {
+    if (isCreativeMode) {
+      addFloatText('creative not saved')
+      return
+    }
+    await persistGameState(state, selectedSaveSlotId)
+    await refreshSaveSlots()
+    addFloatText('saved')
+  }
+
+  const handleGoHome = () => {
+    setPage('home')
+    setPendingProcessInsert(null)
+    setMissingBatch(null)
+    setIsRecipeModalOpen(false)
+    setIsFactoryExpandModalOpen(false)
+    setSelectedMachineUid(null)
+    setSelectedPipeConfigUid(null)
+    setSelectedQuestId(null)
   }
 
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
@@ -1865,72 +1877,10 @@ function App() {
     )
   }
 
-  const captureNavigationSnapshot = (): NavigationSnapshot => ({
-    page,
-    gatherArea,
-    terminalMode,
-    recipeSearch,
-    selectedResource,
-    selectedMachineUid,
-    selectedQuestId,
-    selectedRecipeGroupKey,
-    selectedRecipeIndex,
-    isRecipeModalOpen,
-    isFactoryExpandModalOpen,
-  })
-
-  const restoreNavigationSnapshot = (snapshot: NavigationSnapshot) => {
-    setPage(snapshot.page)
-    setGatherArea(snapshot.gatherArea)
-    setTerminalMode(snapshot.terminalMode)
-    setRecipeSearch(snapshot.recipeSearch)
-    setSelectedResource(snapshot.selectedResource)
-    setSelectedMachineUid(snapshot.selectedMachineUid)
-    setSelectedQuestId(snapshot.selectedQuestId)
-    setSelectedRecipeGroupKey(snapshot.selectedRecipeGroupKey)
-    setSelectedRecipeIndex(snapshot.selectedRecipeIndex)
-    setIsRecipeModalOpen(snapshot.isRecipeModalOpen)
-    setIsFactoryExpandModalOpen(snapshot.isFactoryExpandModalOpen)
-    setMissingBatch(null)
-    setPendingProcessInsert(null)
-    setHighlightedGatherTarget(null)
-  }
-
-  const pushNavigationSnapshot = () => {
-    const snapshot = captureNavigationSnapshot()
-    setNavigationStack((current) => [...current.slice(-7), snapshot])
-  }
+  const pushNavigationSnapshot = () => undefined
 
   const handleBackNavigation = () => {
-    const snapshot = navigationStack.at(-1)
-    if (snapshot) {
-      restoreNavigationSnapshot(snapshot)
-      setNavigationStack((current) => current.slice(0, -1))
-      return
-    }
-
-    if (missingBatch) {
-      setMissingBatch(null)
-      return
-    }
-    if (selectedQuestId) {
-      setSelectedQuestId(null)
-      return
-    }
-    if (isFactoryExpandModalOpen) {
-      setIsFactoryExpandModalOpen(false)
-      return
-    }
-    if (isRecipeModalOpen) {
-      setIsRecipeModalOpen(false)
-      return
-    }
-    if (selectedMachineUid) {
-      setPendingProcessInsert(null)
-      setSelectedMachineUid(null)
-      return
-    }
-    if (page !== 'home') setPage('home')
+    handleGoHome()
   }
 
   const handleAchievementToastClick = (toast: AchievementToast) => {
@@ -1961,23 +1911,29 @@ function App() {
   }
 
   const shellClassName = page === 'home' ? 'game-shell home-shell' : page === 'processing' ? 'game-shell processing-shell' : 'game-shell'
+  const selectedSaveSlot = saveSlotSummaries.find((slot) => slot.id === selectedSaveSlotId)
+  const selectedSaveLabel = selectedSaveSlot?.label ?? saveSlotsFallbackLabel(selectedSaveSlotId)
   const saveStatus = !hasLoadedSave
     ? 'Loading local save...'
-    : hasLocalSave
-      ? `Local save ready - ${new Date(state.lastSavedAt).toLocaleString()}`
-      : 'No local save yet'
+    : selectedSaveSlot?.exists
+      ? `${selectedSaveLabel} ready - ${selectedSaveSlot.updatedAt ? new Date(selectedSaveSlot.updatedAt).toLocaleString() : 'saved'}`
+      : `${selectedSaveLabel} is empty`
+  const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleString()
 
   return (
     <main className={shellClassName}>
       {page !== 'home' && (
         <header className="game-header">
-          <div>
+          <button type="button" className="header-title-button" aria-label="Go to Home" title="Home" onClick={handleGoHome}>
             <p className="eyebrow">Block-tech idle</p>
             <h1>Click Foundry</h1>
-          </div>
+          </button>
           <div className="header-actions">
-            <button type="button" className="icon-button global-back-button" aria-label="Back" title="Back" onClick={handleBackNavigation}>
-              <Undo2 size={18} />
+            <button type="button" className="icon-button global-back-button" aria-label="Home" title="Home" onClick={handleBackNavigation}>
+              <Home size={18} />
+            </button>
+            <button type="button" className="icon-button" aria-label="Save game" title={`Save ${selectedSaveSlotId.replace('slot-', '')}`} onClick={handleManualSave}>
+              <Save size={18} />
             </button>
             <button
               type="button"
@@ -2037,17 +1993,29 @@ function App() {
               <p className="eyebrow">Block-tech idle</p>
               <h1>Click Foundry</h1>
               <p className="home-save-status">{saveStatus}</p>
+              <p className="home-deploy-version">Pages v{deploymentInfo.version} - {deployedAtLabel}</p>
             </div>
+          </div>
+          <div className="home-save-slots" aria-label="Save slots">
+            {(saveSlotSummaries.length > 0 ? saveSlotSummaries : [{ id: 'slot-1' as const, label: 'Save 1', updatedAt: null, exists: false }, { id: 'slot-2' as const, label: 'Save 2', updatedAt: null, exists: false }, { id: 'slot-3' as const, label: 'Save 3', updatedAt: null, exists: false }]).map((slot) => (
+              <button
+                type="button"
+                className={slot.id === selectedSaveSlotId ? 'home-save-slot selected' : 'home-save-slot'}
+                aria-pressed={slot.id === selectedSaveSlotId}
+                onClick={() => setSelectedSaveSlotId(slot.id)}
+                key={slot.id}
+              >
+                <strong>{slot.label}</strong>
+                <span>{slot.exists && slot.updatedAt ? new Date(slot.updatedAt).toLocaleString() : 'Empty slot'}</span>
+              </button>
+            ))}
           </div>
           <div className="home-actions">
             <button type="button" className="home-action primary" disabled={!hasLoadedSave} onClick={handleContinueFromHome}>
-              Continue
-            </button>
-            <button type="button" className="home-action" disabled={!hasLoadedSave || !hasLocalSave} onClick={handleLoadLocalSave}>
-              Load Local Save
+              Continue {selectedSaveLabel}
             </button>
             <button type="button" className="home-action danger" disabled={!hasLoadedSave} onClick={handleReset}>
-              New Game
+              New Game In {selectedSaveLabel}
             </button>
           </div>
         </section>
