@@ -2943,7 +2943,7 @@ function App() {
                   <ItemSlot amount={amount} disabled={availableResourceAmount(state, amount.id) < amount.amount} state={state} onClick={handleJumpToResourceRecipe} key={amount.id} />
                 ))}
               </div>
-              <button type="button" className="load-recipe-button" disabled={!canExpandFactory} onClick={handleFactoryExpand}>
+              <button type="button" className="load-recipe-button button-primary" disabled={!canExpandFactory} onClick={handleFactoryExpand}>
                 Build Foundation
               </button>
             </div>

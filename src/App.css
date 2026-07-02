@@ -413,11 +413,11 @@
 
 .auto-miner-controls {
   align-items: center;
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
+  border-right-color: var(--bevel-dark);
   color: #242424;
   display: flex;
   flex-wrap: wrap;
@@ -427,7 +427,7 @@
 }
 
 .auto-miner-controls > span {
-  color: #4b4b4b;
+  color: var(--muted-strong);
   font-size: 0.58rem;
   font-weight: 900;
   line-height: 1;
@@ -466,7 +466,7 @@
 }
 
 .auto-miner-control button:disabled {
-  color: #777;
+  color: var(--bevel-dark);
   opacity: 0.5;
 }
 
@@ -476,10 +476,10 @@
 }
 
 .gather-area-tabs {
-  background: #c7c7c7;
+  background: var(--bevel-face);
   box-shadow:
-    0 -8px 0 #c7c7c7,
-    0 8px 0 #c7c7c7;
+    0 -8px 0 var(--bevel-face),
+    0 8px 0 var(--bevel-face);
   display: grid;
   gap: 4px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -492,7 +492,7 @@
 
 .gather-area-tabs button {
   background: #4a4a4a;
-  border: 2px solid #efefef;
+  border: 2px solid var(--bevel-light);
   border-bottom-color: #1f1f1f;
   border-radius: 0;
   border-right-color: #1f1f1f;
@@ -1090,11 +1090,11 @@ button.craft-output:disabled {
 }
 
 .terminal-panel {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
-  border-right-color: #6f6f6f;
-  box-shadow: 0 3px 0 #2f2f2f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 0 var(--bevel-drop);
   display: grid;
   gap: 8px;
   margin: 0 auto;
@@ -1127,10 +1127,10 @@ button.craft-output:disabled {
 }
 
 .terminal-search {
-  background: #e8e8e8;
-  border: 2px solid #777;
-  border-bottom-color: #f3f3f3;
-  border-right-color: #f3f3f3;
+  background: var(--bevel-inset);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   border-radius: 0;
   color: #222;
   font: 800 0.82rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -1142,10 +1142,10 @@ button.craft-output:disabled {
 
 .terminal-panel .terminal-items {
   align-content: start;
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 2px;
   grid-auto-rows: 40px;
@@ -1173,8 +1173,8 @@ button.craft-output:disabled {
 .pixel-grid .craft-slot {
   align-items: center;
   aspect-ratio: 1;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
@@ -2682,7 +2682,7 @@ button.craft-output:disabled {
 
 .item-tooltip {
   align-items: center;
-  background: #2d2d2d;
+  background: var(--tooltip-face);
   border: 2px solid #f1f1f1;
   border-bottom-color: #111;
   border-right-color: #111;
@@ -2704,12 +2704,12 @@ button.craft-output:disabled {
 }
 
 .item-drag-preview {
-  background: #8d8d8d;
+  background: var(--bevel-well);
   border: 2px solid #fff8aa;
   border-bottom-color: #806c22;
   border-radius: 0;
   border-right-color: #806c22;
-  box-shadow: 0 2px 0 #2f2f2f;
+  box-shadow: 0 2px 0 var(--bevel-drop);
   display: grid;
   height: 42px;
   justify-items: center;
@@ -2850,11 +2850,11 @@ button.craft-output:disabled {
 
 .recipe-open-button {
   align-items: center;
-  background: #4b4b4b;
-  border: 2px solid #e7e7e7;
-  border-bottom-color: #222;
+  background: var(--chip-face);
+  border: 2px solid var(--chip-light);
+  border-bottom-color: var(--chip-edge);
   border-radius: 0;
-  border-right-color: #222;
+  border-right-color: var(--chip-edge);
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -2867,11 +2867,11 @@ button.craft-output:disabled {
 }
 
 .batch-controls {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #f2f2f2;
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 3px;
   padding: 3px;
@@ -2892,12 +2892,12 @@ button.craft-output:disabled {
 
 .batch-step-row button,
 .batch-action-row button {
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
-  color: #272727;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
   cursor: pointer;
   font: 900 0.56rem Inter, ui-sans-serif, system-ui, sans-serif;
   line-height: 1;
@@ -2921,12 +2921,12 @@ button.craft-output:disabled {
 
 .batch-quantity {
   align-items: center;
-  background: #e8e8e8;
-  border: 2px solid #777;
-  border-bottom-color: #f3f3f3;
+  background: var(--bevel-inset);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #f3f3f3;
-  color: #272727;
+  border-right-color: var(--bevel-light);
+  color: var(--ink-strong);
   display: grid;
   gap: 2px;
   grid-template-columns: auto 1fr auto;
@@ -2966,12 +2966,12 @@ button.craft-output:disabled {
 .equipment-toggle,
 .machine-drawer summary {
   align-items: center;
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
-  color: #272727;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
   cursor: pointer;
   display: flex;
   font: 900 0.76rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -2983,7 +2983,7 @@ button.craft-output:disabled {
 
 .equipment-drawer,
 .machine-drawer {
-  color: #272727;
+  color: var(--ink-strong);
 }
 
 .equipment-drawer {
@@ -3002,10 +3002,10 @@ button.craft-output:disabled {
 
 .equipment-layout {
   align-items: center;
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 8px;
   grid-template-columns: 84px minmax(70px, 1fr) 84px;
@@ -3019,12 +3019,12 @@ button.craft-output:disabled {
 }
 
 .processing-panel {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
-  box-shadow: 0 3px 0 #2f2f2f;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 0 var(--bevel-drop);
   display: grid;
   gap: 8px;
   margin: 0 auto;
@@ -3040,7 +3040,7 @@ button.craft-output:disabled {
 }
 
 .processing-head h2 {
-  color: #2d2d2d;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 1rem;
   line-height: 1;
@@ -3049,7 +3049,7 @@ button.craft-output:disabled {
 
 .place-machine-button {
   background: #4a4a4a;
-  border: 2px solid #efefef;
+  border: 2px solid var(--bevel-light);
   border-bottom-color: #1f1f1f;
   border-radius: 0;
   border-right-color: #1f1f1f;
@@ -3072,10 +3072,10 @@ button.craft-output:disabled {
 }
 
 .processing-storage {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: flex;
   gap: 4px;
   min-height: 48px;
@@ -3096,9 +3096,9 @@ button.craft-output:disabled {
 .machine-selected-item {
   align-items: center;
   background: #a7a7a7;
-  border: 2px solid #efefef;
-  border-bottom-color: #6f6f6f;
-  border-right-color: #6f6f6f;
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
   color: #333;
   display: grid;
   gap: 6px;
@@ -3174,11 +3174,11 @@ button.craft-output:disabled {
 }
 
 .factory-machine-search {
-  background: #e8e8e8;
-  border: 2px solid #777;
-  border-bottom-color: #f3f3f3;
+  background: var(--bevel-inset);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #f3f3f3;
+  border-right-color: var(--bevel-light);
   color: #202020;
   font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
   min-height: 22px;
@@ -3220,7 +3220,7 @@ button.craft-output:disabled {
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 2px;
-  scrollbar-color: #6f6f6f #b6b6b6;
+  scrollbar-color: var(--bevel-dark) var(--bevel-well);
   scrollbar-width: thin;
 }
 
@@ -3229,19 +3229,19 @@ button.craft-output:disabled {
 }
 
 .machine-placement-slots::-webkit-scrollbar-track {
-  background: #9f9f9f;
+  background: var(--bevel-deep);
 }
 
 .machine-placement-slots::-webkit-scrollbar-thumb {
-  background: #5f5f5f;
+  background: var(--bevel-dark);
 }
 
 .factory-selection-name {
   align-items: center;
   background: #a9a9a9;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   color: #343434;
   display: grid;
   gap: 3px;
@@ -3258,7 +3258,7 @@ button.craft-output:disabled {
 }
 
 .factory-selection-name strong {
-  color: #272727;
+  color: var(--ink-strong);
   font: 950 0.72rem "Courier New", ui-monospace, monospace;
   min-width: 0;
   overflow: hidden;
@@ -3280,18 +3280,18 @@ button.craft-output:disabled {
 
 .factory-foundation-panel,
 .factory-expansion-row {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
-  color: #272727;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  color: var(--ink-strong);
   display: grid;
   gap: 7px;
   padding: 8px;
 }
 
 .factory-foundation-panel h3 {
-  color: #2d2d2d;
+  color: var(--ink-strong);
   font: 950 1rem "Courier New", ui-monospace, monospace;
   margin: 2px 0;
 }
@@ -3311,7 +3311,7 @@ button.craft-output:disabled {
 }
 
 .factory-expansion-row strong {
-  color: #272727;
+  color: var(--ink-strong);
   display: block;
   font: 950 0.82rem "Courier New", ui-monospace, monospace;
   margin-top: 2px;
@@ -3319,7 +3319,7 @@ button.craft-output:disabled {
 
 .factory-expand-button {
   background: #4a4a4a;
-  border: 2px solid #efefef;
+  border: 2px solid var(--bevel-light);
   border-bottom-color: #1f1f1f;
   border-radius: 0;
   border-right-color: #1f1f1f;
@@ -3354,15 +3354,15 @@ button.craft-output:disabled {
 }
 
 .factory-expand-costs {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   padding: 5px;
 }
 
 .empty-furnace-storage {
-  color: #4b4b4b;
+  color: var(--muted-strong);
   font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
   padding: 0 6px;
   text-transform: uppercase;
@@ -3370,12 +3370,12 @@ button.craft-output:disabled {
 
 .machine-status-row {
   align-items: center;
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
-  color: #272727;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
   display: flex;
   flex-wrap: wrap;
   font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -3392,11 +3392,11 @@ button.craft-output:disabled {
 
 .well-interface {
   align-items: center;
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
-  color: #272727;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  color: var(--ink-strong);
   display: grid;
   font: 900 0.76rem Inter, ui-sans-serif, system-ui, sans-serif;
   gap: 8px;
@@ -3422,9 +3422,9 @@ button.craft-output:disabled {
     linear-gradient(180deg, rgba(70, 70, 70, 0.18) 1px, transparent 1px),
     #a8a8a8;
   background-size: 16px 16px;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   cursor: grab;
   height: clamp(240px, 48svh, 360px);
   max-width: 100%;
@@ -3460,7 +3460,7 @@ button.craft-output:disabled {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 34%),
     linear-gradient(315deg, rgba(0, 0, 0, 0.13), transparent 38%),
-    #8f8f8f;
+    var(--bevel-well);
   border: 2px solid #747474;
   border-bottom-color: #cfcfcf;
   border-radius: 0;
@@ -3505,8 +3505,8 @@ button.craft-output:disabled {
   background:
     linear-gradient(90deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
     linear-gradient(180deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
-    #777;
-  border-color: #efefef;
+    var(--bevel-dark);
+  border-color: var(--bevel-light);
   border-bottom-color: #4f4f4f;
   border-right-color: #4f4f4f;
   box-shadow:
@@ -3688,9 +3688,9 @@ button.craft-output:disabled {
     linear-gradient(180deg, rgba(70, 70, 70, 0.16) 1px, transparent 1px),
     #a8a8a8;
   background-size: 12px 12px;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 4px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3700,7 +3700,7 @@ button.craft-output:disabled {
 
 .pipe-config-cell {
   align-items: center;
-  background: #8f8f8f;
+  background: var(--bevel-well);
   border: 2px solid #cfcfcf;
   border-bottom-color: #676767;
   border-radius: 0;
@@ -3730,7 +3730,7 @@ button.craft-output:disabled {
 .pipe-config-cell.disabled-side {
   background:
     repeating-linear-gradient(135deg, rgba(42, 42, 42, 0.22) 0 4px, transparent 4px 8px),
-    #777;
+    var(--bevel-dark);
   color: #f4f0dc;
 }
 
@@ -3775,11 +3775,11 @@ button.craft-output:disabled {
 }
 
 .pipe-config-note {
-  background: #9f9f9f;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
-  color: #2d2d2d;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  color: var(--ink-strong);
   font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
   margin: 8px 0 0;
   padding: 6px;
@@ -3990,11 +3990,11 @@ button.craft-output:disabled {
 }
 
 .furnace-modal {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
+  border-right-color: var(--bevel-dark);
   box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
   display: grid;
   gap: 10px;
@@ -4005,10 +4005,10 @@ button.craft-output:disabled {
 
 .furnace-interface {
   align-items: center;
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 12px;
   grid-template-columns: 72px 1fr 72px;
@@ -4117,8 +4117,8 @@ button.craft-output:disabled {
 
 .steam-tank {
   align-items: center;
-  background: #8f8f8f;
-  border: 2px solid #efefef;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-light);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
@@ -4197,8 +4197,8 @@ button.craft-output:disabled {
 
 .process-slot {
   align-items: center;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
@@ -4222,7 +4222,7 @@ button.craft-output:disabled {
 
 .furnace-flame {
   align-items: end;
-  background: #777;
+  background: var(--bevel-dark);
   border: 2px solid #555;
   border-bottom-color: #cfcfcf;
   border-right-color: #cfcfcf;
@@ -4259,7 +4259,7 @@ button.craft-output:disabled {
 }
 
 .furnace-progress {
-  background: #8f8f8f;
+  background: var(--bevel-well);
   border: 2px solid #666;
   border-bottom-color: #e7e7e7;
   border-right-color: #e7e7e7;
@@ -4276,10 +4276,10 @@ button.craft-output:disabled {
 }
 
 .process-quantity-panel {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 6px;
   min-width: 0;
@@ -4300,7 +4300,7 @@ button.craft-output:disabled {
 }
 
 .process-quantity-head h3 {
-  color: #272727;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 0.92rem;
   line-height: 1;
@@ -4349,8 +4349,8 @@ button.craft-output:disabled {
 
 .equipment-slot {
   align-items: center;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
@@ -4419,7 +4419,7 @@ button.craft-output:disabled {
 }
 
 .equipment-helmet::before {
-  background: #5f5f5f;
+  background: var(--bevel-dark);
   clip-path: polygon(18% 42%, 30% 14%, 70% 14%, 82% 42%, 82% 76%, 18% 76%);
   height: 18px;
   left: 2px;
@@ -4428,7 +4428,7 @@ button.craft-output:disabled {
 }
 
 .equipment-chestplate::before {
-  background: #5f5f5f;
+  background: var(--bevel-dark);
   clip-path: polygon(12% 10%, 38% 10%, 50% 24%, 62% 10%, 88% 10%, 78% 90%, 22% 90%);
   height: 20px;
   left: 1px;
@@ -4437,7 +4437,7 @@ button.craft-output:disabled {
 }
 
 .equipment-leggings::before {
-  background: #5f5f5f;
+  background: var(--bevel-dark);
   clip-path: polygon(18% 8%, 82% 8%, 74% 94%, 56% 94%, 50% 38%, 44% 94%, 26% 94%);
   height: 20px;
   left: 1px;
@@ -4446,8 +4446,8 @@ button.craft-output:disabled {
 }
 
 .equipment-boots::before {
-  background: #5f5f5f;
-  box-shadow: 11px 0 0 #5f5f5f;
+  background: var(--bevel-dark);
+  box-shadow: 11px 0 0 var(--bevel-dark);
   height: 8px;
   left: 1px;
   top: 11px;
@@ -4458,7 +4458,7 @@ button.craft-output:disabled {
 .equipment-shovel::before,
 .equipment-pickaxe::before,
 .equipment-weapon::before {
-  background: #5f5f5f;
+  background: var(--bevel-dark);
   height: 20px;
   left: 9px;
   top: 1px;
@@ -4467,7 +4467,7 @@ button.craft-output:disabled {
 }
 
 .equipment-axe::after {
-  background: #777;
+  background: var(--bevel-dark);
   clip-path: polygon(0 18%, 86% 0, 100% 46%, 66% 100%, 0 80%);
   height: 10px;
   left: 2px;
@@ -4476,7 +4476,7 @@ button.craft-output:disabled {
 }
 
 .equipment-shovel::after {
-  background: #777;
+  background: var(--bevel-dark);
   clip-path: polygon(50% 0, 92% 34%, 70% 100%, 30% 100%, 8% 34%);
   height: 12px;
   left: 4px;
@@ -4485,7 +4485,7 @@ button.craft-output:disabled {
 }
 
 .equipment-pickaxe::after {
-  background: #777;
+  background: var(--bevel-dark);
   height: 4px;
   left: 2px;
   top: 4px;
@@ -4494,7 +4494,7 @@ button.craft-output:disabled {
 }
 
 .equipment-weapon::after {
-  background: #777;
+  background: var(--bevel-dark);
   clip-path: polygon(50% 0, 70% 12%, 58% 76%, 78% 100%, 22% 100%, 42% 76%, 30% 12%);
   height: 20px;
   left: 7px;
@@ -4504,10 +4504,10 @@ button.craft-output:disabled {
 
 .player-preview {
   align-self: stretch;
-  background: #9a9a9a;
-  border: 2px solid #777;
-  border-bottom-color: #e7e7e7;
-  border-right-color: #e7e7e7;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   min-height: 176px;
   min-width: 0;
   position: relative;
@@ -4812,19 +4812,19 @@ button.craft-output:disabled {
 .guide-card,
 .machine-card,
 .recipe-modal {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
-  box-shadow: 0 3px 0 #2f2f2f;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 0 var(--bevel-drop);
 }
 
 .game-header {
   box-sizing: border-box;
   box-shadow:
-    0 -80px 0 #c7c7c7,
-    0 3px 0 #2f2f2f;
+    0 -80px 0 var(--bevel-face),
+    0 3px 0 var(--bevel-drop);
   height: 72px;
   min-height: 72px;
   overflow: hidden;
@@ -4835,7 +4835,7 @@ button.craft-output:disabled {
 }
 
 .game-header h1 {
-  color: #2d2d2d;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: clamp(1.55rem, 8vw, 2.6rem);
   line-height: 0.95;
@@ -4870,12 +4870,12 @@ button.craft-output:disabled {
 }
 
 .mobile-gate-panel {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
-  box-shadow: 0 4px 0 #2f2f2f;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 4px 0 var(--bevel-drop);
   display: grid;
   gap: 12px;
   justify-self: center;
@@ -4885,7 +4885,7 @@ button.craft-output:disabled {
 }
 
 .mobile-gate-panel h1 {
-  color: #2d2d2d;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: clamp(2rem, 8vw, 3.5rem);
   line-height: 0.92;
@@ -4900,11 +4900,11 @@ button.craft-output:disabled {
 }
 
 .mobile-gate-panel strong {
-  background: #4b4b4b;
-  border: 2px solid #f2f2f2;
-  border-bottom-color: #222;
+  background: var(--chip-face);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--chip-edge);
   border-radius: 0;
-  border-right-color: #222;
+  border-right-color: var(--chip-edge);
   color: #fff7d2;
   font: 950 0.82rem Inter, ui-sans-serif, system-ui, sans-serif;
   padding: 9px;
@@ -4912,7 +4912,7 @@ button.craft-output:disabled {
 }
 
 .mobile-gate-panel > span {
-  color: #4b4b4b;
+  color: var(--muted-strong);
   font: 900 0.6rem Inter, ui-sans-serif, system-ui, sans-serif;
   text-transform: uppercase;
 }
@@ -4922,7 +4922,7 @@ button.craft-output:disabled {
   background:
     linear-gradient(180deg, transparent 0 58%, rgba(47, 47, 47, 0.35) 58% 100%),
     #898978;
-  border: 3px solid #f2f2f2;
+  border: 3px solid var(--bevel-light);
   border-bottom-color: #5c5c5c;
   border-radius: 0;
   border-right-color: #5c5c5c;
@@ -4947,12 +4947,12 @@ button.craft-output:disabled {
 }
 
 .home-panel {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
-  box-shadow: 0 3px 0 #2f2f2f;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 0 var(--bevel-drop);
   display: grid;
   gap: 12px;
   margin: 0 auto;
@@ -4964,11 +4964,11 @@ button.craft-output:disabled {
 .home-hero {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 44%),
-    #a6a6a6;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+    var(--bevel-deep);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
+  border-right-color: var(--bevel-dark);
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(126px, 0.7fr) minmax(0, 1fr);
@@ -4999,7 +4999,7 @@ button.craft-output:disabled {
 }
 
 .home-hero h1 {
-  color: #2d2d2d;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: clamp(2rem, 9vw, 3.25rem);
   line-height: 0.9;
@@ -5011,10 +5011,10 @@ button.craft-output:disabled {
 }
 
 .home-save-status {
-  background: #8d8d8d;
-  border: 2px solid #6f6f6f;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   color: #202020;
   font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
   margin: 12px 0 0;
@@ -5035,7 +5035,7 @@ button.craft-output:disabled {
   background:
     linear-gradient(180deg, transparent 0 62%, rgba(47, 47, 47, 0.42) 62% 100%),
     #83836f;
-  border: 3px solid #f2f2f2;
+  border: 3px solid var(--bevel-light);
   border-bottom-color: #5c5c5c;
   border-right-color: #5c5c5c;
   display: grid;
@@ -5067,7 +5067,7 @@ button.craft-output:disabled {
   align-items: center;
   background:
     repeating-linear-gradient(90deg, #5d5d5d 0 8px, #454545 8px 16px);
-  border: 2px solid #2f2f2f;
+  border: 2px solid var(--bevel-drop);
   display: flex;
   gap: 8px;
   justify-content: center;
@@ -5099,7 +5099,7 @@ button.craft-output:disabled {
 }
 
 .home-save-name-form label {
-  color: #2d2d2d;
+  color: var(--ink-strong);
   font: 950 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
   grid-column: 1 / -1;
   line-height: 1;
@@ -5107,11 +5107,11 @@ button.craft-output:disabled {
 }
 
 .home-save-name-form input {
-  background: #e7e7e7;
-  border: 2px solid #6f6f6f;
-  border-bottom-color: #f2f2f2;
+  background: var(--bevel-inset);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #f2f2f2;
+  border-right-color: var(--bevel-light);
   color: #202020;
   font: 900 0.8rem "Courier New", ui-monospace, monospace;
   min-height: 36px;
@@ -5120,11 +5120,11 @@ button.craft-output:disabled {
 }
 
 .home-save-name-form button {
-  background: #4b4b4b;
-  border: 2px solid #e7e7e7;
-  border-bottom-color: #222;
+  background: var(--chip-face);
+  border: 2px solid var(--chip-light);
+  border-bottom-color: var(--chip-edge);
   border-radius: 0;
-  border-right-color: #222;
+  border-right-color: var(--chip-edge);
   color: #fff;
   cursor: pointer;
   font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -5134,11 +5134,11 @@ button.craft-output:disabled {
 }
 
 .home-save-slot {
-  background: #9f9f9f;
-  border: 2px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
+  border-right-color: var(--bevel-dark);
   color: #202020;
   cursor: pointer;
   display: grid;
@@ -5168,11 +5168,11 @@ button.craft-output:disabled {
 }
 
 .home-action {
-  background: #4b4b4b;
-  border: 2px solid #e7e7e7;
-  border-bottom-color: #222;
+  background: var(--chip-face);
+  border: 2px solid var(--chip-light);
+  border-bottom-color: var(--chip-edge);
   border-radius: 0;
-  border-right-color: #222;
+  border-right-color: var(--chip-edge);
   color: #fff;
   cursor: pointer;
   font: 900 0.9rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -5189,7 +5189,7 @@ button.craft-output:disabled {
 }
 
 .home-action.danger {
-  background: #5f5f5f;
+  background: #7a3b2c;
 }
 
 .home-action:disabled {
@@ -5228,11 +5228,11 @@ button.craft-output:disabled {
 .guide-card button,
 .load-recipe-button,
 .recipe-hint button {
-  background: #4b4b4b;
-  border: 2px solid #e7e7e7;
-  border-bottom-color: #222;
+  background: var(--chip-face);
+  border: 2px solid var(--chip-light);
+  border-bottom-color: var(--chip-edge);
   border-radius: 0;
-  border-right-color: #222;
+  border-right-color: var(--chip-edge);
   color: #fff;
   min-height: 34px;
   padding: 5px 8px;
@@ -5290,7 +5290,7 @@ button.craft-output:disabled {
 }
 
 .status-grid strong {
-  color: #272727;
+  color: var(--ink-strong);
   font-size: 0.78rem;
   grid-column: 2;
 }
@@ -5306,7 +5306,7 @@ button.craft-output:disabled {
 }
 
 .page-tabs button.active {
-  background: #2d2d2d;
+  background: var(--copper-deep);
   border-color: #fff8aa;
   border-bottom-color: #806c22;
   border-right-color: #806c22;
@@ -5329,12 +5329,12 @@ button.craft-output:disabled {
 }
 
 .gather-panel {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
-  box-shadow: 0 3px 0 #2f2f2f;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 0 var(--bevel-drop);
   padding: 8px;
   -webkit-touch-callout: none;
   user-select: none;
@@ -5354,11 +5354,11 @@ button.craft-output:disabled {
 }
 
 .mine-face {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #f2f2f2;
+  border-right-color: var(--bevel-light);
   grid-template-columns: minmax(0, 1fr);
   min-height: 42px;
   padding: 8px;
@@ -5367,7 +5367,7 @@ button.craft-output:disabled {
 .mine-face h2,
 .guide-page h2,
 .terminal-topline h2 {
-  color: #2d2d2d;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 1rem;
   line-height: 1.05;
@@ -5376,15 +5376,15 @@ button.craft-output:disabled {
 .mine-face p,
 .guide-card p,
 .machine-card p {
-  color: #4b4b4b;
+  color: var(--muted-strong);
   font-size: 0.76rem;
   line-height: 1.25;
 }
 
 .gather-block {
   align-items: center;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-right-color: #4f4f4f;
   display: grid;
@@ -5397,13 +5397,13 @@ button.craft-output:disabled {
   background:
     linear-gradient(180deg, rgba(238, 238, 238, 0.34), transparent 42%),
     #7f8b67;
-  border: 3px solid #f3f3f3;
+  border: 3px solid var(--bevel-light);
   border-bottom-color: #555;
   border-radius: 0;
   border-right-color: #555;
   box-shadow:
     inset 0 -8px 0 rgba(30, 30, 30, 0.16),
-    0 2px 0 #2f2f2f;
+    0 2px 0 var(--bevel-drop);
   padding: 3px;
 }
 
@@ -5417,9 +5417,9 @@ button.craft-output:disabled {
 }
 
 .resource-tap-target:active:not(:disabled) {
-  border-color: #777;
-  border-bottom-color: #f3f3f3;
-  border-right-color: #f3f3f3;
+  border-color: var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   box-shadow: inset 0 3px 0 rgba(30, 30, 30, 0.22);
 }
 
@@ -5464,12 +5464,12 @@ button.craft-output:disabled {
 }
 
 .gather-target {
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
-  color: #272727;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
   min-height: 42px;
   padding: 4px;
 }
@@ -5501,11 +5501,11 @@ button.craft-output:disabled {
 }
 
 .break-stats > .stat-cell {
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
+  border-right-color: var(--bevel-dark);
   color: #3b3b3b;
   font-size: 0.66rem;
   line-height: 1.08;
@@ -5547,8 +5547,8 @@ button.craft-output:disabled {
 .stat-tool-icon,
 .stat-drop-icon {
   align-items: center;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
@@ -5627,22 +5627,22 @@ button.craft-output:disabled {
 }
 
 .gather-warning {
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
-  color: #272727;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
   font-size: 0.72rem;
   padding: 5px 7px;
 }
 
 .progress-track {
-  background: #8f8f8f;
+  background: var(--bevel-well);
   border: 2px solid #666;
-  border-bottom-color: #e7e7e7;
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #e7e7e7;
+  border-right-color: var(--bevel-light);
   height: 12px;
 }
 
@@ -5651,7 +5651,7 @@ button.craft-output:disabled {
 }
 
 .float-layer span:not(.hit-particles) {
-  background: #2d2d2d;
+  background: var(--tooltip-face);
   border: 2px solid #f1f1f1;
   border-bottom-color: #111;
   border-radius: 0;
@@ -5666,12 +5666,12 @@ button.craft-output:disabled {
 
 .guide-card,
 .machine-card {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-left-color: #777;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-left-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #f2f2f2;
+  border-right-color: var(--bevel-light);
   box-shadow: none;
   padding: 7px;
 }
@@ -5684,7 +5684,7 @@ button.craft-output:disabled {
 .guide-card h3,
 .machine-card h3,
 .recipe-detail h3 {
-  color: #272727;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 0.9rem;
 }
@@ -5702,11 +5702,11 @@ button.craft-output:disabled {
 }
 
 .quest-chapter-tabs button {
-  background: #4b4b4b;
-  border: 2px solid #e7e7e7;
-  border-bottom-color: #222;
+  background: var(--chip-face);
+  border: 2px solid var(--chip-light);
+  border-bottom-color: var(--chip-edge);
   border-radius: 0;
-  border-right-color: #222;
+  border-right-color: var(--chip-edge);
   color: #f6f6f6;
   font-size: 0.62rem;
   font-weight: 900;
@@ -5874,8 +5874,8 @@ button.craft-output:disabled {
 .quest-detail-icon {
   align-items: center;
   aspect-ratio: 1;
-  background: #8f8f8f;
-  border: 2px solid #efefef;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-light);
   border-bottom-color: #555;
   border-radius: 0;
   border-right-color: #555;
@@ -5951,7 +5951,7 @@ button.craft-output:disabled {
 }
 
 .quest-detail-hero p {
-  color: #2f2f2f;
+  color: var(--bevel-drop);
   font-size: 0.76rem;
   font-weight: 800;
   line-height: 1.2;
@@ -5967,7 +5967,7 @@ button.craft-output:disabled {
 .quest-objective {
   align-items: center;
   background: #a4a4a4;
-  border: 2px solid #efefef;
+  border: 2px solid var(--bevel-light);
   border-bottom-color: #5b5b5b;
   border-radius: 0;
   border-right-color: #5b5b5b;
@@ -6014,7 +6014,7 @@ button.craft-output:disabled {
 }
 
 .achievement-toast {
-  background: #4b4b4b;
+  background: var(--chip-face);
   border: 2px solid #fff1a8;
   border-bottom-color: #27200a;
   border-radius: 0;
@@ -6044,12 +6044,12 @@ button.craft-output:disabled {
 
 .resource-pill {
   align-items: center;
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
-  color: #272727;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
   display: inline-flex;
   gap: 5px;
   padding: 3px 5px;
@@ -6067,8 +6067,8 @@ button.craft-output:disabled {
 .mini-slot {
   align-items: center;
   aspect-ratio: 1;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
@@ -6092,7 +6092,7 @@ button.craft-output:disabled {
 }
 
 .machine-glyph {
-  --m1: #777;
+  --m1: var(--bevel-dark);
   --m2: #3a3a3a;
   --m3: #cfcfcf;
   aspect-ratio: 1;
@@ -6692,10 +6692,10 @@ button.craft-output:disabled {
 @keyframes gather-resource-focus {
   0%,
   100% {
-    border-color: #f2f2f2;
-    border-bottom-color: #6f6f6f;
-    border-right-color: #6f6f6f;
-    box-shadow: 0 3px 0 #2f2f2f;
+    border-color: var(--bevel-light);
+    border-bottom-color: var(--bevel-dark);
+    border-right-color: var(--bevel-dark);
+    box-shadow: 0 3px 0 var(--bevel-drop);
     filter: brightness(1);
   }
 
@@ -6705,7 +6705,7 @@ button.craft-output:disabled {
     border-bottom-color: #806c22;
     border-right-color: #806c22;
     box-shadow:
-      0 3px 0 #2f2f2f,
+      0 3px 0 var(--bevel-drop),
       0 0 0 3px rgba(255, 248, 170, 0.45);
     filter: brightness(1.08);
   }
@@ -6722,11 +6722,11 @@ button.craft-output:disabled {
 }
 
 .recipe-modal {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
+  border-right-color: var(--bevel-dark);
   gap: 8px;
 }
 
@@ -6735,13 +6735,13 @@ button.craft-output:disabled {
 }
 
 .missing-modal {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
+  border-right-color: var(--bevel-dark);
   box-shadow: 0 12px 0 rgba(0, 0, 0, 0.28);
-  color: #272727;
+  color: var(--ink-strong);
   display: grid;
   gap: 8px;
   max-width: 360px;
@@ -6750,7 +6750,7 @@ button.craft-output:disabled {
 }
 
 .missing-modal h2 {
-  color: #272727;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 0.95rem;
   line-height: 1.1;
@@ -6761,11 +6761,11 @@ button.craft-output:disabled {
 }
 
 .missing-slot-list {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #f2f2f2;
+  border-right-color: var(--bevel-light);
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -6773,18 +6773,18 @@ button.craft-output:disabled {
 }
 
 .recipe-modal h2 {
-  color: #272727;
+  color: var(--ink-strong);
   font-family: "Courier New", ui-monospace, monospace;
   font-size: 1rem;
 }
 
 .recipe-search,
 .mode-tabs {
-  background: #e8e8e8;
-  border: 2px solid #777;
-  border-bottom-color: #f3f3f3;
+  background: var(--bevel-inset);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
   border-radius: 0;
-  border-right-color: #f3f3f3;
+  border-right-color: var(--bevel-light);
   color: #202020;
   font: 950 0.82rem "Courier New", ui-monospace, monospace;
   margin-top: 0;
@@ -6814,7 +6814,7 @@ button.craft-output:disabled {
 }
 
 .mode-tabs button.active {
-  background: #9f9f9f;
+  background: var(--bevel-deep);
 }
 
 .recipe-modal-body {
@@ -6827,10 +6827,10 @@ button.craft-output:disabled {
 
 .recipe-icon-grid {
   align-content: start;
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 2px;
   grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
@@ -6842,8 +6842,8 @@ button.craft-output:disabled {
 .recipe-icon-button {
   align-items: center;
   aspect-ratio: 1;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
@@ -6869,7 +6869,7 @@ button.craft-output:disabled {
 .recipe-count-badge {
   align-items: center;
   background: #3f3f3f;
-  border: 1px solid #f2f2f2;
+  border: 1px solid var(--bevel-light);
   bottom: 2px;
   color: #fff;
   display: grid;
@@ -6883,10 +6883,10 @@ button.craft-output:disabled {
 }
 
 .recipe-detail {
-  background: #b6b6b6;
-  border: 2px solid #777;
-  border-bottom-color: #f2f2f2;
-  border-right-color: #f2f2f2;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
   display: grid;
   gap: 8px;
   min-width: 0;
@@ -6909,10 +6909,10 @@ button.craft-output:disabled {
 
 .recipe-cycle {
   align-items: center;
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
-  border-right-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
   display: grid;
   gap: 2px;
   grid-template-columns: 24px auto 24px;
@@ -6922,12 +6922,12 @@ button.craft-output:disabled {
 
 .recipe-cycle button {
   align-items: center;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-radius: 0;
   border-right-color: #4f4f4f;
-  color: #272727;
+  color: var(--ink-strong);
   cursor: pointer;
   display: grid;
   height: 24px;
@@ -6937,7 +6937,7 @@ button.craft-output:disabled {
 }
 
 .recipe-cycle span {
-  color: #272727;
+  color: var(--ink-strong);
   font-size: 0.58rem;
   font-weight: 950;
   line-height: 1;
@@ -6947,11 +6947,11 @@ button.craft-output:disabled {
 
 .recipe-meta-row {
   align-items: center;
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
-  border-right-color: #5f5f5f;
-  color: #272727;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
   display: flex;
   gap: 8px;
   justify-content: space-between;
@@ -6967,7 +6967,7 @@ button.craft-output:disabled {
 }
 
 .recipe-meta-row strong {
-  color: #272727;
+  color: var(--ink-strong);
   font: 950 0.7rem "Courier New", ui-monospace, monospace;
 }
 
@@ -6981,10 +6981,10 @@ button.craft-output:disabled {
 }
 
 .factory-layout-preview {
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
-  border-right-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
   display: grid;
   gap: 6px;
   padding: 6px;
@@ -7052,8 +7052,8 @@ button.craft-output:disabled {
 .recipe-pattern-slot {
   align-items: center;
   aspect-ratio: 1;
-  background: #8d8d8d;
-  border: 2px solid #e8e8e8;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-inset);
   border-bottom-color: #4f4f4f;
   border-right-color: #4f4f4f;
   display: grid;
@@ -7093,13 +7093,13 @@ button.recipe-jump-slot {
 
 .missing-line,
 .recipe-notice {
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #5f5f5f;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #5f5f5f;
+  border-right-color: var(--bevel-dark);
   box-sizing: border-box;
-  color: #272727;
+  color: var(--ink-strong);
   display: block;
   font-size: 0.72rem;
   line-height: 1.22;
@@ -7173,13 +7173,13 @@ button.recipe-jump-slot {
 }
 
 .page-tabs {
-  background: #c7c7c7;
-  border: 3px solid #f2f2f2;
-  border-bottom-color: #6f6f6f;
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
   border-radius: 0;
-  border-right-color: #6f6f6f;
+  border-right-color: var(--bevel-dark);
   bottom: max(4px, env(safe-area-inset-bottom));
-  box-shadow: 0 3px 0 #2f2f2f, 0 -6px 0 rgba(32, 32, 32, 0.2);
+  box-shadow: 0 3px 0 var(--bevel-drop), 0 -6px 0 rgba(32, 32, 32, 0.2);
   display: grid;
   gap: 3px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -7193,7 +7193,7 @@ button.recipe-jump-slot {
 }
 
 .page-tabs::before {
-  background: #2f2f2f;
+  background: var(--bevel-drop);
   content: "";
   inset: -3px -8px calc(-1 * max(8px, env(safe-area-inset-bottom))) -8px;
   position: absolute;
@@ -7262,7 +7262,7 @@ button.recipe-jump-slot {
 
 .creative-toggle {
   background: #4a4a4a;
-  border: 2px solid #efefef;
+  border: 2px solid var(--bevel-light);
   border-bottom-color: #1f1f1f;
   border-radius: 0;
   border-right-color: #1f1f1f;
@@ -7498,5 +7498,89 @@ button.recipe-jump-slot {
 
   .load-recipe-button {
     min-height: 34px;
+  }
+}
+
+.furnace-modal,
+.furnace-interface,
+.well-interface,
+.factory-pan-viewport,
+.factory-cell,
+.factory-layout-preview,
+.factory-layout-cell,
+.factory-machine-search,
+.factory-expansion-row,
+.factory-expand-button,
+.machine-status-row,
+.machine-drawer,
+.place-machine-button,
+.pipe-config-grid,
+.pipe-config-cell,
+.pipe-config-note,
+.machine-placement-slots,
+.machine-selected-item,
+.machine-card,
+.steam-tank,
+.factory-selection-name {
+  --bevel-face: #c7c7c7;
+  --chip-face: #4b4b4b;
+  --chip-light: #e7e7e7;
+  --chip-edge: #222;
+  --bevel-deep: #a6a6a6;
+  --bevel-well: #b6b6b6;
+  --bevel-inset: #e8e8e8;
+  --bevel-light: #f2f2f2;
+  --bevel-dark: #6f6f6f;
+  --bevel-drop: #2f2f2f;
+  --ink-strong: #2d2d2d;
+  --muted-strong: #4b4b4b;
+}
+
+button.button-primary,
+.batch-action-row button {
+  background: var(--copper-deep);
+  border-color: #ffd9a8;
+  border-bottom-color: #4c2c15;
+  border-right-color: #4c2c15;
+  color: #ffedd2;
+}
+
+button.button-primary:disabled,
+.batch-action-row button:disabled,
+.batch-step-row button:disabled,
+.load-recipe-button:disabled,
+.hit-button:disabled,
+.home-action:disabled {
+  background: var(--bevel-well);
+  border-color: var(--bevel-dark);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  box-shadow: none;
+  color: var(--muted-strong);
+  opacity: 1;
+}
+
+.machine-glyph.active {
+  animation: machine-active-pulse 1.6s ease-in-out infinite;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.24),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.32),
+    0 0 0 2px rgba(255, 176, 64, 0.4),
+    0 0 10px 2px rgba(255, 150, 40, 0.5);
+}
+
+@keyframes machine-active-pulse {
+  50% {
+    box-shadow:
+      inset 2px 2px 0 rgba(255, 255, 255, 0.24),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.32),
+      0 0 0 2px rgba(255, 176, 64, 0.2),
+      0 0 6px 1px rgba(255, 150, 40, 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-glyph.active {
+    animation: none;
   }
 }

@@ -1,5 +1,6 @@
 :root {
   --copper: #a8642d;
+  --copper-deep: #8a5222;
   --field: #e8dfcd;
   --focus: #276b5d;
   --ink: #201911;
@@ -10,6 +11,19 @@
   --paper: #f3ead7;
   --signal: #5d8a35;
   --steam: #c8b36a;
+  --bevel-face: #d2c7ad;
+  --bevel-deep: #b9ac8e;
+  --bevel-well: #c0b498;
+  --bevel-inset: #eae0c8;
+  --bevel-light: #f7f0de;
+  --bevel-dark: #7c7159;
+  --bevel-drop: #33291a;
+  --ink-strong: #2b2214;
+  --muted-strong: #55492f;
+  --chip-face: #4a3f2c;
+  --chip-light: #e9ddbd;
+  --chip-edge: #201a10;
+  --tooltip-face: #2c2517;
   color: var(--ink);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -62,5 +76,12 @@ button {
     --panel: #191611;
     --paper: #100e0b;
     --steam: #d5c074;
+    --bevel-face: #c2b593;
+    --bevel-deep: #a2946f;
+    --bevel-well: #ab9d7c;
+    --bevel-inset: #d8cdb1;
+    --bevel-light: #e9dfc4;
+    --bevel-dark: #665b45;
+    --bevel-drop: #15100a;
   }
 }
