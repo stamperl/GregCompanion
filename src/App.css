@@ -7666,3 +7666,14 @@ button.button-primary:disabled,
   display: block;
   height: 100%;
 }
+
+.pixel-icon.sprite-icon {
+  background: none;
+  box-shadow: none;
+}
+
+.pixel-icon.sprite-icon svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}

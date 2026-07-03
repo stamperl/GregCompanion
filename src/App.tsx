@@ -126,6 +126,7 @@ import {
 } from './game/recipeGroups'
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
+import { IconSpriteDefs } from './components/iconSprites'
 import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
 import type {
   CraftSlot,
@@ -2196,6 +2197,7 @@ function App() {
 
   return (
     <main className={shellClassName}>
+      <IconSpriteDefs />
       {page !== 'home' && (
         <header className="game-header">
           <button type="button" className="header-title-button" aria-label="Go to Home" title="Home" onClick={handleGoHome}>
