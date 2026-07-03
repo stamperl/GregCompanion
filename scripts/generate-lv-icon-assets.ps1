@@ -65,6 +65,206 @@ function Save-Bitmap($bitmap, $path) {
   $bitmap.Dispose()
 }
 
+Add-Type -ReferencedAssemblies 'System.Drawing' -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+
+public static class SheetIconExporter
+{
+    private sealed class Component
+    {
+        public int MinX;
+        public int MinY;
+        public int MaxX;
+        public int MaxY;
+        public int Area;
+    }
+
+    public static void ExportIcon(string sheetPath, int cols, int rows, int index, string outPath)
+    {
+        using (var sheet = new Bitmap(sheetPath))
+        {
+            var col = index % cols;
+            var row = index / cols;
+            var cellX = (int)Math.Round(col * sheet.Width / (double)cols);
+            var cellY = (int)Math.Round(row * sheet.Height / (double)rows);
+            var nextX = (int)Math.Round((col + 1) * sheet.Width / (double)cols);
+            var nextY = (int)Math.Round((row + 1) * sheet.Height / (double)rows);
+            var cellW = nextX - cellX;
+            var cellH = nextY - cellY;
+
+            using (var tile = new Bitmap(cellW, cellH, PixelFormat.Format32bppArgb))
+            using (var tileGraphics = Graphics.FromImage(tile))
+            {
+                tileGraphics.DrawImage(sheet, new Rectangle(0, 0, cellW, cellH), new Rectangle(cellX, cellY, cellW, cellH), GraphicsUnit.Pixel);
+                RemoveConnectedBackground(tile);
+                RemoveSmallComponents(tile);
+                SaveTrimmed(tile, outPath);
+            }
+        }
+    }
+
+    private static bool LooksLikeBackground(Color color)
+    {
+        if (color.A == 0) return true;
+        var max = Math.Max(color.R, Math.Max(color.G, color.B));
+        var min = Math.Min(color.R, Math.Min(color.G, color.B));
+        var luma = 0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B;
+        return max - min < 24 && luma >= 54 && luma <= 142;
+    }
+
+    private static void RemoveConnectedBackground(Bitmap bitmap)
+    {
+        var width = bitmap.Width;
+        var height = bitmap.Height;
+        var visited = new bool[width, height];
+        var queue = new Queue<Point>(width * 2 + height * 2);
+
+        for (var x = 0; x < width; x++)
+        {
+            queue.Enqueue(new Point(x, 0));
+            queue.Enqueue(new Point(x, height - 1));
+        }
+        for (var y = 0; y < height; y++)
+        {
+            queue.Enqueue(new Point(0, y));
+            queue.Enqueue(new Point(width - 1, y));
+        }
+
+        while (queue.Count > 0)
+        {
+            var point = queue.Dequeue();
+            var x = point.X;
+            var y = point.Y;
+            if (x < 0 || y < 0 || x >= width || y >= height || visited[x, y]) continue;
+            visited[x, y] = true;
+            if (!LooksLikeBackground(bitmap.GetPixel(x, y))) continue;
+
+            bitmap.SetPixel(x, y, Color.FromArgb(0, 0, 0, 0));
+            queue.Enqueue(new Point(x + 1, y));
+            queue.Enqueue(new Point(x - 1, y));
+            queue.Enqueue(new Point(x, y + 1));
+            queue.Enqueue(new Point(x, y - 1));
+        }
+    }
+
+    private static void RemoveSmallComponents(Bitmap bitmap)
+    {
+        var width = bitmap.Width;
+        var height = bitmap.Height;
+        var visited = new bool[width, height];
+        var components = new List<Component>();
+
+        for (var startY = 0; startY < height; startY++)
+        {
+            for (var startX = 0; startX < width; startX++)
+            {
+                if (visited[startX, startY] || bitmap.GetPixel(startX, startY).A <= 24) continue;
+                var component = new Component { MinX = startX, MinY = startY, MaxX = startX, MaxY = startY };
+                var queue = new Queue<Point>();
+                queue.Enqueue(new Point(startX, startY));
+                visited[startX, startY] = true;
+
+                while (queue.Count > 0)
+                {
+                    var point = queue.Dequeue();
+                    var x = point.X;
+                    var y = point.Y;
+                    component.Area++;
+                    component.MinX = Math.Min(component.MinX, x);
+                    component.MinY = Math.Min(component.MinY, y);
+                    component.MaxX = Math.Max(component.MaxX, x);
+                    component.MaxY = Math.Max(component.MaxY, y);
+                    EnqueueAlpha(bitmap, visited, queue, x + 1, y);
+                    EnqueueAlpha(bitmap, visited, queue, x - 1, y);
+                    EnqueueAlpha(bitmap, visited, queue, x, y + 1);
+                    EnqueueAlpha(bitmap, visited, queue, x, y - 1);
+                }
+
+                components.Add(component);
+            }
+        }
+
+        foreach (var component in components)
+        {
+            var compW = component.MaxX - component.MinX + 1;
+            var compH = component.MaxY - component.MinY + 1;
+            if (component.Area >= 140 || (compW >= 18 && compH >= 10)) continue;
+            for (var y = component.MinY; y <= component.MaxY; y++)
+            {
+                for (var x = component.MinX; x <= component.MaxX; x++)
+                {
+                    if (bitmap.GetPixel(x, y).A > 0) bitmap.SetPixel(x, y, Color.FromArgb(0, 0, 0, 0));
+                }
+            }
+        }
+    }
+
+    private static void EnqueueAlpha(Bitmap bitmap, bool[,] visited, Queue<Point> queue, int x, int y)
+    {
+        if (x < 0 || y < 0 || x >= bitmap.Width || y >= bitmap.Height || visited[x, y]) return;
+        visited[x, y] = true;
+        if (bitmap.GetPixel(x, y).A > 24) queue.Enqueue(new Point(x, y));
+    }
+
+    private static void SaveTrimmed(Bitmap tile, string outPath)
+    {
+        var minX = tile.Width;
+        var minY = tile.Height;
+        var maxX = -1;
+        var maxY = -1;
+
+        for (var y = 0; y < tile.Height; y++)
+        {
+            for (var x = 0; x < tile.Width; x++)
+            {
+                if (tile.GetPixel(x, y).A <= 24) continue;
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+
+        using (var canvas = new Bitmap(128, 128, PixelFormat.Format32bppArgb))
+        using (var graphics = Graphics.FromImage(canvas))
+        {
+            graphics.Clear(Color.FromArgb(0, 0, 0, 0));
+            graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+            graphics.PixelOffsetMode = PixelOffsetMode.Half;
+
+            if (maxX >= 0)
+            {
+                const int pad = 10;
+                minX = Math.Max(0, minX - pad);
+                minY = Math.Max(0, minY - pad);
+                maxX = Math.Min(tile.Width - 1, maxX + pad);
+                maxY = Math.Min(tile.Height - 1, maxY + pad);
+                var trimW = maxX - minX + 1;
+                var trimH = maxY - minY + 1;
+                var scale = Math.Min(118 / (double)trimW, 118 / (double)trimH);
+                var destW = (int)Math.Round(trimW * scale);
+                var destH = (int)Math.Round(trimH * scale);
+                var destX = (128 - destW) / 2;
+                var destY = (128 - destH) / 2;
+                graphics.DrawImage(tile, new Rectangle(destX, destY, destW, destH), new Rectangle(minX, minY, trimW, trimH), GraphicsUnit.Pixel);
+            }
+
+            RemoveSmallComponents(canvas);
+            canvas.Save(outPath, ImageFormat.Png);
+        }
+    }
+}
+'@
+
+function Export-SheetIcon($sheetName, $cols, $rows, $index, $outPath) {
+  $sheetPath = Join-Path $root "public/icon-reviews/$sheetName"
+  [SheetIconExporter]::ExportIcon($sheetPath, $cols, $rows, $index, $outPath)
+}
+
 function Recolor-Material($sourcePath, $outPath, $darkHex, $midHex, $lightHex) {
   $bitmap = Copy-Bitmap $sourcePath
   for ($y = 0; $y -lt $bitmap.Height; $y++) {
@@ -98,110 +298,6 @@ function Recolor-Accent($sourcePath, $outPath, $darkHex, $midHex, $lightHex, $mi
   Save-Bitmap $bitmap $outPath
 }
 
-function Open-Overlay($basePath) {
-  $bitmap = Copy-Bitmap $basePath
-  $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-  $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::None
-  $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
-  $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::Half
-  return @{ Bitmap = $bitmap; Graphics = $graphics }
-}
-
-function Finish-Overlay($canvas, $outPath) {
-  $canvas.Graphics.Dispose()
-  Save-Bitmap $canvas.Bitmap $outPath
-}
-
-function Brush($hex) {
-  New-Object System.Drawing.SolidBrush (New-Color $hex)
-}
-
-function Pen($hex, $width = 4) {
-  $pen = New-Object System.Drawing.Pen (New-Color $hex), $width
-  $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Miter
-  $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Square
-  $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Square
-  return $pen
-}
-
-function Points([int[]]$values) {
-  $points = @()
-  for ($i = 0; $i -lt $values.Count; $i += 2) {
-    $points += New-Object System.Drawing.Point $values[$i], $values[$i + 1]
-  }
-  [System.Drawing.Point[]]$points
-}
-
-function Fill-Polygon($g, $hex, [int[]]$values) {
-  $brush = Brush $hex
-  $g.FillPolygon($brush, (Points $values))
-  $brush.Dispose()
-}
-
-function Draw-Line($g, $hex, $width, [int[]]$values) {
-  $pen = Pen $hex $width
-  $g.DrawLines($pen, (Points $values))
-  $pen.Dispose()
-}
-
-function Fill-Rect($g, $hex, $x, $y, $w, $h) {
-  $brush = Brush $hex
-  $g.FillRectangle($brush, $x, $y, $w, $h)
-  $brush.Dispose()
-}
-
-function Fill-Ellipse($g, $hex, $x, $y, $w, $h) {
-  $brush = Brush $hex
-  $g.FillEllipse($brush, $x, $y, $w, $h)
-  $brush.Dispose()
-}
-
-function Add-Lightning($g, $x = 58, $y = 42) {
-  Draw-Line $g '#11151b' 9 @($x, $y, ($x - 10), ($y + 24), ($x + 3), ($y + 22), ($x - 8), ($y + 50))
-  Draw-Line $g '#79d4ff' 5 @($x, $y, ($x - 10), ($y + 24), ($x + 3), ($y + 22), ($x - 8), ($y + 50))
-  Draw-Line $g '#f8ffff' 2 @(($x - 1), ($y + 3), ($x - 7), ($y + 21), ($x + 1), ($y + 21))
-}
-
-function Add-Fluid-Drop($g, $x, $y, $mainHex, $lightHex) {
-  Fill-Polygon $g '#121416' @($x, $y, ($x + 16), ($y + 22), ($x + 8), ($y + 38), ($x - 8), ($y + 22))
-  Fill-Polygon $g $mainHex @(($x + 1), ($y + 7), ($x + 11), ($y + 23), ($x + 7), ($y + 31), ($x - 5), ($y + 22))
-  Fill-Polygon $g $lightHex @(($x + 1), ($y + 10), ($x + 5), ($y + 19), ($x - 1), ($y + 20))
-}
-
-function Add-Bent-Plate($g) {
-  Fill-Polygon $g '#14181d' @(36, 82, 56, 92, 86, 74, 92, 82, 58, 104, 32, 90)
-  Fill-Polygon $g '#c5d2d6' @(40, 82, 56, 89, 84, 72, 88, 78, 58, 96, 36, 88)
-  Draw-Line $g '#eef9fb' 3 @(44, 82, 57, 87, 78, 74)
-}
-
-function Add-Rod($g) {
-  Draw-Line $g '#0f1216' 12 @(42, 82, 92, 54)
-  Draw-Line $g '#aab9bd' 8 @(42, 82, 92, 54)
-  Draw-Line $g '#f1fbfb' 3 @(48, 78, 86, 57)
-}
-
-function Add-Circuit($g) {
-  Fill-Polygon $g '#111317' @(38, 54, 84, 42, 98, 78, 50, 92)
-  Fill-Polygon $g '#49753e' @(42, 56, 82, 46, 92, 76, 52, 86)
-  Draw-Line $g '#d49748' 3 @(50, 66, 64, 62, 78, 72)
-  Fill-Rect $g '#d8c78e' 54 58 7 6
-  Fill-Rect $g '#d8c78e' 76 68 7 6
-  Fill-Rect $g '#202226' 62 68 12 10
-}
-
-function Add-Rotor($g) {
-  Fill-Ellipse $g '#101318' 46 42 42 42
-  Fill-Ellipse $g '#7bc4d8' 52 48 30 30
-  Fill-Ellipse $g '#1e3038' 60 56 14 14
-  Draw-Line $g '#e7ffff' 4 @(67, 49, 76, 65, 58, 65, 67, 49)
-}
-
-function Add-Arc($g) {
-  Draw-Line $g '#11151b' 8 @(32, 56, 48, 50, 58, 62, 74, 46, 94, 58)
-  Draw-Line $g '#7de8ff' 4 @(32, 56, 48, 50, 58, 62, 74, 46, 94, 58)
-  Draw-Line $g '#f7ffff' 2 @(36, 55, 48, 52, 57, 62)
-}
-
 New-Item -ItemType Directory -Force -Path $resourceOut | Out-Null
 New-Item -ItemType Directory -Force -Path $machineOut | Out-Null
 
@@ -218,56 +314,16 @@ Recolor-Material (Icon-Path 'resources' 'ironPlate') (Icon-Path 'resources' 'alu
 Recolor-Material (Icon-Path 'resources' 'redAlloyWire') (Icon-Path 'resources' 'heatingCoil') '#5d1f19' '#c94d30' '#ffb15f'
 Recolor-Material (Icon-Path 'resources' 'bbfCasing') (Icon-Path 'resources' 'heatProofCasing') '#35251e' '#8e6145' '#d6b384'
 
-Copy-Item -LiteralPath (Icon-Path 'machines' 'steamBoiler') -Destination (Icon-Path 'machines' 'liquidSteamBoiler') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'liquidSteamBoiler')
-Add-Fluid-Drop $canvas.Graphics 66 48 '#b06a28' '#ffd27a'
-Finish-Overlay $canvas (Icon-Path 'machines' 'liquidSteamBoiler')
-
-Copy-Item -LiteralPath (Icon-Path 'machines' 'steamCompressor') -Destination (Icon-Path 'machines' 'lvBender') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'lvBender')
-Add-Bent-Plate $canvas.Graphics
-Finish-Overlay $canvas (Icon-Path 'machines' 'lvBender')
-
-Copy-Item -LiteralPath (Icon-Path 'machines' 'lvWiremill') -Destination (Icon-Path 'machines' 'lvLathe') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'lvLathe')
-Add-Rod $canvas.Graphics
-Finish-Overlay $canvas (Icon-Path 'machines' 'lvLathe')
-
-Copy-Item -LiteralPath (Icon-Path 'machines' 'steamExtractor') -Destination (Icon-Path 'machines' 'lvElectrolyzer') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'lvElectrolyzer')
-Add-Lightning $canvas.Graphics 70 36
-Add-Fluid-Drop $canvas.Graphics 50 44 '#4ba6cf' '#ddffff'
-Finish-Overlay $canvas (Icon-Path 'machines' 'lvElectrolyzer')
-
-Copy-Item -LiteralPath (Icon-Path 'machines' 'steamAlloySmelter') -Destination (Icon-Path 'machines' 'lvAssembler') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'lvAssembler')
-Add-Circuit $canvas.Graphics
-Finish-Overlay $canvas (Icon-Path 'machines' 'lvAssembler')
-
-Copy-Item -LiteralPath (Icon-Path 'machines' 'steamMacerator') -Destination (Icon-Path 'machines' 'lvCentrifuge') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'lvCentrifuge')
-Add-Rotor $canvas.Graphics
-Finish-Overlay $canvas (Icon-Path 'machines' 'lvCentrifuge')
-
-Copy-Item -LiteralPath (Icon-Path 'machines' 'steamTank') -Destination (Icon-Path 'machines' 'lvBatteryBuffer') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'lvBatteryBuffer')
-Add-Lightning $canvas.Graphics 66 38
-Fill-Rect $canvas.Graphics '#8fe6ff' 88 46 8 30
-Fill-Rect $canvas.Graphics '#f8ffff' 90 48 4 8
-Finish-Overlay $canvas (Icon-Path 'machines' 'lvBatteryBuffer')
-
 Copy-Item -LiteralPath (Icon-Path 'machines' 'brickedBlastFurnacePart') -Destination (Icon-Path 'machines' 'brickedBlastFurnace') -Force
 
-Copy-Item -LiteralPath (Icon-Path 'machines' 'brickedBlastFurnacePart') -Destination (Icon-Path 'machines' 'arcBlastFurnacePart') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'arcBlastFurnacePart')
-Fill-Rect $canvas.Graphics '#89dfff' 38 88 8 10
-Fill-Rect $canvas.Graphics '#f8ffff' 40 88 3 5
-Finish-Overlay $canvas (Icon-Path 'machines' 'arcBlastFurnacePart')
-
-Copy-Item -LiteralPath (Icon-Path 'machines' 'brickedBlastFurnace') -Destination (Icon-Path 'machines' 'arcBlastFurnace') -Force
-$canvas = Open-Overlay (Icon-Path 'machines' 'arcBlastFurnace')
-Add-Arc $canvas.Graphics
-Add-Lightning $canvas.Graphics 82 34
-Finish-Overlay $canvas (Icon-Path 'machines' 'arcBlastFurnace')
+Export-SheetIcon 'lv-machines.png' 3 3 0 (Icon-Path 'machines' 'lvBatteryBuffer')
+Export-SheetIcon 'lv-machines.png' 3 3 1 (Icon-Path 'machines' 'liquidSteamBoiler')
+Export-SheetIcon 'lv-machines.png' 3 3 2 (Icon-Path 'machines' 'lvBender')
+Export-SheetIcon 'lv-machines.png' 3 3 3 (Icon-Path 'machines' 'lvLathe')
+Export-SheetIcon 'lv-machines.png' 3 3 4 (Icon-Path 'machines' 'lvElectrolyzer')
+Export-SheetIcon 'lv-machines.png' 3 3 5 (Icon-Path 'machines' 'lvAssembler')
+Export-SheetIcon 'lv-machines.png' 3 3 6 (Icon-Path 'machines' 'lvCentrifuge')
+Export-SheetIcon 'lv-machines.png' 3 3 7 (Icon-Path 'machines' 'arcBlastFurnacePart')
+Export-SheetIcon 'lv-machines.png' 3 3 8 (Icon-Path 'machines' 'arcBlastFurnace')
 
 Write-Output "Generated LV icon assets from upgraded icon sources."
