@@ -4183,10 +4183,10 @@ button.craft-output:disabled {
 .factory-cell.occupied.machine-ironPipe-cell .machine-glyph,
 .factory-cell.occupied.machine-tinCable-cell .machine-glyph {
   filter: none;
-  height: 48px;
-  inset: -2px;
+  height: 52px;
+  inset: -4px;
   position: absolute;
-  width: 48px;
+  width: 52px;
 }
 
 .factory-cell.occupied.machine-copperPipe-cell .pipe-svg,
@@ -8316,10 +8316,10 @@ button.button-primary:disabled,
 
 .factory-cell.occupied .machine-glyph.machine-connector-glyph {
   filter: none;
-  height: 46px;
-  inset: 2px;
+  height: 60px;
+  inset: -5px;
   position: absolute;
-  width: 46px;
+  width: 60px;
   z-index: 2;
 }
 
