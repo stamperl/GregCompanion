@@ -1043,6 +1043,7 @@ function App() {
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [terminalNotice, setTerminalNotice] = useState('')
+  const [factoryNotice, setFactoryNotice] = useState('')
   const [offlineNotice, setOfflineNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
@@ -1567,12 +1568,12 @@ function App() {
       const cost = factoryFoundationCost(current)
       if (!canExpandFactoryFloor(current)) {
         const missing = missingResourceLine(current, cost)
-        setTerminalNotice(missing ? `Missing ${missing}` : 'Factory floor is already max size.')
+        setFactoryNotice(missing ? `Missing ${missing}` : 'Factory floor is already max size.')
         return current
       }
       const next = expandFactoryFloor(current)
       const grid = factoryGridForState(next)
-      setTerminalNotice(current.factoryFoundationLevel < 1 ? `Factory foundation built (${grid.width}x${grid.height}).` : `Factory floor expanded to ${grid.width}x${grid.height}.`)
+      setFactoryNotice(current.factoryFoundationLevel < 1 ? `Factory foundation built (${grid.width}x${grid.height}).` : `Factory floor expanded to ${grid.width}x${grid.height}.`)
       setIsFactoryExpandModalOpen(false)
       return next
     })
@@ -1619,12 +1620,12 @@ function App() {
       if (isFactoryRemoveMode) {
         setState((current) => {
           if (!canCrowbarRemoveMachine(current)) {
-            setTerminalNotice('Need an iron crowbar.')
+            setFactoryNotice('Need an iron crowbar.')
             setSelectedFactoryTool(null)
             return current
           }
           const next = crowbarRemoveMachineInstance(current, instance.uid)
-          if (next !== current) setTerminalNotice('')
+          if (next !== current) setFactoryNotice('')
           return next
         })
         return
@@ -1635,7 +1636,7 @@ function App() {
           setSelectedPipeConfigUid(instance.uid)
           return
         }
-        setTerminalNotice('Wrench only configures pipes and cables.')
+        setFactoryNotice('Wrench only configures pipes and cables.')
         return
       }
       if (machines[instance.machineId].multiblock || machines[instance.machineId].processKind === 'none') {
@@ -1644,8 +1645,8 @@ function App() {
           setSelectedMachineUid(controller.uid)
           return
         }
-        if (instance.machineId === 'brickedBlastFurnacePart') setTerminalNotice('Place BBF casings in a full 2x2 to form the furnace.')
-        if (instance.machineId === 'arcBlastFurnacePart') setTerminalNotice('Place arc casings in a full 2x2 to form the furnace.')
+        if (instance.machineId === 'brickedBlastFurnacePart') setFactoryNotice('Place BBF casings in a full 2x2 to form the furnace.')
+        if (instance.machineId === 'arcBlastFurnacePart') setFactoryNotice('Place arc casings in a full 2x2 to form the furnace.')
         return
       }
       setSelectedMachineUid(instance.uid)
@@ -1657,7 +1658,7 @@ function App() {
       if (next !== current) {
         const remaining = availableUnplacedMachineCount(next, placingMachineId)
         if (remaining < 1) setPlacingMachineId(null)
-        setTerminalNotice('')
+        setFactoryNotice('')
       }
       return next
     })
@@ -1677,7 +1678,7 @@ function App() {
     if (slot && slot.id === selectedResource) {
       const max = Math.min(processStackLimit - slot.amount, availableResourceAmount(state, selectedResource))
       if (max < 1) {
-        setTerminalNotice(`${resourceLabels[selectedResource]} slot is full.`)
+        setFactoryNotice(`${resourceLabels[selectedResource]} slot is full.`)
         return
       }
       setPendingProcessInsert({
@@ -1693,16 +1694,16 @@ function App() {
       return
     }
     if (!selectedResource) {
-      setTerminalNotice('Select an item first.')
+      setFactoryNotice('Select an item first.')
       return
     }
     if (!canResourceEnterProcessSlot(selectedMachine.machineId, slotId, selectedResource)) {
-      setTerminalNotice(`${resourceLabels[selectedResource]} does not fit there.`)
+      setFactoryNotice(`${resourceLabels[selectedResource]} does not fit there.`)
       return
     }
     const max = Math.min(processStackLimit, availableResourceAmount(state, selectedResource))
     if (max < 1) {
-      setTerminalNotice(`No ${resourceLabels[selectedResource]} available.`)
+      setFactoryNotice(`No ${resourceLabels[selectedResource]} available.`)
       return
     }
     setPendingProcessInsert({
@@ -1732,7 +1733,7 @@ function App() {
     if (!pendingProcessInsert || pendingProcessMax < 1) return
     const quantity = Math.min(pendingProcessInsert.quantity, pendingProcessMax)
     setState((current) => insertProcessSlot(current, pendingProcessInsert.uid, pendingProcessInsert.slotId, pendingProcessInsert.resourceId, quantity))
-    setTerminalNotice(`${resourceLabels[pendingProcessInsert.resourceId]} x${formatAmount(quantity)} inserted.`)
+    setFactoryNotice(`${resourceLabels[pendingProcessInsert.resourceId]} x${formatAmount(quantity)} inserted.`)
     setPendingProcessInsert(null)
   }
 
@@ -2113,6 +2114,7 @@ function App() {
     handleClearGrid()
     setOfflineNotice('')
     setTerminalNotice('')
+    setFactoryNotice('')
     setTerminalSearch('')
     setRecipeSearch('')
     setFactoryMachineSearch('')
@@ -3209,7 +3211,7 @@ function App() {
             )}
           </div>
 
-          {terminalNotice && <p className="recipe-notice">{terminalNotice}</p>}
+          {factoryNotice && <p className="recipe-notice">{factoryNotice}</p>}
 
           {!factoryFloorUnlocked ? (
             <div className="factory-foundation-panel">
@@ -3300,7 +3302,7 @@ function App() {
                             setSelectedFactoryTool(null)
                             setSelectedPipeConfigUid(null)
                             setIsFactoryToolboxOpen(false)
-                            setTerminalNotice('')
+                            setFactoryNotice('')
                             setPlacingMachineId((current) => (current === id ? null : id))
                           }}
                           key={id}
