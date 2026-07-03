@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:host": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
+    "check": "npm run lint && npm run test && npm run build",
+    "deploy:test": "node scripts/local-test-env.mjs",
+    "deploy:release": "node scripts/release-pages.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",

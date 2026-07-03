@@ -4,7 +4,7 @@ import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { Plugin, ViteDevServer } from 'vite'
+import type { Plugin, PreviewServer, ViteDevServer } from 'vite'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const savesDir = path.join(rootDir, 'server', 'saves')
@@ -46,73 +46,76 @@ function isGameSave(raw: string) {
   }
 }
 
-function localSaveApi(): Plugin {
-  return {
-    name: 'local-save-api',
-    configureServer(server: ViteDevServer) {
-      server.middlewares.use(async (req, res, next) => {
-        const url = new URL(req.url ?? '/', 'http://local')
-        if (!url.pathname.startsWith('/api/saves')) {
-          next()
+function attachLocalSaveApi(server: ViteDevServer | PreviewServer) {
+  server.middlewares.use(async (req, res, next) => {
+    const url = new URL(req.url ?? '/', 'http://local')
+    if (!url.pathname.startsWith('/api/saves')) {
+      next()
+      return
+    }
+
+    try {
+      await mkdir(savesDir, { recursive: true })
+
+      if (req.method === 'GET' && url.pathname === '/api/saves') {
+        const files = await readdir(savesDir)
+        const saves = await Promise.all(
+          files
+            .filter((file) => file.endsWith('.json'))
+            .map(async (file) => {
+              const id = path.basename(file, '.json')
+              const info = await stat(savePath(id))
+              return { id, updatedAt: info.mtime.toISOString(), size: info.size }
+            }),
+        )
+
+        sendJson(res, 200, { saves: saves.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) })
+        return
+      }
+
+      const match = url.pathname.match(/^\/api\/saves\/([^/]+)$/)
+      const requestedId = match ? normalizeSaveId(decodeURIComponent(match[1])) : ''
+      if (!requestedId) {
+        sendJson(res, 400, { error: 'Use a save slot name with letters, numbers, dashes, or underscores.' })
+        return
+      }
+
+      if (req.method === 'GET') {
+        const save = await readFile(savePath(requestedId), 'utf8')
+        sendJson(res, 200, { id: requestedId, save })
+        return
+      }
+
+      if (req.method === 'PUT') {
+        const body = JSON.parse(await readBody(req)) as { save?: unknown }
+        if (typeof body.save !== 'string' || !isGameSave(body.save)) {
+          sendJson(res, 400, { error: 'That does not look like a Block-Tech Idle save.' })
           return
         }
 
-        try {
-          await mkdir(savesDir, { recursive: true })
+        await writeFile(savePath(requestedId), body.save, 'utf8')
+        const info = await stat(savePath(requestedId))
+        sendJson(res, 200, { id: requestedId, updatedAt: info.mtime.toISOString(), size: info.size })
+        return
+      }
 
-          if (req.method === 'GET' && url.pathname === '/api/saves') {
-            const files = await readdir(savesDir)
-            const saves = await Promise.all(
-              files
-                .filter((file) => file.endsWith('.json'))
-                .map(async (file) => {
-                  const id = path.basename(file, '.json')
-                  const info = await stat(savePath(id))
-                  return { id, updatedAt: info.mtime.toISOString(), size: info.size }
-                }),
-            )
+      sendJson(res, 405, { error: 'Method not allowed.' })
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+        sendJson(res, 404, { error: 'No PC save exists for that slot yet.' })
+        return
+      }
+      const message = error instanceof Error ? error.message : 'Save server error.'
+      sendJson(res, 500, { error: message })
+    }
+  })
+}
 
-            sendJson(res, 200, { saves: saves.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) })
-            return
-          }
-
-          const match = url.pathname.match(/^\/api\/saves\/([^/]+)$/)
-          const requestedId = match ? normalizeSaveId(decodeURIComponent(match[1])) : ''
-          if (!requestedId) {
-            sendJson(res, 400, { error: 'Use a save slot name with letters, numbers, dashes, or underscores.' })
-            return
-          }
-
-          if (req.method === 'GET') {
-            const save = await readFile(savePath(requestedId), 'utf8')
-            sendJson(res, 200, { id: requestedId, save })
-            return
-          }
-
-          if (req.method === 'PUT') {
-            const body = JSON.parse(await readBody(req)) as { save?: unknown }
-            if (typeof body.save !== 'string' || !isGameSave(body.save)) {
-              sendJson(res, 400, { error: 'That does not look like a Block-Tech Idle save.' })
-              return
-            }
-
-            await writeFile(savePath(requestedId), body.save, 'utf8')
-            const info = await stat(savePath(requestedId))
-            sendJson(res, 200, { id: requestedId, updatedAt: info.mtime.toISOString(), size: info.size })
-            return
-          }
-
-          sendJson(res, 405, { error: 'Method not allowed.' })
-        } catch (error) {
-          if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-            sendJson(res, 404, { error: 'No PC save exists for that slot yet.' })
-            return
-          }
-          const message = error instanceof Error ? error.message : 'Save server error.'
-          sendJson(res, 500, { error: message })
-        }
-      })
-    },
+function localSaveApi(): Plugin {
+  return {
+    name: 'local-save-api',
+    configureServer: attachLocalSaveApi,
+    configurePreviewServer: attachLocalSaveApi,
   }
 }
 

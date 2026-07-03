@@ -8,10 +8,20 @@ The game uses original names and presentation while following the spirit of long
 
 ```bash
 npm run dev
+npm run dev:host
 npm run test
 npm run build
 npm run lint
+npm run check
+npm run deploy:test
+npm run deploy:release
 ```
+
+`npm run dev` starts the normal hot Vite server. `npm run dev:host` exposes that hot server on the local network for phone testing.
+
+`npm run deploy:test` builds the app and hosts the production preview locally on port 4173. It prints both localhost and LAN URLs, and the local save API is available in this preview server.
+
+`npm run deploy:release` is the guarded GitHub Pages release path. Run it from a clean `main` branch after committing; it runs lint, tests, and build, pushes `main`, then watches the existing Pages workflow when the GitHub CLI is available.
 
 ## iOS App
 
