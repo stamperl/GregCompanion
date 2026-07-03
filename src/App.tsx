@@ -126,6 +126,7 @@ import {
 } from './game/recipeGroups'
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
+import { preloadGeneratedIconImages } from './components/gameIconAssets'
 import { IconSpriteDefs } from './components/iconSprites'
 import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
 import type {
@@ -1009,6 +1010,10 @@ function App() {
     if (!pending) return
     void persistGameState(pending.state, pending.slotId).then(refreshSaveSlots)
   }
+
+  useEffect(() => {
+    void preloadGeneratedIconImages()
+  }, [])
 
   useEffect(() => {
     const updateMobileGate = () => setIsMobileClient(isMobileClientAllowed())

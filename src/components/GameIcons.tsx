@@ -1,5 +1,6 @@
 import { isEuCableMachine, isSteamPipeMachine } from '../game/content'
 import type { MachineId, ResourceId } from '../game/types'
+import { machineIconSrc, resourceIconSrc } from './gameIconAssets'
 import { hasIconSprite } from './iconSprites'
 
 export type PipeConnections = {
@@ -7,14 +8,6 @@ export type PipeConnections = {
   right: boolean
   down: boolean
   left: boolean
-}
-
-function resourceIconSrc(id: ResourceId) {
-  return `${import.meta.env.BASE_URL}game-icons/resources/${id}.png`
-}
-
-function machineIconSrc(id: MachineId) {
-  return `${import.meta.env.BASE_URL}game-icons/machines/${id}.png`
 }
 
 export function PixelIcon({ id }: { id: ResourceId }) {
@@ -29,7 +22,7 @@ export function PixelIcon({ id }: { id: ResourceId }) {
   }
   return (
     <span className={`pixel-icon item-sprite-icon pixel-${id}`} aria-hidden="true">
-      <img src={resourceIconSrc(id)} alt="" draggable={false} />
+      <img src={resourceIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" />
       <span />
     </span>
   )
@@ -96,7 +89,7 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
   }
   return (
     <span className={className} aria-hidden="true">
-      <img src={machineIconSrc(id)} alt="" draggable={false} />
+      <img src={machineIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" />
       <span />
     </span>
   )
