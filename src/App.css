@@ -3264,7 +3264,7 @@ button.craft-output:disabled {
 .factory-inventory-panel {
   display: grid;
   gap: 6px;
-  grid-template-columns: minmax(0, 2fr) minmax(78px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
 }
 
@@ -3282,6 +3282,14 @@ button.craft-output:disabled {
   min-width: 0;
 }
 
+.factory-tool-storage {
+  min-height: 0;
+}
+
+.factory-tool-storage.closed {
+  display: none;
+}
+
 .factory-tray-label {
   color: #333;
   font: 950 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -3294,8 +3302,47 @@ button.craft-output:disabled {
   align-items: center;
   display: grid;
   gap: 4px;
-  grid-template-columns: auto minmax(54px, 96px);
+  grid-template-columns: auto minmax(72px, 132px) 34px;
   min-width: 0;
+}
+
+.factory-toolbox-toggle {
+  align-items: center;
+  background: #4a4a4a;
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: #1f1f1f;
+  border-radius: 0;
+  border-right-color: #1f1f1f;
+  color: #f7f7f7;
+  cursor: pointer;
+  display: grid;
+  height: 30px;
+  justify-items: center;
+  min-width: 34px;
+  padding: 2px;
+  position: relative;
+}
+
+.factory-toolbox-toggle.active,
+.factory-toolbox-toggle:focus-visible {
+  background: #6f5b22;
+  border-color: #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+  outline: none;
+}
+
+.factory-toolbox-toggle span {
+  background: #f7f0cf;
+  border: 1px solid #1f1f1f;
+  bottom: -4px;
+  color: #1f1f1f;
+  font: 950 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+  min-width: 14px;
+  padding: 1px 2px;
+  position: absolute;
+  right: -4px;
 }
 
 .factory-machine-search {
@@ -3322,8 +3369,25 @@ button.craft-output:disabled {
   align-content: start;
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(2, 40px);
+  grid-template-columns: repeat(auto-fill, 40px);
   min-width: 0;
+}
+
+.factory-tool-drawer-head {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.factory-tool-mode {
+  color: #1f1f1f;
+  font: 950 0.58rem "Courier New", ui-monospace, monospace;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .factory-tool-slot .pixel-icon {
@@ -3334,23 +3398,20 @@ button.craft-output:disabled {
 .machine-placement-slots {
   align-content: start;
   display: grid;
-  gap: 4px;
-  grid-auto-columns: 40px;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(2, 44px);
-  justify-content: start;
-  max-width: 100%;
-  min-height: 96px;
+  gap: 2px;
+  grid-auto-rows: 44px;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  height: 134px;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 3px;
   scrollbar-color: var(--bevel-dark) var(--bevel-well);
   scrollbar-width: thin;
 }
 
 .machine-placement-slots::-webkit-scrollbar {
-  height: 6px;
+  width: 6px;
 }
 
 .machine-placement-slots::-webkit-scrollbar-track {

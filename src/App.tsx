@@ -10,6 +10,7 @@ import {
   Pickaxe,
   Save,
   Sparkles,
+  Toolbox,
   Trash2,
   Undo2,
   Upload,
@@ -1047,6 +1048,7 @@ function App() {
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(false)
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
+  const [isFactoryToolboxOpen, setIsFactoryToolboxOpen] = useState(false)
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
   const [selectedFactoryTool, setSelectedFactoryTool] = useState<ResourceId | null>(null)
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(null)
@@ -1421,6 +1423,7 @@ function App() {
     return id.toLowerCase().includes(query) || machines[id].name.toLowerCase().includes(query)
   })
   const factoryTools = factoryToolOrder.filter((id) => availableResourceAmount(state, id) > 0)
+  const factoryToolCount = factoryTools.reduce((total, id) => total + availableResourceAmount(state, id), 0)
   const selectedFactoryItemLabel = placingMachineId
     ? machines[placingMachineId].name
     : selectedFactoryTool
@@ -3218,6 +3221,18 @@ function App() {
                       onChange={(event) => setFactoryMachineSearch(event.target.value)}
                       aria-label="Search factory parts"
                     />
+                    <button
+                      type="button"
+                      className={isFactoryToolboxOpen ? 'factory-toolbox-toggle active' : 'factory-toolbox-toggle'}
+                      aria-label={isFactoryToolboxOpen ? 'Close toolbox' : 'Open toolbox'}
+                      aria-controls="factory-toolbox-drawer"
+                      aria-expanded={isFactoryToolboxOpen}
+                      title={isFactoryToolboxOpen ? 'Close toolbox' : 'Open toolbox'}
+                      onClick={() => setIsFactoryToolboxOpen((current) => !current)}
+                    >
+                      <Toolbox size={16} />
+                      {factoryToolCount > 0 && <span>{formatAmount(factoryToolCount)}</span>}
+                    </button>
                   </div>
                   <div className="machine-placement-slots">
                     {unplacedMachines.length > 0 ? (
@@ -3243,8 +3258,15 @@ function App() {
                   </div>
                 </div>
 
-                <div className="processing-storage factory-tool-storage" aria-label="Factory tools">
-                  <span className="factory-tray-label">Tools</span>
+                <div
+                  className={isFactoryToolboxOpen ? 'processing-storage factory-tool-storage open' : 'processing-storage factory-tool-storage closed'}
+                  id="factory-toolbox-drawer"
+                  aria-label="Factory toolbox"
+                >
+                  <div className="factory-tool-drawer-head">
+                    <span className="factory-tray-label">Toolbox</span>
+                    {selectedFactoryTool && <span className="factory-tool-mode">{resourceLabels[selectedFactoryTool]}</span>}
+                  </div>
                   <div className="factory-tool-slots">
                     {factoryTools.length > 0 ? (
                       factoryTools.map((id) => (
