@@ -1363,6 +1363,18 @@ button.craft-output:disabled {
 .pixel-steelIngot span,
 .pixel-steelPlate span,
 .pixel-steelRod span,
+.pixel-nickelOre span,
+.pixel-bauxiteOre span,
+.pixel-crushedBauxiteOre span,
+.pixel-nickelDust span,
+.pixel-bauxiteDust span,
+.pixel-aluminiumDust span,
+.pixel-nickelIngot span,
+.pixel-cupronickelIngot span,
+.pixel-aluminiumIngot span,
+.pixel-aluminiumPlate span,
+.pixel-heatingCoil span,
+.pixel-heatProofCasing span,
 .pixel-cokeOvenBrick span,
 .pixel-firebrick span,
 .pixel-bbfCasing span {
@@ -1955,12 +1967,64 @@ button.craft-output:disabled {
   width: 12px;
 }
 
+.pixel-nickelOre,
+.pixel-bauxiteOre,
+.pixel-crushedBauxiteOre {
+  background:
+    radial-gradient(circle at 32% 30%, var(--p3) 0 8%, transparent 9%),
+    radial-gradient(circle at 66% 62%, var(--p1) 0 10%, transparent 11%),
+    linear-gradient(135deg, #8c8e8b, #343636);
+  clip-path: polygon(12% 10%, 74% 4%, 98% 40%, 82% 86%, 40% 100%, 2% 64%);
+}
+
+.pixel-nickelOre {
+  --p1: #75887f;
+  --p2: #35433e;
+  --p3: #b9c9bf;
+}
+
+.pixel-bauxiteOre,
+.pixel-crushedBauxiteOre {
+  --p1: #a94f3f;
+  --p2: #5b2d25;
+  --p3: #d98669;
+}
+
+.pixel-nickelDust,
+.pixel-bauxiteDust,
+.pixel-aluminiumDust {
+  background:
+    radial-gradient(circle at 28% 35%, var(--p3) 0 9%, transparent 10%),
+    radial-gradient(circle at 64% 58%, var(--p1) 0 12%, transparent 13%),
+    radial-gradient(circle at 42% 72%, var(--p2) 0 10%, transparent 11%);
+  box-shadow: none;
+}
+
+.pixel-nickelDust {
+  --p1: #75887f;
+  --p2: #35433e;
+  --p3: #b9c9bf;
+}
+
+.pixel-bauxiteDust {
+  --p1: #a94f3f;
+  --p2: #5b2d25;
+  --p3: #d98669;
+}
+
+.pixel-aluminiumDust {
+  --p1: #c8d4d8;
+  --p2: #7f8e96;
+  --p3: #eef5f4;
+}
+
 .pixel-ironPlate,
 .pixel-copperPlate,
 .pixel-tinPlate,
 .pixel-bronzePlate,
 .pixel-redAlloyPlate,
-.pixel-steelPlate {
+.pixel-steelPlate,
+.pixel-aluminiumPlate {
   background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 82%, var(--p2) 82%);
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18), inset -4px -4px 0 rgba(0, 0, 0, 0.22);
 }
@@ -1970,7 +2034,8 @@ button.craft-output:disabled {
 .pixel-tinPlate::before,
 .pixel-bronzePlate::before,
 .pixel-redAlloyPlate::before,
-.pixel-steelPlate::before {
+.pixel-steelPlate::before,
+.pixel-aluminiumPlate::before {
   background: rgba(0, 0, 0, 0.22);
   height: 2px;
   left: 5px;
@@ -2051,6 +2116,54 @@ button.craft-output:disabled {
   --p2: #31383d;
   --p3: #c5d0d5;
   --p4: #1c2226;
+}
+
+.pixel-aluminiumPlate {
+  --p1: #b9c8ce;
+  --p2: #6d7d84;
+  --p3: #eef5f4;
+  --p4: #3f4b51;
+}
+
+.pixel-nickelIngot,
+.pixel-cupronickelIngot,
+.pixel-aluminiumIngot {
+  background:
+    linear-gradient(90deg, transparent 0 16%, rgba(255, 255, 255, 0.22) 16% 26%, transparent 26%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+  clip-path: polygon(15% 18%, 82% 6%, 100% 38%, 84% 82%, 18% 94%, 0 58%);
+}
+
+.pixel-nickelIngot {
+  --p1: #75887f;
+  --p2: #35433e;
+  --p3: #b9c9bf;
+}
+
+.pixel-cupronickelIngot {
+  --p1: #9a8a66;
+  --p2: #554a35;
+  --p3: #d6c48b;
+}
+
+.pixel-aluminiumIngot {
+  --p1: #b9c8ce;
+  --p2: #6d7d84;
+  --p3: #eef5f4;
+}
+
+.pixel-heatingCoil {
+  background:
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 4px, #d6c48b 4px 6px, #554a35 6px 8px),
+    linear-gradient(135deg, #3f474b, #151515);
+}
+
+.pixel-heatProofCasing {
+  background:
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.34) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.34) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.32) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.32) 66% 73%, transparent 73%),
+    radial-gradient(circle at 50% 50%, #d6c48b 0 12%, transparent 13%),
+    linear-gradient(135deg, #d4b28a 0 18%, #786d66 18% 78%, #3c3029 78%);
 }
 
 .pixel-ironRod,
@@ -6435,6 +6548,114 @@ button.craft-output:disabled {
   width: 16%;
 }
 
+.machine-lvBatteryBuffer,
+.machine-lvBender,
+.machine-lvLathe,
+.machine-lvElectrolyzer,
+.machine-lvAssembler,
+.machine-lvCentrifuge,
+.machine-liquidSteamBoiler {
+  --m1: #8f9aa0;
+  --m2: #3f474b;
+  --m3: #d8dde0;
+  background:
+    radial-gradient(circle at 12% 12%, #aae8f6 0 4%, transparent 5%),
+    radial-gradient(circle at 88% 12%, #151515 0 4%, transparent 5%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #d8dde0 0 18%, #8f9aa0 18% 78%, #3f474b 78%);
+}
+
+.machine-lvBatteryBuffer {
+  background:
+    linear-gradient(180deg, transparent 0 20%, #aae8f6 20% 32%, transparent 32% 46%, #aae8f6 46% 58%, transparent 58%),
+    linear-gradient(90deg, transparent 0 18%, #151515 18% 28%, transparent 28% 72%, #3f474b 72% 82%, transparent 82%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 8px),
+    linear-gradient(135deg, #d8dde0 0 18%, #8f9aa0 18% 78%, #3f474b 78%);
+}
+
+.machine-lvBatteryBuffer span {
+  background: #aae8f6;
+  box-shadow:
+    8px 0 0 #3f474b,
+    0 8px 0 #aae8f6,
+    8px 8px 0 #151515;
+  height: 18%;
+  left: 24%;
+  top: 28%;
+  width: 18%;
+}
+
+.machine-liquidSteamBoiler {
+  background:
+    radial-gradient(circle at 50% 76%, #6f3a22 0 8%, #2b1711 9% 14%, transparent 15%),
+    linear-gradient(90deg, transparent 0 18%, #262626 18% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 46%, #111 46% 72%, transparent 72%),
+    radial-gradient(ellipse at 50% 30%, #d8dde0 0 34%, #8f9aa0 35% 58%, #3f474b 59% 70%, transparent 71%),
+    linear-gradient(180deg, #3f474b 0 16%, #8f9aa0 16% 84%, #3f474b 84%);
+}
+
+.machine-liquidSteamBoiler span {
+  background: #6f3a22;
+  box-shadow:
+    7px 0 0 #d28a4e,
+    13px 0 0 #6f3a22,
+    5px 14px 0 #aae8f6;
+  height: 12%;
+  left: 15%;
+  top: 13%;
+  width: 12%;
+}
+
+.machine-lvBender span,
+.machine-lvLathe span,
+.machine-lvElectrolyzer span,
+.machine-lvAssembler span,
+.machine-lvCentrifuge span {
+  background: #151515;
+  height: 16%;
+  left: 24%;
+  top: 54%;
+  width: 34%;
+}
+
+.machine-lvBender span {
+  box-shadow:
+    0 -10px 0 #d8dde0,
+    11px -10px 0 #3f474b,
+    6px 8px 0 #aae8f6;
+}
+
+.machine-lvLathe span {
+  box-shadow:
+    9px 0 0 #151515,
+    4px -9px 0 #d8dde0,
+    15px -9px 0 #3f474b,
+    10px 9px 0 #aae8f6;
+}
+
+.machine-lvElectrolyzer span {
+  background: #aae8f6;
+  box-shadow:
+    9px 0 0 #3f474b,
+    4px 8px 0 #151515,
+    13px 8px 0 #aae8f6;
+}
+
+.machine-lvAssembler span {
+  box-shadow:
+    8px -8px 0 #d8dde0,
+    15px -3px 0 #aae8f6,
+    5px 9px 0 #3f474b;
+}
+
+.machine-lvCentrifuge span {
+  background: #aae8f6;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 4px #151515,
+    0 0 0 7px #d8dde0;
+}
+
 .machine-steamMacerator {
   --m1: #b7854c;
   --m2: #49331f;
@@ -6716,12 +6937,62 @@ button.craft-output:disabled {
   width: 22%;
 }
 
+.machine-arcBlastFurnace {
+  --m1: #6f7b81;
+  --m2: #151515;
+  --m3: #d8dde0;
+  background:
+    radial-gradient(circle at 50% 78%, #aae8f6 0 8%, #276f8d 9% 15%, transparent 16%),
+    linear-gradient(90deg, transparent 0 19%, #151515 19% 81%, transparent 81%),
+    linear-gradient(180deg, transparent 0 40%, #050505 40% 70%, transparent 70%),
+    repeating-linear-gradient(180deg, #d8dde0 0 5px, #6f7b81 5px 10px),
+    repeating-linear-gradient(90deg, rgba(21, 21, 21, 0.42) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #d8dde0 0 10%, #6f7b81 10% 82%, #151515 82%);
+}
+
+.machine-arcBlastFurnace span {
+  background: #151515;
+  box-shadow:
+    0 6px 0 #d8dde0,
+    0 12px 0 #6f7b81,
+    7px 19px 0 #aae8f6;
+  height: 16%;
+  left: 36%;
+  top: 11%;
+  width: 28%;
+}
+
+.machine-arcBlastFurnacePart {
+  --m1: #6f7b81;
+  --m2: #151515;
+  --m3: #d8dde0;
+  background:
+    radial-gradient(circle at 50% 50%, #d6c48b 0 10%, transparent 11%),
+    linear-gradient(90deg, transparent 0 32%, rgba(21, 21, 21, 0.34) 32% 39%, transparent 39% 66%, rgba(21, 21, 21, 0.34) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(21, 21, 21, 0.32) 30% 37%, transparent 37% 66%, rgba(21, 21, 21, 0.32) 66% 73%, transparent 73%),
+    linear-gradient(135deg, #d8dde0 0 18%, #6f7b81 18% 78%, #151515 78%);
+}
+
+.machine-arcBlastFurnacePart span {
+  background: #151515;
+  box-shadow:
+    8px 0 0 #d8dde0,
+    0 8px 0 #6f7b81,
+    8px 8px 0 #151515;
+  height: 22%;
+  left: 23%;
+  top: 23%;
+  width: 22%;
+}
+
 .machine-steamBoiler.active,
 .machine-steamTank.active,
 .machine-copperPipe.active,
 .machine-bronzePipe.active,
 .machine-ironPipe.active,
 .machine-tinCable.active,
+.machine-lvBatteryBuffer.active,
+.machine-liquidSteamBoiler.active,
 .machine-steamMacerator.active,
 .machine-steamForgeHammer.active,
 .machine-steamCompressor.active,
@@ -6731,9 +7002,15 @@ button.craft-output:disabled {
 .machine-steamAutoMiner.active,
 .machine-steamTurbine.active,
 .machine-lvWiremill.active,
+.machine-lvBender.active,
+.machine-lvLathe.active,
+.machine-lvElectrolyzer.active,
+.machine-lvAssembler.active,
+.machine-lvCentrifuge.active,
 .machine-lvAutoMiner.active,
 .machine-cokeOven.active,
-.machine-brickedBlastFurnace.active {
+.machine-brickedBlastFurnace.active,
+.machine-arcBlastFurnace.active {
   animation: furnace-glyph-glow 0.7s steps(2, end) infinite;
 }
 

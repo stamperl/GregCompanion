@@ -31,9 +31,12 @@ import {
   canAutoMinerTarget,
   isAutoMinerMachine,
   isEuCableMachine,
+  isEuBlastMachine,
   isEuNetworkMachine,
   isEuPoweredMachine,
   isEuProducerMachine,
+  isEuStorageMachine,
+  isLiquidSteamBoilerMachine,
   isPlaceableMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
@@ -50,6 +53,7 @@ import {
   availableResourceAmount,
   availableUnplacedMachineCount,
   availableConnectedEu,
+  availableConnectedEuStorage,
   availableConnectedSteam,
   assignAutoMiner,
   boilerSteamProductionLitresPerSecond,
@@ -83,6 +87,7 @@ import {
   missingForQuantity,
   missingForRecipe,
   machinesCanConnect,
+  multiblockControllerForInstance,
   placeMachineInstance,
   pipeDirections,
   processStackLimit,
@@ -103,6 +108,12 @@ import {
   steamTurbineEuCapacity,
   steamTurbineSteamUseLitresPerSecond,
   steamTankCapacityMs,
+  lvBatteryBufferEuCapacity,
+  lvBatteryBufferOutputEuPerSecond,
+  liquidSteamBoilerCapacityMs,
+  liquidSteamBoilerCreosoteUseLitresPerSecond,
+  liquidSteamBoilerFluidCapacityLitres,
+  liquidSteamBoilerSteamProductionLitresPerSecond,
   tinCableLossEuPerTile,
   lvAutoMinerActionDamage,
   lvAutoMinerActionMs,
@@ -224,11 +235,20 @@ const machineOrder: MachineId[] = [
   'steamAutoMiner',
   'steamTurbine',
   'tinCable',
+  'lvBatteryBuffer',
+  'liquidSteamBoiler',
   'lvWiremill',
+  'lvBender',
+  'lvLathe',
+  'lvElectrolyzer',
+  'lvAssembler',
+  'lvCentrifuge',
   'lvAutoMiner',
   'cokeOven',
   'brickedBlastFurnacePart',
   'brickedBlastFurnace',
+  'arcBlastFurnacePart',
+  'arcBlastFurnace',
 ]
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
 const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWrench']
@@ -247,7 +267,7 @@ type GatherAreaId = 'forest' | 'lake' | 'mine'
 const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTargetId[] }> = [
   { id: 'forest', label: 'Forest', targets: ['tree', 'rubberTree'] },
   { id: 'lake', label: 'Lake', targets: ['sandPatch', 'clayPatch', 'gravelPatch'] },
-  { id: 'mine', label: 'Mine', targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'redstoneVein', 'coalSeam'] },
+  { id: 'mine', label: 'Mine', targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam'] },
 ]
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tree: 'log',
@@ -259,6 +279,8 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   gravelPatch: 'gravel',
   copperVein: 'copperOre',
   tinVein: 'tinOre',
+  nickelVein: 'nickelOre',
+  bauxiteVein: 'bauxiteOre',
   redstoneVein: 'redstoneDust',
   coalSeam: 'coal',
 }
@@ -398,11 +420,25 @@ function RecipePatternPreview({
 }
 
 function isFactoryFloorLayoutRecipe(recipe: Recipe) {
-  return recipe.id === 'build_bricked_blast_furnace'
+  return recipe.id === 'build_bricked_blast_furnace' || recipe.id === 'build_arc_blast_furnace'
 }
 
 function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
   if (!isFactoryFloorLayoutRecipe(recipe)) return null
+  if (recipe.id === 'build_arc_blast_furnace') {
+    return (
+      <div className="factory-layout-preview" aria-label={`${recipe.name} factory floor layout`}>
+        <div className="factory-layout-grid arc-layout-grid">
+          {Array.from({ length: 9 }, (_, index) => (
+            <span className={index === 4 ? 'factory-layout-cell controller' : 'factory-layout-cell'} key={index}>
+              <MachineGlyph id={index === 4 ? 'arcBlastFurnace' : 'arcBlastFurnacePart'} />
+            </span>
+          ))}
+        </div>
+        <p>Place 9 heat-proof casings as a 3x3 on the factory floor.</p>
+      </div>
+    )
+  }
   return (
     <div className="factory-layout-preview" aria-label={`${recipe.name} factory floor layout`}>
       <div className="factory-layout-grid">
@@ -627,6 +663,7 @@ function machineUsesProcessStorage(machineId: MachineId) {
     machineId === 'steamBoiler' ||
     machineId === 'cokeOven' ||
     machineId === 'brickedBlastFurnace' ||
+    machineId === 'arcBlastFurnace' ||
     isSteamPoweredMachine(machineId) ||
     isEuPoweredMachine(machineId)
   )
@@ -643,6 +680,15 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   }
   if (isSteamPipeMachine(instance.machineId)) return `${steamPipeTransferLitresPerSecond[instance.machineId] ?? 0}L/s transfer`
   if (isEuCableMachine(instance.machineId)) return `${tinCableLossEuPerTile} EU/tile loss`
+  if (isEuStorageMachine(instance.machineId)) {
+    if (process.euStored >= (process.euCapacity || lvBatteryBufferEuCapacity)) return 'EU buffer full'
+    return process.activeRecipeId ? 'Charging EU' : 'Buffer ready'
+  }
+  if (isLiquidSteamBoilerMachine(instance.machineId)) {
+    if ((process.fluids.creosote ?? 0) < 1) return 'No creosote'
+    if (process.steamStoredMs >= liquidSteamBoilerCapacityMs) return 'Steam full'
+    return process.activeRecipeId ? 'Burning creosote' : 'Ready'
+  }
   if (isEuProducerMachine(instance.machineId)) {
     if (process.euStored >= steamTurbineEuCapacity) return 'EU full'
     if (availableConnectedSteam(state, instance) < 1) return 'No steam'
@@ -688,6 +734,14 @@ function machineStatus(state: GameState, instance: MachineInstance) {
       return `Needs ${blastRecipe.fuelInput.amount} ${resourceLabels[blastRecipe.fuelInput.id]}`
     }
     if (process.output && (process.output.id !== blastRecipe.output.id || process.output.amount + blastRecipe.output.amount > processStackLimit)) return 'Output full'
+    return process.activeRecipeId ? 'Blasting' : 'Ready'
+  }
+  if (instance.machineId === 'arcBlastFurnace') {
+    if (!recipe) return 'No input'
+    if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    const minimumEuStored = recipe.minimumEuStored ?? 0
+    if (minimumEuStored > 0 && process.progressMs === 0 && process.euStored + availableConnectedEuStorage(state, instance) < minimumEuStored) return 'Waiting for buffer'
+    if (process.euStored + availableConnectedEu(state, instance) < 1) return 'Underpowered'
     return process.activeRecipeId ? 'Blasting' : 'Ready'
   }
   if (isSteamPoweredMachine(instance.machineId)) {
@@ -1431,24 +1485,9 @@ function App() {
     }
   }
 
-  const brickedBlastFurnaceControllerForPart = (instance: MachineInstance) => {
-    if (instance.machineId !== 'brickedBlastFurnacePart') return null
-    for (let centerY = instance.y - 1; centerY <= instance.y; centerY += 1) {
-      for (let centerX = instance.x - 1; centerX <= instance.x; centerX += 1) {
-        const center = machineAtFactoryCell(centerX, centerY)
-        if (center?.machineId !== 'brickedBlastFurnace') continue
-        const complete = [0, 1].every((dy) =>
-          [0, 1].every((dx) => {
-            const candidate = machineAtFactoryCell(centerX + dx, centerY + dy)
-            if (!candidate) return false
-            if (dx === 0 && dy === 0) return candidate.machineId === 'brickedBlastFurnace'
-            return candidate.machineId === 'brickedBlastFurnacePart'
-          }),
-        )
-        if (complete) return center
-      }
-    }
-    return null
+  const controllerForMultiblockPart = (instance: MachineInstance) => {
+    const controller = multiblockControllerForInstance(state, instance)
+    return controller ? machineAtFactoryCell(controller.x, controller.y) : null
   }
 
   const addFloatText = (label: string, targetId?: GatherTargetId, variant?: FloatText['variant']) => {
@@ -1602,13 +1641,14 @@ function App() {
         setTerminalNotice('Wrench only configures pipes and cables.')
         return
       }
-      if (instance.machineId === 'brickedBlastFurnacePart') {
-        const controller = brickedBlastFurnaceControllerForPart(instance)
+      if (machines[instance.machineId].multiblock || machines[instance.machineId].processKind === 'none') {
+        const controller = controllerForMultiblockPart(instance)
         if (controller) {
           setSelectedMachineUid(controller.uid)
           return
         }
-        setTerminalNotice('Place BBF casings in a full 2x2 to form the furnace.')
+        if (instance.machineId === 'brickedBlastFurnacePart') setTerminalNotice('Place BBF casings in a full 2x2 to form the furnace.')
+        if (instance.machineId === 'arcBlastFurnacePart') setTerminalNotice('Place arc casings in a full 3x3 to form the furnace.')
         return
       }
       setSelectedMachineUid(instance.uid)
@@ -3285,9 +3325,10 @@ function App() {
                       const x = index % factoryGridSize.width
                       const y = Math.floor(index / factoryGridSize.width)
                       const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
-                      const bbfController = instance?.machineId === 'brickedBlastFurnacePart' ? brickedBlastFurnaceControllerForPart(instance) : null
-                      const isBbfController = instance?.machineId === 'brickedBlastFurnace'
-                      const isBbfMultiblockCell = isBbfController || Boolean(bbfController)
+                      const multiblockController = instance ? controllerForMultiblockPart(instance) : null
+                      const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
+                      const isMultiblockCell = isMultiblockController || Boolean(multiblockController)
+                      const multiblockMachineId = multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
                       const isMachineActive = Boolean(
                         instance &&
                           (instance.process.fuelRemainingMs > 0 ||
@@ -3309,8 +3350,8 @@ function App() {
                                   `machine-${instance.machineId}-cell`,
                                   isMachineActive ? 'active' : '',
                                   isFactoryRemoveMode ? 'removing' : '',
-                                  isBbfController ? 'multiblock-bbf-controller' : '',
-                                  bbfController ? 'multiblock-bbf-child' : '',
+                                  isMultiblockController ? 'multiblock-bbf-controller' : '',
+                                  multiblockController ? 'multiblock-bbf-child' : '',
                                 ].filter(Boolean).join(' ')
                               : placingMachineId
                                 ? 'factory-cell placing'
@@ -3318,13 +3359,13 @@ function App() {
                           }
                           aria-label={
                             instance
-                              ? `${isBbfMultiblockCell ? machines.brickedBlastFurnace.name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}`
+                              ? `${isMultiblockCell && multiblockMachineId ? machines[multiblockMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}`
                               : `Empty factory cell ${x + 1}, ${y + 1}`
                           }
                           onClick={() => handleFactoryCellPress(x, y, instance)}
                           key={`${x}-${y}`}
                         >
-                          {instance && !isBbfMultiblockCell ? (
+                          {instance && !isMultiblockCell ? (
                             <MachineGlyph id={instance.machineId} active={isMachineActive} pipeConnections={pipeConnectionsForInstance(instance)} />
                           ) : (
                             <span />
@@ -3544,6 +3585,22 @@ function App() {
                   {selectedMachine.machineId === 'cokeOven' && (
                     <strong>Creosote {formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/{selectedMachine.process.fluidCapacityLitres || cokeOvenFluidCapacityLitres}L</strong>
                   )}
+                  {isLiquidSteamBoilerMachine(selectedMachine.machineId) && (
+                    <strong>
+                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(liquidSteamBoilerCapacityMs)}L
+                      {' | '}
+                      Creosote {formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/{liquidSteamBoilerFluidCapacityLitres}L
+                      {' | '}
+                      Makes {formatAmount(liquidSteamBoilerSteamProductionLitresPerSecond)}L/s
+                    </strong>
+                  )}
+                  {isEuStorageMachine(selectedMachine.machineId) && (
+                    <strong>
+                      EU {Math.floor(selectedMachine.process.euStored)}/{selectedMachine.process.euCapacity || lvBatteryBufferEuCapacity}
+                      {' | '}
+                      Supply {formatAmount(lvBatteryBufferOutputEuPerSecond)} EU/s
+                    </strong>
+                  )}
                   {isEuProducerMachine(selectedMachine.machineId) && (
                     <strong>
                       EU {Math.floor(selectedMachine.process.euStored)}/{steamTurbineEuCapacity}
@@ -3562,6 +3619,9 @@ function App() {
                       Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
                       {' | '}
                       Uses {formatAmount(selectedMachineEuUsagePerSecond)} EU/s
+                      {isEuBlastMachine(selectedMachine.machineId) && selectedMachineRecipe?.minimumEuStored
+                        ? ` | Needs ${formatAmount(selectedMachineRecipe.minimumEuStored)} buffered EU`
+                        : ''}
                     </strong>
                   )}
                   {selectedMachine.machineId === 'steamAutoMiner' && (
@@ -3609,6 +3669,20 @@ function App() {
                     <MachineGlyph id={selectedMachine.machineId} active />
                     <span>Loses {tinCableLossEuPerTile} EU per cable tile in a powered route</span>
                   </div>
+                ) : isLiquidSteamBoilerMachine(selectedMachine.machineId) ? (
+                  <div className="well-interface">
+                    <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={liquidSteamBoilerCapacityMs} />
+                    <FluidTank label="Creosote" storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
+                    <span>
+                      Burns {formatAmount(liquidSteamBoilerCreosoteUseLitresPerSecond)}L/s creosote into {formatAmount(liquidSteamBoilerSteamProductionLitresPerSecond)}L/s steam
+                    </span>
+                  </div>
+                ) : isEuStorageMachine(selectedMachine.machineId) ? (
+                  <div className="well-interface">
+                    <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || lvBatteryBufferEuCapacity} />
+                    <MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.euStored > 0} />
+                    <span>Stores LV power and supplies nearby electric machines through lossy cable routes</span>
+                  </div>
                 ) : isEuProducerMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">
                     <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={steamTurbineEuCapacity} />
@@ -3649,7 +3723,7 @@ function App() {
                   {selectedMachine.machineId !== 'steamBoiler' && (
                   <div className="furnace-inputs">
                     <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
-                    {selectedMachine.machineId === 'steamAlloySmelter' && (
+                    {(selectedMachine.machineId === 'steamAlloySmelter' || selectedMachine.machineId === 'lvAssembler' || selectedMachine.machineId === 'lvCentrifuge') && (
                       <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                     )}
                     {isSteamPoweredMachine(selectedMachine.machineId) && (

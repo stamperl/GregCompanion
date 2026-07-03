@@ -4,6 +4,7 @@ import { processRecipesProducingResource, recipesProducingResource, recipesUsing
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableConnectedEu,
+  availableConnectedEuStorage,
   availableConnectedSteam,
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -33,6 +34,8 @@ import {
   isAutoMinerPowered,
   loadGame,
   loadGameWithOfflineProgress,
+  liquidSteamBoilerCapacityMs,
+  liquidSteamBoilerFluidCapacityLitres,
   makeGridForRecipe,
   maxDurability,
   missingForQuantity,
@@ -419,6 +422,14 @@ describe('game engine', () => {
     }
   })
 
+  it('offers bauxite, clay, and gravel routes into aluminium dust', () => {
+    const aluminiumDustRoutes = processRecipesProducingResource('aluminiumDust', processRecipes).map((recipe) => recipe.id)
+
+    expect(aluminiumDustRoutes).toContain('lv_electrolyze_bauxite')
+    expect(aluminiumDustRoutes).toContain('lv_centrifuge_clay_aluminium')
+    expect(aluminiumDustRoutes).toContain('lv_centrifuge_gravel_aluminium')
+  })
+
   it('migrates old saves into the new wood-opening state shape', () => {
     const state = loadGame(
       JSON.stringify({
@@ -496,11 +507,20 @@ describe('game engine', () => {
       'steamAutoMiner',
       'steamTurbine',
       'tinCable',
+      'lvBatteryBuffer',
+      'liquidSteamBoiler',
       'lvWiremill',
+      'lvBender',
+      'lvLathe',
+      'lvElectrolyzer',
+      'lvAssembler',
+      'lvCentrifuge',
       'lvAutoMiner',
       'cokeOven',
       'brickedBlastFurnacePart',
       'brickedBlastFurnace',
+      'arcBlastFurnacePart',
+      'arcBlastFurnace',
     ])
     expect(state.machines.well).toBe(0)
     expect(state.machines.steamBoiler).toBe(3)
@@ -510,7 +530,14 @@ describe('game engine', () => {
     expect(state.machines.ironPipe).toBe(0)
     expect(state.machines.steamTurbine).toBe(0)
     expect(state.machines.tinCable).toBe(0)
+    expect(state.machines.lvBatteryBuffer).toBe(0)
+    expect(state.machines.liquidSteamBoiler).toBe(0)
     expect(state.machines.lvWiremill).toBe(0)
+    expect(state.machines.lvBender).toBe(0)
+    expect(state.machines.lvLathe).toBe(0)
+    expect(state.machines.lvElectrolyzer).toBe(0)
+    expect(state.machines.lvAssembler).toBe(0)
+    expect(state.machines.lvCentrifuge).toBe(0)
     expect(state.machines.steamMacerator).toBe(0)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.brickedBlastFurnace).toBe(0)
@@ -1488,6 +1515,31 @@ describe('game engine', () => {
     expect(durabilityRemaining(state, 'ironCrowbar')).toBe(127)
   })
 
+  it('forms and disassembles a centered Arc Blast Furnace 3x3 multiblock', () => {
+    let state = createFactoryState(1000)
+    state.machines.arcBlastFurnacePart = 9
+
+    for (let y = 0; y < 3; y += 1) {
+      for (let x = 0; x < 3; x += 1) {
+        state = placeMachineInstance(state, 'arcBlastFurnacePart', x, y)
+      }
+    }
+
+    expect(state.machineInstances).toHaveLength(9)
+    expect(state.machineInstances.find((instance) => instance.x === 1 && instance.y === 1)?.machineId).toBe('arcBlastFurnace')
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'arcBlastFurnacePart')).toHaveLength(8)
+    expect(state.machines.arcBlastFurnacePart).toBe(8)
+    expect(state.machines.arcBlastFurnace).toBe(1)
+
+    state.resources.ironCrowbar = 1
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
+    state = crowbarRemoveMachineInstance(state, controller.uid)
+
+    expect(state.machineInstances).toHaveLength(0)
+    expect(state.machines.arcBlastFurnacePart).toBe(9)
+    expect(state.machines.arcBlastFurnace).toBe(0)
+  })
+
   it('smelts unfired brick into brick in the primitive furnace', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1
@@ -2077,6 +2129,82 @@ describe('game engine', () => {
     expect(nextTurbine.process.euStored).toBe(31)
   })
 
+  it('charges an LV battery buffer from turbine EU through lossy tin cable', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state.machines.tinCable = 1
+    state.machines.lvBatteryBuffer = 1
+    state.machines.lvWiremill = 1
+    state.resources.tinIngot = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    state = placeMachineInstance(state, 'lvBatteryBuffer', 2, 0)
+    state = placeMachineInstance(state, 'lvWiremill', 3, 0)
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
+    const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
+    turbine.process.euStored = 200
+
+    state = tickGame(state, 10000).state
+    const chargedBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
+    const primedWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
+    expect(chargedBuffer.process.euStored + primedWiremill.process.euStored).toBe(150)
+    expect(availableConnectedEuStorage(state, primedWiremill)).toBe(chargedBuffer.process.euStored)
+
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)
+    state = tickGame(state, 5000).state
+
+    const nextWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
+    expect(nextWiremill.process.output).toEqual({ id: 'tinWire', amount: 2 })
+    expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(150)
+  })
+
+  it('burns connected creosote into steam in a liquid steam boiler', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.liquidSteamBoiler = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'liquidSteamBoiler', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!.process.fluids.creosote = 20
+
+    state = tickGame(state, 5000).state
+
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'liquidSteamBoiler')!
+    expect(boiler.process.steamStoredMs).toBe(40000)
+    expect(boiler.process.steamCapacityMs).toBe(liquidSteamBoilerCapacityMs)
+    expect(boiler.process.fluidCapacityLitres).toBe(liquidSteamBoilerFluidCapacityLitres)
+    expect(boiler.process.fluids.creosote).toBe(15)
+  })
+
+  it('requires buffered EU before the Arc Blast Furnace starts aluminium', () => {
+    let state = createFactoryState(1000)
+    state.machines.arcBlastFurnacePart = 9
+    state.machines.lvBatteryBuffer = 1
+    state.resources.aluminiumDust = 1
+    for (let y = 0; y < 3; y += 1) {
+      for (let x = 0; x < 3; x += 1) {
+        state = placeMachineInstance(state, 'arcBlastFurnacePart', x, y)
+      }
+    }
+    state = placeMachineInstance(state, 'lvBatteryBuffer', 3, 1)
+    const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
+    buffer.process.euStored = 700
+    state = insertProcessSlot(state, arc.uid, 'input', 'aluminiumDust', 1)
+
+    state = tickGame(state, 5000).state
+    expect(state.machineInstances.find((instance) => instance.uid === arc.uid)!.process.progressMs).toBe(0)
+
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 2048
+    for (let step = 0; step < 5; step += 1) {
+      state = tickGame(state, 5000).state
+    }
+
+    const nextArc = state.machineInstances.find((instance) => instance.uid === arc.uid)!
+    expect(nextArc.process.output).toEqual({ id: 'aluminiumIngot', amount: 1 })
+    expect(nextArc.process.input).toBeNull()
+  })
+
   it('uses base ingots for LV Wiremill wire recipes', () => {
     expect(processRecipes.find((recipe) => recipe.id === 'lv_wiremill_tin_wire')?.input).toEqual({
       id: 'tinIngot',
@@ -2326,6 +2454,7 @@ describe('game engine', () => {
       'build_steam_furnace',
       'build_steam_auto_miner',
       'build_steam_turbine',
+      'build_liquid_steam_boiler',
     ])
     expect(searchTerminalRecipes('dynamo').map((recipe) => recipe.id)).toEqual([])
   })

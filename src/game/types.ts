@@ -27,10 +27,13 @@ export type ResourceId =
   | 'ironOre'
   | 'copperOre'
   | 'tinOre'
+  | 'nickelOre'
+  | 'bauxiteOre'
   | 'redstoneDust'
   | 'crushedIronOre'
   | 'crushedCopperOre'
   | 'crushedTinOre'
+  | 'crushedBauxiteOre'
   | 'coal'
   | 'charcoal'
   | 'coalCoke'
@@ -46,7 +49,13 @@ export type ResourceId =
   | 'ironDust'
   | 'copperDust'
   | 'tinDust'
+  | 'nickelDust'
+  | 'bauxiteDust'
+  | 'aluminiumDust'
   | 'bronzeIngot'
+  | 'nickelIngot'
+  | 'cupronickelIngot'
+  | 'aluminiumIngot'
   | 'clay'
   | 'sand'
   | 'rubberSap'
@@ -63,6 +72,7 @@ export type ResourceId =
   | 'bronzeRod'
   | 'steelIngot'
   | 'steelPlate'
+  | 'aluminiumPlate'
   | 'steelRod'
   | 'tinWire'
   | 'tinCable'
@@ -83,6 +93,8 @@ export type ResourceId =
   | 'bbfCasing'
   | 'lvMachineCasing'
   | 'lvMachineHull'
+  | 'heatingCoil'
+  | 'heatProofCasing'
   | 'basicBoard'
   | 'conductiveWire'
   | 'primitiveCircuit'
@@ -104,11 +116,20 @@ export type MachineId =
   | 'steamAutoMiner'
   | 'steamTurbine'
   | 'tinCable'
+  | 'lvBatteryBuffer'
+  | 'liquidSteamBoiler'
   | 'lvWiremill'
+  | 'lvBender'
+  | 'lvLathe'
+  | 'lvElectrolyzer'
+  | 'lvAssembler'
+  | 'lvCentrifuge'
   | 'lvAutoMiner'
   | 'cokeOven'
   | 'brickedBlastFurnacePart'
   | 'brickedBlastFurnace'
+  | 'arcBlastFurnacePart'
+  | 'arcBlastFurnace'
 
 export type QuestId =
   | 'punchTree'
@@ -153,10 +174,25 @@ export type QuestId =
   | 'buildSteamTurbineQuest'
   | 'makeTinCableQuest'
   | 'routeLvPowerQuest'
+  | 'bufferLvPowerQuest'
+  | 'creosoteBoilerQuest'
   | 'buildLvWiremillQuest'
   | 'runLvWiremillQuest'
+  | 'buildLvBenderQuest'
+  | 'runLvBenderQuest'
+  | 'buildLvLatheQuest'
+  | 'runLvLatheQuest'
+  | 'buildLvElectrolyzerQuest'
+  | 'findNickelQuest'
+  | 'makeCupronickelQuest'
+  | 'makeHeatingCoilsQuest'
+  | 'findBauxiteQuest'
+  | 'makeAluminiumDustQuest'
+  | 'buildArcBlastFurnaceQuest'
+  | 'bufferArcBlastFurnaceQuest'
+  | 'firstAluminiumQuest'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
 
@@ -196,8 +232,11 @@ export type MachineProcessKind =
   | 'steamPipe'
   | 'steamProcess'
   | 'steamToEu'
+  | 'euStorage'
   | 'euCable'
   | 'euProcess'
+  | 'euBlastProcess'
+  | 'liquidSteamBoiler'
   | 'cokeOven'
   | 'blastFurnace'
 
@@ -224,6 +263,8 @@ export type GatherTargetId =
   | 'ironVein'
   | 'copperVein'
   | 'tinVein'
+  | 'nickelVein'
+  | 'bauxiteVein'
   | 'redstoneVein'
   | 'coalSeam'
 
@@ -286,6 +327,12 @@ export type ProcessRecipe = {
   input: ResourceAmount
   secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
+  fluidInput?: {
+    id: FluidId
+    amount: number
+  }
+  minimumEuStored?: number
+  startupEu?: number
   output: ResourceAmount
   fluidOutput?: {
     id: FluidId
@@ -360,6 +407,8 @@ export type MachineSpec = Machine & {
     height: number
     controller: MachineId
     part: MachineId
+    controllerOffsetX?: number
+    controllerOffsetY?: number
   }
 }
 

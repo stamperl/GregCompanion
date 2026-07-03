@@ -7,10 +7,13 @@ import {
   initialResources,
   canAutoMinerTarget,
   isAutoMinerMachine,
+  isEuBlastMachine,
   isEuCableMachine,
   isEuNetworkMachine,
   isEuPoweredMachine,
   isEuProducerMachine,
+  isEuStorageMachine,
+  isLiquidSteamBoilerMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
   isSteamPoweredMachine,
@@ -116,7 +119,13 @@ export const boilerSteamProductionLitresPerSecond = 2
 export const steamTurbineSteamUseLitresPerSecond = 8
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
+export const lvBatteryBufferEuCapacity = machineEuCapacity('lvBatteryBuffer')
+export const lvBatteryBufferOutputEuPerSecond = 96
 export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
+export const liquidSteamBoilerCapacityMs = machineSteamCapacityLitres('liquidSteamBoiler') * steamMsPerLitre
+export const liquidSteamBoilerFluidCapacityLitres = machineFluidCapacityLitres('liquidSteamBoiler')
+export const liquidSteamBoilerSteamProductionLitresPerSecond = 8
+export const liquidSteamBoilerCreosoteUseLitresPerSecond = 1
 export const steamAutoMinerActionDamage = 10
 export const steamAutoMinerActionMs = 5000
 export const steamAutoMinerSteamUseLitres = 16
@@ -1010,53 +1019,82 @@ export function machinesCanConnect(from: MachineInstance, to: MachineInstance) {
   return connectorAllowsDirection(from, direction) && connectorAllowsDirection(to, oppositePipeDirection[direction])
 }
 
-function brickedBlastFurnacePositions(state: GameState, centerX: number, centerY: number) {
-  const positions = [
-    { x: centerX, y: centerY },
-    { x: centerX + 1, y: centerY },
-    { x: centerX, y: centerY + 1 },
-    { x: centerX + 1, y: centerY + 1 },
-  ]
+function multiblockControllerSpecs() {
+  return (Object.keys(machines) as MachineId[])
+    .map((machineId) => machines[machineId].multiblock)
+    .filter((spec): spec is NonNullable<(typeof machines)[MachineId]['multiblock']> => Boolean(spec))
+}
+
+function multiblockSpecForMachine(machineId: MachineId) {
+  return multiblockControllerSpecs().find((spec) => spec.controller === machineId || spec.part === machineId) ?? null
+}
+
+function multiblockPositions(state: GameState, controllerX: number, controllerY: number, spec: NonNullable<(typeof machines)[MachineId]['multiblock']>) {
+  const offsetX = spec.controllerOffsetX ?? 0
+  const offsetY = spec.controllerOffsetY ?? 0
+  const originX = controllerX - offsetX
+  const originY = controllerY - offsetY
+  const positions = Array.from({ length: spec.width * spec.height }, (_, index) => ({
+    x: originX + (index % spec.width),
+    y: originY + Math.floor(index / spec.width),
+  }))
   return positions.every((position) => isInsideFactoryGrid(state, position.x, position.y)) ? positions : []
 }
 
-function brickedBlastFurnaceCenterForInstance(state: GameState, instance: MachineInstance) {
-  for (let centerY = instance.y - 1; centerY <= instance.y; centerY += 1) {
-    for (let centerX = instance.x - 1; centerX <= instance.x; centerX += 1) {
-      const positions = brickedBlastFurnacePositions(state, centerX, centerY)
-      if (positions.length < 4) continue
-      const center = machineAt(state, centerX, centerY)
-      if (center?.machineId !== 'brickedBlastFurnace') continue
+function multiblockCenterForInstance(state: GameState, instance: MachineInstance) {
+  const spec = multiblockSpecForMachine(instance.machineId)
+  if (!spec) return null
+  const offsetX = spec.controllerOffsetX ?? 0
+  const offsetY = spec.controllerOffsetY ?? 0
+
+  for (let dy = 0; dy < spec.height; dy += 1) {
+    for (let dx = 0; dx < spec.width; dx += 1) {
+      const controllerX = instance.x - dx + offsetX
+      const controllerY = instance.y - dy + offsetY
+      const positions = multiblockPositions(state, controllerX, controllerY, spec)
+      if (positions.length < spec.width * spec.height) continue
+      const controller = machineAt(state, controllerX, controllerY)
+      if (controller?.machineId !== spec.controller) continue
       const complete = positions.every((position) => {
         const candidate = machineAt(state, position.x, position.y)
         if (!candidate) return false
-        if (position.x === centerX && position.y === centerY) return candidate.machineId === 'brickedBlastFurnace'
-        return candidate.machineId === 'brickedBlastFurnacePart'
+        if (position.x === controllerX && position.y === controllerY) return candidate.machineId === spec.controller
+        return candidate.machineId === spec.part
       })
-      if (complete) return { x: centerX, y: centerY }
+      if (complete) return { x: controllerX, y: controllerY, spec }
     }
   }
   return null
 }
 
-function tryFormBrickedBlastFurnaceMultiblock(state: GameState, placed: MachineInstance) {
-  if (placed.machineId !== 'brickedBlastFurnacePart') return false
-  for (let centerY = placed.y - 1; centerY <= placed.y; centerY += 1) {
-    for (let centerX = placed.x - 1; centerX <= placed.x; centerX += 1) {
-      const positions = brickedBlastFurnacePositions(state, centerX, centerY)
-      if (positions.length < 4) continue
-      if (!positions.every((position) => machineAt(state, position.x, position.y)?.machineId === 'brickedBlastFurnacePart')) continue
-      const center = machineAt(state, centerX, centerY)
-      if (!center) continue
-      center.uid = nextMachineUid(state, 'brickedBlastFurnace')
-      center.machineId = 'brickedBlastFurnace'
-      center.process = emptyProcessState()
-      state.machines.brickedBlastFurnacePart = Math.max(0, state.machines.brickedBlastFurnacePart - 1)
-      state.machines.brickedBlastFurnace += 1
+function tryFormMultiblock(state: GameState, placed: MachineInstance) {
+  const spec = multiblockControllerSpecs().find((candidate) => candidate.part === placed.machineId)
+  if (!spec) return false
+  const offsetX = spec.controllerOffsetX ?? 0
+  const offsetY = spec.controllerOffsetY ?? 0
+
+  for (let dy = 0; dy < spec.height; dy += 1) {
+    for (let dx = 0; dx < spec.width; dx += 1) {
+      const controllerX = placed.x - dx + offsetX
+      const controllerY = placed.y - dy + offsetY
+      const positions = multiblockPositions(state, controllerX, controllerY, spec)
+      if (positions.length < spec.width * spec.height) continue
+      if (!positions.every((position) => machineAt(state, position.x, position.y)?.machineId === spec.part)) continue
+      const controller = machineAt(state, controllerX, controllerY)
+      if (!controller) continue
+      controller.uid = nextMachineUid(state, spec.controller)
+      controller.machineId = spec.controller
+      controller.process = emptyProcessState()
+      state.machines[spec.part] = Math.max(0, state.machines[spec.part] - 1)
+      state.machines[spec.controller] += 1
       return true
     }
   }
   return false
+}
+
+export function multiblockControllerForInstance(state: GameState, instance: MachineInstance) {
+  return multiblockCenterForInstance(state, instance)
 }
 
 export function boilerHasWater(state: GameState, boiler: MachineInstance) {
@@ -1075,7 +1113,7 @@ function storedFluidTypes(process: MachineProcessState) {
 function canStoreFluid(instance: MachineInstance, fluidId: FluidId) {
   const capacity = machineFluidCapacity(instance.machineId)
   if (capacity < 1) return false
-  if (instance.process.steamStoredMs > 0) return false
+  if (instance.process.steamStoredMs > 0 && !isLiquidSteamBoilerMachine(instance.machineId)) return false
   const storedTypes = storedFluidTypes(instance.process)
   return storedTypes.length < 1 || storedTypes.every((id) => id === fluidId)
 }
@@ -1137,6 +1175,11 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
   const queue = [{ instance: start, cableDistance: 0 }]
   const network: Array<{ instance: MachineInstance; cableDistance: number }> = []
 
+  const isEuMultiblockBridge = (instance: MachineInstance) => {
+    const controller = multiblockCenterForInstance(state, instance)
+    return Boolean(controller && isEuNetworkMachine(controller.spec.controller))
+  }
+
   while (queue.length > 0) {
     const current = queue.shift()!
     const previousDistance = visited.get(current.instance.uid)
@@ -1144,11 +1187,11 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
     visited.set(current.instance.uid, current.cableDistance)
     network.push(current)
 
-    if (current.instance.uid !== start.uid && !isEuCableMachine(current.instance.machineId)) continue
+    if (current.instance.uid !== start.uid && !isEuCableMachine(current.instance.machineId) && !isEuMultiblockBridge(current.instance)) continue
 
     for (const position of adjacentPositions(state, current.instance.x, current.instance.y)) {
       const next = machineAt(state, position.x, position.y)
-      if (!next || !isEuNetworkMachine(next.machineId)) continue
+      if (!next || (!isEuNetworkMachine(next.machineId) && !isEuMultiblockBridge(next))) continue
       if (!machinesCanConnect(current.instance, next)) continue
       const nextDistance = current.cableDistance + (isEuCableMachine(next.machineId) ? 1 : 0)
       const knownDistance = visited.get(next.uid)
@@ -1165,6 +1208,16 @@ function connectedEuProducers(state: GameState, start: MachineInstance) {
   return connectedEuNetworkWithDistance(state, start)
     .filter((entry) => entry.instance.uid !== start.uid && isEuProducerMachine(entry.instance.machineId))
     .sort((a, b) => a.cableDistance - b.cableDistance || a.instance.uid.localeCompare(b.instance.uid))
+}
+
+function connectedEuSources(state: GameState, start: MachineInstance) {
+  return connectedEuNetworkWithDistance(state, start)
+    .filter((entry) => entry.instance.uid !== start.uid && (isEuProducerMachine(entry.instance.machineId) || isEuStorageMachine(entry.instance.machineId)))
+    .sort((a, b) => {
+      const aStorage = isEuStorageMachine(a.instance.machineId) ? 0 : 1
+      const bStorage = isEuStorageMachine(b.instance.machineId) ? 0 : 1
+      return aStorage - bStorage || a.cableDistance - b.cableDistance || a.instance.uid.localeCompare(b.instance.uid)
+    })
 }
 
 function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance) {
@@ -1191,7 +1244,13 @@ export function availableConnectedSteam(state: GameState, instance: MachineInsta
 }
 
 export function availableConnectedEu(state: GameState, instance: MachineInstance) {
-  return connectedEuProducers(state, instance).reduce((sum, producer) => sum + producer.instance.process.euStored, 0)
+  return connectedEuSources(state, instance).reduce((sum, source) => sum + source.instance.process.euStored, 0)
+}
+
+export function availableConnectedEuStorage(state: GameState, instance: MachineInstance) {
+  return connectedEuNetworkWithDistance(state, instance)
+    .filter((entry) => entry.instance.uid !== instance.uid && isEuStorageMachine(entry.instance.machineId))
+    .reduce((sum, storage) => sum + storage.instance.process.euStored, 0)
 }
 
 export function isAutoMinerPowered(state: GameState, instance: MachineInstance) {
@@ -1202,6 +1261,12 @@ export function isAutoMinerPowered(state: GameState, instance: MachineInstance) 
 
 function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId: FluidId) {
   return connectedFluidNetwork(state, start).filter((instance) => instance.uid !== start.uid && canStoreFluid(instance, fluidId))
+}
+
+function connectedFluidSources(state: GameState, start: MachineInstance, fluidId: FluidId) {
+  return connectedFluidNetwork(state, start)
+    .filter((instance) => instance.uid !== start.uid && (instance.process.fluids[fluidId] ?? 0) > 0)
+    .sort((a, b) => a.uid.localeCompare(b.uid))
 }
 
 function connectedFluidTransferRateLitres(state: GameState, start: MachineInstance) {
@@ -1279,13 +1344,44 @@ function recipeEuCost(recipe: ProcessRecipe) {
   return recipe.euCost ?? Math.ceil(recipe.durationMs / 1000) * 8
 }
 
-function consumeConnectedEu(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
+function euSourceOutputPerSecond(machineId: MachineId) {
+  if (isEuStorageMachine(machineId)) return lvBatteryBufferOutputEuPerSecond
+  return machineEuOutputPerSecond(machineId)
+}
+
+function consumeConnectedEuFromProducers(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
   let remaining = amount
   let deliveredTotal = 0
 
   for (const producer of connectedEuProducers(state, instance)) {
     if (remaining <= 0) break
     const outputPerSecond = machineEuOutputPerSecond(producer.instance.machineId)
+    const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile
+    const deliverablePerSecond = Math.max(0, outputPerSecond - lossPerSecond)
+    const transferLimit = (deliverablePerSecond * elapsedMs) / 1000
+    if (transferLimit <= 0) continue
+
+    const routeLoss = (lossPerSecond * elapsedMs) / 1000
+    const stored = producer.instance.process.euStored
+    const availableAfterLoss = Math.max(0, stored - routeLoss)
+    const delivered = Math.min(remaining, transferLimit, availableAfterLoss)
+    if (delivered <= 0) continue
+
+    producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
+    remaining -= delivered
+    deliveredTotal += delivered
+  }
+
+  return deliveredTotal
+}
+
+function consumeConnectedEu(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
+  let remaining = amount
+  let deliveredTotal = 0
+
+  for (const producer of connectedEuSources(state, instance)) {
+    if (remaining <= 0) break
+    const outputPerSecond = euSourceOutputPerSecond(producer.instance.machineId)
     const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile
     const deliverablePerSecond = Math.max(0, outputPerSecond - lossPerSecond)
     const transferLimit = (deliverablePerSecond * elapsedMs) / 1000
@@ -1348,9 +1444,24 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
     process: emptyProcessState(),
   }
   next.machineInstances.push(placed)
-  tryFormBrickedBlastFurnaceMultiblock(next, placed)
+  tryFormMultiblock(next, placed)
   next.lastSavedAt = Date.now()
   return next
+}
+
+function pullFluidFromConnectedSources(state: GameState, instance: MachineInstance, fluidId: FluidId, amount: number) {
+  let remaining = Math.max(0, Math.floor(amount))
+  let moved = 0
+  for (const source of connectedFluidSources(state, instance, fluidId)) {
+    if (remaining < 1) break
+    const stored = source.process.fluids[fluidId] ?? 0
+    const transfer = Math.min(remaining, stored)
+    if (transfer < 1) continue
+    source.process.fluids[fluidId] = stored - transfer
+    remaining -= transfer
+    moved += transfer
+  }
+  return moved
 }
 
 export function assignAutoMiner(state: GameState, uid: string, targetId: GatherTargetId) {
@@ -1406,21 +1517,18 @@ export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
 
-  const multiblockCenter =
-    instance.machineId === 'brickedBlastFurnace' || instance.machineId === 'brickedBlastFurnacePart'
-      ? brickedBlastFurnaceCenterForInstance(state, instance)
-      : null
+  const multiblockCenter = multiblockCenterForInstance(state, instance)
   if (multiblockCenter) {
     let next = cloneState(state)
-    const positions = brickedBlastFurnacePositions(state, multiblockCenter.x, multiblockCenter.y)
+    const positions = multiblockPositions(state, multiblockCenter.x, multiblockCenter.y, multiblockCenter.spec)
     const positionKeys = new Set(positions.map((position) => `${position.x},${position.y}`))
     const controller = machineAt(next, multiblockCenter.x, multiblockCenter.y)
     const returned = [controller?.process.input, controller?.process.secondaryInput, controller?.process.fuel, controller?.process.output].filter(
       (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
     )
     next.machineInstances = next.machineInstances.filter((candidate) => !positionKeys.has(`${candidate.x},${candidate.y}`))
-    next.machines.brickedBlastFurnace = Math.max(0, next.machines.brickedBlastFurnace - 1)
-    next.machines.brickedBlastFurnacePart += 1
+    next.machines[multiblockCenter.spec.controller] = Math.max(0, next.machines[multiblockCenter.spec.controller] - 1)
+    next.machines[multiblockCenter.spec.part] += 1
     next.lastSavedAt = Date.now()
     if (returned.length > 0) next = addResources(next, returned)
     return next
@@ -1699,6 +1807,58 @@ function tickSteamTurbine(state: GameState, instance: MachineInstance, elapsedMs
   process.durationMs = 0
 }
 
+function tickEuStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.euCapacity = machineEuCapacity(instance.machineId)
+  process.euStored = Math.min(process.euStored, process.euCapacity)
+  const needed = process.euCapacity - process.euStored
+  if (needed <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+
+  const moved = consumeConnectedEuFromProducers(state, instance, needed, elapsedMs)
+  process.euStored += moved
+  process.activeRecipeId = moved > 0 ? 'store_lv_eu' : null
+  process.progressMs = 0
+  process.durationMs = 0
+}
+
+function tickLiquidSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.steamCapacityMs = liquidSteamBoilerCapacityMs
+  process.steamStoredMs = Math.min(process.steamStoredMs, liquidSteamBoilerCapacityMs)
+  process.fluidCapacityLitres = liquidSteamBoilerFluidCapacityLitres
+  process.fluids.creosote = Math.min(process.fluids.creosote ?? 0, liquidSteamBoilerFluidCapacityLitres)
+
+  const freeFluid = liquidSteamBoilerFluidCapacityLitres - (process.fluids.creosote ?? 0)
+  if (freeFluid > 0) {
+    process.fluids.creosote = (process.fluids.creosote ?? 0) + pullFluidFromConnectedSources(state, instance, 'creosote', freeFluid)
+  }
+
+  const freeSteamMs = liquidSteamBoilerCapacityMs - process.steamStoredMs
+  const storedCreosote = process.fluids.creosote ?? 0
+  if (freeSteamMs < 1 || storedCreosote <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+
+  const maxSteamByRate = liquidSteamBoilerSteamProductionLitresPerSecond * steamMsPerLitre * (elapsedMs / 1000)
+  const maxSteamByFuel = (storedCreosote / liquidSteamBoilerCreosoteUseLitresPerSecond) * liquidSteamBoilerSteamProductionLitresPerSecond * steamMsPerLitre
+  const producedSteam = Math.min(freeSteamMs, maxSteamByRate, maxSteamByFuel)
+  if (producedSteam < 1) {
+    process.activeRecipeId = null
+    return
+  }
+
+  const consumedCreosote = producedSteam / steamMsPerLitre / liquidSteamBoilerSteamProductionLitresPerSecond * liquidSteamBoilerCreosoteUseLitresPerSecond
+  process.fluids.creosote = Math.max(0, storedCreosote - consumedCreosote)
+  process.steamStoredMs += producedSteam
+  process.activeRecipeId = 'burn_creosote_steam'
+  process.progressMs = 0
+  process.durationMs = 0
+}
+
 function tickEuProcessMachine(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const process = instance.process
   process.euCapacity = machineEuCapacity(instance.machineId)
@@ -1721,6 +1881,23 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
     if (process.euStored <= 0) {
       process.activeRecipeId = null
       break
+    }
+
+    if (isEuBlastMachine(instance.machineId) && process.progressMs === 0) {
+      const minimumEuStored = recipe.minimumEuStored ?? 0
+      if (minimumEuStored > 0 && process.euStored + availableConnectedEuStorage(state, instance) < minimumEuStored) {
+        process.activeRecipeId = null
+        break
+      }
+      const startupEu = recipe.startupEu ?? 0
+      if (startupEu > 0) {
+        fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+        if (process.euStored < startupEu) {
+          process.activeRecipeId = null
+          break
+        }
+        process.euStored -= startupEu
+      }
     }
 
     process.activeRecipeId = recipe.id
@@ -1899,6 +2076,10 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       instance.process.euCapacity = steamTurbineEuCapacity
       instance.process.euStored = Math.min(instance.process.euStored, steamTurbineEuCapacity)
     }
+    if (isEuStorageMachine(instance.machineId)) {
+      instance.process.euCapacity = machineEuCapacity(instance.machineId)
+      instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
+    }
     if (isEuCableMachine(instance.machineId)) {
       instance.process.euCapacity = 0
       instance.process.euStored = 0
@@ -1908,6 +2089,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
     }
     if (instance.machineId === 'cokeOven') tickCokeOven(next, instance, elapsedMs)
+    if (isLiquidSteamBoilerMachine(instance.machineId)) tickLiquidSteamBoiler(next, instance, elapsedMs)
     if (instance.machineId === 'brickedBlastFurnace') tickBrickedBlastFurnace(instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
@@ -1918,6 +2100,9 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
   }
   for (const instance of next.machineInstances) {
     if (isEuProducerMachine(instance.machineId)) tickSteamTurbine(next, instance, elapsedMs)
+  }
+  for (const instance of next.machineInstances) {
+    if (isEuStorageMachine(instance.machineId)) tickEuStorage(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
     if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
@@ -2227,6 +2412,12 @@ function migrateMachineInstances(machinesState: Record<MachineId, number>, found
     if (unplacedLegacyBlastFurnaces > 0) {
       machinesState.brickedBlastFurnace -= unplacedLegacyBlastFurnaces
       machinesState.brickedBlastFurnacePart += unplacedLegacyBlastFurnaces * 4
+    }
+    const placedArcBlastFurnaces = instances.filter((instance) => instance.machineId === 'arcBlastFurnace').length
+    const unplacedLegacyArcBlastFurnaces = Math.max(0, machinesState.arcBlastFurnace - placedArcBlastFurnaces)
+    if (unplacedLegacyArcBlastFurnaces > 0) {
+      machinesState.arcBlastFurnace -= unplacedLegacyArcBlastFurnaces
+      machinesState.arcBlastFurnacePart += unplacedLegacyArcBlastFurnaces * 9
     }
     return instances
   }
