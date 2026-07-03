@@ -376,6 +376,7 @@ Export-Sheet -SheetSpec @{ File = 'tool-icons-v2.png'; Cols = 5; Rows = 4; Ids =
 Export-Sheet -SheetSpec $machineSheet -OutputDir $machineOut
 
 Copy-Item -LiteralPath (Join-Path $resourceOut 'copperWire.png') -Destination (Join-Path $resourceOut 'conductiveWire.png') -Force
+Copy-Item -LiteralPath (Join-Path $resourceOut 'tinCable.png') -Destination (Join-Path $machineOut 'tinCable.png') -Force
 Copy-Item -LiteralPath (Join-Path $reviewDir 'factory-floor.png') -Destination (Join-Path $outRoot 'factory-floor-concept.png') -Force
 
 Write-Output "Extracted resource icons: $((Get-ChildItem $resourceOut -Filter *.png).Count)"

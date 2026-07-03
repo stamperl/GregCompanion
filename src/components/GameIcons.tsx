@@ -66,6 +66,16 @@ function pipePath(connections?: PipeConnections) {
   ].filter(Boolean).join(' ')
 }
 
+function pipeCapPoints(connections?: PipeConnections) {
+  const pipeConnections = connections ?? { up: false, right: true, down: false, left: true }
+  return [
+    pipeConnections.up ? { x: 20, y: 0 } : null,
+    pipeConnections.right ? { x: 40, y: 20 } : null,
+    pipeConnections.down ? { x: 20, y: 40 } : null,
+    pipeConnections.left ? { x: 0, y: 20 } : null,
+  ].filter((point): point is { x: number; y: number } => Boolean(point))
+}
+
 export function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
   const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id)
   const className = [
@@ -77,12 +87,19 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
   ].filter(Boolean).join(' ')
   if (isConnector && pipeConnections) {
     const path = pipePath(pipeConnections)
+    const capPoints = pipeCapPoints(pipeConnections)
     return (
       <span className={className} aria-hidden="true">
         <svg className="pipe-svg" viewBox="0 0 40 40" focusable="false">
+          <path className="pipe-shadow" d={path} />
           <path className="pipe-outline" d={path} />
           <path className="pipe-body" d={path} />
+          <path className="pipe-core" d={path} />
           <path className="pipe-highlight" d={path} />
+          <circle className="pipe-coupling" cx="20" cy="20" r="7" />
+          {capPoints.map((point) => (
+            <circle className="pipe-cap" cx={point.x} cy={point.y} r="7" key={`${point.x}-${point.y}`} />
+          ))}
         </svg>
       </span>
     )
