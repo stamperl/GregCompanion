@@ -32,6 +32,7 @@ import {
   insertProcessSlot,
   isAutoMinerPowered,
   loadGame,
+  loadGameWithOfflineProgress,
   makeGridForRecipe,
   maxDurability,
   missingForQuantity,
@@ -46,12 +47,14 @@ import {
   removeMachineInstance,
   removeProcessSlot,
   searchTerminalRecipes,
+  simulateOfflineProgress,
   setPipeSideDisabled,
   steamMaceratorCapacityMs,
   steamTankCapacityMs,
   steamTurbineEuCapacity,
   terminalAvailableAmount,
   tickGame,
+  offlineProgressCapMs,
   unequipSlot,
   unassignAutoMiner,
   visibleQuests,
@@ -314,6 +317,53 @@ describe('game engine', () => {
 
     state = claimQuestReward(state, 'punchTree')
     expect(state.claimedQuests).toContain('punchTree')
+  })
+
+  it('loads old saves without offline reward when no saved timestamp exists', () => {
+    const result = loadGameWithOfflineProgress(JSON.stringify({ resources: { log: 1 } }), 60_000)
+
+    expect(result.offline).toMatchObject({
+      applied: false,
+      reason: 'missing-save-time',
+      resourceDelta: [],
+    })
+    expect(result.state.resources.log).toBe(1)
+    expect(result.state.lastSavedAt).toBe(60_000)
+  })
+
+  it('rejects suspicious offline clock changes', () => {
+    const state = createFactoryState(10_000)
+
+    expect(simulateOfflineProgress(state, -301_000, 20_000).offline).toMatchObject({
+      applied: false,
+      suspicious: true,
+      reason: 'negative-clock',
+    })
+    expect(simulateOfflineProgress(state, 73 * 60 * 60 * 1000, 20_000).offline).toMatchObject({
+      applied: false,
+      suspicious: true,
+      reason: 'clock-jump',
+    })
+  })
+
+  it('caps offline simulation at eight hours', () => {
+    const state = createFactoryState(1000)
+    const result = simulateOfflineProgress(state, 24 * 60 * 60 * 1000, 1000 + 24 * 60 * 60 * 1000)
+
+    expect(result.offline.applied).toBe(true)
+    expect(result.offline.capped).toBe(true)
+    expect(result.offline.simulatedMs).toBe(offlineProgressCapMs)
+    expect(result.state.lastSavedAt).toBe(1000 + 24 * 60 * 60 * 1000)
+  })
+
+  it('auto-completes quests after offline progress', () => {
+    const state = createFactoryState(1000)
+    state.resources.log = 1
+
+    const result = simulateOfflineProgress(state, 60_000, 61_000)
+
+    expect(result.offline.questCompletions).toEqual(['punchTree'])
+    expect(result.state.completedQuests).toContain('punchTree')
   })
 
   it('shows locked quest book branches and tracks objective progress', () => {
@@ -1212,6 +1262,25 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
   })
 
+  it('continues furnace processing during offline progress and respects full outputs', () => {
+    let state = createFactoryState(1000)
+    state.machines.furnace = 1
+    state.resources.log = 2
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    const furnace = state.machineInstances[0]
+    state = insertProcessSlot(state, furnace.uid, 'input', 'log', 1)
+    state = insertProcessSlot(state, furnace.uid, 'fuel', 'log', 1)
+
+    let offline = simulateOfflineProgress(state, 10_000, 11_000).state
+
+    expect(offline.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
+
+    offline.machineInstances[0].process.output = { id: 'charcoal', amount: processStackLimit }
+    offline = simulateOfflineProgress(offline, 60_000, 71_000).state
+
+    expect(offline.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: processStackLimit })
+  })
+
   it('keeps lit furnace fuel burning even after the recipe becomes invalid', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1
@@ -1577,6 +1646,23 @@ describe('game engine', () => {
     expect(boilerProcess.steamStoredMs).toBe(32000)
   })
 
+  it('continues steam machine processing during offline progress', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.steamMacerator = 1
+    state.resources.copperOre = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.process.steamStoredMs = steamTankCapacityMs
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    state = insertProcessSlot(state, macerator.uid, 'input', 'copperOre', 1)
+
+    const offline = simulateOfflineProgress(state, 80_000, 81_000).state
+    const nextMacerator = offline.machineInstances.find((instance) => instance.uid === macerator.uid)!
+
+    expect(nextMacerator.process.output).toEqual({ id: 'crushedCopperOre', amount: 2 })
+  })
+
   it('fills an iron steam tank from a connected boiler through copper pipes at pipe speed', () => {
     let state = createFactoryState(1000)
     state.machines.well = 1
@@ -1938,6 +2024,20 @@ describe('game engine', () => {
     expect(turbine.process.euCapacity).toBe(steamTurbineEuCapacity)
   })
 
+  it('continues steam turbine EU generation during offline progress', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamBoiler = 1
+    state.machines.steamTurbine = 1
+    state = placeMachineInstance(state, 'steamBoiler', 0, 0)
+    state = placeMachineInstance(state, 'steamTurbine', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!.process.steamStoredMs = 128000
+
+    const offline = simulateOfflineProgress(state, 10_000, 11_000).state
+    const turbine = offline.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+
+    expect(turbine.process.euStored).toBe(160)
+  })
+
   it('does not run an LV Wiremill without connected EU', () => {
     let state = createFactoryState(1000)
     state.machines.lvWiremill = 1
@@ -2056,6 +2156,22 @@ describe('game engine', () => {
     expect(state.resources.cobblestone).toBe(5)
     expect(state.gatherProgress.stone).toBeGreaterThan(0)
     expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.steamStoredMs ?? 0).toBeLessThan(32000)
+  })
+
+  it('runs powered auto miners during offline progress', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.steamAutoMiner = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamAutoMiner', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.process.steamStoredMs = steamTankCapacityMs
+    const miner = state.machineInstances.find((instance) => instance.machineId === 'steamAutoMiner')!
+    state = assignAutoMiner(state, miner.uid, 'stone')
+
+    const result = simulateOfflineProgress(state, 70_000, 71_000)
+
+    expect(result.state.resources.cobblestone).toBe(5)
+    expect(result.offline.resourceDelta).toContainEqual({ id: 'cobblestone', amount: 5 })
   })
 
   it('does not deal auto miner damage before the action lands', () => {

@@ -57,6 +57,7 @@ import type {
   Recipe,
   ResourceAmount,
   ResourceId,
+  OfflineProgressResult,
   TickResult,
 } from './types'
 
@@ -99,6 +100,10 @@ export const factoryFoundationCosts: Record<number, ResourceAmount[]> = {
   ],
 }
 export const processStackLimit = 64
+export const offlineProgressCapMs = 8 * 60 * 60 * 1000
+export const suspiciousOfflineJumpMs = 72 * 60 * 60 * 1000
+export const negativeClockToleranceMs = 5 * 60 * 1000
+export const offlineSimulationChunkMs = 60 * 1000
 export const steamMsPerLitre = 1000
 export const boilerSteamCapacityMs = machineSteamCapacityLitres('steamBoiler') * steamMsPerLitre
 export const steamMaceratorCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
@@ -1880,7 +1885,7 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
   instance.process.activeRecipeId = completedAction || (instance.process.progressMs > 0 && isAutoMinerPowered(state, instance)) ? `auto_mine_${targetId}` : null
 }
 
-export function tickMachineInstances(state: GameState, elapsedMs: number) {
+export function tickMachineInstances(state: GameState, elapsedMs: number, now = Date.now()) {
   const next = cloneState(state)
   for (const instance of next.machineInstances) {
     if (instance.machineId === 'furnace') tickFurnaceProcess(instance, elapsedMs)
@@ -1920,11 +1925,11 @@ export function tickMachineInstances(state: GameState, elapsedMs: number) {
   for (const instance of next.machineInstances) {
     if (isAutoMinerMachine(instance.machineId)) tickAutoMiner(next, instance, elapsedMs)
   }
-  next.lastSavedAt = Date.now()
+  next.lastSavedAt = now
   return next
 }
 
-export function tickGame(state: GameState, elapsedMs: number): TickResult {
+export function tickGame(state: GameState, elapsedMs: number, now = Date.now()): TickResult {
   let next = cloneState(state)
   const machineOutputs: ResourceAmount[] = []
 
@@ -1953,14 +1958,86 @@ export function tickGame(state: GameState, elapsedMs: number): TickResult {
     machineOutputs.push(...produced)
   }
 
-  next = tickMachineInstances(next, elapsedMs)
+  next = tickMachineInstances(next, elapsedMs, now)
   const questSync = autoCompleteQuests(next)
   next = questSync.state
-  next.lastSavedAt = Date.now()
+  next.lastSavedAt = now
   return {
     state: next,
     machineOutputs: combineResourceAmounts(machineOutputs),
     questCompletions: questSync.completedQuestIds,
+  }
+}
+
+function emptyOfflineProgress(reason: OfflineProgressResult['reason'], elapsedMs = 0, suspicious = false): OfflineProgressResult {
+  return {
+    applied: false,
+    elapsedMs,
+    simulatedMs: 0,
+    capped: false,
+    suspicious,
+    reason,
+    resourceDelta: [],
+    questCompletions: [],
+  }
+}
+
+function resourceDelta(before: GameState, after: GameState) {
+  return (Object.keys(after.resources) as ResourceId[])
+    .map((id) => ({ id, amount: after.resources[id] - before.resources[id] }))
+    .filter((amount) => amount.amount > 0)
+}
+
+function savedLastSavedAt(raw: string | null) {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<GameState>
+    return typeof parsed.lastSavedAt === 'number' && Number.isFinite(parsed.lastSavedAt) ? parsed.lastSavedAt : null
+  } catch {
+    return null
+  }
+}
+
+export function simulateOfflineProgress(state: GameState, elapsedMs: number, now = Date.now()): { state: GameState; offline: OfflineProgressResult } {
+  if (elapsedMs < -negativeClockToleranceMs) {
+    return { state: { ...state, lastSavedAt: now }, offline: emptyOfflineProgress('negative-clock', elapsedMs, true) }
+  }
+  if (elapsedMs <= 0) {
+    return { state: { ...state, lastSavedAt: now }, offline: emptyOfflineProgress('no-elapsed-time', elapsedMs) }
+  }
+  if (elapsedMs > suspiciousOfflineJumpMs) {
+    return { state: { ...state, lastSavedAt: now }, offline: emptyOfflineProgress('clock-jump', elapsedMs, true) }
+  }
+
+  const simulatedMs = Math.min(elapsedMs, offlineProgressCapMs)
+  const before = cloneState(state)
+  let next = cloneState(state)
+  let remainingMs = simulatedMs
+  const completedQuestIds = new Set<QuestId>()
+  let simulatedAt = Math.max(now - simulatedMs, state.lastSavedAt)
+
+  while (remainingMs > 0) {
+    const chunkMs = Math.min(remainingMs, offlineSimulationChunkMs)
+    simulatedAt += chunkMs
+    const result = tickGame(next, chunkMs, simulatedAt)
+    next = result.state
+    for (const questId of result.questCompletions) completedQuestIds.add(questId)
+    remainingMs -= chunkMs
+  }
+
+  next.lastSavedAt = now
+  return {
+    state: next,
+    offline: {
+      applied: simulatedMs > 0,
+      elapsedMs,
+      simulatedMs,
+      capped: elapsedMs > offlineProgressCapMs,
+      suspicious: false,
+      reason: 'applied',
+      resourceDelta: resourceDelta(before, next),
+      questCompletions: [...completedQuestIds],
+    },
   }
 }
 
@@ -2223,6 +2300,16 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
   }
 }
 
-export function saveGame(state: GameState) {
-  return JSON.stringify({ ...state, lastSavedAt: Date.now() })
+export function loadGameWithOfflineProgress(raw: string | null, now = Date.now()): { state: GameState; offline: OfflineProgressResult } {
+  const state = loadGame(raw, now)
+  if (!raw) return { state, offline: emptyOfflineProgress('new-save') }
+
+  const savedAt = savedLastSavedAt(raw)
+  if (savedAt === null) return { state, offline: emptyOfflineProgress('missing-save-time') }
+
+  return simulateOfflineProgress({ ...state, lastSavedAt: savedAt }, now - savedAt, now)
+}
+
+export function saveGame(state: GameState, now = Date.now()) {
+  return JSON.stringify({ ...state, lastSavedAt: now })
 }

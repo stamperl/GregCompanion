@@ -397,6 +397,19 @@ export type GameState = {
   lastSavedAt: number
 }
 
+export type OfflineProgressReason = 'new-save' | 'missing-save-time' | 'negative-clock' | 'clock-jump' | 'no-elapsed-time' | 'applied'
+
+export type OfflineProgressResult = {
+  applied: boolean
+  elapsedMs: number
+  simulatedMs: number
+  capped: boolean
+  suspicious: boolean
+  reason: OfflineProgressReason
+  resourceDelta: ResourceAmount[]
+  questCompletions: QuestId[]
+}
+
 export type ProcessSlotId = 'input' | 'secondaryInput' | 'fuel' | 'output'
 export type PipeDirection = 'north' | 'east' | 'south' | 'west'
 

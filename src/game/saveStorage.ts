@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
-import { loadGame, saveGame, saveKey } from './engine'
+import { loadGame, loadGameWithOfflineProgress, saveGame, saveKey } from './engine'
+import { localTimeProvider } from './time'
 import type { GameState } from './types'
 
 export type SaveSlotId = 'slot-1' | 'slot-2' | 'slot-3'
@@ -158,6 +159,10 @@ export async function loadSavedGame(slotId: SaveSlotId = defaultSaveSlotId, now 
   return loadGame(await readRawSave(slotId), now)
 }
 
+export async function loadSavedGameWithOfflineProgress(slotId: SaveSlotId = defaultSaveSlotId, now = localTimeProvider.now()) {
+  return loadGameWithOfflineProgress(await readRawSave(slotId), now)
+}
+
 export async function hasSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {
   return (await readRawSave(slotId)) !== null
 }
@@ -168,4 +173,22 @@ export async function persistGameState(state: GameState, slotId: SaveSlotId = de
 
 export async function clearSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {
   await clearRawSave(slotId)
+}
+
+function looksLikeGameSave(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as Partial<GameState>
+    return Boolean(parsed && typeof parsed === 'object' && (parsed.resources || parsed.machines || parsed.completedQuests || parsed.machineInstances))
+  } catch {
+    return false
+  }
+}
+
+export async function exportSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {
+  return readRawSave(slotId)
+}
+
+export async function importSavedGame(raw: string, slotId: SaveSlotId = defaultSaveSlotId, now = localTimeProvider.now()) {
+  if (!looksLikeGameSave(raw)) throw new Error('That file does not look like a Click Foundry save.')
+  await writeRawSave(saveGame(loadGame(raw, now), now), slotId)
 }

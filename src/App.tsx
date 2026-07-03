@@ -5,12 +5,14 @@ import {
   ChevronRight,
   Check,
   Database,
+  Download,
   Factory,
   Pickaxe,
   Save,
   Sparkles,
   Trash2,
   Undo2,
+  Upload,
   X,
 } from 'lucide-react'
 import {
@@ -75,6 +77,7 @@ import {
   isAutoMinerPowered,
   insertProcessSlot,
   loadGame,
+  simulateOfflineProgress,
   makeGridForRecipe,
   maxDurability,
   missingForQuantity,
@@ -116,8 +119,21 @@ import {
   durabilityRemaining,
   crowbarRemoveMachineInstance,
 } from './game/engine'
-import { defaultSaveSlotId, listSaveSlots, clearSavedGame, loadSavedGame, persistGameState, renameSaveSlot, type SaveSlotId, type SaveSlotSummary } from './game/saveStorage'
+import {
+  defaultSaveSlotId,
+  listSaveSlots,
+  clearSavedGame,
+  exportSavedGame,
+  importSavedGame,
+  loadSavedGame,
+  loadSavedGameWithOfflineProgress,
+  persistGameState,
+  renameSaveSlot,
+  type SaveSlotId,
+  type SaveSlotSummary,
+} from './game/saveStorage'
 import { deploymentInfo, hasNewerDeployment, reloadLatestDeployment } from './game/deployment'
+import { localTimeProvider } from './game/time'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
@@ -136,6 +152,7 @@ import type {
   GameState,
   MachineId,
   MachineInstance,
+  OfflineProgressResult,
   PipeDirection,
   ProcessSlot,
   ProcessSlotId,
@@ -261,6 +278,40 @@ function isCenteredCraftSlotHit(element: HTMLElement, clientX: number, clientY: 
 
 function saveSlotsFallbackLabel(slotId: SaveSlotId) {
   return `Save ${slotId.replace('slot-', '')}`
+}
+
+function formatOfflineDuration(ms: number) {
+  const totalMinutes = Math.max(0, Math.floor(ms / 60_000))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`
+  if (hours > 0) return `${hours}h`
+  return `${Math.max(1, minutes)}m`
+}
+
+function offlineProgressNotice(offline: OfflineProgressResult) {
+  if (offline.reason === 'new-save' || offline.reason === 'no-elapsed-time') return ''
+  if (offline.reason === 'missing-save-time') return 'Offline progress will start from now for this older save.'
+  if (offline.suspicious) return 'Offline progress skipped because the device clock changed unexpectedly.'
+  if (!offline.applied || offline.simulatedMs < 60_000) return ''
+
+  const resourceLine = offline.resourceDelta
+    .slice()
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3)
+    .map((amount) => `+${formatAmount(amount.amount)} ${resourceLabels[amount.id]}`)
+    .join(', ')
+  const questLine = offline.questCompletions
+    .map((questId) => questDefinitions.find((quest) => quest.id === questId)?.title)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(', ')
+  const parts = [
+    `Offline progress: ${formatOfflineDuration(offline.simulatedMs)} simulated${offline.capped ? ' (capped)' : ''}.`,
+    resourceLine ? `Produced ${resourceLine}.` : '',
+    questLine ? `Quests completed: ${questLine}.` : '',
+  ].filter(Boolean)
+  return parts.join(' ')
 }
 
 function isMobileClientAllowed() {
@@ -953,6 +1004,7 @@ function App() {
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [terminalNotice, setTerminalNotice] = useState('')
+  const [offlineNotice, setOfflineNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(false)
@@ -978,6 +1030,12 @@ function App() {
   const floatTextIdRef = useRef(0)
   const achievementToastIdRef = useRef(0)
   const knownCompletedQuestsRef = useRef(new Set<QuestId>(state.completedQuests))
+  const stateRef = useRef(state)
+  const selectedSaveSlotIdRef = useRef(selectedSaveSlotId)
+  const hasLoadedSaveRef = useRef(hasLoadedSave)
+  const isCreativeModeRef = useRef(isCreativeMode)
+  const backgroundedAtRef = useRef<number | null>(null)
+  const importSaveInputRef = useRef<HTMLInputElement | null>(null)
   const gatherHighlightTimeoutRef = useRef<number | null>(null)
   const pointerDragRef = useRef<{ id: ResourceId; startX: number; startY: number; dragged: boolean } | null>(null)
   const factoryViewportRef = useRef<HTMLDivElement | null>(null)
@@ -1011,6 +1069,64 @@ function App() {
     void persistGameState(pending.state, pending.slotId).then(refreshSaveSlots)
   }
 
+  const applyOfflineNotice = (offline: OfflineProgressResult) => {
+    const notice = offlineProgressNotice(offline)
+    if (notice) setOfflineNotice(notice)
+  }
+
+  const loadSlotIntoGame = async (slotId: SaveSlotId, applyOffline = true) => {
+    const now = localTimeProvider.now()
+    if (!applyOffline) {
+      const loadedState = await loadSavedGame(slotId, now)
+      stateRef.current = loadedState
+      setState(loadedState)
+      knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
+      return loadedState
+    }
+
+    const { state: loadedState, offline } = await loadSavedGameWithOfflineProgress(slotId, now)
+    stateRef.current = loadedState
+    setState(loadedState)
+    knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
+    applyOfflineNotice(offline)
+    if (offline.reason !== 'new-save' && (offline.applied || offline.suspicious || offline.reason === 'missing-save-time')) {
+      await persistGameState(loadedState, slotId)
+      await refreshSaveSlots()
+    }
+    return loadedState
+  }
+
+  const applyOfflineToCurrentState = () => {
+    if (!hasLoadedSaveRef.current || isCreativeModeRef.current) return
+    const now = localTimeProvider.now()
+    const elapsedMs = now - stateRef.current.lastSavedAt
+    if (elapsedMs < 60_000) return
+
+    const { state: nextState, offline } = simulateOfflineProgress(stateRef.current, elapsedMs, now)
+    if (!offline.applied && !offline.suspicious) return
+
+    setState(nextState)
+    stateRef.current = nextState
+    applyOfflineNotice(offline)
+    void persistGameState(nextState, selectedSaveSlotIdRef.current).then(refreshSaveSlots)
+  }
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
+  useEffect(() => {
+    selectedSaveSlotIdRef.current = selectedSaveSlotId
+  }, [selectedSaveSlotId])
+
+  useEffect(() => {
+    hasLoadedSaveRef.current = hasLoadedSave
+  }, [hasLoadedSave])
+
+  useEffect(() => {
+    isCreativeModeRef.current = isCreativeMode
+  }, [isCreativeMode])
+
   useEffect(() => {
     void preloadGeneratedIconImages()
   }, [])
@@ -1034,12 +1150,11 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
-    void Promise.all([loadSavedGame(defaultSaveSlotId), listSaveSlots()])
-      .then(([loadedState, slots]) => {
+    void loadSlotIntoGame(defaultSaveSlotId)
+      .then(() => listSaveSlots())
+      .then((slots) => {
         if (cancelled) return
-        setState(loadedState)
         setSaveSlotSummaries(slots)
-        knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
         setHasLoadedSave(true)
       })
       .catch(() => {
@@ -1112,7 +1227,15 @@ function App() {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flushPendingSave()
+      if (document.visibilityState === 'hidden') {
+        backgroundedAtRef.current = localTimeProvider.now()
+        flushPendingSave()
+        return
+      }
+      if (document.visibilityState === 'visible' && backgroundedAtRef.current !== null) {
+        backgroundedAtRef.current = null
+        applyOfflineToCurrentState()
+      }
     }
     window.addEventListener('pagehide', flushPendingSave)
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -1951,6 +2074,7 @@ function App() {
     setState(freshState)
     knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
     handleClearGrid()
+    setOfflineNotice('')
     setTerminalNotice('')
     setTerminalSearch('')
     setRecipeSearch('')
@@ -1982,7 +2106,7 @@ function App() {
       setIsCreativeMode(true)
       setState((currentState) => createCreativeState(currentState))
     } else {
-      const savedState = await loadSavedGame(selectedSaveSlotId)
+      const savedState = await loadSlotIntoGame(selectedSaveSlotId, false)
       setState(savedState)
       knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
       setIsCreativeMode(false)
@@ -1991,7 +2115,7 @@ function App() {
   }
 
   const handleContinueFromHome = async () => {
-    const savedState = await loadSavedGame(selectedSaveSlotId)
+    const savedState = await loadSlotIntoGame(selectedSaveSlotId)
     setState(savedState)
     knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
     setIsCreativeMode(false)
@@ -2013,6 +2137,38 @@ function App() {
     await persistGameState(state, selectedSaveSlotId)
     await refreshSaveSlots()
     addFloatText('saved')
+  }
+
+  const handleExportSave = async () => {
+    const raw = await exportSavedGame(selectedSaveSlotId)
+    if (!raw) {
+      setOfflineNotice(`${selectedSaveLabel} has no save to export yet.`)
+      return
+    }
+    const blob = new Blob([raw], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${selectedSaveLabel.trim().replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '') || selectedSaveSlotId}.click-foundry-save.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    addFloatText('exported')
+  }
+
+  const handleImportSaveFile = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const raw = await file.text()
+      await importSavedGame(raw, selectedSaveSlotId)
+      await loadSlotIntoGame(selectedSaveSlotId, false)
+      await refreshSaveSlots()
+      setOfflineNotice(`Imported save into ${selectedSaveLabel}. Offline progress starts from now.`)
+      addFloatText('imported')
+    } catch (error) {
+      setOfflineNotice(error instanceof Error ? error.message : 'Could not import that save file.')
+    } finally {
+      if (importSaveInputRef.current) importSaveInputRef.current.value = ''
+    }
   }
 
   const handleGoHome = () => {
@@ -2257,6 +2413,15 @@ function App() {
         ))}
       </div>
 
+      {offlineNotice && (
+        <div className="offline-progress-notice" aria-live="polite">
+          <span>{offlineNotice}</span>
+          <button type="button" aria-label="Dismiss offline progress notice" onClick={() => setOfflineNotice('')}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {page === 'home' && (
         <section className="home-panel" aria-label="Click Foundry home">
           <div className="home-hero">
@@ -2317,6 +2482,25 @@ function App() {
             <button type="button" className="home-action danger" disabled={!hasLoadedSave} onClick={handleReset}>
               New Game In {selectedSaveLabel}
             </button>
+          </div>
+          <div className="home-save-tools">
+            <button type="button" className="home-action" disabled={!hasLoadedSave || !selectedSaveSlot?.exists} onClick={handleExportSave}>
+              <Download size={16} />
+              Export
+            </button>
+            <button type="button" className="home-action" disabled={!hasLoadedSave} onClick={() => importSaveInputRef.current?.click()}>
+              <Upload size={16} />
+              Import
+            </button>
+            <input
+              ref={importSaveInputRef}
+              type="file"
+              accept="application/json,.json,.click-foundry-save"
+              className="visually-hidden-file-input"
+              onChange={(event) => {
+                void handleImportSaveFile(event.target.files?.[0])
+              }}
+            />
           </div>
         </section>
       )}
