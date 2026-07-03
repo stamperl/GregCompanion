@@ -1043,7 +1043,7 @@ function App() {
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [terminalNotice, setTerminalNotice] = useState('')
-  const [factoryNotice, setFactoryNotice] = useState('')
+  const [, setFactoryNotice] = useState('')
   const [offlineNotice, setOfflineNotice] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
@@ -3210,8 +3210,6 @@ function App() {
               </div>
             )}
           </div>
-
-          {factoryNotice && <p className="recipe-notice">{factoryNotice}</p>}
 
           {!factoryFloorUnlocked ? (
             <div className="factory-foundation-panel">
