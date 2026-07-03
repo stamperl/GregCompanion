@@ -3162,6 +3162,7 @@ button.craft-output:disabled {
   align-items: center;
   display: grid;
   gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .processing-head h2 {
@@ -3170,6 +3171,41 @@ button.craft-output:disabled {
   font-size: 1rem;
   line-height: 1;
   margin: 0;
+}
+
+.factory-head-status {
+  align-items: center;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  color: var(--ink-strong);
+  display: grid;
+  gap: 2px 7px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 38px;
+  min-width: 116px;
+  padding: 3px 5px;
+}
+
+.factory-head-status span {
+  color: var(--muted-strong);
+  font: 950 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  grid-column: 1 / -1;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.factory-head-status strong {
+  color: var(--ink-strong);
+  font: 950 0.7rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.factory-head-status .factory-expand-button {
+  min-height: 22px;
+  padding: 1px 6px;
 }
 
 .place-machine-button {
@@ -7610,18 +7646,20 @@ button.recipe-jump-slot {
 
 .processing-shell .processing-panel {
   align-self: stretch;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   max-height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
-.processing-shell .factory-inventory-panel,
-.processing-shell .factory-expansion-row {
+.processing-shell .factory-inventory-panel {
+  flex: 0 0 auto;
   min-height: 0;
 }
 
 .processing-shell .factory-pan-viewport {
+  flex: 1 1 auto;
   height: auto;
   min-height: 0;
 }

@@ -3197,6 +3197,17 @@ function App() {
               <p className="eyebrow">Processing</p>
               <h2>Factory Floor</h2>
             </div>
+            {factoryFloorUnlocked && (
+              <div className="factory-head-status">
+                <span>Factory Floor</span>
+                <strong>{isFactoryMaxed ? `Max ${factoryGridSize.width}x${factoryGridSize.height}` : `${factoryGridSize.width}x${factoryGridSize.height}`}</strong>
+                {!isFactoryMaxed && (
+                  <button type="button" className="factory-expand-button" onClick={() => setIsFactoryExpandModalOpen(true)}>
+                    Expand
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {terminalNotice && <p className="recipe-notice">{terminalNotice}</p>}
@@ -3316,18 +3327,6 @@ function App() {
                   <span>Selected</span>
                   <strong>{selectedFactoryItemLabel}</strong>
                 </div>
-              </div>
-
-              <div className="factory-expansion-row">
-                <div>
-                  <span className="factory-tray-label">Factory Floor</span>
-                  <strong>{isFactoryMaxed ? `Max ${factoryGridSize.width}x${factoryGridSize.height}` : `${factoryGridSize.width}x${factoryGridSize.height}`}</strong>
-                </div>
-                {!isFactoryMaxed && (
-                  <button type="button" className="factory-expand-button" onClick={() => setIsFactoryExpandModalOpen(true)}>
-                    Expand
-                  </button>
-                )}
               </div>
 
               <div
