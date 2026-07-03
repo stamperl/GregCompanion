@@ -3273,7 +3273,7 @@ button.craft-output:disabled {
   align-content: start;
   display: grid;
   gap: 4px;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto;
   min-height: 96px;
   overflow: hidden;
 }
@@ -3283,11 +3283,15 @@ button.craft-output:disabled {
 }
 
 .factory-tool-storage {
-  min-height: 0;
+  min-height: 58px;
 }
 
 .factory-tool-storage.closed {
   display: none;
+}
+
+.factory-tool-storage.open {
+  overflow: visible;
 }
 
 .factory-tray-label {
@@ -3371,6 +3375,7 @@ button.craft-output:disabled {
   gap: 4px;
   grid-template-columns: repeat(auto-fill, 40px);
   min-width: 0;
+  overflow: visible;
 }
 
 .factory-tool-drawer-head {

@@ -1424,6 +1424,16 @@ function App() {
   })
   const factoryTools = factoryToolOrder.filter((id) => availableResourceAmount(state, id) > 0)
   const factoryToolCount = factoryTools.reduce((total, id) => total + availableResourceAmount(state, id), 0)
+  const toggleFactoryToolbox = () => {
+    setIsFactoryToolboxOpen((current) => {
+      const next = !current
+      if (next) {
+        setPlacingMachineId(null)
+        setSelectedPipeConfigUid(null)
+      }
+      return next
+    })
+  }
   const selectedFactoryItemLabel = placingMachineId
     ? machines[placingMachineId].name
     : selectedFactoryTool
@@ -3228,7 +3238,7 @@ function App() {
                       aria-controls="factory-toolbox-drawer"
                       aria-expanded={isFactoryToolboxOpen}
                       title={isFactoryToolboxOpen ? 'Close toolbox' : 'Open toolbox'}
-                      onClick={() => setIsFactoryToolboxOpen((current) => !current)}
+                      onClick={toggleFactoryToolbox}
                     >
                       <Toolbox size={16} />
                       {factoryToolCount > 0 && <span>{formatAmount(factoryToolCount)}</span>}
@@ -3244,6 +3254,8 @@ function App() {
                           title={machines[id].name}
                           onClick={() => {
                             setSelectedFactoryTool(null)
+                            setSelectedPipeConfigUid(null)
+                            setIsFactoryToolboxOpen(false)
                             setPlacingMachineId((current) => (current === id ? null : id))
                           }}
                           key={id}
@@ -3284,6 +3296,7 @@ function App() {
                             setPlacingMachineId(null)
                             setSelectedMachineUid(null)
                             setSelectedPipeConfigUid(null)
+                            setIsFactoryToolboxOpen(true)
                             setSelectedFactoryTool((current) => (current === id ? null : id))
                           }}
                           key={id}
