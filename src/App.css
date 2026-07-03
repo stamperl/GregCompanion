@@ -7362,6 +7362,25 @@ button.craft-output:disabled {
   width: max-content;
 }
 
+.factory-layout-multiblock {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, 38px);
+  position: relative;
+  width: max-content;
+}
+
+.factory-layout-multiblock > .machine-glyph {
+  filter: drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.32));
+  height: 80px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: 80px;
+  z-index: 2;
+}
+
 .factory-layout-cell {
   align-items: center;
   background:
@@ -7375,6 +7394,10 @@ button.craft-output:disabled {
   justify-items: center;
   position: relative;
   width: 38px;
+}
+
+.factory-layout-multiblock .factory-layout-cell {
+  opacity: 0.42;
 }
 
 .factory-layout-cell.controller {
@@ -8253,22 +8276,26 @@ button.button-primary:disabled,
 }
 
 .factory-cell.occupied.multiblock-bbf-controller::before {
-  background:
-    radial-gradient(circle at 50% 78%, rgba(255, 196, 90, 0.95) 0 7%, rgba(143, 62, 37, 0.98) 8% 13%, transparent 14%),
-    linear-gradient(90deg, transparent 0 22%, rgba(36, 20, 17, 0.94) 22% 78%, transparent 78%),
-    repeating-linear-gradient(180deg, rgba(60, 48, 41, 0.36) 0 3px, transparent 3px 12px),
-    repeating-linear-gradient(90deg, rgba(60, 48, 41, 0.34) 0 3px, transparent 3px 14px),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 30%),
-    linear-gradient(180deg, #d4b28a 0 10%, #9f9387 10% 44%, #7f7369 44% 82%, #3c3029 82%);
-  border: 3px solid rgba(50, 40, 34, 0.86);
-  box-shadow:
-    inset 3px 3px 0 rgba(255, 255, 255, 0.26),
-    inset -4px -5px 0 rgba(0, 0, 0, 0.28),
-    5px 6px 0 rgba(0, 0, 0, 0.3);
+  display: none;
+}
+
+.factory-cell.occupied.multiblock-bbf-controller {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.factory-cell.occupied.multiblock-bbf-controller > .machine-glyph.machine-sprite-glyph {
+  display: block;
+  filter: drop-shadow(5px 6px 0 rgba(0, 0, 0, 0.34));
   height: 122px;
   left: -1px;
+  pointer-events: none;
+  position: absolute;
   top: -1px;
   width: 122px;
+  z-index: 6;
 }
 
 .processing-shell .factory-pan-viewport {

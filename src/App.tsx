@@ -425,37 +425,21 @@ function isFactoryFloorLayoutRecipe(recipe: Recipe) {
 
 function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
   if (!isFactoryFloorLayoutRecipe(recipe)) return null
-  if (recipe.id === 'build_arc_blast_furnace') {
-    return (
-      <div className="factory-layout-preview" aria-label={`${recipe.name} factory floor layout`}>
-        <div className="factory-layout-grid arc-layout-grid">
-          {Array.from({ length: 9 }, (_, index) => (
-            <span className={index === 4 ? 'factory-layout-cell controller' : 'factory-layout-cell'} key={index}>
-              <MachineGlyph id={index === 4 ? 'arcBlastFurnace' : 'arcBlastFurnacePart'} />
-            </span>
-          ))}
-        </div>
-        <p>Place 9 heat-proof casings as a 3x3 on the factory floor.</p>
-      </div>
-    )
-  }
+  const machineId = recipe.id === 'build_arc_blast_furnace' ? 'arcBlastFurnace' : 'brickedBlastFurnace'
+  const partId = recipe.id === 'build_arc_blast_furnace' ? 'arcBlastFurnacePart' : 'brickedBlastFurnacePart'
+  const label = recipe.id === 'build_arc_blast_furnace' ? 'heat-proof casings' : 'BBF Casings'
+
   return (
     <div className="factory-layout-preview" aria-label={`${recipe.name} factory floor layout`}>
-      <div className="factory-layout-grid">
-        <span className="factory-layout-cell controller">
-          <MachineGlyph id="brickedBlastFurnace" />
-        </span>
-        <span className="factory-layout-cell">
-          <MachineGlyph id="brickedBlastFurnacePart" />
-        </span>
-        <span className="factory-layout-cell">
-          <MachineGlyph id="brickedBlastFurnacePart" />
-        </span>
-        <span className="factory-layout-cell">
-          <MachineGlyph id="brickedBlastFurnacePart" />
-        </span>
+      <div className="factory-layout-multiblock">
+        <MachineGlyph id={machineId} />
+        {Array.from({ length: 4 }, (_, index) => (
+          <span className={index === 0 ? 'factory-layout-cell controller' : 'factory-layout-cell'} key={index}>
+            <MachineGlyph id={index === 0 ? machineId : partId} />
+          </span>
+        ))}
       </div>
-      <p>Place 4 BBF Casings as a 2x2 on the factory floor.</p>
+      <p>Place 4 {label} as a 2x2 on the factory floor.</p>
     </div>
   )
 }
@@ -1648,7 +1632,7 @@ function App() {
           return
         }
         if (instance.machineId === 'brickedBlastFurnacePart') setTerminalNotice('Place BBF casings in a full 2x2 to form the furnace.')
-        if (instance.machineId === 'arcBlastFurnacePart') setTerminalNotice('Place arc casings in a full 3x3 to form the furnace.')
+        if (instance.machineId === 'arcBlastFurnacePart') setTerminalNotice('Place arc casings in a full 2x2 to form the furnace.')
         return
       }
       setSelectedMachineUid(instance.uid)
@@ -3365,7 +3349,7 @@ function App() {
                           onClick={() => handleFactoryCellPress(x, y, instance)}
                           key={`${x}-${y}`}
                         >
-                          {instance && !isMultiblockCell ? (
+                          {instance && (!isMultiblockCell || isMultiblockController) ? (
                             <MachineGlyph id={instance.machineId} active={isMachineActive} pipeConnections={pipeConnectionsForInstance(instance)} />
                           ) : (
                             <span />

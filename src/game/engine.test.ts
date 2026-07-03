@@ -1415,9 +1415,9 @@ describe('game engine', () => {
     expect(state.machines.steamMacerator).toBe(1)
   })
 
-  it('uses filled 3x3 grids for machine crafts except the primitive furnace and BBF floor layout', () => {
+  it('uses filled 3x3 grids for machine crafts except primitive and factory-floor layout recipes', () => {
     const machineCrafts = recipes.filter((recipe) => recipe.machineOutputs?.length)
-    const exceptions = new Set(['build_furnace', 'build_bricked_blast_furnace'])
+    const exceptions = new Set(['build_furnace', 'build_bricked_blast_furnace', 'build_arc_blast_furnace'])
 
     for (const recipe of machineCrafts) {
       if (exceptions.has(recipe.id)) continue
@@ -1427,6 +1427,7 @@ describe('game engine', () => {
 
     expect(recipes.find((recipe) => recipe.id === 'build_furnace')?.pattern?.filter(Boolean)).toHaveLength(8)
     expect(recipes.find((recipe) => recipe.id === 'build_bricked_blast_furnace')?.recipeType).toBe('machine')
+    expect(recipes.find((recipe) => recipe.id === 'build_arc_blast_furnace')?.recipeType).toBe('machine')
   })
 
   it('crafts LV casing and hull before LV machines consume hulls', () => {
@@ -1515,20 +1516,20 @@ describe('game engine', () => {
     expect(durabilityRemaining(state, 'ironCrowbar')).toBe(127)
   })
 
-  it('forms and disassembles a centered Arc Blast Furnace 3x3 multiblock', () => {
+  it('forms and disassembles an Arc Blast Furnace 2x2 multiblock', () => {
     let state = createFactoryState(1000)
-    state.machines.arcBlastFurnacePart = 9
+    state.machines.arcBlastFurnacePart = 4
 
-    for (let y = 0; y < 3; y += 1) {
-      for (let x = 0; x < 3; x += 1) {
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) {
         state = placeMachineInstance(state, 'arcBlastFurnacePart', x, y)
       }
     }
 
-    expect(state.machineInstances).toHaveLength(9)
-    expect(state.machineInstances.find((instance) => instance.x === 1 && instance.y === 1)?.machineId).toBe('arcBlastFurnace')
-    expect(state.machineInstances.filter((instance) => instance.machineId === 'arcBlastFurnacePart')).toHaveLength(8)
-    expect(state.machines.arcBlastFurnacePart).toBe(8)
+    expect(state.machineInstances).toHaveLength(4)
+    expect(state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)?.machineId).toBe('arcBlastFurnace')
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'arcBlastFurnacePart')).toHaveLength(3)
+    expect(state.machines.arcBlastFurnacePart).toBe(3)
     expect(state.machines.arcBlastFurnace).toBe(1)
 
     state.resources.ironCrowbar = 1
@@ -1536,7 +1537,7 @@ describe('game engine', () => {
     state = crowbarRemoveMachineInstance(state, controller.uid)
 
     expect(state.machineInstances).toHaveLength(0)
-    expect(state.machines.arcBlastFurnacePart).toBe(9)
+    expect(state.machines.arcBlastFurnacePart).toBe(4)
     expect(state.machines.arcBlastFurnace).toBe(0)
   })
 
@@ -2178,15 +2179,15 @@ describe('game engine', () => {
 
   it('requires buffered EU before the Arc Blast Furnace starts aluminium', () => {
     let state = createFactoryState(1000)
-    state.machines.arcBlastFurnacePart = 9
+    state.machines.arcBlastFurnacePart = 4
     state.machines.lvBatteryBuffer = 1
     state.resources.aluminiumDust = 1
-    for (let y = 0; y < 3; y += 1) {
-      for (let x = 0; x < 3; x += 1) {
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) {
         state = placeMachineInstance(state, 'arcBlastFurnacePart', x, y)
       }
     }
-    state = placeMachineInstance(state, 'lvBatteryBuffer', 3, 1)
+    state = placeMachineInstance(state, 'lvBatteryBuffer', 2, 0)
     const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
     buffer.process.euStored = 700

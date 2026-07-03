@@ -2417,7 +2417,7 @@ function migrateMachineInstances(machinesState: Record<MachineId, number>, found
     const unplacedLegacyArcBlastFurnaces = Math.max(0, machinesState.arcBlastFurnace - placedArcBlastFurnaces)
     if (unplacedLegacyArcBlastFurnaces > 0) {
       machinesState.arcBlastFurnace -= unplacedLegacyArcBlastFurnaces
-      machinesState.arcBlastFurnacePart += unplacedLegacyArcBlastFurnaces * 9
+      machinesState.arcBlastFurnacePart += unplacedLegacyArcBlastFurnaces * 4
     }
     return instances
   }
