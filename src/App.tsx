@@ -3231,22 +3231,26 @@ function App() {
           ) : (
             <>
               <div className="factory-inventory-panel" aria-label="Factory inventory and tools">
-                <div className="processing-storage machine-placement-storage" aria-label="Factory parts">
+                <div className="processing-storage machine-placement-storage" aria-label={isFactoryToolboxOpen ? 'Factory toolbox' : 'Factory parts'}>
                   <div className="factory-tray-head">
-                    <span className="factory-tray-label">Factory Parts</span>
-                    <input
-                      className="factory-machine-search"
-                      type="search"
-                      placeholder="Find"
-                      value={factoryMachineSearch}
-                      onChange={(event) => setFactoryMachineSearch(event.target.value)}
-                      aria-label="Search factory parts"
-                    />
+                    <span className="factory-tray-label">{isFactoryToolboxOpen ? 'Toolbox' : 'Factory Parts'}</span>
+                    {isFactoryToolboxOpen ? (
+                      <span className="factory-tool-mode">{selectedFactoryTool ? resourceLabels[selectedFactoryTool] : 'Select tool'}</span>
+                    ) : (
+                      <input
+                        className="factory-machine-search"
+                        type="search"
+                        placeholder="Find"
+                        value={factoryMachineSearch}
+                        onChange={(event) => setFactoryMachineSearch(event.target.value)}
+                        aria-label="Search factory parts"
+                      />
+                    )}
                     <button
                       type="button"
                       className={isFactoryToolboxOpen ? 'factory-toolbox-toggle active' : 'factory-toolbox-toggle'}
                       aria-label={isFactoryToolboxOpen ? 'Close toolbox' : 'Open toolbox'}
-                      aria-controls="factory-toolbox-drawer"
+                      aria-controls="factory-inventory-view"
                       aria-expanded={isFactoryToolboxOpen}
                       title={isFactoryToolboxOpen ? 'Close toolbox' : 'Open toolbox'}
                       onClick={toggleFactoryToolbox}
@@ -3255,8 +3259,38 @@ function App() {
                       {factoryToolCount > 0 && <span>{formatAmount(factoryToolCount)}</span>}
                     </button>
                   </div>
-                  <div className="machine-placement-slots">
-                    {unplacedMachines.length > 0 ? (
+                  <div className={isFactoryToolboxOpen ? 'machine-placement-slots factory-tool-slots' : 'machine-placement-slots'} id="factory-inventory-view">
+                    {isFactoryToolboxOpen ? (
+                      factoryTools.length > 0 ? (
+                        factoryTools.map((id) => (
+                          <button
+                            type="button"
+                            className={selectedFactoryTool === id ? 'item-slot factory-tool-slot selected' : 'item-slot factory-tool-slot'}
+                            aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
+                            aria-pressed={selectedFactoryTool === id}
+                            title={
+                              id === 'ironCrowbar'
+                                ? `${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`
+                                : `${resourceLabels[id]} - configure pipe and cable connections`
+                            }
+                            onClick={() => {
+                              setPlacingMachineId(null)
+                              setSelectedMachineUid(null)
+                              setSelectedPipeConfigUid(null)
+                              setIsFactoryToolboxOpen(true)
+                              setSelectedFactoryTool((current) => (current === id ? null : id))
+                            }}
+                            key={id}
+                          >
+                            <PixelIcon id={id} />
+                            <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
+                            <DurabilityBar state={state} id={id} />
+                          </button>
+                        ))
+                      ) : (
+                        <span className="empty-furnace-storage">No tools</span>
+                      )
+                    ) : unplacedMachines.length > 0 ? (
                       unplacedMachines.map((id) => (
                         <button
                           type="button"
@@ -3278,48 +3312,6 @@ function App() {
                       ))
                     ) : (
                       <span className="empty-furnace-storage">{factoryMachineSearch.trim() ? 'No matching parts' : 'No factory parts'}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  className={isFactoryToolboxOpen ? 'processing-storage factory-tool-storage open' : 'processing-storage factory-tool-storage closed'}
-                  id="factory-toolbox-drawer"
-                  aria-label="Factory toolbox"
-                >
-                  <div className="factory-tool-drawer-head">
-                    <span className="factory-tray-label">Toolbox</span>
-                    {selectedFactoryTool && <span className="factory-tool-mode">{resourceLabels[selectedFactoryTool]}</span>}
-                  </div>
-                  <div className="factory-tool-slots">
-                    {factoryTools.length > 0 ? (
-                      factoryTools.map((id) => (
-                        <button
-                          type="button"
-                          className={selectedFactoryTool === id ? 'item-slot factory-tool-slot selected' : 'item-slot factory-tool-slot'}
-                          aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
-                          aria-pressed={selectedFactoryTool === id}
-                          title={
-                            id === 'ironCrowbar'
-                              ? `${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`
-                              : `${resourceLabels[id]} - configure pipe and cable connections`
-                          }
-                          onClick={() => {
-                            setPlacingMachineId(null)
-                            setSelectedMachineUid(null)
-                            setSelectedPipeConfigUid(null)
-                            setIsFactoryToolboxOpen(true)
-                            setSelectedFactoryTool((current) => (current === id ? null : id))
-                          }}
-                          key={id}
-                        >
-                          <PixelIcon id={id} />
-                          <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
-                          <DurabilityBar state={state} id={id} />
-                        </button>
-                      ))
-                    ) : (
-                      <span className="empty-furnace-storage">No tools</span>
                     )}
                   </div>
                 </div>

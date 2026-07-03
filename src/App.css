@@ -3304,7 +3304,6 @@ button.craft-output:disabled {
   min-width: 0;
 }
 
-.factory-tool-storage,
 .machine-placement-storage {
   align-content: start;
   display: grid;
@@ -3316,18 +3315,6 @@ button.craft-output:disabled {
 
 .machine-placement-storage {
   min-width: 0;
-}
-
-.factory-tool-storage {
-  min-height: 58px;
-}
-
-.factory-tool-storage.closed {
-  display: none;
-}
-
-.factory-tool-storage.open {
-  overflow: visible;
 }
 
 .factory-tray-label {
@@ -3405,23 +3392,6 @@ button.craft-output:disabled {
   opacity: 1;
 }
 
-.factory-tool-slots {
-  align-content: start;
-  display: grid;
-  gap: 4px;
-  grid-template-columns: repeat(auto-fill, 40px);
-  min-width: 0;
-  overflow: visible;
-}
-
-.factory-tool-drawer-head {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  justify-content: space-between;
-  min-width: 0;
-}
-
 .factory-tool-mode {
   color: #1f1f1f;
   font: 950 0.58rem "Courier New", ui-monospace, monospace;
@@ -3461,6 +3431,10 @@ button.craft-output:disabled {
 
 .machine-placement-slots::-webkit-scrollbar-thumb {
   background: var(--bevel-dark);
+}
+
+.machine-placement-slots.factory-tool-slots {
+  align-content: start;
 }
 
 .factory-selection-name {
