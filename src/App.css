@@ -2826,9 +2826,11 @@ button.craft-output:disabled {
 
 .item-tooltip.empty {
   border: 0;
-  display: none;
-  min-height: 0;
-  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: transparent;
+  padding-bottom: 0;
+  padding-top: 0;
   visibility: hidden;
 }
 
