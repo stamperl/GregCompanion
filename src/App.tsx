@@ -358,9 +358,9 @@ function gatherAreaForResource(resourceId: ResourceId) {
   return area ? { areaId: area.id, targetId: target.id, targetName: target.name } : null
 }
 
-const factoryCellSize = 58
-const factoryCellGap = 6
-const factoryViewportPadding = 14
+const factoryCellSize = 50
+const factoryCellGap = 5
+const factoryViewportPadding = 12
 const factoryPanThreshold = 6
 
 function factoryGridPixelSize(grid: { width: number; height: number }) {
