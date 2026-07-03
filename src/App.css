@@ -6268,18 +6268,18 @@ button.craft-output:disabled {
   border-radius: 0;
   border-right-color: #4f4f4f;
   display: grid;
-  height: 34px;
+  height: 38px;
   justify-items: center;
-  min-width: 34px;
+  min-width: 38px;
   padding: 2px;
   position: relative;
-  width: 34px;
+  width: 38px;
 }
 
 .mini-slot .pixel-icon,
 .mini-slot .machine-glyph {
-  height: 22px;
-  width: 22px;
+  height: 26px;
+  width: 26px;
 }
 
 .mini-slot.muted {
@@ -7214,6 +7214,12 @@ button.craft-output:disabled {
   position: relative;
 }
 
+.recipe-icon-button .pixel-icon,
+.recipe-icon-button .machine-glyph {
+  height: 28px;
+  width: 28px;
+}
+
 .recipe-icon-button.missing {
   opacity: 0.5;
 }
@@ -7405,7 +7411,7 @@ button.craft-output:disabled {
 .recipe-pattern-grid {
   display: grid;
   gap: 2px;
-  grid-template-columns: repeat(3, 34px);
+  grid-template-columns: repeat(3, 38px);
 }
 
 .recipe-pattern-slot {
@@ -7429,8 +7435,8 @@ button.craft-output:disabled {
 }
 
 .recipe-pattern-slot .pixel-icon {
-  height: 24px;
-  width: 24px;
+  height: 28px;
+  width: 28px;
 }
 
 .recipe-jump-slot {
@@ -7807,12 +7813,18 @@ button.recipe-jump-slot {
   }
 
   .recipe-icon-grid {
-    grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
     max-height: 128px;
   }
 
   .recipe-icon-button {
-    min-height: 36px;
+    min-height: 40px;
+  }
+
+  .recipe-icon-button .pixel-icon,
+  .recipe-icon-button .machine-glyph {
+    height: 26px;
+    width: 26px;
   }
 
   .recipe-detail {
@@ -7832,21 +7844,21 @@ button.recipe-jump-slot {
 
   .recipe-pattern-grid {
     gap: 2px;
-    grid-template-columns: repeat(3, 30px);
+    grid-template-columns: repeat(3, 34px);
   }
 
   .recipe-pattern-slot,
   .mini-slot {
-    height: 30px;
-    min-width: 30px;
-    width: 30px;
+    height: 34px;
+    min-width: 34px;
+    width: 34px;
   }
 
   .recipe-pattern-slot .pixel-icon,
   .mini-slot .pixel-icon,
   .mini-slot .machine-glyph {
-    height: 20px;
-    width: 20px;
+    height: 24px;
+    width: 24px;
   }
 
   .missing-line,
