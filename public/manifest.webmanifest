@@ -2,8 +2,9 @@
   "name": "Click Foundry",
   "short_name": "Foundry",
   "description": "A mobile block-tech idle game about gathering, crafting, steam machines, and low voltage.",
-  "start_url": "/GregCompanion/",
-  "scope": "/GregCompanion/",
+  "id": ".",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#f3ead7",
   "theme_color": "#a8642d",
@@ -11,12 +12,12 @@
   "categories": ["productivity", "utilities", "games"],
   "icons": [
     {
-      "src": "/GregCompanion/favicon.svg",
+      "src": "favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     },
     {
-      "src": "/GregCompanion/apple-touch-icon.png",
+      "src": "apple-touch-icon.png",
       "sizes": "1024x1024",
       "type": "image/png"
     }
