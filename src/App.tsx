@@ -1624,7 +1624,7 @@ function App() {
             return current
           }
           const next = crowbarRemoveMachineInstance(current, instance.uid)
-          if (next !== current) setTerminalNotice(`${machines[instance.machineId].name} removed.`)
+          if (next !== current) setTerminalNotice('')
           return next
         })
         return
