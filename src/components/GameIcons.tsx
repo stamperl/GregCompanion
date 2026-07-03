@@ -9,6 +9,14 @@ export type PipeConnections = {
   left: boolean
 }
 
+function resourceIconSrc(id: ResourceId) {
+  return `${import.meta.env.BASE_URL}game-icons/resources/${id}.png`
+}
+
+function machineIconSrc(id: MachineId) {
+  return `${import.meta.env.BASE_URL}game-icons/machines/${id}.png`
+}
+
 export function PixelIcon({ id }: { id: ResourceId }) {
   if (hasIconSprite(id)) {
     return (
@@ -20,7 +28,8 @@ export function PixelIcon({ id }: { id: ResourceId }) {
     )
   }
   return (
-    <span className={`pixel-icon pixel-${id}`} aria-hidden="true">
+    <span className={`pixel-icon item-sprite-icon pixel-${id}`} aria-hidden="true">
+      <img src={resourceIconSrc(id)} alt="" draggable={false} />
       <span />
     </span>
   )
@@ -68,11 +77,12 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
   const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id)
   const className = [
     'machine-glyph',
+    isConnector && pipeConnections ? 'machine-connector-glyph' : 'machine-sprite-glyph',
     `machine-${id}`,
     active ? 'active' : '',
     isConnector ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
-  if (isConnector) {
+  if (isConnector && pipeConnections) {
     const path = pipePath(pipeConnections)
     return (
       <span className={className} aria-hidden="true">
@@ -86,6 +96,7 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
   }
   return (
     <span className={className} aria-hidden="true">
+      <img src={machineIconSrc(id)} alt="" draggable={false} />
       <span />
     </span>
   )

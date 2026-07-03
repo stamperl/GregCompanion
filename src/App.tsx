@@ -283,9 +283,9 @@ function gatherAreaForResource(resourceId: ResourceId) {
   return area ? { areaId: area.id, targetId: target.id, targetName: target.name } : null
 }
 
-const factoryCellSize = 44
-const factoryCellGap = 4
-const factoryViewportPadding = 6
+const factoryCellSize = 58
+const factoryCellGap = 6
+const factoryViewportPadding = 14
 const factoryPanThreshold = 6
 
 function factoryGridPixelSize(grid: { width: number; height: number }) {
@@ -2972,6 +2972,8 @@ function App() {
               <h2>Factory Floor</h2>
             </div>
           </div>
+
+          {terminalNotice && <p className="recipe-notice">{terminalNotice}</p>}
 
           {!factoryFloorUnlocked ? (
             <div className="factory-foundation-panel">
