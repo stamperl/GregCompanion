@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
@@ -20,6 +20,7 @@ import {
 import type { MachineAmount, QuestObjective, Recipe, ResourceAmount } from './types'
 
 const appCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../App.css'), 'utf8')
+const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../public')
 
 function expectUnique(ids: string[], label: string) {
   const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index)
@@ -102,6 +103,18 @@ describe('content validation', () => {
       if (machine.produces) expectResourceAmountReferences(machine.produces, `${id} produces`)
       if (machine.consumes) expectResourceAmountReferences(machine.consumes, `${id} consumes`)
       if (machine.unlockedBy) expect(quests.some((quest) => quest.id === machine.unlockedBy), `${id} unlockedBy should reference a quest`).toBe(true)
+    }
+  })
+
+  it('has generated item and machine icon assets for every content record', () => {
+    for (const id of Object.keys(resourceRegistry)) {
+      const iconPath = resolve(publicDir, 'game-icons/resources', `${id}.png`)
+      expect(existsSync(iconPath), `resource ${id} should have ${iconPath}`).toBe(true)
+    }
+
+    for (const id of Object.keys(machineRegistry)) {
+      const iconPath = resolve(publicDir, 'game-icons/machines', `${id}.png`)
+      expect(existsSync(iconPath), `machine ${id} should have ${iconPath}`).toBe(true)
     }
   })
 
