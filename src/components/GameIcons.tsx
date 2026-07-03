@@ -50,7 +50,7 @@ function pipePath(connections?: PipeConnections) {
   const pipeConnections = connections ?? { up: false, right: true, down: false, left: true }
   const { up, right, down, left } = pipeConnections
   const count = [up, right, down, left].filter(Boolean).length
-  if (count < 1) return 'M0 20 L40 20'
+  if (count < 1) return 'M12 20 L28 20'
   if (left && right && !up && !down) return 'M0 20 L40 20'
   if (up && down && !left && !right) return 'M20 0 L20 40'
   if (up && right && count === 2) return 'M20 0 L20 20 L40 20'
@@ -69,11 +69,21 @@ function pipePath(connections?: PipeConnections) {
 function pipeCapPoints(connections?: PipeConnections) {
   const pipeConnections = connections ?? { up: false, right: true, down: false, left: true }
   return [
-    pipeConnections.up ? { x: 20, y: 0 } : null,
-    pipeConnections.right ? { x: 40, y: 20 } : null,
-    pipeConnections.down ? { x: 20, y: 40 } : null,
-    pipeConnections.left ? { x: 0, y: 20 } : null,
-  ].filter((point): point is { x: number; y: number } => Boolean(point))
+    pipeConnections.up ? { x: 16, y: 0, width: 8, height: 6 } : null,
+    pipeConnections.right ? { x: 34, y: 16, width: 6, height: 8 } : null,
+    pipeConnections.down ? { x: 16, y: 34, width: 8, height: 6 } : null,
+    pipeConnections.left ? { x: 0, y: 16, width: 6, height: 8 } : null,
+  ].filter((point): point is { x: number; y: number; width: number; height: number } => Boolean(point))
+}
+
+function loosePipeCapPoints(connections?: PipeConnections) {
+  const pipeConnections = connections ?? { up: false, right: true, down: false, left: true }
+  const count = [pipeConnections.up, pipeConnections.right, pipeConnections.down, pipeConnections.left].filter(Boolean).length
+  if (count > 0) return []
+  return [
+    { x: 10, y: 16, width: 5, height: 8 },
+    { x: 25, y: 16, width: 5, height: 8 },
+  ]
 }
 
 export function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
@@ -87,18 +97,18 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
   ].filter(Boolean).join(' ')
   if (isConnector && pipeConnections) {
     const path = pipePath(pipeConnections)
-    const capPoints = pipeCapPoints(pipeConnections)
+    const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]
     return (
       <span className={className} aria-hidden="true">
-        <svg className="pipe-svg" viewBox="0 0 40 40" focusable="false">
+        <svg className="pipe-svg" viewBox="0 0 40 40" shapeRendering="crispEdges" focusable="false">
           <path className="pipe-shadow" d={path} />
           <path className="pipe-outline" d={path} />
           <path className="pipe-body" d={path} />
           <path className="pipe-core" d={path} />
           <path className="pipe-highlight" d={path} />
-          <circle className="pipe-coupling" cx="20" cy="20" r="7" />
+          <rect className="pipe-coupling" x="15" y="15" width="10" height="10" />
           {capPoints.map((point) => (
-            <circle className="pipe-cap" cx={point.x} cy={point.y} r="7" key={`${point.x}-${point.y}`} />
+            <rect className="pipe-cap" x={point.x} y={point.y} width={point.width} height={point.height} key={`${point.x}-${point.y}`} />
           ))}
         </svg>
       </span>

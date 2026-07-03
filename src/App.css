@@ -8210,11 +8210,11 @@ button.button-primary:disabled,
 
 .factory-cell.occupied .machine-glyph.machine-connector-glyph {
   filter: none;
-  height: 66px;
-  inset: -4px;
+  height: 52px;
+  inset: 3px;
   position: absolute;
-  width: 66px;
-  z-index: 1;
+  width: 52px;
+  z-index: 2;
 }
 
 .factory-cell.occupied.machine-copperPipe-cell,
@@ -8237,7 +8237,7 @@ button.button-primary:disabled,
 
 .machine-connector-glyph .pipe-svg {
   height: 100%;
-  overflow: visible;
+  overflow: hidden;
   width: 100%;
 }
 
@@ -8314,79 +8314,79 @@ button.button-primary:disabled,
 }
 
 .machine-connector-glyph {
-  --connector-dark: #21130d;
-  --connector-mid: #b86c3c;
-  --connector-light: #f4ba7a;
-  --connector-core: #ffe0a2;
+  --connector-dark: #3a1d12;
+  --connector-mid: #b36334;
+  --connector-light: #f2a45f;
+  --connector-core: #e8bd74;
 }
 
 .machine-bronzePipe.machine-connector-glyph {
   --connector-dark: #3f2917;
-  --connector-mid: #b7854c;
-  --connector-light: #e8c779;
-  --connector-core: #ffe6a0;
+  --connector-mid: #ad7b40;
+  --connector-light: #d9b269;
+  --connector-core: #e8c782;
 }
 
 .machine-ironPipe.machine-connector-glyph {
-  --connector-dark: #2a3032;
-  --connector-mid: #9aa4a7;
-  --connector-light: #e3e9ea;
-  --connector-core: #f7fbfb;
+  --connector-dark: #252b2d;
+  --connector-mid: #858f91;
+  --connector-light: #cbd3d4;
+  --connector-core: #eef2f1;
 }
 
 .machine-tinCable.machine-connector-glyph {
   --connector-dark: #080a0c;
-  --connector-mid: #252a2d;
+  --connector-mid: #242b2f;
   --connector-light: #ffe58a;
-  --connector-core: #ffd34f;
+  --connector-core: #f4c950;
 }
 
 .machine-connector-glyph .pipe-svg path {
   fill: none;
   stroke-linecap: square;
-  stroke-linejoin: round;
+  stroke-linejoin: miter;
 }
 
 .machine-connector-glyph .pipe-shadow {
-  opacity: 0.42;
+  opacity: 0.32;
   stroke: #000;
-  stroke-width: 18;
-  transform: translate(2px, 3px);
+  stroke-width: 12;
+  transform: translate(1px, 2px);
 }
 
 .machine-connector-glyph .pipe-outline {
   stroke: var(--connector-dark);
-  stroke-width: 17;
+  stroke-width: 10;
 }
 
 .machine-connector-glyph .pipe-body {
   stroke: var(--connector-mid);
-  stroke-width: 12;
+  stroke-width: 7;
 }
 
 .machine-connector-glyph .pipe-core {
-  opacity: 0.95;
+  opacity: 0.72;
   stroke: var(--connector-core);
-  stroke-width: 6;
+  stroke-width: 3;
 }
 
 .machine-connector-glyph .pipe-highlight {
-  opacity: 0.9;
+  opacity: 0.72;
   stroke: var(--connector-light);
-  stroke-dasharray: 7 6;
-  stroke-width: 3;
-  transform: translate(-2px, -2px);
+  stroke-width: 1.4;
+  transform: translate(-1px, -1px);
 }
 
 .machine-connector-glyph .pipe-coupling,
 .machine-connector-glyph .pipe-cap {
   fill: var(--connector-mid);
+  shape-rendering: crispEdges;
   stroke: var(--connector-dark);
-  stroke-width: 4;
+  stroke-width: 2;
 }
 
 .machine-connector-glyph .pipe-coupling {
-  filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.38));
+  filter: drop-shadow(1px 2px 0 rgba(0, 0, 0, 0.32));
 }
 
 .machine-tinCable.machine-connector-glyph .pipe-body {
@@ -8396,18 +8396,19 @@ button.button-primary:disabled,
 
 .machine-tinCable.machine-connector-glyph .pipe-core {
   stroke: var(--connector-core);
-  stroke-dasharray: 9 5;
-  stroke-width: 7;
+  stroke-dasharray: 5 5;
+  stroke-width: 2.5;
 }
 
 .machine-tinCable.machine-connector-glyph .pipe-highlight {
   stroke: #fff3b0;
-  stroke-dasharray: 5 7;
+  stroke-dasharray: 5 5;
+  stroke-width: 1.2;
 }
 
 .machine-tinCable.machine-connector-glyph .pipe-coupling,
 .machine-tinCable.machine-connector-glyph .pipe-cap {
-  fill: #3b4144;
+  fill: #252b30;
   stroke: #07090b;
 }
 
