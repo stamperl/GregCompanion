@@ -2810,7 +2810,6 @@ function App() {
 
           <div className="terminal-crafting-compact">
             <div className="terminal-craft-stack">
-              <p className="terminal-subtitle">Crafting Terminal</p>
               <div className="craft-grid three-grid pixel-grid" aria-label="Terminal crafting grid">
                 {terminalGrid.map((slot, index) => (
                   <button
