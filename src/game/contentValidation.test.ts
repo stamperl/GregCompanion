@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import { describe, expect, it } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
@@ -110,11 +110,13 @@ describe('content validation', () => {
     for (const id of Object.keys(resourceRegistry)) {
       const iconPath = resolve(publicDir, 'game-icons/resources', `${id}.png`)
       expect(existsSync(iconPath), `resource ${id} should have ${iconPath}`).toBe(true)
+      expect(statSync(iconPath).size, `resource ${id} icon should not be blank`).toBeGreaterThan(500)
     }
 
     for (const id of Object.keys(machineRegistry)) {
       const iconPath = resolve(publicDir, 'game-icons/machines', `${id}.png`)
       expect(existsSync(iconPath), `machine ${id} should have ${iconPath}`).toBe(true)
+      expect(statSync(iconPath).size, `machine ${id} icon should not be blank`).toBeGreaterThan(500)
     }
   })
 
