@@ -1657,7 +1657,7 @@ function App() {
       if (next !== current) {
         const remaining = availableUnplacedMachineCount(next, placingMachineId)
         if (remaining < 1) setPlacingMachineId(null)
-        setTerminalNotice(`${machines[placingMachineId].name} placed${remaining > 0 ? ` (${remaining} left)` : ''}.`)
+        setTerminalNotice('')
       }
       return next
     })
@@ -3267,6 +3267,7 @@ function App() {
                             setSelectedFactoryTool(null)
                             setSelectedPipeConfigUid(null)
                             setIsFactoryToolboxOpen(false)
+                            setTerminalNotice('')
                             setPlacingMachineId((current) => (current === id ? null : id))
                           }}
                           key={id}
