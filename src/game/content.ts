@@ -341,7 +341,7 @@ export const machineRegistry = {
     tier: 'steam',
     placeable: true,
     processKind: 'steamPipe',
-    pipeTransferLitresPerSecond: 4,
+    pipeTransferLitresPerSecond: 24,
   },
   bronzePipe: {
     id: 'bronzePipe',
@@ -350,7 +350,7 @@ export const machineRegistry = {
     tier: 'steam',
     placeable: true,
     processKind: 'steamPipe',
-    pipeTransferLitresPerSecond: 8,
+    pipeTransferLitresPerSecond: 48,
   },
   ironPipe: {
     id: 'ironPipe',
@@ -359,7 +359,7 @@ export const machineRegistry = {
     tier: 'steam',
     placeable: true,
     processKind: 'steamPipe',
-    pipeTransferLitresPerSecond: 16,
+    pipeTransferLitresPerSecond: 96,
   },
   steamMacerator: {
     id: 'steamMacerator',
@@ -432,7 +432,7 @@ export const machineRegistry = {
     placeable: true,
     processKind: 'steamToEu',
     euCapacity: 256,
-    euOutputPerSecond: 16,
+    euOutputPerSecond: 24,
   },
   tinCable: {
     id: 'tinCable',

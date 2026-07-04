@@ -21,6 +21,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type DragEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -109,6 +110,9 @@ import {
   steamTurbineEuCapacity,
   steamTurbineSteamUseLitresPerSecond,
   steamTankCapacityMs,
+  steamTankCapacityMsForInstance,
+  steamTankFluidCapacityLitresForInstance,
+  steamTankStructureForInstance,
   lvBatteryBufferEuCapacity,
   lvBatteryBufferOutputEuPerSecond,
   liquidSteamBoilerCapacityMs,
@@ -670,6 +674,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     return process.activeRecipeId ? 'Charging EU' : 'Buffer ready'
   }
   if (isLiquidSteamBoilerMachine(instance.machineId)) {
+    if (!boilerHasWater(state, instance)) return 'No water'
     if ((process.fluids.creosote ?? 0) < 1) return 'No creosote'
     if (process.steamStoredMs >= liquidSteamBoilerCapacityMs) return 'Steam full'
     return process.activeRecipeId ? 'Burning creosote' : 'Ready'
@@ -1392,6 +1397,10 @@ function App() {
   const selectedRecipe = selectedRecipeGroup?.recipes[clampedSelectedRecipeIndex]
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const selectedSteamTankCapacityMs =
+    selectedMachine?.machineId === 'steamTank' ? steamTankCapacityMsForInstance(state, selectedMachine) || steamTankCapacityMs : steamTankCapacityMs
+  const selectedSteamTankFluidCapacityLitres =
+    selectedMachine?.machineId === 'steamTank' ? steamTankFluidCapacityLitresForInstance(state, selectedMachine) || ironTankFluidCapacityLitres : ironTankFluidCapacityLitres
   const selectedPipeConfig = state.machineInstances.find((instance) => instance.uid === selectedPipeConfigUid) ?? null
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
   const selectedMachineSteamCostLitres = selectedMachineRecipe?.steamCostLitres ?? null
@@ -1486,6 +1495,12 @@ function App() {
   const controllerForMultiblockPart = (instance: MachineInstance) => {
     const controller = multiblockControllerForInstance(state, instance)
     return controller ? machineAtFactoryCell(controller.x, controller.y) : null
+  }
+
+  const controllerForFactoryStructure = (instance: MachineInstance) => {
+    const tankStructure = steamTankStructureForInstance(state, instance)
+    if (tankStructure) return tankStructure.controller
+    return controllerForMultiblockPart(instance)
   }
 
   const addFloatText = (label: string, targetId?: GatherTargetId, variant?: FloatText['variant']) => {
@@ -1639,10 +1654,14 @@ function App() {
         setFactoryNotice('Wrench only configures pipes and cables.')
         return
       }
+      const structureController = controllerForFactoryStructure(instance)
+      if (structureController && structureController.uid !== instance.uid) {
+        setSelectedMachineUid(structureController.uid)
+        return
+      }
       if (machines[instance.machineId].multiblock || machines[instance.machineId].processKind === 'none') {
-        const controller = controllerForMultiblockPart(instance)
-        if (controller) {
-          setSelectedMachineUid(controller.uid)
+        if (structureController) {
+          setSelectedMachineUid(structureController.uid)
           return
         }
         if (instance.machineId === 'brickedBlastFurnacePart') setFactoryNotice('Place BBF casings in a full 2x2 to form the furnace.')
@@ -3336,9 +3355,20 @@ function App() {
                       const y = Math.floor(index / factoryGridSize.width)
                       const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
                       const multiblockController = instance ? controllerForMultiblockPart(instance) : null
+                      const tankStructure = instance?.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
                       const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
-                      const isMultiblockCell = isMultiblockController || Boolean(multiblockController)
-                      const multiblockMachineId = multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
+                      const isTankStructureController = Boolean(tankStructure && instance && tankStructure.controller.uid === instance.uid && tankStructure.area > 1)
+                      const isTankStructureChild = Boolean(tankStructure && instance && tankStructure.controller.uid !== instance.uid)
+                      const isStructureController = isMultiblockController || isTankStructureController
+                      const isStructureCell = isStructureController || Boolean(multiblockController) || isTankStructureChild
+                      const structureMachineId = tankStructure?.controller.machineId ?? multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
+                      const tankStructureStyle =
+                        tankStructure && isTankStructureController
+                          ? ({
+                              '--structure-width': `${tankStructure.width * factoryCellSize + Math.max(0, tankStructure.width - 1) * factoryCellGap}px`,
+                              '--structure-height': `${tankStructure.height * factoryCellSize + Math.max(0, tankStructure.height - 1) * factoryCellGap}px`,
+                            } as CSSProperties)
+                          : undefined
                       const isMachineActive = Boolean(
                         instance &&
                           (instance.process.fuelRemainingMs > 0 ||
@@ -3362,20 +3392,23 @@ function App() {
                                   isFactoryRemoveMode ? 'removing' : '',
                                   isMultiblockController ? 'multiblock-bbf-controller' : '',
                                   multiblockController ? 'multiblock-bbf-child' : '',
+                                  isTankStructureController ? 'tank-structure-controller' : '',
+                                  isTankStructureChild ? 'tank-structure-child' : '',
                                 ].filter(Boolean).join(' ')
                               : placingMachineId
                                 ? 'factory-cell placing'
                                 : 'factory-cell'
                           }
+                          style={tankStructureStyle}
                           aria-label={
                             instance
-                              ? `${isMultiblockCell && multiblockMachineId ? machines[multiblockMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}`
+                              ? `${isStructureCell && structureMachineId ? machines[structureMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}`
                               : `Empty factory cell ${x + 1}, ${y + 1}`
                           }
                           onClick={() => handleFactoryCellPress(x, y, instance)}
                           key={`${x}-${y}`}
                         >
-                          {instance && (!isMultiblockCell || isMultiblockController) ? (
+                          {instance && (!isStructureCell || isStructureController) ? (
                             <MachineGlyph id={instance.machineId} active={isMachineActive} pipeConnections={pipeConnectionsForInstance(instance)} />
                           ) : (
                             <span />
@@ -3585,11 +3618,11 @@ function App() {
                   )}
                   {selectedMachine.machineId === 'steamTank' && (
                     <strong>
-                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamTankCapacityMs)}L
+                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(selectedSteamTankCapacityMs)}L
                       {(selectedMachine.process.fluids.creosote ?? 0) > 0
-                        ? ` | Creosote ${formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/${ironTankFluidCapacityLitres}L`
+                        ? ` | Creosote ${formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/${selectedSteamTankFluidCapacityLitres}L`
                         : ''}
-                      {(selectedMachine.process.fluids.water ?? 0) > 0 ? ` | Water ${formatLitres(selectedMachine.process.fluids.water ?? 0)}L/${ironTankFluidCapacityLitres}L` : ''}
+                      {(selectedMachine.process.fluids.water ?? 0) > 0 ? ` | Water ${formatLitres(selectedMachine.process.fluids.water ?? 0)}L/${selectedSteamTankFluidCapacityLitres}L` : ''}
                     </strong>
                   )}
                   {selectedMachine.machineId === 'cokeOven' && (
@@ -3661,11 +3694,11 @@ function App() {
                 ) : selectedMachine.machineId === 'steamTank' ? (
                   <div className="well-interface">
                     {(selectedMachine.process.fluids.creosote ?? 0) > 0 ? (
-                      <FluidTank label="Creosote" storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={ironTankFluidCapacityLitres} />
+                      <FluidTank label="Creosote" storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={selectedSteamTankFluidCapacityLitres} />
                     ) : (selectedMachine.process.fluids.water ?? 0) > 0 ? (
-                      <FluidTank label="Water" storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={ironTankFluidCapacityLitres} />
+                      <FluidTank label="Water" storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={selectedSteamTankFluidCapacityLitres} />
                     ) : (
-                      <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={steamTankCapacityMs} />
+                      <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={selectedSteamTankCapacityMs} />
                     )}
                     <span>Stores steam or one fluid from connected pipes</span>
                   </div>

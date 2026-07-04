@@ -30,6 +30,7 @@ import {
   findGridRecipe,
   getBestToolForTarget,
   hitGatherTarget,
+  ironTankFluidCapacityLitres,
   insertProcessSlot,
   isAutoMinerPowered,
   loadGame,
@@ -54,6 +55,9 @@ import {
   setPipeSideDisabled,
   steamMaceratorCapacityMs,
   steamTankCapacityMs,
+  steamTankCapacityMsForInstance,
+  steamTankFluidCapacityLitresForInstance,
+  steamTankStructureForInstance,
   steamTurbineEuCapacity,
   terminalAvailableAmount,
   tickGame,
@@ -1602,7 +1606,7 @@ describe('game engine', () => {
     state = insertProcessSlot(state, distantBoiler.uid, 'fuel', 'log', 1)
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === adjacentBoiler.uid)!.process.steamStoredMs).toBe(2000)
+    expect(state.machineInstances.find((instance) => instance.uid === adjacentBoiler.uid)!.process.steamStoredMs).toBe(12000)
     expect(state.machineInstances.find((instance) => instance.uid === distantBoiler.uid)!.process.steamStoredMs).toBe(0)
   })
 
@@ -1623,10 +1627,10 @@ describe('game engine', () => {
     state = tickGame(state, 1000).state
 
     expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').map((instance) => instance.process.steamStoredMs)).toEqual([
-      2000,
-      2000,
-      2000,
-      2000,
+      12000,
+      12000,
+      12000,
+      12000,
     ])
   })
 
@@ -1696,7 +1700,7 @@ describe('game engine', () => {
     const boilerProcess = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
     expect(maceratorProcess.steamCapacityMs).toBe(steamMaceratorCapacityMs)
     expect(maceratorProcess.steamStoredMs).toBe(32000)
-    expect(boilerProcess.steamStoredMs).toBe(32000)
+    expect(boilerProcess.steamStoredMs).toBe(96000)
   })
 
   it('continues steam machine processing during offline progress', () => {
@@ -1735,8 +1739,42 @@ describe('game engine', () => {
     const tankProcess = state.machineInstances.find((instance) => instance.uid === tank.uid)!.process
     const boilerProcess = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
     expect(tankProcess.steamCapacityMs).toBe(steamTankCapacityMs)
-    expect(tankProcess.steamStoredMs).toBe(40000)
-    expect(boilerProcess.steamStoredMs).toBe(40000)
+    expect(tankProcess.steamStoredMs).toBe(80000)
+    expect(boilerProcess.steamStoredMs).toBe(0)
+  })
+
+  it('lets one steam boiler sustain three light steam machines over normal ticking', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 1
+    state.machines.steamForgeHammer = 1
+    state.machines.steamCompressor = 1
+    state.machines.steamExtractor = 1
+    state.resources.coal = 1
+    state.resources.ironIngot = 2
+    state.resources.firebrick = 2
+    state.resources.rubberSap = 1
+    state = placeMachineInstance(state, 'well', 1, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 1)
+    state = placeMachineInstance(state, 'steamForgeHammer', 2, 1)
+    state = placeMachineInstance(state, 'steamCompressor', 1, 2)
+    state = placeMachineInstance(state, 'steamExtractor', 0, 1)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const hammer = state.machineInstances.find((instance) => instance.machineId === 'steamForgeHammer')!
+    const compressor = state.machineInstances.find((instance) => instance.machineId === 'steamCompressor')!
+    const extractor = state.machineInstances.find((instance) => instance.machineId === 'steamExtractor')!
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'coal', 1)
+    state = insertProcessSlot(state, hammer.uid, 'input', 'ironIngot', 2)
+    state = insertProcessSlot(state, compressor.uid, 'input', 'firebrick', 2)
+    state = insertProcessSlot(state, extractor.uid, 'input', 'rubberSap', 1)
+
+    for (let elapsed = 0; elapsed < 20_000; elapsed += 250) {
+      state = tickGame(state, 250).state
+    }
+
+    expect(state.machineInstances.find((instance) => instance.uid === hammer.uid)!.process.output).toEqual({ id: 'ironPlate', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === compressor.uid)!.process.output).toEqual({ id: 'cokeOvenBrick', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === extractor.uid)!.process.output).toEqual({ id: 'rubber', amount: 1 })
   })
 
   it('lets pipe side configuration block and restore connected steam routing', () => {
@@ -1775,8 +1813,89 @@ describe('game engine', () => {
 
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs).toBe(16000)
-    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(4000)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs).toBe(20000)
+    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(0)
+  })
+
+  it('keeps a single iron steam tank at 512L storage', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+
+    state = tickGame(state, 1000).state
+    const nextTank = state.machineInstances.find((instance) => instance.uid === tank.uid)!
+
+    expect(steamTankStructureForInstance(state, nextTank)).toBeNull()
+    expect(steamTankCapacityMsForInstance(state, nextTank)).toBe(steamTankCapacityMs)
+    expect(steamTankFluidCapacityLitresForInstance(state, nextTank)).toBe(ironTankFluidCapacityLitres)
+    expect(nextTank.process.steamCapacityMs).toBe(steamTankCapacityMs)
+  })
+
+  it.each([
+    [2, 2, 4],
+    [3, 2, 6],
+    [3, 3, 9],
+  ])('forms a %ix%i iron steam tank with 512L storage per tank block', (width, height, area) => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = area
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        state = placeMachineInstance(state, 'steamTank', x, y)
+      }
+    }
+
+    const controller = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)!
+    const structure = steamTankStructureForInstance(state, controller)!
+
+    expect(structure.width).toBe(width)
+    expect(structure.height).toBe(height)
+    expect(structure.area).toBe(area)
+    expect(controller.level).toBe(area)
+    expect(steamTankCapacityMsForInstance(state, controller)).toBe(steamTankCapacityMs * area)
+    expect(steamTankFluidCapacityLitresForInstance(state, controller)).toBe(ironTankFluidCapacityLitres * area)
+    for (const tank of state.machineInstances.filter((instance) => instance.uid !== controller.uid)) {
+      expect(tank.level).toBe(0)
+      expect(steamTankStructureForInstance(state, tank)?.controller.uid).toBe(controller.uid)
+    }
+  })
+
+  it('removes an entire formed iron steam tank structure from any cell', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 4
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) {
+        state = placeMachineInstance(state, 'steamTank', x, y)
+      }
+    }
+    const child = state.machineInstances.find((instance) => instance.x === 1 && instance.y === 1)!
+
+    state = removeMachineInstance(state, child.uid)
+
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamTank')).toHaveLength(0)
+    expect(availableUnplacedMachineCount(state, 'steamTank')).toBe(4)
+  })
+
+  it('lets steam machines draw from an iron steam tank structure through a child cell', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 4
+    state.machines.steamMacerator = 1
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) {
+        state = placeMachineInstance(state, 'steamTank', x, y)
+      }
+    }
+    state = placeMachineInstance(state, 'steamMacerator', 2, 1)
+    const controller = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    controller.process.steamStoredMs = steamTankCapacityMs * 4
+
+    expect(availableConnectedSteam(state, macerator)).toBe(steamTankCapacityMs * 4)
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.steamStoredMs).toBe(24000)
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.steamStoredMs).toBe(steamTankCapacityMs * 4 - 24000)
   })
 
   it('does not fill an iron steam tank through a steam macerator', () => {
@@ -1795,8 +1914,8 @@ describe('game engine', () => {
     state = tickGame(state, 1000).state
 
     expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs).toBe(0)
-    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.steamStoredMs).toBe(16000)
-    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(64000)
+    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.steamStoredMs).toBe(24000)
+    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(56000)
   })
 
   it('cokes logs into charcoal and creosote, then transfers creosote into an adjacent tank', () => {
@@ -1852,8 +1971,8 @@ describe('game engine', () => {
 
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.steamStoredMs).toBe(16000)
-    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs).toBe(48000)
+    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.steamStoredMs).toBe(32000)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs).toBe(32000)
   })
 
   it('runs a steam forge hammer from connected boiler steam', () => {
@@ -2073,7 +2192,7 @@ describe('game engine', () => {
     state = tickGame(state, 10000).state
 
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
-    expect(turbine.process.euStored).toBe(160)
+    expect(turbine.process.euStored).toBe(240)
     expect(turbine.process.euCapacity).toBe(steamTurbineEuCapacity)
   })
 
@@ -2088,7 +2207,7 @@ describe('game engine', () => {
     const offline = simulateOfflineProgress(state, 10_000, 11_000).state
     const turbine = offline.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
 
-    expect(turbine.process.euStored).toBe(160)
+    expect(turbine.process.euStored).toBe(240)
   })
 
   it('does not run an LV Wiremill without connected EU', () => {
@@ -2149,7 +2268,7 @@ describe('game engine', () => {
     state = tickGame(state, 10000).state
     const chargedBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
     const primedWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
-    expect(chargedBuffer.process.euStored + primedWiremill.process.euStored).toBe(150)
+    expect(chargedBuffer.process.euStored + primedWiremill.process.euStored).toBe(190)
     expect(availableConnectedEuStorage(state, primedWiremill)).toBe(chargedBuffer.process.euStored)
 
     state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)
@@ -2157,10 +2276,10 @@ describe('game engine', () => {
 
     const nextWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
     expect(nextWiremill.process.output).toEqual({ id: 'tinWire', amount: 2 })
-    expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(150)
+    expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(190)
   })
 
-  it('burns connected creosote into steam in a liquid steam boiler', () => {
+  it('stores connected creosote but does not burn it in a dry liquid steam boiler', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1
     state.machines.liquidSteamBoiler = 1
@@ -2171,7 +2290,27 @@ describe('game engine', () => {
     state = tickGame(state, 5000).state
 
     const boiler = state.machineInstances.find((instance) => instance.machineId === 'liquidSteamBoiler')!
-    expect(boiler.process.steamStoredMs).toBe(40000)
+    expect(boilerHasWater(state, boiler)).toBe(false)
+    expect(boiler.process.steamStoredMs).toBe(0)
+    expect(boiler.process.fluids.creosote).toBe(20)
+    expect(boiler.process.activeRecipeId).toBeNull()
+  })
+
+  it('burns connected creosote into steam in a watered liquid steam boiler', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.well = 1
+    state.machines.liquidSteamBoiler = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'well', 1, 1)
+    state = placeMachineInstance(state, 'liquidSteamBoiler', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!.process.fluids.creosote = 20
+
+    state = tickGame(state, 5000).state
+
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'liquidSteamBoiler')!
+    expect(boilerHasWater(state, boiler)).toBe(true)
+    expect(boiler.process.steamStoredMs).toBe(180000)
     expect(boiler.process.steamCapacityMs).toBe(liquidSteamBoilerCapacityMs)
     expect(boiler.process.fluidCapacityLitres).toBe(liquidSteamBoilerFluidCapacityLitres)
     expect(boiler.process.fluids.creosote).toBe(15)

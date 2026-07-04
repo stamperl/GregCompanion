@@ -115,8 +115,8 @@ export const cokeOvenFluidCapacityLitres = machineFluidCapacityLitres('cokeOven'
 export const ironTankFluidCapacityLitres = machineFluidCapacityLitres('steamTank')
 export const steamMachineInternalCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
 export const euPerSteamLitre = 2
-export const boilerSteamProductionLitresPerSecond = 2
-export const steamTurbineSteamUseLitresPerSecond = 8
+export const boilerSteamProductionLitresPerSecond = 12
+export const steamTurbineSteamUseLitresPerSecond = 12
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
 export const lvBatteryBufferEuCapacity = machineEuCapacity('lvBatteryBuffer')
@@ -124,7 +124,7 @@ export const lvBatteryBufferOutputEuPerSecond = 96
 export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
 export const liquidSteamBoilerCapacityMs = machineSteamCapacityLitres('liquidSteamBoiler') * steamMsPerLitre
 export const liquidSteamBoilerFluidCapacityLitres = machineFluidCapacityLitres('liquidSteamBoiler')
-export const liquidSteamBoilerSteamProductionLitresPerSecond = 8
+export const liquidSteamBoilerSteamProductionLitresPerSecond = 36
 export const liquidSteamBoilerCreosoteUseLitresPerSecond = 1
 export const steamAutoMinerActionDamage = 10
 export const steamAutoMinerActionMs = 5000
@@ -306,7 +306,10 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
       machineId: instance.machineId as MachineId,
       x: Math.floor(instance.x ?? 0),
       y: Math.floor(instance.y ?? 0),
-      level: Math.max(1, Math.floor(instance.level ?? 1)),
+      level:
+        instance.machineId === 'steamTank'
+          ? Math.max(0, Math.floor(instance.level ?? 1))
+          : Math.max(1, Math.floor(instance.level ?? 1)),
       pipeDisabledSides: normalizePipeDisabledSides(instance.pipeDisabledSides),
       process: normalizeProcessState(instance.process),
     }))
@@ -1097,21 +1100,185 @@ export function multiblockControllerForInstance(state: GameState, instance: Mach
   return multiblockCenterForInstance(state, instance)
 }
 
-export function boilerHasWater(state: GameState, boiler: MachineInstance) {
-  if (boiler.machineId !== 'steamBoiler') return false
+const steamTankStructureSpecs = [
+  { width: 3, height: 3 },
+  { width: 3, height: 2 },
+  { width: 2, height: 2 },
+] as const
+
+type SteamTankStructureSpec = (typeof steamTankStructureSpecs)[number]
+
+function steamTankStructurePositions(state: GameState, originX: number, originY: number, spec: SteamTankStructureSpec) {
+  const positions = Array.from({ length: spec.width * spec.height }, (_, index) => ({
+    x: originX + (index % spec.width),
+    y: originY + Math.floor(index / spec.width),
+  }))
+  return positions.every((position) => isInsideFactoryGrid(state, position.x, position.y)) ? positions : []
+}
+
+function steamTankStructureSpecForLevel(level: number) {
+  return steamTankStructureSpecs.find((spec) => spec.width * spec.height === level) ?? null
+}
+
+function steamTankStructureAtOrigin(state: GameState, originX: number, originY: number, spec: SteamTankStructureSpec) {
+  const area = spec.width * spec.height
+  const positions = steamTankStructurePositions(state, originX, originY, spec)
+  if (positions.length < area) return null
+  const controller = machineAt(state, originX, originY)
+  if (!controller || controller.machineId !== 'steamTank' || controller.level !== area) return null
+
+  const complete = positions.every((position) => {
+    const candidate = machineAt(state, position.x, position.y)
+    if (!candidate || candidate.machineId !== 'steamTank') return false
+    if (candidate.uid === controller.uid) return true
+    return candidate.level === 0
+  })
+  if (!complete) return null
+
+  return {
+    controller,
+    x: originX,
+    y: originY,
+    width: spec.width,
+    height: spec.height,
+    area,
+    positions,
+  }
+}
+
+export function steamTankStructureForInstance(state: GameState, instance: MachineInstance) {
+  if (instance.machineId !== 'steamTank') return null
+
+  if (instance.level > 1) {
+    const spec = steamTankStructureSpecForLevel(instance.level)
+    return spec ? steamTankStructureAtOrigin(state, instance.x, instance.y, spec) : null
+  }
+
+  if (instance.level !== 0) return null
+
+  for (const spec of steamTankStructureSpecs) {
+    for (let dy = 0; dy < spec.height; dy += 1) {
+      for (let dx = 0; dx < spec.width; dx += 1) {
+        const structure = steamTankStructureAtOrigin(state, instance.x - dx, instance.y - dy, spec)
+        if (structure) return structure
+      }
+    }
+  }
+  return null
+}
+
+function steamTankStorageForInstance(state: GameState, instance: MachineInstance) {
+  return steamTankStructureForInstance(state, instance)?.controller ?? instance
+}
+
+function uniqueMachineInstances(instances: MachineInstance[]) {
+  const unique = new Map<string, MachineInstance>()
+  for (const instance of instances) unique.set(instance.uid, instance)
+  return [...unique.values()]
+}
+
+export function steamTankCapacityMsForInstance(state: GameState, instance: MachineInstance) {
+  const structure = steamTankStructureForInstance(state, instance)
+  if (structure && structure.controller.uid !== instance.uid) return 0
+  return steamTankCapacityMs * (structure?.area ?? 1)
+}
+
+export function steamTankFluidCapacityLitresForInstance(state: GameState, instance: MachineInstance) {
+  const structure = steamTankStructureForInstance(state, instance)
+  if (structure && structure.controller.uid !== instance.uid) return 0
+  return ironTankFluidCapacityLitres * (structure?.area ?? 1)
+}
+
+function canAbsorbSteamTankStructures(state: GameState, positions: Array<{ x: number; y: number }>) {
+  const positionKeys = new Set(positions.map((position) => `${position.x},${position.y}`))
+  for (const position of positions) {
+    const tank = machineAt(state, position.x, position.y)
+    const structure = tank ? steamTankStructureForInstance(state, tank) : null
+    if (!structure) continue
+    if (!structure.positions.every((structurePosition) => positionKeys.has(`${structurePosition.x},${structurePosition.y}`))) return false
+  }
+  return true
+}
+
+function tryFormSteamTankStructure(state: GameState, placed: MachineInstance) {
+  if (placed.machineId !== 'steamTank') return false
+
+  for (const spec of steamTankStructureSpecs) {
+    const area = spec.width * spec.height
+    for (let dy = 0; dy < spec.height; dy += 1) {
+      for (let dx = 0; dx < spec.width; dx += 1) {
+        const originX = placed.x - dx
+        const originY = placed.y - dy
+        const positions = steamTankStructurePositions(state, originX, originY, spec)
+        if (positions.length < area) continue
+        if (!positions.every((position) => machineAt(state, position.x, position.y)?.machineId === 'steamTank')) continue
+        if (!canAbsorbSteamTankStructures(state, positions)) continue
+
+        const tanks = positions.map((position) => machineAt(state, position.x, position.y)!).sort((a, b) => a.uid.localeCompare(b.uid))
+        const controller = machineAt(state, originX, originY)
+        if (!controller) continue
+
+        const steamStoredMs = Math.min(
+          tanks.reduce((sum, tank) => sum + tank.process.steamStoredMs, 0),
+          steamTankCapacityMs * area,
+        )
+        const fluidTotals = tanks.reduce(
+          (totals, tank) => {
+            totals.water += tank.process.fluids.water ?? 0
+            totals.creosote += tank.process.fluids.creosote ?? 0
+            return totals
+          },
+          { water: 0, creosote: 0 },
+        )
+        const fluidCapacityLitres = ironTankFluidCapacityLitres * area
+        const fluidId: FluidId | null =
+          steamStoredMs > 0 ? null : fluidTotals.creosote >= fluidTotals.water && fluidTotals.creosote > 0 ? 'creosote' : fluidTotals.water > 0 ? 'water' : null
+
+        controller.level = area
+        controller.process.steamCapacityMs = steamTankCapacityMs * area
+        controller.process.steamStoredMs = steamStoredMs
+        controller.process.fluidCapacityLitres = fluidCapacityLitres
+        controller.process.fluids = fluidId ? { water: 0, creosote: 0, [fluidId]: Math.min(fluidTotals[fluidId], fluidCapacityLitres) } : { water: 0, creosote: 0 }
+
+        for (const tank of tanks) {
+          if (tank.uid === controller.uid) continue
+          tank.level = 0
+          tank.process.steamCapacityMs = 0
+          tank.process.steamStoredMs = 0
+          tank.process.fluidCapacityLitres = 0
+          tank.process.fluids = { water: 0, creosote: 0 }
+        }
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function hasAdjacentWaterSource(state: GameState, boiler: MachineInstance) {
   return adjacentPositions(state, boiler.x, boiler.y).some((position) => machineAt(state, position.x, position.y)?.machineId === 'well')
+}
+
+export function boilerHasWater(state: GameState, boiler: MachineInstance) {
+  if (boiler.machineId !== 'steamBoiler' && !isLiquidSteamBoilerMachine(boiler.machineId)) return false
+  return hasAdjacentWaterSource(state, boiler)
 }
 
 function machineFluidCapacity(machineId: MachineId) {
   return machineFluidCapacityLitres(machineId)
 }
 
+function machineFluidCapacityForInstance(state: GameState, instance: MachineInstance) {
+  if (instance.machineId === 'steamTank') return steamTankFluidCapacityLitresForInstance(state, instance)
+  return machineFluidCapacity(instance.machineId)
+}
+
 function storedFluidTypes(process: MachineProcessState) {
   return (Object.keys(process.fluids) as FluidId[]).filter((id) => (process.fluids[id] ?? 0) > 0)
 }
 
-function canStoreFluid(instance: MachineInstance, fluidId: FluidId) {
-  const capacity = machineFluidCapacity(instance.machineId)
+function canStoreFluid(state: GameState, instance: MachineInstance, fluidId: FluidId) {
+  const capacity = machineFluidCapacityForInstance(state, instance)
   if (capacity < 1) return false
   if (instance.process.steamStoredMs > 0 && !isLiquidSteamBoilerMachine(instance.machineId)) return false
   const storedTypes = storedFluidTypes(instance.process)
@@ -1221,21 +1388,36 @@ function connectedEuSources(state: GameState, start: MachineInstance) {
 }
 
 function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance) {
-  return adjacentPositions(state, tank.x, tank.y).some((position) => {
-    const adjacent = machineAt(state, position.x, position.y)
-    return Boolean(adjacent && machinesCanConnect(tank, adjacent) && (adjacent.machineId === 'steamBoiler' || isSteamPipeMachine(adjacent.machineId)))
+  const structure = steamTankStructureForInstance(state, tank)
+  const tankCells = structure?.positions.map((position) => machineAt(state, position.x, position.y)).filter((cell): cell is MachineInstance => Boolean(cell)) ?? [tank]
+
+  return tankCells.some((cell) => {
+    return adjacentPositions(state, cell.x, cell.y).some((position) => {
+      const adjacent = machineAt(state, position.x, position.y)
+      return Boolean(
+        adjacent &&
+          machinesCanConnect(cell, adjacent) &&
+          (adjacent.machineId === 'steamBoiler' || isLiquidSteamBoilerMachine(adjacent.machineId) || isSteamPipeMachine(adjacent.machineId)),
+      )
+    })
   })
 }
 
 function connectedSteamStorage(state: GameState, start: MachineInstance) {
-  return connectedSteamNetwork(state, start).filter((instance) => instance.uid !== start.uid && isSteamStorageMachine(instance.machineId))
+  const startStorage = start.machineId === 'steamTank' ? steamTankStorageForInstance(state, start) : start
+  return uniqueMachineInstances(
+    connectedSteamNetwork(state, start)
+      .filter((instance) => instance.uid !== start.uid && isSteamStorageMachine(instance.machineId))
+      .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
+      .filter((instance) => instance.uid !== startStorage.uid),
+  )
 }
 
 function connectedSteamTransferRateMs(state: GameState, start: MachineInstance) {
   const pipeRates = connectedSteamNetwork(state, start)
     .map((instance) => steamPipeTransferLitresPerSecond[instance.machineId])
     .filter((rate): rate is number => typeof rate === 'number')
-  const litresPerSecond = pipeRates.length > 0 ? Math.min(...pipeRates) : 16
+  const litresPerSecond = pipeRates.length > 0 ? Math.min(...pipeRates) : 24
   return litresPerSecond * steamMsPerLitre
 }
 
@@ -1260,20 +1442,30 @@ export function isAutoMinerPowered(state: GameState, instance: MachineInstance) 
 }
 
 function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId: FluidId) {
-  return connectedFluidNetwork(state, start).filter((instance) => instance.uid !== start.uid && canStoreFluid(instance, fluidId))
+  const startStorage = start.machineId === 'steamTank' ? steamTankStorageForInstance(state, start) : start
+  return uniqueMachineInstances(
+    connectedFluidNetwork(state, start)
+      .filter((instance) => instance.uid !== start.uid)
+      .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
+      .filter((instance) => instance.uid !== startStorage.uid && canStoreFluid(state, instance, fluidId)),
+  )
 }
 
 function connectedFluidSources(state: GameState, start: MachineInstance, fluidId: FluidId) {
-  return connectedFluidNetwork(state, start)
-    .filter((instance) => instance.uid !== start.uid && (instance.process.fluids[fluidId] ?? 0) > 0)
-    .sort((a, b) => a.uid.localeCompare(b.uid))
+  const startStorage = start.machineId === 'steamTank' ? steamTankStorageForInstance(state, start) : start
+  return uniqueMachineInstances(
+    connectedFluidNetwork(state, start)
+      .filter((instance) => instance.uid !== start.uid)
+      .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
+      .filter((instance) => instance.uid !== startStorage.uid && (instance.process.fluids[fluidId] ?? 0) > 0),
+  ).sort((a, b) => a.uid.localeCompare(b.uid))
 }
 
 function connectedFluidTransferRateLitres(state: GameState, start: MachineInstance) {
   const pipeRates = connectedFluidNetwork(state, start)
     .map((instance) => steamPipeTransferLitresPerSecond[instance.machineId])
     .filter((rate): rate is number => typeof rate === 'number')
-  return pipeRates.length > 0 ? Math.min(...pipeRates) : 16
+  return pipeRates.length > 0 ? Math.min(...pipeRates) : 24
 }
 
 function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, fluidId: FluidId, elapsedMs: number) {
@@ -1284,7 +1476,7 @@ function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, 
   let moved = 0
   for (const storage of connectedFluidStorage(state, source, fluidId).sort((a, b) => a.uid.localeCompare(b.uid))) {
     if (remaining < 1) break
-    storage.process.fluidCapacityLitres = machineFluidCapacity(storage.machineId)
+    storage.process.fluidCapacityLitres = machineFluidCapacityForInstance(state, storage)
     const free = storage.process.fluidCapacityLitres - (storage.process.fluids[fluidId] ?? 0)
     const transfer = Math.min(remaining, free)
     if (transfer < 1) continue
@@ -1325,10 +1517,13 @@ function fillInternalSteamFromConnectedStorage(state: GameState, instance: Machi
 
 function fillSteamTankFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
   if (instance.machineId !== 'steamTank') return 0
-  instance.process.steamCapacityMs = steamTankCapacityMs
-  instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, steamTankCapacityMs)
+  const structure = steamTankStructureForInstance(state, instance)
+  if (structure && structure.controller.uid !== instance.uid) return 0
+  const capacity = steamTankCapacityMsForInstance(state, instance)
+  instance.process.steamCapacityMs = capacity
+  instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
   if (!canSteamTankReceiveFromNetwork(state, instance)) return 0
-  const needed = steamTankCapacityMs - instance.process.steamStoredMs
+  const needed = capacity - instance.process.steamStoredMs
   if (needed < 1) return 0
   const transferLimit = Math.max(0, Math.floor((connectedSteamTransferRateMs(state, instance) * elapsedMs) / 1000))
   const moved = consumeConnectedSteam(state, instance, Math.min(needed, transferLimit))
@@ -1445,6 +1640,7 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   }
   next.machineInstances.push(placed)
   tryFormMultiblock(next, placed)
+  tryFormSteamTankStructure(next, placed)
   next.lastSavedAt = Date.now()
   return next
 }
@@ -1516,6 +1712,17 @@ export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTarg
 export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
+
+  const tankStructure = instance.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
+  if (tankStructure) {
+    const next = cloneState(state)
+    const positionKeys = new Set(tankStructure.positions.map((position) => `${position.x},${position.y}`))
+    const removedUids = new Set(next.machineInstances.filter((candidate) => positionKeys.has(`${candidate.x},${candidate.y}`)).map((candidate) => candidate.uid))
+    next.machineInstances = next.machineInstances.filter((candidate) => !positionKeys.has(`${candidate.x},${candidate.y}`))
+    for (const removedUid of removedUids) delete next.autoMinerAssignments[removedUid]
+    next.lastSavedAt = Date.now()
+    return next
+  }
 
   const multiblockCenter = multiblockCenterForInstance(state, instance)
   if (multiblockCenter) {
@@ -1836,6 +2043,11 @@ function tickLiquidSteamBoiler(state: GameState, instance: MachineInstance, elap
     process.fluids.creosote = (process.fluids.creosote ?? 0) + pullFluidFromConnectedSources(state, instance, 'creosote', freeFluid)
   }
 
+  if (!boilerHasWater(state, instance)) {
+    process.activeRecipeId = null
+    return
+  }
+
   const freeSteamMs = liquidSteamBoilerCapacityMs - process.steamStoredMs
   const storedCreosote = process.fluids.creosote ?? 0
   if (freeSteamMs < 1 || storedCreosote <= 0) {
@@ -2068,9 +2280,18 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     if (instance.machineId === 'furnace') tickFurnaceProcess(instance, elapsedMs)
     if (instance.machineId === 'steamBoiler') tickSteamBoiler(next, instance, elapsedMs)
     if (instance.machineId === 'steamTank') {
-      instance.process.steamCapacityMs = steamTankCapacityMs
-      instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, steamTankCapacityMs)
-      instance.process.fluidCapacityLitres = ironTankFluidCapacityLitres
+      const tankStructure = steamTankStructureForInstance(next, instance)
+      if (tankStructure && tankStructure.controller.uid !== instance.uid) {
+        instance.process.steamCapacityMs = 0
+        instance.process.steamStoredMs = 0
+        instance.process.fluidCapacityLitres = 0
+        instance.process.fluids = { water: 0, creosote: 0 }
+      } else {
+        const capacity = steamTankCapacityMsForInstance(next, instance)
+        instance.process.steamCapacityMs = capacity
+        instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
+        instance.process.fluidCapacityLitres = steamTankFluidCapacityLitresForInstance(next, instance)
+      }
     }
     if (instance.machineId === 'steamTurbine') {
       instance.process.euCapacity = steamTurbineEuCapacity

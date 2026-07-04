@@ -8404,6 +8404,57 @@ button.button-primary:disabled,
   z-index: 6;
 }
 
+.factory-cell.occupied.tank-structure-controller {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  overflow: visible;
+  z-index: 4;
+}
+
+.factory-cell.occupied.tank-structure-controller::before,
+.factory-cell.occupied.tank-structure-controller::after {
+  display: none;
+}
+
+.factory-cell.occupied.tank-structure-controller > .machine-glyph.machine-sprite-glyph {
+  --tank-structure-inset: 0px;
+  box-sizing: border-box;
+  display: block;
+  filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, 0.32));
+  height: calc(var(--structure-height, 50px) - (var(--tank-structure-inset) * 2));
+  left: var(--tank-structure-inset);
+  pointer-events: none;
+  position: absolute;
+  top: var(--tank-structure-inset);
+  width: calc(var(--structure-width, 50px) - (var(--tank-structure-inset) * 2));
+  z-index: 6;
+}
+
+.factory-cell.occupied.tank-structure-controller > .machine-glyph.machine-sprite-glyph img {
+  object-fit: contain;
+}
+
+.factory-cell.occupied.tank-structure-child {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  z-index: 3;
+}
+
+.factory-cell.occupied.tank-structure-child::before,
+.factory-cell.occupied.tank-structure-child::after,
+.factory-cell.occupied.tank-structure-child > span,
+.factory-cell.occupied.tank-structure-child .machine-glyph {
+  display: none;
+}
+
+.factory-cell.occupied.tank-structure-child.removing {
+  border-color: rgba(164, 222, 235, 0.72);
+  border-bottom-color: rgba(45, 68, 76, 0.72);
+  border-right-color: rgba(45, 68, 76, 0.72);
+}
+
 .processing-shell .factory-pan-viewport {
   height: auto;
   min-height: 0;
