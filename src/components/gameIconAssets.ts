@@ -1,6 +1,5 @@
 import { machines, resourceRegistry } from '../game/content'
 import type { MachineId, ResourceId } from '../game/types'
-import { hasIconSprite } from './iconSprites'
 
 const preloadedIconImages = new Map<string, HTMLImageElement>()
 let iconPreloadPromise: Promise<void> | null = null
@@ -33,9 +32,7 @@ function preloadImage(src: string) {
 export function preloadGeneratedIconImages() {
   if (iconPreloadPromise) return iconPreloadPromise
 
-  const resourceUrls = (Object.keys(resourceRegistry) as ResourceId[])
-    .filter((id) => !hasIconSprite(id))
-    .map(resourceIconSrc)
+  const resourceUrls = (Object.keys(resourceRegistry) as ResourceId[]).map(resourceIconSrc)
   const machineUrls = (Object.keys(machines) as MachineId[]).map(machineIconSrc)
 
   iconPreloadPromise = Promise.all([...resourceUrls, ...machineUrls].map(preloadImage)).then(() => undefined)

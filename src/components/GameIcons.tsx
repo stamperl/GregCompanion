@@ -1,7 +1,6 @@
 import { isEuCableMachine, isSteamPipeMachine } from '../game/content'
 import type { MachineId, ResourceId } from '../game/types'
 import { machineIconSrc, resourceIconSrc } from './gameIconAssets'
-import { hasIconSprite } from './iconSprites'
 
 export type PipeConnections = {
   up: boolean
@@ -11,15 +10,6 @@ export type PipeConnections = {
 }
 
 export function PixelIcon({ id }: { id: ResourceId }) {
-  if (hasIconSprite(id)) {
-    return (
-      <span className="pixel-icon sprite-icon" aria-hidden="true">
-        <svg viewBox="0 0 12 12" shapeRendering="crispEdges" focusable="false">
-          <use href={`#sprite-${id}`} />
-        </svg>
-      </span>
-    )
-  }
   return (
     <span className="pixel-icon item-sprite-icon" aria-hidden="true">
       <img src={resourceIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" />
