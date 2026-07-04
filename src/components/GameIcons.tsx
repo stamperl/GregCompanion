@@ -21,7 +21,7 @@ export function PixelIcon({ id }: { id: ResourceId }) {
     )
   }
   return (
-    <span className={`pixel-icon item-sprite-icon pixel-${id}`} aria-hidden="true">
+    <span className="pixel-icon item-sprite-icon" aria-hidden="true">
       <img src={resourceIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" />
       <span />
     </span>

@@ -10,25 +10,6 @@ type SpriteDef = {
 const wood = { O: '#3a2313', d: '#6f4526', b: '#b98a4a', h: '#dfb872' }
 const stonePal = { O: '#2b2b2b', d: '#6e6e6e', b: '#9c9c9c', h: '#c9c9c9' }
 const coalPal = { O: '#111111', d: '#23262a', b: '#33373d', h: '#5c636b', w: '#9aa3ad' }
-const ironPal = { O: '#3f474b', d: '#8f9aa0', b: '#c3cbd1', h: '#e9edf0' }
-const copperPal = { O: '#4c2c15', d: '#8a4d1f', b: '#c47433', h: '#e8a06a' }
-const tinPal = { O: '#4f585e', d: '#97a4a6', b: '#ccd6d8', h: '#eef2f2' }
-
-const ingotRows = [
-  '............',
-  '............',
-  '..OOOOOOOO..',
-  '.OhhhhhhhdO.',
-  'OhhbbbbbbdO.',
-  'ObbbbbbbddO.',
-  'ObbbbbbdddO.',
-  '.OOOOOOOOO..',
-  '............',
-  '............',
-  '............',
-  '............',
-]
-
 function oreRows(nuggetLine1: string, nuggetLine2: string) {
   return [
     'OOOOOOOOOOOO',
@@ -212,9 +193,6 @@ export const iconSprites: Partial<Record<ResourceId, SpriteDef>> = {
     palette: { ...stonePal, n: '#dfe7e9', m: '#97a4a6' },
     rows: oreRows('ObbnnbbbbbbO', 'ObbbbbbnnbbO').map((row, index) => (index === 3 ? 'ObbnnbbbmbbO' : index === 6 ? 'ObmbbbbnnbbO' : row)),
   },
-  ironIngot: { palette: ironPal, rows: ingotRows },
-  copperIngot: { palette: copperPal, rows: ingotRows },
-  tinIngot: { palette: tinPal, rows: ingotRows },
   mortar: {
     palette: { O: '#2b2b2b', d: '#6e6e6e', b: '#9c9c9c', h: '#c9c9c9', w: '#8a6b3f', v: '#b98a4a' },
     rows: [
