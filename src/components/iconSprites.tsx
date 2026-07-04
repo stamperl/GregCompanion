@@ -193,23 +193,6 @@ export const iconSprites: Partial<Record<ResourceId, SpriteDef>> = {
     palette: { ...stonePal, n: '#dfe7e9', m: '#97a4a6' },
     rows: oreRows('ObbnnbbbbbbO', 'ObbbbbbnnbbO').map((row, index) => (index === 3 ? 'ObbnnbbbmbbO' : index === 6 ? 'ObmbbbbnnbbO' : row)),
   },
-  mortar: {
-    palette: { O: '#2b2b2b', d: '#6e6e6e', b: '#9c9c9c', h: '#c9c9c9', w: '#8a6b3f', v: '#b98a4a' },
-    rows: [
-      '.......OO...',
-      '......OvwO..',
-      '.....OvwO...',
-      '....OvwO....',
-      'OOOOvwOOOOO.',
-      'OhhhOOhhhhO.',
-      '.OhbbbbbbO..',
-      '.ObbbbbbbO..',
-      '..ObbbbbO...',
-      '...ObbbO....',
-      '..OOOOOOO...',
-      '............',
-    ],
-  },
 }
 
 function spriteRects(def: SpriteDef) {
