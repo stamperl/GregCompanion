@@ -201,6 +201,10 @@ type AchievementToast = {
   title: string
 }
 
+function recipeOpensProcessView(recipe: Recipe) {
+  return Boolean(recipe.requiredMachine || recipe.recipeType === 'processing' || (recipe.stationType && recipe.stationType !== 'hand'))
+}
+
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'uses'
 type DragPreview = { id: ResourceId; x: number; y: number }
@@ -2290,7 +2294,33 @@ function App() {
     setPage('terminal')
   }
 
+  const handleOpenProcessRecipe = (recipe: Recipe) => {
+    const matchingMachine = recipe.requiredMachine
+      ? state.machineInstances.find((instance) => instance.machineId === recipe.requiredMachine)
+      : null
+
+    pushNavigationSnapshot()
+    setPage('processing')
+    setIsRecipeModalOpen(false)
+    setIsFactoryExpandModalOpen(false)
+    setMissingBatch(null)
+    setPendingProcessInsert(null)
+    setSelectedQuestId(null)
+    setSelectedPipeConfigUid(null)
+    setPlacingMachineId(null)
+    setSelectedMachineUid(matchingMachine?.uid ?? null)
+
+    if (recipe.requiredMachine && !matchingMachine) {
+      setTerminalNotice(`Place ${machines[recipe.requiredMachine].name} on the factory floor.`)
+    }
+  }
+
   const handleRecipeBrowserAction = (recipe: Recipe) => {
+    if (recipeOpensProcessView(recipe)) {
+      handleOpenProcessRecipe(recipe)
+      return
+    }
+
     if (recipeFitsTerminalGrid(recipe)) {
       handleLoadRecipe(recipe)
       return
@@ -3491,6 +3521,8 @@ function App() {
                       >
                         {isFactoryFloorLayoutRecipe(selectedRecipe)
                           ? 'Create factory parts'
+                          : recipeOpensProcessView(selectedRecipe)
+                            ? 'Open process view'
                           : recipeFitsTerminalGrid(selectedRecipe)
                             ? 'Load recipe'
                             : selectedRecipe.machineOutputs
