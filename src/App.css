@@ -133,11 +133,11 @@
 }
 
 .page-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .page-tabs.wide-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .page-tabs button {
@@ -4985,15 +4985,15 @@ button.craft-output:disabled {
   }
 
   .page-tabs.wide-tabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .page-tabs {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .page-tabs button {
-    justify-content: start;
+    justify-content: center;
   }
 
   .tap-grid {
@@ -5151,7 +5151,7 @@ button.craft-output:disabled {
   align-content: center;
   min-height: 100dvh;
   overflow: hidden;
-  padding: max(18px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+  padding: var(--top-safe-clearance) 14px max(18px, env(safe-area-inset-bottom));
 }
 
 .home-panel {
@@ -6015,7 +6015,8 @@ button.craft-output:disabled {
   margin: 0;
 }
 
-.quest-book-head p:last-child {
+.quest-book-head > p,
+.quest-book-head > div:last-child p {
   color: #3f3f3f;
   font-size: 0.68rem;
   font-weight: 800;
@@ -6023,6 +6024,14 @@ button.craft-output:disabled {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.quest-book-head strong {
+  color: #5c4f15;
+  display: block;
+  font-family: var(--display-font);
+  font-size: 0.68rem;
+  margin-top: 4px;
 }
 
 .quest-map-scroll {
@@ -6035,17 +6044,42 @@ button.craft-output:disabled {
   border-bottom-color: #5e5e5e;
   border-radius: 0;
   border-right-color: #5e5e5e;
-  max-height: min(54vh, 420px);
+  cursor: grab;
+  height: min(54vh, 430px);
+  max-height: min(54vh, 430px);
   max-width: 100%;
-  overflow: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
   padding: 8px;
-  touch-action: pan-x pan-y;
+  position: relative;
+  touch-action: none;
+  user-select: none;
 }
 
 .quest-map {
+  height: var(--quest-map-height, 100%);
   min-width: 100%;
   position: relative;
+  transform-origin: 0 0;
+  width: var(--quest-map-width, 100%);
+}
+
+.quest-map-empty {
+  background: rgba(210, 199, 173, 0.92);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.32);
+  color: var(--ink-strong);
+  font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  left: 22px;
+  line-height: 1.25;
+  max-width: 260px;
+  padding: 10px;
+  position: absolute;
+  text-transform: uppercase;
+  top: 22px;
 }
 
 .quest-lines {
@@ -6058,94 +6092,91 @@ button.craft-output:disabled {
 .quest-lines path {
   fill: none;
   stroke-linecap: square;
-  stroke-linejoin: miter;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .quest-line-shadow {
-  stroke: #5a5a5a;
-  stroke-width: 9px;
+  stroke: rgba(50, 50, 50, 0.58);
+  stroke-width: 4px;
 }
 
 .quest-lines path.locked {
   stroke: #8a8a8a;
-  stroke-width: 5px;
+  stroke-width: 2px;
 }
 
 .quest-lines path.open {
-  stroke: #c2a846;
-  stroke-width: 5px;
+  stroke: #b69d36;
+  stroke-width: 2px;
 }
 
 .quest-lines path.complete {
-  stroke: #6da448;
-  stroke-width: 5px;
-}
-
-.quest-line-joint {
-  fill: #5a5a5a;
-}
-
-.quest-line-joint.locked {
-  fill: #8a8a8a;
-}
-
-.quest-line-joint.open {
-  fill: #d8c45c;
-}
-
-.quest-line-joint.complete {
-  fill: #7fbc55;
+  stroke: #5d9b43;
+  stroke-width: 2px;
 }
 
 .quest-node {
   align-items: center;
-  background: #b8b8b8;
-  border: 3px solid #ededed;
-  border-bottom-color: #575757;
+  aspect-ratio: 1;
+  background: #a9a9a9;
+  border: 3px solid #eeeeee;
+  border-bottom-color: #5a5a5a;
   border-radius: 0;
-  border-right-color: #575757;
+  border-right-color: #5a5a5a;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
   color: #242424;
   display: grid;
-  gap: 3px;
-  grid-template-columns: 42px minmax(0, 1fr) 18px;
-  min-height: 74px;
+  justify-items: center;
+  min-height: 58px;
   padding: 5px;
   position: absolute;
-  text-align: left;
-  width: 142px;
+  text-align: center;
+  width: 58px;
   z-index: 2;
 }
 
+.quest-node.not-done {
+  background: #b4b4b4;
+  border-color: #f0f0f0;
+  border-bottom-color: #5f5f5f;
+  border-right-color: #5f5f5f;
+}
+
+.quest-node.claimable {
+  background: #bfa83a;
+  border-color: #fff2a6;
+  border-bottom-color: #725f19;
+  border-right-color: #725f19;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.35),
+    0 0 0 2px rgba(255, 242, 166, 0.38);
+}
+
+.quest-node.claimed {
+  background: #87ad76;
+  border-color: #e3f5d7;
+  border-bottom-color: #416a31;
+  border-right-color: #416a31;
+}
+
 .quest-node.locked {
-  background: #bfbfbf;
+  background: #9d9d9d;
   color: #4d4d4d;
   filter: grayscale(0.75);
 }
 
-.quest-node.locked .quest-node-icon,
-.quest-node.locked .quest-node-title,
-.quest-node.locked .quest-node-state {
-  opacity: 0.72;
+.quest-node.locked .quest-node-icon {
+  opacity: 0.68;
 }
 
-.quest-node.ready {
-  background: #b9ad66;
-  border-color: #fff2a6;
-  border-bottom-color: #7b6a20;
-  border-right-color: #7b6a20;
-}
-
-.quest-node.completed {
-  background: #9fb992;
-  border-color: #e3f5d7;
-  border-bottom-color: #4b7138;
-  border-right-color: #4b7138;
+.quest-node.optional {
+  border-style: dashed;
 }
 
 .quest-node.selected {
-  outline: 2px solid #fff8b5;
-  outline-offset: 2px;
+  outline: 3px solid #fff8b5;
+  outline-offset: 3px;
 }
 
 .quest-node-icon,
@@ -6153,13 +6184,13 @@ button.craft-output:disabled {
   align-items: center;
   aspect-ratio: 1;
   background: var(--bevel-well);
-  border: 2px solid var(--bevel-light);
-  border-bottom-color: #555;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-bottom-color: rgba(0, 0, 0, 0.42);
   border-radius: 0;
-  border-right-color: #555;
+  border-right-color: rgba(0, 0, 0, 0.42);
   display: grid;
   justify-items: center;
-  width: 38px;
+  width: 42px;
 }
 
 .quest-icon-art {
@@ -6175,23 +6206,16 @@ button.craft-output:disabled {
 .quest-node-icon .machine-glyph,
 .quest-detail-icon .pixel-icon,
 .quest-detail-icon .machine-glyph {
-  height: 28px;
-  width: 28px;
+  height: 32px;
+  width: 32px;
 }
 
 .quest-node-title {
-  font-family: "Courier New", ui-monospace, monospace;
-  font-size: 0.64rem;
-  font-weight: 900;
-  line-height: 1.02;
+  display: none;
 }
 
 .quest-node-state {
-  color: #3e3e3e;
-  font-size: 0.55rem;
-  font-weight: 900;
-  grid-column: 2 / 4;
-  text-transform: uppercase;
+  display: none;
 }
 
 .quest-detail-modal {
@@ -6258,6 +6282,14 @@ button.craft-output:disabled {
   text-align: left;
 }
 
+.quest-objective.factory-link {
+  cursor: pointer;
+}
+
+.quest-objective.factory-link:active {
+  transform: translateY(1px);
+}
+
 .quest-objective.complete {
   background: #a9bd9d;
 }
@@ -6281,13 +6313,161 @@ button.craft-output:disabled {
   color: #fff7c8;
 }
 
-.achievement-toast-stack {
+.quest-reward-panel {
+  background: #9d9d9d;
+  border: 2px solid #ededed;
+  border-bottom-color: #5b5b5b;
+  border-radius: 0;
+  border-right-color: #5b5b5b;
+  color: #222;
+  display: grid;
+  gap: 3px;
+  margin-bottom: 8px;
+  padding: 7px;
+}
+
+.quest-reward-panel > span:first-child {
+  color: #5c4f15;
+  font-size: 0.58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.quest-reward-panel strong {
+  font-size: 0.78rem;
+}
+
+.quest-reward-panel span {
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.shop-page {
+  background: var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  color: var(--bevel-drop);
+  display: grid;
+  gap: 10px;
+  padding: 9px;
+}
+
+.shop-head {
+  align-items: center;
+  border-bottom: 2px solid var(--bevel-dark);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-bottom: 8px;
+}
+
+.shop-head h2,
+.shop-section h3 {
+  color: var(--ink-strong);
+  font-family: var(--display-font);
+  margin: 0;
+}
+
+.shop-head strong {
+  background: #6d5d22;
+  border: 2px solid #fff1a8;
+  border-bottom-color: #32270a;
+  border-radius: 0;
+  border-right-color: #32270a;
+  color: #fff7c8;
+  font-size: 0.78rem;
+  padding: 6px;
+  white-space: nowrap;
+}
+
+.shop-note {
+  color: #3f3f3f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.shop-section {
+  display: grid;
+  gap: 7px;
+}
+
+.shop-grid {
   display: grid;
   gap: 6px;
-  max-width: min(310px, calc(100vw - 18px));
+}
+
+.shop-card {
+  align-items: center;
+  background: #a8a8a8;
+  border: 2px solid #ededed;
+  border-bottom-color: #5b5b5b;
+  border-radius: 0;
+  border-right-color: #5b5b5b;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: auto minmax(0, 1fr) minmax(72px, auto);
+  min-height: 54px;
+  padding: 5px;
+}
+
+.shop-card.locked {
+  filter: grayscale(0.75);
+  opacity: 0.76;
+}
+
+.shop-card strong {
+  color: #222;
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.05;
+}
+
+.shop-card span {
+  color: #3f3f3f;
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.shop-card button {
+  background: #4f4320;
+  border: 2px solid #fff1a8;
+  border-bottom-color: #30260a;
+  border-radius: 0;
+  border-right-color: #30260a;
+  color: #fff7c8;
+  font-size: 0.64rem;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 4px;
+}
+
+.shop-card button:disabled {
+  background: #777;
+  border-color: #ddd;
+  border-bottom-color: #555;
+  border-right-color: #555;
+  color: #333;
+}
+
+.sell-card button {
+  background: #365533;
+  border-color: #d9f3c8;
+  border-bottom-color: #21351d;
+  border-right-color: #21351d;
+}
+
+.achievement-toast-stack {
+  display: grid;
+  gap: 4px;
+  max-width: min(220px, calc(100vw - 18px));
+  pointer-events: none;
   position: fixed;
+  bottom: calc(var(--bottom-nav-clearance) + 8px);
   right: max(8px, env(safe-area-inset-right));
-  top: calc(var(--sticky-header-height) + 10px);
   z-index: 80;
 }
 
@@ -6302,13 +6482,15 @@ button.craft-output:disabled {
   display: grid;
   gap: 2px;
   image-rendering: pixelated;
-  padding: 7px 9px;
+  opacity: 0.92;
+  padding: 5px 7px;
+  pointer-events: auto;
   text-align: left;
 }
 
 .achievement-toast span {
   color: #e6c35a;
-  font-size: 0.58rem;
+  font-size: 0.48rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -6316,8 +6498,11 @@ button.craft-output:disabled {
 .achievement-toast strong {
   color: #f7f7f7;
   font-family: var(--display-font);
-  font-size: 0.76rem;
+  font-size: 0.62rem;
   line-height: 1.05;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .resource-pill {
@@ -7609,12 +7794,13 @@ button.recipe-jump-slot {
   --bottom-nav-height: 48px;
   --bottom-nav-gap: 8px;
   --bottom-nav-clearance: calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + max(8px, env(safe-area-inset-bottom)));
+  --top-safe-clearance: max(44px, calc(env(safe-area-inset-top, 0px) + 10px));
 }
 
 .game-shell {
   align-content: start;
   padding-bottom: calc(var(--bottom-nav-clearance) + 12px);
-  padding-top: 0;
+  padding-top: var(--top-safe-clearance);
 }
 
 .game-shell.processing-shell {
@@ -7655,7 +7841,7 @@ button.recipe-jump-slot {
   box-shadow: 0 3px 0 var(--bevel-drop), 0 -6px 0 rgba(32, 32, 32, 0.2);
   display: grid;
   gap: 3px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   isolation: isolate;
   left: 50%;
   padding: 3px;
@@ -7674,7 +7860,7 @@ button.recipe-jump-slot {
 }
 
 .page-tabs.wide-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .page-tabs button {
@@ -7767,7 +7953,7 @@ button.recipe-jump-slot {
 
 @media (max-width: 430px) {
   .game-shell {
-    padding: 0 4px calc(var(--bottom-nav-clearance) + 10px);
+    padding: var(--top-safe-clearance) 4px calc(var(--bottom-nav-clearance) + 10px);
     --sticky-header-height: 62px;
     --sticky-header-gap: 8px;
   }
@@ -7785,11 +7971,12 @@ button.recipe-jump-slot {
   }
 
   .page-tabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .page-tabs button {
-    font-size: 0.66rem;
+    flex-direction: column;
+    font-size: 0.54rem;
     gap: 2px;
     justify-content: center;
     line-height: 1;
@@ -7799,8 +7986,8 @@ button.recipe-jump-slot {
   }
 
   .page-tabs svg {
-    height: 14px;
-    width: 14px;
+    height: 13px;
+    width: 13px;
   }
 
   .game-header,
@@ -7819,11 +8006,16 @@ button.recipe-jump-slot {
   }
 
   .quest-chapter-tabs {
+    display: grid;
+    gap: 4px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 6px;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
   .quest-chapter-tabs button {
-    flex-basis: max(136px, calc((100% - 4px) / 2));
+    flex: initial;
     font-size: 0.58rem;
     line-height: 1;
   }
@@ -7833,7 +8025,8 @@ button.recipe-jump-slot {
     margin-bottom: 6px;
   }
 
-  .quest-book-head p:last-child {
+  .quest-book-head > p,
+  .quest-book-head > div:last-child p {
     display: none;
   }
 
@@ -7842,10 +8035,9 @@ button.recipe-jump-slot {
     height: calc(100svh - var(--sticky-header-height) - var(--bottom-nav-clearance) - 156px);
     max-height: none;
     min-height: 270px;
-    overflow: auto;
+    overflow: hidden;
     padding: 6px;
     width: 100%;
-    -webkit-overflow-scrolling: touch;
   }
 
   .terminal-panel,

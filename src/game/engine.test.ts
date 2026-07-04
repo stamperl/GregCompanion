@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canAutoMinerTarget, createInitialState, fuelDefinitions, gatherTargets, processRecipes, quests, recipes } from './content'
+import { canAutoMinerTarget, createInitialState, fuelDefinitions, gatherTargets, processRecipes, quests, recipes, sellItems, shopItems } from './content'
 import { processRecipesProducingResource, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
@@ -9,10 +9,13 @@ import {
   availableResourceAmount,
   availableUnplacedMachineCount,
   assignAutoMiner,
+  buyShopItem,
   boilerHasWater,
   boilerSteamCapacityMs,
+  canBuyShopItem,
   canCrowbarRemoveMachine,
   canExpandFactoryFloor,
+  canSellShopItem,
   cokeOvenFluidCapacityLitres,
   canCraft,
   claimQuestReward,
@@ -43,14 +46,17 @@ import {
   missingForRecipe,
   placeMachineInstance,
   processStackLimit,
+  questKind,
   questObjectiveProgress,
   questProgress,
+  questScripReward,
   questStatus,
   recipeFitsTerminalGrid,
   recipesUsingInput,
   removeMachineInstance,
   removeProcessSlot,
   searchTerminalRecipes,
+  sellShopItem,
   simulateOfflineProgress,
   setPipeSideDisabled,
   steamMaceratorCapacityMs,
@@ -324,6 +330,45 @@ describe('game engine', () => {
 
     state = claimQuestReward(state, 'punchTree')
     expect(state.claimedQuests).toContain('punchTree')
+    expect(state.scrip).toBe(questScripReward(quest))
+    expect(claimQuestReward(state, 'punchTree').scrip).toBe(state.scrip)
+  })
+
+  it('unlocks the shop after the getting started gate and buys only discovered resources', () => {
+    let state = createInitialState(1000)
+    const logShopItem = shopItems.find((item) => item.id === 'log')!
+    const ironShopItem = shopItems.find((item) => item.id === 'ironIngot')!
+
+    state.resources.log = 1
+    state.discoveredResources = ['log']
+    state.scrip = 100
+
+    expect(canBuyShopItem(state, logShopItem)).toBe(false)
+
+    state.completedQuests.push('buildFoundation')
+    expect(canBuyShopItem(state, logShopItem)).toBe(true)
+    expect(canBuyShopItem(state, ironShopItem)).toBe(false)
+
+    state = buyShopItem(state, 'log', 2)
+    expect(state.resources.log).toBe(3)
+    expect(state.scrip).toBe(100 - logShopItem.buyPrice * 2)
+
+    expect(buyShopItem(state, 'woodenAxe')).toBe(state)
+  })
+
+  it('sells only the fixed gathered material list for Foundry Scrip', () => {
+    let state = createInitialState(1000)
+    state.completedQuests.push('buildFoundation')
+    state.resources.log = 3
+    state.resources.ironPlate = 3
+    const logSellItem = sellItems.find((item) => item.id === 'log')!
+
+    expect(canSellShopItem(state, logSellItem)).toBe(true)
+    state = sellShopItem(state, 'log', 2)
+
+    expect(state.resources.log).toBe(1)
+    expect(state.scrip).toBe(logSellItem.sellPrice * 2)
+    expect(sellShopItem(state, 'ironPlate')).toBe(state)
   })
 
   it('loads old saves without offline reward when no saved timestamp exists', () => {
@@ -336,6 +381,8 @@ describe('game engine', () => {
     })
     expect(result.state.resources.log).toBe(1)
     expect(result.state.lastSavedAt).toBe(60_000)
+    expect(result.state.scrip).toBe(0)
+    expect(result.state.discoveredResources).toContain('log')
   })
 
   it('rejects suspicious offline clock changes', () => {
@@ -373,13 +420,33 @@ describe('game engine', () => {
     expect(result.state.completedQuests).toContain('punchTree')
   })
 
-  it('shows locked quest book branches and tracks objective progress', () => {
+  it('reveals only ready quest book branches and tracks hidden objective progress', () => {
     const state = createFactoryState(1000)
+    const punchQuest = quests.find((candidate) => candidate.id === 'punchTree')!
+    const plankQuest = quests.find((candidate) => candidate.id === 'craftPlanks')!
     const furnaceQuest = quests.find((candidate) => candidate.id === 'buildFurnace')!
 
-    expect(visibleQuests(state)).toContain(furnaceQuest)
+    expect(visibleQuests(state)).toContain(punchQuest)
+    expect(visibleQuests(state)).not.toContain(plankQuest)
+    expect(visibleQuests(state)).not.toContain(furnaceQuest)
     expect(questStatus(state, furnaceQuest)).toBe('locked')
     expect(questProgress(state, furnaceQuest)).toBe(0)
+  })
+
+  it('keeps LV guide steps hidden until their parent quest is complete', () => {
+    const state = createFactoryState(1000)
+    state.completedQuests.push('steelPlateQuest')
+    const redstoneQuest = quests.find((candidate) => candidate.id === 'findRedstone')!
+    const alloyQuest = quests.find((candidate) => candidate.id === 'smeltRedAlloy')!
+    const wireQuest = quests.find((candidate) => candidate.id === 'cutRedAlloyWireQuest')!
+
+    expect(visibleQuests(state)).toContain(redstoneQuest)
+    expect(visibleQuests(state)).not.toContain(alloyQuest)
+    expect(visibleQuests(state)).not.toContain(wireQuest)
+
+    state.completedQuests.push('findRedstone')
+    expect(visibleQuests(state)).toContain(alloyQuest)
+    expect(visibleQuests(state)).not.toContain(wireQuest)
   })
 
   it('tracks factory foundation and placed machine quest objectives', () => {
@@ -404,12 +471,14 @@ describe('game engine', () => {
     }
 
     const vacuumTubes = quests.find((quest) => quest.id === 'makeVacuumTubes')!
+    const pulpWood = quests.find((quest) => quest.id === 'pulpWoodQuest')!
     const circuitBoard = quests.find((quest) => quest.id === 'pressCircuitBoard')!
     const firstCircuit = quests.find((quest) => quest.id === 'firstLvCircuit')!
 
-    expect(vacuumTubes.prerequisites).toEqual(['cutRedAlloyWireQuest', 'makeGlassTubes'])
+    expect(vacuumTubes.prerequisites).toEqual(['insulateWireQuest', 'makeGlassTubes'])
+    expect(pulpWood.prerequisites).toEqual(['makeVacuumTubes', 'makeResistors'])
     expect(circuitBoard.prerequisites).toEqual(['pulpWoodQuest'])
-    expect(firstCircuit.prerequisites).toEqual(['pressCircuitBoard', 'makeVacuumTubes', 'makeResistors', 'insulateWireQuest'])
+    expect(firstCircuit.prerequisites).toEqual(['pressCircuitBoard'])
 
     const lvResourceObjectives = quests
       .filter((quest) => quest.chapterId === 'lvFoundations')
@@ -432,6 +501,31 @@ describe('game engine', () => {
     expect(aluminiumDustRoutes).toContain('lv_electrolyze_bauxite')
     expect(aluminiumDustRoutes).toContain('lv_centrifuge_clay_aluminium')
     expect(aluminiumDustRoutes).toContain('lv_centrifuge_gravel_aluminium')
+  })
+
+  it('carries the LV guide through the arc furnace into aluminium', () => {
+    const bender = quests.find((quest) => quest.id === 'runLvBenderQuest')!
+    const lathe = quests.find((quest) => quest.id === 'runLvLatheQuest')!
+    const electrolyzer = quests.find((quest) => quest.id === 'buildLvElectrolyzerQuest')!
+    const bauxite = quests.find((quest) => quest.id === 'findBauxiteQuest')!
+    const aluminiumDust = quests.find((quest) => quest.id === 'makeAluminiumDustQuest')!
+    const coils = quests.find((quest) => quest.id === 'makeHeatingCoilsQuest')!
+    const arcFurnace = quests.find((quest) => quest.id === 'buildArcBlastFurnaceQuest')!
+    const chargedArc = quests.find((quest) => quest.id === 'bufferArcBlastFurnaceQuest')!
+    const aluminium = quests.find((quest) => quest.id === 'firstAluminiumQuest')!
+
+    expect(questKind(bender)).toBe('main')
+    expect(questKind(lathe)).toBe('main')
+    expect(questKind(bauxite)).toBe('main')
+    expect(questKind(aluminiumDust)).toBe('main')
+    expect(electrolyzer.prerequisites).toEqual(['runLvBenderQuest', 'runLvLatheQuest'])
+    expect(bauxite.prerequisites).toEqual(['buildLvElectrolyzerQuest'])
+    expect(aluminiumDust.prerequisites).toEqual(['findBauxiteQuest'])
+    expect(arcFurnace.prerequisites).toEqual(['makeHeatingCoilsQuest'])
+    expect(chargedArc.prerequisites).toEqual(['buildArcBlastFurnaceQuest', 'bufferLvPowerQuest'])
+    expect(aluminium.prerequisites).toEqual(['makeAluminiumDustQuest', 'bufferArcBlastFurnaceQuest'])
+    expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 4 })
+    expect(arcFurnace.requirements.machines).toEqual([{ id: 'arcBlastFurnace', amount: 1 }])
   })
 
   it('migrates old saves into the new wood-opening state shape', () => {
@@ -1462,8 +1556,8 @@ describe('game engine', () => {
 
   it('crafts BBF casing items and assembles them into factory multiblock parts', () => {
     let state = createFactoryState(1000)
-    state.resources.firebrick = 4
-    state.resources.ironPlate = 1
+    state.resources.firebrick = 6
+    state.resources.ironPlate = 2
     state.resources.bronzeWrench = 1
     const casing = recipes.find((recipe) => recipe.id === 'craft_bbf_casing')!
 
@@ -1478,7 +1572,7 @@ describe('game engine', () => {
     expect(state.resources.bbfCasing).toBe(1)
     expect(durabilityRemaining(state, 'bronzeWrench')).toBe(191)
 
-    state.resources.bbfCasing = 4
+    state.resources.bbfCasing = 8
     const blastFurnace = recipes.find((recipe) => recipe.id === 'build_bricked_blast_furnace')!
     expect(blastFurnace.recipeType).toBe('machine')
     expect(recipeFitsTerminalGrid(blastFurnace)).toBe(false)

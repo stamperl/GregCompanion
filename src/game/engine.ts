@@ -28,7 +28,10 @@ import {
   processRecipes,
   quests,
   recipes,
+  resourceRegistry,
   resourceLabels,
+  sellItems,
+  shopItems,
   tools,
 } from './content'
 import {
@@ -61,6 +64,8 @@ import type {
   ResourceAmount,
   ResourceId,
   OfflineProgressResult,
+  SellItem,
+  ShopItem,
   TickResult,
 } from './types'
 
@@ -325,10 +330,12 @@ export function cloneState(state: GameState): GameState {
       pipeDisabledSides: { ...instance.pipeDisabledSides },
       process: cloneProcessState(instance.process),
     })),
+    scrip: Math.max(0, Math.floor(state.scrip ?? 0)),
     completedQuests: [...state.completedQuests],
     claimedQuests: [...state.claimedQuests],
     unlockedQuests: [...state.unlockedQuests],
     craftedResources: [...state.craftedResources],
+    discoveredResources: [...(state.discoveredResources ?? [])],
     equipment: { ...state.equipment },
     durability: { ...state.durability },
     gatherProgress: { ...state.gatherProgress },
@@ -373,6 +380,7 @@ export function addResources(state: GameState, amounts: ResourceAmount[]) {
   for (const amount of amounts) {
     next.resources[amount.id] += amount.amount
   }
+  next.discoveredResources = Array.from(new Set([...next.discoveredResources, ...amounts.filter((amount) => amount.amount > 0).map((amount) => amount.id)]))
   next.lastSavedAt = Date.now()
   return next
 }
@@ -394,6 +402,52 @@ export function equippedResourceCounts(state: GameState) {
 
 export function availableResourceAmount(state: GameState, resourceId: ResourceId) {
   return state.resources[resourceId] - (equippedResourceCounts(state)[resourceId] ?? 0)
+}
+
+export function isResourceDiscovered(state: GameState, resourceId: ResourceId) {
+  return state.discoveredResources.includes(resourceId) || state.craftedResources.includes(resourceId) || state.resources[resourceId] > 0 || Object.values(state.equipment).includes(resourceId)
+}
+
+export function isShopUnlocked(state: GameState) {
+  return state.completedQuests.includes('buildFoundation')
+}
+
+function canShopSellResource(resourceId: ResourceId) {
+  return resourceRegistry[resourceId].category !== 'tool'
+}
+
+export function canBuyShopItem(state: GameState, item: ShopItem) {
+  return isShopUnlocked(state) && canShopSellResource(item.id) && isResourceDiscovered(state, item.id) && state.scrip >= item.buyPrice
+}
+
+export function buyShopItem(state: GameState, itemId: ResourceId, quantity = 1) {
+  const item = shopItems.find((candidate) => candidate.id === itemId)
+  const requestedQuantity = Math.max(1, Math.floor(quantity))
+  if (!item || !canShopSellResource(item.id) || !isShopUnlocked(state) || !isResourceDiscovered(state, item.id)) return state
+  const totalPrice = item.buyPrice * requestedQuantity
+  if (state.scrip < totalPrice) return state
+
+  let next = cloneState(state)
+  next.scrip -= totalPrice
+  next.lastSavedAt = Date.now()
+  next = addResources(next, [{ id: item.id, amount: requestedQuantity }])
+  return next
+}
+
+export function canSellShopItem(state: GameState, item: SellItem) {
+  return isShopUnlocked(state) && availableResourceAmount(state, item.id) > 0
+}
+
+export function sellShopItem(state: GameState, itemId: ResourceId, quantity = 1) {
+  const item = sellItems.find((candidate) => candidate.id === itemId)
+  const requestedQuantity = Math.max(1, Math.floor(quantity))
+  if (!item || !isShopUnlocked(state) || availableResourceAmount(state, item.id) < requestedQuantity) return state
+
+  const next = subtractResources(state, [{ id: item.id, amount: requestedQuantity }])
+  const paid = cloneState(next)
+  paid.scrip += item.sellPrice * requestedQuantity
+  paid.lastSavedAt = Date.now()
+  return paid
 }
 
 export function maxDurability(resourceId: ResourceId) {
@@ -2517,6 +2571,32 @@ export function canCompleteQuest(state: GameState, quest: Quest) {
   return questStatus(state, quest) === 'ready'
 }
 
+export function questKind(quest: Quest): NonNullable<Quest['kind']> {
+  if (quest.kind) return quest.kind
+  if (['buildFoundation', 'steelPlateQuest', 'buildSteamTurbineQuest', 'firstAluminiumQuest'].includes(quest.id)) return 'gate'
+  if (
+    [
+      'chopFaster',
+      'craftMortar',
+      'gatherClay',
+      'treeTapQuest',
+      'steamUtilityBranch',
+      'creosoteBoilerQuest',
+    ].includes(quest.id)
+  ) {
+    return 'optional'
+  }
+  return 'main'
+}
+
+export function questScripReward(quest: Quest) {
+  if (typeof quest.rewards.scrip === 'number') return quest.rewards.scrip
+  const kind = questKind(quest)
+  if (kind === 'gate') return 30
+  if (kind === 'optional') return 8
+  return 12
+}
+
 export function autoCompleteQuests(state: GameState): { state: GameState; completedQuestIds: QuestId[] } {
   const completed = new Set(state.completedQuests)
   const completedQuestIds: QuestId[] = []
@@ -2558,14 +2638,29 @@ export function completeQuest(state: GameState, questId: string) {
 
 export function claimQuestReward(state: GameState, questId: QuestId) {
   if (!state.completedQuests.includes(questId) || state.claimedQuests.includes(questId)) return state
+  const quest = quests.find((candidate) => candidate.id === questId)
+  if (!quest) return state
   const next = cloneState(state)
   next.claimedQuests.push(questId)
+  next.scrip += questScripReward(quest)
+  next.discoveredResources = Array.from(
+    new Set([...next.discoveredResources, ...(quest.rewards.resources ?? []).filter((amount) => amount.amount > 0).map((amount) => amount.id)]),
+  )
+  for (const amount of quest.rewards.resources ?? []) {
+    next.resources[amount.id] += amount.amount
+  }
+  for (const machine of quest.rewards.machines ?? []) {
+    next.machines[machine.id] += machine.amount
+  }
+  for (const unlock of quest.rewards.unlocks ?? []) {
+    if (!next.unlockedQuests.includes(unlock)) next.unlockedQuests.push(unlock)
+  }
   next.lastSavedAt = Date.now()
   return next
 }
 
-export function visibleQuests(_state: GameState) {
-  return quests
+export function visibleQuests(state: GameState) {
+  return quests.filter((quest) => state.completedQuests.includes(quest.id) || questPrerequisitesMet(state, quest))
 }
 
 export function nextQuest(state: GameState) {
@@ -2613,6 +2708,23 @@ function normalizeCraftedResources(parsed: Partial<GameState>) {
   }
 
   return [...crafted]
+}
+
+function normalizeDiscoveredResources(parsed: Partial<GameState>, migratedResources: Record<ResourceId, number>) {
+  const discovered = new Set<ResourceId>()
+  for (const id of parsed.discoveredResources ?? []) {
+    if (id in resourceLabels) discovered.add(id)
+  }
+  for (const id of parsed.craftedResources ?? []) {
+    if (id in resourceLabels) discovered.add(id)
+  }
+  for (const [id, amount] of Object.entries(migratedResources)) {
+    if (amount > 0 && id in resourceLabels) discovered.add(id as ResourceId)
+  }
+  for (const id of Object.values(parsed.equipment ?? {})) {
+    if (id && id in resourceLabels) discovered.add(id)
+  }
+  return [...discovered]
 }
 
 function legacySaveHasFactoryMachines(parsed: Partial<GameState>) {
@@ -2688,17 +2800,20 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
     const machineInstances = migrateMachineInstances(machinesState, factoryFoundationLevel, parsed.machineInstances)
+    const migratedResources = migrateResources({ ...fresh.resources, ...parsed.resources })
 
     return {
       ...fresh,
-      resources: migrateResources({ ...fresh.resources, ...parsed.resources }),
+      resources: migratedResources,
       machines: machinesState,
       machineInstances,
       factoryFoundationLevel,
+      scrip: Math.max(0, Math.floor(parsed.scrip ?? 0)),
       completedQuests: parsed.completedQuests ?? [],
       claimedQuests: parsed.claimedQuests ?? [],
       unlockedQuests: unlockedQuests as QuestId[],
       craftedResources: normalizeCraftedResources(parsed),
+      discoveredResources: normalizeDiscoveredResources(parsed, migratedResources),
       equipment: normalizeEquipment(parsed.equipment),
       durability: normalizeDurability(parsed.durability),
       gatherProgress: parsed.gatherProgress ?? {},

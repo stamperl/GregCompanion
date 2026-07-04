@@ -147,14 +147,18 @@ export type QuestId =
   | 'makeBricks'
   | 'buildFoundation'
   | 'buildWell'
+  | 'craftSteamCasingQuest'
   | 'makeSteam'
   | 'pipeSteam'
   | 'steamMaceratorQuest'
   | 'steamForgeHammerQuest'
+  | 'steamOrePrepQuest'
   | 'steamUtilityBranch'
   | 'treeTapQuest'
+  | 'cokeOvenBrickQuest'
   | 'cokeOvenQuest'
   | 'creosoteQuest'
+  | 'firebrickQuest'
   | 'bbfCasingsQuest'
   | 'buildBbfQuest'
   | 'firstSteel'
@@ -192,7 +196,7 @@ export type QuestId =
   | 'bufferArcBlastFurnaceQuest'
   | 'firstAluminiumQuest'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
 
@@ -346,6 +350,7 @@ export type Quest = {
   chapter: string
   title: string
   description: string
+  kind?: 'main' | 'optional' | 'gate'
   position?: {
     x: number
     y: number
@@ -361,6 +366,7 @@ export type Quest = {
     resources?: ResourceAmount[]
     machines?: MachineAmount[]
     unlocks?: QuestId[]
+    scrip?: number
   }
 }
 
@@ -368,6 +374,19 @@ export type QuestChapter = {
   id: QuestChapterId
   title: string
   description: string
+}
+
+export type ShopAge = 'gettingStarted' | 'steamAge' | 'lvAge'
+
+export type ShopItem = {
+  id: ResourceId
+  age: ShopAge
+  buyPrice: number
+}
+
+export type SellItem = {
+  id: ResourceId
+  sellPrice: number
 }
 
 export type QuestIcon =
@@ -434,10 +453,12 @@ export type GameState = {
   machines: Record<MachineId, number>
   machineInstances: MachineInstance[]
   factoryFoundationLevel: number
+  scrip: number
   completedQuests: QuestId[]
   claimedQuests: QuestId[]
   unlockedQuests: QuestId[]
   craftedResources: ResourceId[]
+  discoveredResources: ResourceId[]
   equipment: EquipmentState
   durability: Partial<Record<ResourceId, number>>
   gatherProgress: Partial<Record<GatherTargetId, number>>
