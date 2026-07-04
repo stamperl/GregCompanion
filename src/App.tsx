@@ -1331,6 +1331,7 @@ function App() {
   const [terminalNotice, setTerminalNotice] = useState('')
   const [, setFactoryNotice] = useState('')
   const [offlineNotice, setOfflineNotice] = useState('')
+  const [offlinePrompt, setOfflinePrompt] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(false)
@@ -1398,7 +1399,7 @@ function App() {
 
   const applyOfflineNotice = (offline: OfflineProgressResult) => {
     const notice = offlineProgressNotice(offline)
-    if (notice) setOfflineNotice(notice)
+    if (notice) setOfflinePrompt(notice)
   }
 
   const loadSlotIntoGame = async (slotId: SaveSlotId, applyOffline = true) => {
@@ -1477,7 +1478,7 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
-    void loadSlotIntoGame(defaultSaveSlotId)
+    void loadSlotIntoGame(defaultSaveSlotId, false)
       .then(() => listSaveSlots())
       .then((slots) => {
         if (cancelled) return
@@ -2442,6 +2443,7 @@ function App() {
     knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
     handleClearGrid()
     setOfflineNotice('')
+    setOfflinePrompt('')
     setTerminalNotice('')
     setFactoryNotice('')
     setTerminalSearch('')
@@ -2787,6 +2789,23 @@ function App() {
           <button type="button" aria-label="Dismiss offline progress notice" onClick={() => setOfflineNotice('')}>
             <X size={14} />
           </button>
+        </div>
+      )}
+
+      {offlinePrompt && (
+        <div className="modal-backdrop compact-backdrop offline-progress-backdrop" role="presentation">
+          <section className="missing-modal offline-progress-dialog" role="dialog" aria-modal="true" aria-label="Offline progress">
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Offline time</p>
+                <h2>Welcome back</h2>
+              </div>
+            </div>
+            <p>{offlinePrompt}</p>
+            <button type="button" className="load-recipe-button" onClick={() => setOfflinePrompt('')}>
+              Continue
+            </button>
+          </section>
         </div>
       )}
 

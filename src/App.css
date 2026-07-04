@@ -7387,6 +7387,23 @@ button.craft-output:disabled {
   white-space: normal;
 }
 
+.offline-progress-dialog {
+  max-width: 420px;
+  width: min(100%, 420px);
+}
+
+.offline-progress-dialog p {
+  color: var(--bevel-drop);
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.offline-progress-dialog .load-recipe-button {
+  justify-self: stretch;
+}
+
 .missing-slot-list {
   background: var(--bevel-well);
   border: 2px solid var(--bevel-dark);
