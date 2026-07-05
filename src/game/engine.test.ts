@@ -2100,8 +2100,10 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'steamTank', 2, 0)
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     cokeOven.process.fluids.creosote = 80
     cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    tank.process.steamStoredMs = steamTankCapacityMs
 
     expect(currentFluidOutputFlows(state, cokeOven)).toEqual([
       { fluidId: 'creosote', litresPerSecond: 24, storedLitres: 80, freeLitres: ironTankFluidCapacityLitres },
@@ -2115,6 +2117,29 @@ describe('game engine', () => {
     expect(currentFluidOutputFlows(state, state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!)).toEqual([
       { fluidId: 'creosote', litresPerSecond: 0, storedLitres: 80, freeLitres: 0 },
     ])
+  })
+
+  it('moves coke oven creosote into a connected steam tank that already holds steam', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.copperPipe = 1
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    cokeOven.process.fluids.creosote = 80
+    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    tank.process.steamStoredMs = steamTankCapacityMs
+
+    state = tickGame(state, 1000).state
+
+    const nextOven = state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!
+    const nextTank = state.machineInstances.find((instance) => instance.uid === tank.uid)!
+    expect(nextOven.process.fluids.creosote).toBe(56)
+    expect(nextTank.process.steamStoredMs).toBe(steamTankCapacityMs)
+    expect(nextTank.process.fluids.creosote).toBe(24)
   })
 
   it('stops a coke oven when its creosote buffer is full', () => {

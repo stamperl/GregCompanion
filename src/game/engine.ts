@@ -1385,7 +1385,6 @@ function storedFluidTypes(process: MachineProcessState) {
 function canStoreFluid(state: GameState, instance: MachineInstance, fluidId: FluidId) {
   const capacity = machineFluidCapacityForInstance(state, instance)
   if (capacity < 1) return false
-  if (instance.process.steamStoredMs > 0 && !isLiquidSteamBoilerMachine(instance.machineId)) return false
   const storedTypes = storedFluidTypes(instance.process)
   return storedTypes.length < 1 || storedTypes.every((id) => id === fluidId)
 }

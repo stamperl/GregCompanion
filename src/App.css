@@ -3703,6 +3703,22 @@ button.craft-output:disabled {
   width: 34px;
 }
 
+.liquid-boiler-interface {
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  justify-items: stretch;
+}
+
+.liquid-boiler-interface > .steam-tank {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+.liquid-boiler-interface > span {
+  grid-column: 1 / -1;
+}
+
 .factory-pan-viewport {
   background:
     linear-gradient(90deg, rgba(70, 70, 70, 0.18) 1px, transparent 1px),

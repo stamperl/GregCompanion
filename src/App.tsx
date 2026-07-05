@@ -4151,7 +4151,7 @@ function App() {
                     ) : (
                       <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={selectedSteamTankCapacityMs} />
                     )}
-                    <span>Stores steam or one fluid from connected pipes</span>
+                    <span>Stores steam and one fluid from connected pipes</span>
                   </div>
                 ) : isSteamPipeMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">
@@ -4164,7 +4164,7 @@ function App() {
                     <span>Loses {tinCableLossEuPerTile} EU per cable tile in a powered route</span>
                   </div>
                 ) : isLiquidSteamBoilerMachine(selectedMachine.machineId) ? (
-                  <div className="well-interface">
+                  <div className="well-interface liquid-boiler-interface">
                     <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={liquidSteamBoilerCapacityMs} />
                     <FluidTank label="Creosote" storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
                     <span>
