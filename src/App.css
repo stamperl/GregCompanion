@@ -2908,35 +2908,8 @@ button.craft-output:disabled {
 .output-row {
   align-items: center;
   display: grid;
-  gap: 3px;
   grid-column: 1;
-  grid-template-columns: 3px 52px;
-}
-
-.craft-arrow {
-  height: 12px;
-  position: relative;
-  width: 26px;
-}
-
-.craft-arrow::before {
-  background: #878787;
-  content: "";
-  height: 6px;
-  left: 0;
-  position: absolute;
-  top: 3px;
-  width: 18px;
-}
-
-.craft-arrow::after {
-  border-bottom: 10px solid transparent;
-  border-left: 12px solid #878787;
-  border-top: 10px solid transparent;
-  content: "";
-  left: 17px;
-  position: absolute;
-  top: -4px;
+  grid-template-columns: 52px;
 }
 
 .output-slot {
@@ -3577,25 +3550,131 @@ button.craft-output:disabled {
 }
 
 .machine-status-row {
-  align-items: center;
+  align-items: stretch;
   background: var(--bevel-deep);
   border: 2px solid var(--bevel-light);
   border-bottom-color: var(--bevel-dark);
   border-radius: 0;
   border-right-color: var(--bevel-dark);
   color: var(--ink-strong);
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   font: 900 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
-  gap: 8px;
-  justify-content: space-between;
-  padding: 5px 7px;
+  gap: 6px;
+  grid-template-columns: 1fr;
+  min-height: 74px;
+  padding: 6px;
   text-transform: uppercase;
 }
 
-.machine-status-row strong {
+.machine-status-row.has-metrics {
+  grid-template-columns: minmax(78px, 0.58fr) minmax(0, 1.42fr);
+}
+
+.machine-status-pill {
+  align-items: center;
+  background: #8f8f8f;
+  border: 2px solid #efefef;
+  border-bottom-color: #5f5f5f;
+  border-right-color: #5f5f5f;
+  color: #202020;
+  display: flex;
+  font: 950 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+  justify-content: center;
+  line-height: 1.05;
+  min-height: 58px;
+  padding: 5px;
+  text-align: center;
+}
+
+.machine-meter-grid {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.machine-meter {
+  background: #9b9b9b;
+  border: 2px solid #ececec;
+  border-bottom-color: #5b5b5b;
+  border-right-color: #5b5b5b;
   color: #1f1f1f;
-  text-align: right;
+  display: grid;
+  gap: 2px;
+  grid-template-rows: 12px 18px 12px 7px;
+  min-height: 58px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.machine-meter > span,
+.machine-meter small {
+  font: 950 0.49rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-meter strong {
+  color: #f8f8f8;
+  font: 950 0.78rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-shadow: 1px 1px 0 #333;
+  white-space: nowrap;
+}
+
+.machine-meter small {
+  color: #333;
+}
+
+.machine-meter-bar {
+  align-self: end;
+  background: #707070;
+  border: 1px solid #555;
+  border-bottom-color: #d8d8d8;
+  border-right-color: #d8d8d8;
+  height: 7px;
+  overflow: hidden;
+}
+
+.machine-meter-bar span {
+  display: block;
+  height: 100%;
+  transition: width 180ms linear;
+}
+
+.machine-meter.steam .machine-meter-bar span {
+  background: linear-gradient(90deg, #dff9ff, #73b7cf);
+}
+
+.machine-meter.supply .machine-meter-bar span {
+  background: linear-gradient(90deg, #efff9a, #8abf3a);
+}
+
+.machine-meter.usage .machine-meter-bar span {
+  background: repeating-linear-gradient(90deg, #d0a035 0 5px, #9a6d1c 5px 9px);
+}
+
+.machine-meter.eu .machine-meter-bar span {
+  background: linear-gradient(90deg, #fff2a8, #d59e22);
+}
+
+.machine-meter.fluid .machine-meter-bar span {
+  background: linear-gradient(90deg, #d08c42, #80502a);
+}
+
+@media (max-width: 380px) {
+  .machine-status-row.has-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .machine-status-pill {
+    min-height: 34px;
+  }
 }
 
 .well-interface {
@@ -4481,6 +4560,19 @@ button.craft-output:disabled {
   background: linear-gradient(90deg, #6da448, #d0c46a);
   display: block;
   height: 100%;
+}
+
+.furnace-progress strong {
+  color: #f8f8f8;
+  font: 950 0.54rem "Courier New", ui-monospace, monospace;
+  inset: 0;
+  line-height: 12px;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  text-shadow: 1px 1px 0 #2b2b2b;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .process-quantity-panel {
@@ -6031,7 +6123,42 @@ button.craft-output:disabled {
   display: block;
   font-family: var(--display-font);
   font-size: 0.68rem;
-  margin-top: 4px;
+}
+
+.quest-book-summary {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.quest-book-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: space-between;
+}
+
+.quest-book-actions button {
+  background: #5f5125;
+  border: 2px solid #fff1a8;
+  border-bottom-color: #30260a;
+  border-radius: 0;
+  border-right-color: #30260a;
+  color: #fff7c8;
+  font-size: 0.58rem;
+  font-weight: 950;
+  min-height: 30px;
+  padding: 4px 6px;
+  text-transform: uppercase;
+}
+
+.quest-book-actions button:disabled {
+  background: #777;
+  border-color: #ddd;
+  border-bottom-color: #555;
+  border-right-color: #555;
+  color: #333;
 }
 
 .quest-map-scroll {
@@ -6430,6 +6557,12 @@ button.craft-output:disabled {
   color: #3f3f3f;
   font-size: 0.62rem;
   font-weight: 900;
+}
+
+.shop-card .shop-cooldown {
+  color: #6b381d;
+  display: block;
+  margin-top: 2px;
 }
 
 .shop-card button {
@@ -7716,6 +7849,20 @@ button.craft-output:disabled {
   gap: 4px;
 }
 
+.recipe-station-entry {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.recipe-station-entry > span:last-child {
+  color: var(--ink-strong);
+  font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.1;
+  max-width: 150px;
+}
+
 .recipe-pattern-grid {
   display: grid;
   gap: 2px;
@@ -8095,19 +8242,13 @@ button.recipe-jump-slot {
   }
 
   .output-row {
-    gap: 3px;
-    grid-template-columns: 2px 54px;
+    grid-template-columns: 54px;
   }
 
   .output-slot {
     height: 54px;
     min-height: 54px;
     width: 54px;
-  }
-
-  .craft-arrow {
-    overflow: hidden;
-    width: 18px;
   }
 
   .batch-controls {
@@ -8820,34 +8961,13 @@ button.button-primary:disabled,
     width: var(--terminal-craft-slot);
   }
 
-  .craft-arrow {
-    height: 10px;
-    overflow: visible;
-    width: 14px;
-  }
-
-  .craft-arrow::before {
-    height: 4px;
-    top: 3px;
-    width: 9px;
-  }
-
-  .craft-arrow::after {
-    border-bottom-width: 7px;
-    border-left-width: 8px;
-    border-top-width: 7px;
-    left: 8px;
-    top: -2px;
-  }
-
   .terminal-output-column {
     grid-template-columns: var(--terminal-output-column);
     width: var(--terminal-output-column);
   }
 
   .output-row {
-    gap: 2px;
-    grid-template-columns: 2px var(--terminal-output-slot);
+    grid-template-columns: var(--terminal-output-slot);
   }
 
   .batch-step-row button,

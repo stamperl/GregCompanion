@@ -331,6 +331,7 @@ export function cloneState(state: GameState): GameState {
       process: cloneProcessState(instance.process),
     })),
     scrip: Math.max(0, Math.floor(state.scrip ?? 0)),
+    shopCooldowns: { ...(state.shopCooldowns ?? {}) },
     completedQuests: [...state.completedQuests],
     claimedQuests: [...state.claimedQuests],
     unlockedQuests: [...state.unlockedQuests],
@@ -416,20 +417,70 @@ function canShopSellResource(resourceId: ResourceId) {
   return resourceRegistry[resourceId].category !== 'tool'
 }
 
+const shopPartCategories = new Set(['plate', 'rod', 'wire', 'component', 'machinePart'])
+const shopCooldownMinuteMs = 60 * 1000
+const shopPartCooldownsMs: Partial<Record<ResourceId, number>> = {
+  brick: 5 * shopCooldownMinuteMs,
+  rubber: 5 * shopCooldownMinuteMs,
+  glass: 5 * shopCooldownMinuteMs,
+  glassTube: 5 * shopCooldownMinuteMs,
+  ironPlate: 5 * shopCooldownMinuteMs,
+  bronzePlate: 5 * shopCooldownMinuteMs,
+  ironRod: 5 * shopCooldownMinuteMs,
+  copperWire: 5 * shopCooldownMinuteMs,
+  tinWire: 5 * shopCooldownMinuteMs,
+  redAlloyWire: 10 * shopCooldownMinuteMs,
+  conductiveWire: 10 * shopCooldownMinuteMs,
+  tinCable: 10 * shopCooldownMinuteMs,
+  steelPlate: 10 * shopCooldownMinuteMs,
+  steelRod: 10 * shopCooldownMinuteMs,
+  resistor: 10 * shopCooldownMinuteMs,
+  vacuumTube: 10 * shopCooldownMinuteMs,
+  steamCasing: 10 * shopCooldownMinuteMs,
+  cokeOvenBrick: 10 * shopCooldownMinuteMs,
+  firebrick: 15 * shopCooldownMinuteMs,
+  heatingCoil: 15 * shopCooldownMinuteMs,
+  bbfCasing: 25 * shopCooldownMinuteMs,
+  heatProofCasing: 25 * shopCooldownMinuteMs,
+}
+
+export function isShopPartItem(item: ShopItem) {
+  return shopPartCategories.has(resourceRegistry[item.id].category)
+}
+
+export function shopItemCooldownMs(item: ShopItem) {
+  return shopPartCooldownsMs[item.id] ?? (isShopPartItem(item) ? 5 * shopCooldownMinuteMs : 0)
+}
+
+export function shopItemCooldownRemainingMs(state: GameState, item: ShopItem, now = Date.now()) {
+  return Math.max(0, Math.floor((state.shopCooldowns[item.id] ?? 0) - now))
+}
+
 export function canBuyShopItem(state: GameState, item: ShopItem) {
-  return isShopUnlocked(state) && canShopSellResource(item.id) && isResourceDiscovered(state, item.id) && state.scrip >= item.buyPrice
+  return (
+    isShopUnlocked(state) &&
+    canShopSellResource(item.id) &&
+    isResourceDiscovered(state, item.id) &&
+    shopItemCooldownRemainingMs(state, item) <= 0 &&
+    state.scrip >= item.buyPrice
+  )
 }
 
 export function buyShopItem(state: GameState, itemId: ResourceId, quantity = 1) {
   const item = shopItems.find((candidate) => candidate.id === itemId)
   const requestedQuantity = Math.max(1, Math.floor(quantity))
   if (!item || !canShopSellResource(item.id) || !isShopUnlocked(state) || !isResourceDiscovered(state, item.id)) return state
+  const cooldownMs = shopItemCooldownMs(item)
+  const now = Date.now()
+  if (cooldownMs > 0 && requestedQuantity > 1) return state
+  if (shopItemCooldownRemainingMs(state, item, now) > 0) return state
   const totalPrice = item.buyPrice * requestedQuantity
   if (state.scrip < totalPrice) return state
 
   let next = cloneState(state)
   next.scrip -= totalPrice
-  next.lastSavedAt = Date.now()
+  if (cooldownMs > 0) next.shopCooldowns[item.id] = now + cooldownMs
+  next.lastSavedAt = now
   next = addResources(next, [{ id: item.id, amount: requestedQuantity }])
   return next
 }
@@ -1522,6 +1573,79 @@ function connectedFluidTransferRateLitres(state: GameState, start: MachineInstan
   return pipeRates.length > 0 ? Math.min(...pipeRates) : 24
 }
 
+function canExportFluidSource(instance: MachineInstance) {
+  return instance.machineId === 'cokeOven' || instance.machineId === 'steamTank'
+}
+
+function connectedFluidOutputTargets(state: GameState, source: MachineInstance, fluidId: FluidId) {
+  const targets = connectedFluidStorage(state, source, fluidId)
+  if (source.machineId === 'steamTank') return targets.filter((target) => isLiquidSteamBoilerMachine(target.machineId))
+  return targets
+}
+
+function freeFluidCapacity(state: GameState, instance: MachineInstance, fluidId: FluidId) {
+  const capacity = machineFluidCapacityForInstance(state, instance)
+  return Math.max(0, capacity - (instance.process.fluids[fluidId] ?? 0))
+}
+
+export type CurrentFluidOutputFlow = {
+  fluidId: FluidId
+  litresPerSecond: number
+  storedLitres: number
+  freeLitres: number
+}
+
+export function currentFluidOutputFlows(state: GameState, instance: MachineInstance): CurrentFluidOutputFlow[] {
+  const fluidIds: FluidId[] = ['creosote', 'water']
+  const transferRate = connectedFluidTransferRateLitres(state, instance)
+
+  if (isSteamPipeMachine(instance.machineId)) {
+    const network = connectedFluidNetwork(state, instance)
+    const networkUids = new Set(network.map((networkInstance) => networkInstance.uid))
+
+    return fluidIds
+      .map((fluidId) => {
+        const sources = uniqueMachineInstances(
+          network
+            .map((networkInstance) => (networkInstance.machineId === 'steamTank' ? steamTankStorageForInstance(state, networkInstance) : networkInstance))
+            .filter((source) => canExportFluidSource(source) && (source.process.fluids[fluidId] ?? 0) > 0),
+        )
+        const storedLitres = sources.reduce((sum, source) => sum + (source.process.fluids[fluidId] ?? 0), 0)
+        if (storedLitres <= 0) return null
+
+        const targets = uniqueMachineInstances(
+          sources.flatMap((source) => connectedFluidOutputTargets(state, source, fluidId).filter((target) => networkUids.has(target.uid))),
+        )
+        const freeLitres = targets.reduce((sum, target) => sum + freeFluidCapacity(state, target, fluidId), 0)
+
+        return {
+          fluidId,
+          litresPerSecond: Math.min(transferRate, storedLitres, freeLitres),
+          storedLitres,
+          freeLitres,
+        }
+      })
+      .filter((flow): flow is CurrentFluidOutputFlow => Boolean(flow))
+  }
+
+  const source = instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance
+  if (!canExportFluidSource(source)) return []
+
+  return fluidIds
+    .map((fluidId) => {
+      const storedLitres = source.process.fluids[fluidId] ?? 0
+      if (storedLitres <= 0) return null
+      const freeLitres = connectedFluidOutputTargets(state, source, fluidId).reduce((sum, target) => sum + freeFluidCapacity(state, target, fluidId), 0)
+      return {
+        fluidId,
+        litresPerSecond: Math.min(transferRate, storedLitres, freeLitres),
+        storedLitres,
+        freeLitres,
+      }
+    })
+    .filter((flow): flow is CurrentFluidOutputFlow => Boolean(flow))
+}
+
 function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, fluidId: FluidId, elapsedMs: number) {
   const stored = source.process.fluids[fluidId] ?? 0
   if (stored < 1) return 0
@@ -1960,13 +2084,11 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
 
   if (!boilerHasWater(state, instance)) {
     process.activeRecipeId = null
-    if (process.fuelRemainingMs > 0) burnProcessFuel(process, elapsedMs)
     return
   }
 
   if (process.steamStoredMs >= boilerSteamCapacityMs) {
     process.activeRecipeId = null
-    if (process.fuelRemainingMs > 0) burnProcessFuel(process, elapsedMs)
     return
   }
 
@@ -1983,9 +2105,6 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
   process.durationMs = 0
   burnProcessFuel(process, burnMs)
   process.steamStoredMs += produced
-  if (process.steamStoredMs >= boilerSteamCapacityMs && process.fuelRemainingMs > 0) {
-    burnProcessFuel(process, elapsedMs - burnMs)
-  }
 }
 
 function tickSteamProcessMachine(state: GameState, instance: MachineInstance, elapsedMs: number) {
@@ -2659,6 +2778,14 @@ export function claimQuestReward(state: GameState, questId: QuestId) {
   return next
 }
 
+export function claimAllQuestRewards(state: GameState) {
+  let next = state
+  for (const questId of state.completedQuests) {
+    next = claimQuestReward(next, questId)
+  }
+  return next
+}
+
 export function visibleQuests(state: GameState) {
   return quests.filter((quest) => state.completedQuests.includes(quest.id) || questPrerequisitesMet(state, quest))
 }
@@ -2725,6 +2852,15 @@ function normalizeDiscoveredResources(parsed: Partial<GameState>, migratedResour
     if (id && id in resourceLabels) discovered.add(id)
   }
   return [...discovered]
+}
+
+function normalizeShopCooldowns(parsed: Partial<GameState>, now: number) {
+  const normalized: Partial<Record<ResourceId, number>> = {}
+  for (const [id, timestamp] of Object.entries(parsed.shopCooldowns ?? {})) {
+    if (!(id in resourceLabels) || typeof timestamp !== 'number' || !Number.isFinite(timestamp)) continue
+    if (timestamp > now) normalized[id as ResourceId] = Math.floor(timestamp)
+  }
+  return normalized
 }
 
 function legacySaveHasFactoryMachines(parsed: Partial<GameState>) {
@@ -2809,6 +2945,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       machineInstances,
       factoryFoundationLevel,
       scrip: Math.max(0, Math.floor(parsed.scrip ?? 0)),
+      shopCooldowns: normalizeShopCooldowns(parsed, now),
       completedQuests: parsed.completedQuests ?? [],
       claimedQuests: parsed.claimedQuests ?? [],
       unlockedQuests: unlockedQuests as QuestId[],

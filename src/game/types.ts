@@ -454,6 +454,7 @@ export type GameState = {
   machineInstances: MachineInstance[]
   factoryFoundationLevel: number
   scrip: number
+  shopCooldowns: Partial<Record<ResourceId, number>>
   completedQuests: QuestId[]
   claimedQuests: QuestId[]
   unlockedQuests: QuestId[]

@@ -18,10 +18,12 @@ import {
   canSellShopItem,
   cokeOvenFluidCapacityLitres,
   canCraft,
+  claimAllQuestRewards,
   claimQuestReward,
   collectProcessOutput,
   crowbarRemoveMachineInstance,
   createCreativeState,
+  currentFluidOutputFlows,
   craftableQuantity,
   craftRecipeInstant,
   durabilityRemaining,
@@ -57,6 +59,8 @@ import {
   removeProcessSlot,
   searchTerminalRecipes,
   sellShopItem,
+  shopItemCooldownMs,
+  shopItemCooldownRemainingMs,
   simulateOfflineProgress,
   setPipeSideDisabled,
   steamMaceratorCapacityMs,
@@ -334,6 +338,23 @@ describe('game engine', () => {
     expect(claimQuestReward(state, 'punchTree').scrip).toBe(state.scrip)
   })
 
+  it('claims all completed quest rewards without double-paying claimed quests', () => {
+    let state = createInitialState(1000)
+    const firstQuest = quests.find((candidate) => candidate.id === 'punchTree')!
+    const secondQuest = quests.find((candidate) => candidate.id === 'craftPlanks')!
+
+    state.completedQuests = ['punchTree', 'craftPlanks']
+
+    state = claimAllQuestRewards(state)
+    expect(state.claimedQuests).toEqual(['punchTree', 'craftPlanks'])
+    expect(state.scrip).toBe(questScripReward(firstQuest) + questScripReward(secondQuest))
+
+    const paidScrip = state.scrip
+    state = claimAllQuestRewards(state)
+    expect(state.scrip).toBe(paidScrip)
+    expect(state.claimedQuests).toEqual(['punchTree', 'craftPlanks'])
+  })
+
   it('unlocks the shop after the getting started gate and buys only discovered resources', () => {
     let state = createInitialState(1000)
     const logShopItem = shopItems.find((item) => item.id === 'log')!
@@ -354,6 +375,36 @@ describe('game engine', () => {
     expect(state.scrip).toBe(100 - logShopItem.buyPrice * 2)
 
     expect(buyShopItem(state, 'woodenAxe')).toBe(state)
+  })
+
+  it('puts manufactured shop parts on cooldown and blocks bulk part buys', () => {
+    let state = createInitialState(1000)
+    const brickShopItem = shopItems.find((item) => item.id === 'brick')!
+
+    state.completedQuests.push('buildFoundation')
+    state.discoveredResources = ['brick']
+    state.scrip = 1000
+
+    expect(shopItemCooldownMs(brickShopItem)).toBe(5 * 60 * 1000)
+    expect(canBuyShopItem(state, brickShopItem)).toBe(true)
+    expect(buyShopItem(state, 'brick', 2)).toBe(state)
+
+    state = buyShopItem(state, 'brick')
+
+    expect(state.resources.brick).toBe(1)
+    expect(state.scrip).toBe(1000 - brickShopItem.buyPrice)
+    expect(shopItemCooldownRemainingMs(state, brickShopItem)).toBeGreaterThan(0)
+    expect(canBuyShopItem(state, brickShopItem)).toBe(false)
+    expect(buyShopItem(state, 'brick')).toBe(state)
+  })
+
+  it('keeps LV circuit items out of the shop and uses longer cooldowns for critical parts', () => {
+    const bbfCasingShopItem = shopItems.find((item) => item.id === 'bbfCasing')!
+    const heatProofCasingShopItem = shopItems.find((item) => item.id === 'heatProofCasing')!
+
+    expect(shopItems.some((item) => item.id === 'basicBoard' || item.id === 'primitiveCircuit')).toBe(false)
+    expect(shopItemCooldownMs(bbfCasingShopItem)).toBe(25 * 60 * 1000)
+    expect(shopItemCooldownMs(heatProofCasingShopItem)).toBe(25 * 60 * 1000)
   })
 
   it('sells only the fixed gathered material list for Foundry Scrip', () => {
@@ -1732,10 +1783,11 @@ describe('game engine', () => {
     expect(boilerSteamCapacityMs).toBe(128000)
   })
 
-  it('burns current boiler fuel out when full but does not consume another fuel item', () => {
+  it('pauses current boiler fuel while full and resumes when steam is drained', () => {
     let state = createFactoryState(1000)
     state.machines.well = 1
     state.machines.steamBoiler = 1
+    state.machines.steamTank = 1
     state.resources.coal = 2
     state = placeMachineInstance(state, 'well', 0, 0)
     state = placeMachineInstance(state, 'steamBoiler', 1, 0)
@@ -1745,19 +1797,24 @@ describe('game engine', () => {
 
     let process = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
     expect(process.steamStoredMs).toBe(128000)
-    expect(process.fuelRemainingMs).toBe(0)
+    expect(process.fuelRemainingMs).toBeGreaterThan(69000)
     expect(process.fuel?.amount).toBe(1)
+    const pausedFuelRemainingMs = process.fuelRemainingMs
 
     state = tickGame(state, 48000).state
     process = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
     expect(process.steamStoredMs).toBe(128000)
-    expect(process.fuelRemainingMs).toBe(0)
+    expect(process.fuelRemainingMs).toBe(pausedFuelRemainingMs)
     expect(process.fuel?.amount).toBe(1)
 
-    state = tickGame(state, 32000).state
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs).toBe(24000)
+
+    state = tickGame(state, 1000).state
     process = state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process
-    expect(process.steamStoredMs).toBe(128000)
-    expect(process.fuelRemainingMs).toBe(0)
+    expect(process.fuelRemainingMs).toBe(pausedFuelRemainingMs - 1000)
     expect(process.fuel?.amount).toBe(1)
   })
 
@@ -2033,6 +2090,33 @@ describe('game engine', () => {
     expect(tankProcess.fluids.creosote).toBe(16)
   })
 
+  it('reports current liquid output flow through connected pipes', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.copperPipe = 1
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    cokeOven.process.fluids.creosote = 80
+    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+
+    expect(currentFluidOutputFlows(state, cokeOven)).toEqual([
+      { fluidId: 'creosote', litresPerSecond: 24, storedLitres: 80, freeLitres: ironTankFluidCapacityLitres },
+    ])
+    expect(currentFluidOutputFlows(state, pipe)).toEqual([
+      { fluidId: 'creosote', litresPerSecond: 24, storedLitres: 80, freeLitres: ironTankFluidCapacityLitres },
+    ])
+
+    state = setPipeSideDisabled(state, pipe.uid, 'east', true)
+
+    expect(currentFluidOutputFlows(state, state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!)).toEqual([
+      { fluidId: 'creosote', litresPerSecond: 0, storedLitres: 80, freeLitres: 0 },
+    ])
+  })
+
   it('stops a coke oven when its creosote buffer is full', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1
@@ -2176,6 +2260,20 @@ describe('game engine', () => {
     expect(processRecipes.find((recipe) => recipe.id === 'steam_crush_iron_ore')?.steamCostLitres).toBe(32)
     expect(processRecipes.find((recipe) => recipe.id === 'steam_grind_crushed_iron_ore')?.steamCostLitres).toBe(16)
     expect(processRecipes.find((recipe) => recipe.id === 'steam_grind_iron_ingot')?.steamCostLitres).toBe(48)
+  })
+
+  it('lets the steam furnace smelt every primitive furnace input', () => {
+    const steamFurnaceOutputs = new Set(
+      processRecipes
+        .filter((recipe) => recipe.machineId === 'steamFurnace')
+        .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output.id}:${recipe.output.amount}`),
+    )
+    const missingSteamRecipes = processRecipes
+      .filter((recipe) => recipe.machineId === 'furnace')
+      .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output.id}:${recipe.output.amount}`)
+      .filter((recipeKey) => !steamFurnaceOutputs.has(recipeKey))
+
+    expect(missingSteamRecipes).toEqual([])
   })
 
   it('runs a steam macerator from its internal buffer', () => {

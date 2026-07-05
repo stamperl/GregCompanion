@@ -69,9 +69,11 @@ import {
   cokeOvenFluidCapacityLitres,
   canCrowbarRemoveMachine,
   canCraft,
+  claimAllQuestRewards,
   claimQuestReward,
   collectProcessOutput,
   createCreativeState,
+  currentFluidOutputFlows,
   craftableQuantity,
   craftRecipeInstant,
   equipResource,
@@ -110,7 +112,8 @@ import {
   removeProcessSlot,
   searchTerminalRecipes,
   sellShopItem,
-  steamMaceratorCapacityMs,
+  shopItemCooldownMs,
+  shopItemCooldownRemainingMs,
   steamMachineInternalCapacityMs,
   steamAutoMinerActionDamage,
   steamAutoMinerActionMs,
@@ -271,6 +274,10 @@ const machineOrder: MachineId[] = [
 const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks'])
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
 const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWrench']
+const fluidLabels = {
+  creosote: 'Creosote',
+  water: 'Water',
+} as const
 
 const pipeDirectionOffsets: Record<PipeDirection, { dx: number; dy: number; label: string }> = {
   north: { dx: 0, dy: -1, label: 'North' },
@@ -611,6 +618,33 @@ function FluidTank({ label, storedLitres, capacityLitres }: { label: string; sto
   )
 }
 
+type MachineMetricTone = 'steam' | 'supply' | 'usage' | 'eu' | 'fluid'
+
+type MachineMetric = {
+  label: string
+  value: string
+  detail: string
+  tone: MachineMetricTone
+  fillPercent?: number
+}
+
+function metricFill(current: number, capacity: number) {
+  return capacity > 0 ? Math.max(0, Math.min(100, (current / capacity) * 100)) : 0
+}
+
+function MachineMetricTile({ metric }: { metric: MachineMetric }) {
+  return (
+    <div className={`machine-meter ${metric.tone}`} aria-label={`${metric.label} ${metric.value} ${metric.detail}`}>
+      <span>{metric.label}</span>
+      <strong>{metric.value}</strong>
+      <small>{metric.detail}</small>
+      <div className="machine-meter-bar" aria-hidden="true">
+        <span style={{ width: `${metric.fillPercent ?? 100}%` }} />
+      </div>
+    </div>
+  )
+}
+
 function EnergyTank({ storedEu, capacityEu }: { storedEu: number; capacityEu: number }) {
   const stored = Math.floor(storedEu)
   const capacity = Math.floor(capacityEu)
@@ -788,7 +822,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   }
   if (instance.machineId === 'steamBoiler') {
     if (!boilerHasWater(state, instance)) return 'No water'
-    if (process.steamStoredMs >= boilerSteamCapacityMs && process.fuelRemainingMs > 0) return 'Venting full tank'
+    if (process.steamStoredMs >= boilerSteamCapacityMs && process.fuelRemainingMs > 0) return 'Steam full - fuel paused'
     if (process.steamStoredMs >= boilerSteamCapacityMs) return 'Steam full'
     if (!process.fuel && process.fuelRemainingMs < 1) return 'No fuel'
     return process.fuelRemainingMs > 0 ? 'Making steam' : 'Ready'
@@ -1050,6 +1084,8 @@ function QuestBook({
   selectedQuestId,
   onSelectChapter,
   onSelectQuest,
+  onClaimAll,
+  claimableRewardCount,
 }: {
   quests: Quest[]
   state: GameState
@@ -1057,6 +1093,8 @@ function QuestBook({
   selectedQuestId: QuestId | null
   onSelectChapter: (chapterId: QuestChapterId) => void
   onSelectQuest: (questId: QuestId) => void
+  onClaimAll: () => void
+  claimableRewardCount: number
 }) {
   const visibleQuestChapters = questChapters.filter((candidate) => visibleQuestChapterIds.has(candidate.id))
   const chapter = visibleQuestChapters.find((candidate) => candidate.id === activeChapterId) ?? visibleQuestChapters[0]
@@ -1226,9 +1264,14 @@ function QuestBook({
           <p className="eyebrow">Quest book</p>
           <h2>{chapter.title}</h2>
         </div>
-        <div>
+        <div className="quest-book-summary">
           <p>{chapter.description}</p>
-          <strong>{formatAmount(state.scrip)} Foundry Scrip</strong>
+          <div className="quest-book-actions">
+            <strong>{formatAmount(state.scrip)} Foundry Scrip</strong>
+            <button type="button" disabled={claimableRewardCount < 1} onClick={onClaimAll}>
+              Claim all rewards{claimableRewardCount > 0 ? ` (${formatAmount(claimableRewardCount)})` : ''}
+            </button>
+          </div>
         </div>
       </div>
       <div
@@ -1637,6 +1680,7 @@ function App() {
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
   const guideQuests = useMemo(() => visibleQuests(state), [state])
   const selectedQuest = useMemo(() => guideQuests.find((quest) => quest.id === selectedQuestId) ?? null, [guideQuests, selectedQuestId])
+  const claimableQuestRewardCount = guideQuests.filter((quest) => state.completedQuests.includes(quest.id) && !state.claimedQuests.includes(quest.id)).length
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
   const totalMachines = machineOrder.reduce((sum, id) => sum + state.machines[id], 0)
   const processRecipeCards = useMemo(
@@ -1699,6 +1743,125 @@ function App() {
     : 0
   const steamAutoMinerSteamUsagePerSecond = steamAutoMinerSteamUseLitres / (steamAutoMinerActionMs / 1000)
   const lvAutoMinerEuUsagePerSecond = lvAutoMinerEuUse / (lvAutoMinerActionMs / 1000)
+  const selectedMachineProcessTimeLabel = selectedMachine
+    ? selectedMachine.process.durationMs > 0
+      ? `${formatDuration(Math.max(0, selectedMachine.process.durationMs - selectedMachine.process.progressMs))} left`
+      : selectedMachineRecipe
+        ? formatDuration(selectedMachineRecipe.durationMs)
+        : ''
+    : ''
+  const selectedMachineMetrics: MachineMetric[] = []
+  if (selectedMachine) {
+    const process = selectedMachine.process
+    const addSteamMetric = (label: string, storedMs: number, capacityMs: number) => {
+      selectedMachineMetrics.push({
+        label,
+        value: `${formatSteamLitres(storedMs)}L`,
+        detail: `${formatSteamLitres(capacityMs)}L max`,
+        tone: 'steam',
+        fillPercent: metricFill(storedMs, capacityMs),
+      })
+    }
+    const addSteamSupplyMetric = (storedMs: number) => {
+      selectedMachineMetrics.push({
+        label: 'Supply',
+        value: `${formatSteamLitres(storedMs)}L`,
+        detail: 'steam network',
+        tone: 'supply',
+        fillPercent: storedMs > 0 ? 100 : 0,
+      })
+    }
+    const addEuMetric = (label: string, storedEu: number, capacityEu: number) => {
+      selectedMachineMetrics.push({
+        label,
+        value: `${Math.floor(storedEu)}`,
+        detail: `${Math.floor(capacityEu)} EU max`,
+        tone: 'eu',
+        fillPercent: metricFill(storedEu, capacityEu),
+      })
+    }
+    const addRateMetric = (label: string, value: number, unit: string, tone: MachineMetricTone, detail = 'per second') => {
+      selectedMachineMetrics.push({
+        label,
+        value: `${formatAmount(value)}${unit}`,
+        detail,
+        tone,
+        fillPercent: value > 0 ? 100 : 0,
+      })
+    }
+    const addFluidMetric = (label: string, storedLitres: number, capacityLitres: number) => {
+      selectedMachineMetrics.push({
+        label,
+        value: `${formatLitres(storedLitres)}L`,
+        detail: `${formatLitres(capacityLitres)}L max`,
+        tone: 'fluid',
+        fillPercent: metricFill(storedLitres, capacityLitres),
+      })
+    }
+
+    if (selectedMachine.machineId === 'steamBoiler') {
+      addSteamMetric('Steam', process.steamStoredMs, boilerSteamCapacityMs)
+      addRateMetric('Makes', boilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
+    } else if (selectedMachine.machineId === 'steamTank') {
+      addSteamMetric('Steam', process.steamStoredMs, selectedSteamTankCapacityMs)
+      if ((process.fluids.creosote ?? 0) > 0) addFluidMetric('Creosote', process.fluids.creosote ?? 0, selectedSteamTankFluidCapacityLitres)
+      if ((process.fluids.water ?? 0) > 0) addFluidMetric('Water', process.fluids.water ?? 0, selectedSteamTankFluidCapacityLitres)
+    } else if (selectedMachine.machineId === 'cokeOven') {
+      addFluidMetric('Creosote', process.fluids.creosote ?? 0, process.fluidCapacityLitres || cokeOvenFluidCapacityLitres)
+    } else if (isLiquidSteamBoilerMachine(selectedMachine.machineId)) {
+      addSteamMetric('Steam', process.steamStoredMs, liquidSteamBoilerCapacityMs)
+      addFluidMetric('Creosote', process.fluids.creosote ?? 0, liquidSteamBoilerFluidCapacityLitres)
+      addRateMetric('Makes', liquidSteamBoilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
+    } else if (isEuStorageMachine(selectedMachine.machineId)) {
+      addEuMetric('Stored EU', process.euStored, process.euCapacity || lvBatteryBufferEuCapacity)
+      addRateMetric('Output', lvBatteryBufferOutputEuPerSecond, ' EU/s', 'supply', 'buffer limit')
+    } else if (isEuProducerMachine(selectedMachine.machineId)) {
+      addEuMetric('Stored EU', process.euStored, steamTurbineEuCapacity)
+      addSteamSupplyMetric(availableConnectedSteam(state, selectedMachine))
+      addRateMetric('Uses', steamTurbineSteamUseLitresPerSecond, 'L/s', 'usage', 'steam draw')
+      addRateMetric('Makes', steamTurbineSteamUseLitresPerSecond * 2, ' EU/s', 'supply', 'generator rate')
+    } else if (selectedMachine.machineId === 'steamAutoMiner') {
+      addSteamSupplyMetric(availableConnectedSteam(state, selectedMachine))
+      addRateMetric('Uses', steamAutoMinerSteamUsagePerSecond, 'L/s', 'usage', 'drill draw')
+    } else if (selectedMachine.machineId === 'lvAutoMiner') {
+      addEuMetric('Internal', process.euStored, process.euCapacity || 0)
+      selectedMachineMetrics.push({
+        label: 'Supply',
+        value: `${Math.floor(availableConnectedEu(state, selectedMachine))}`,
+        detail: 'EU network',
+        tone: 'supply',
+        fillPercent: availableConnectedEu(state, selectedMachine) > 0 ? 100 : 0,
+      })
+      addRateMetric('Uses', lvAutoMinerEuUsagePerSecond, ' EU/s', 'usage', 'drill draw')
+    } else if (isSteamPoweredMachine(selectedMachine.machineId)) {
+      addSteamSupplyMetric(availableConnectedSteam(state, selectedMachine))
+      addRateMetric('Uses', selectedMachineSteamUsagePerSecond, 'L/s', 'usage', 'recipe draw')
+    } else if (isEuPoweredMachine(selectedMachine.machineId)) {
+      addEuMetric('Internal', process.euStored, process.euCapacity || 0)
+      selectedMachineMetrics.push({
+        label: 'Supply',
+        value: `${Math.floor(availableConnectedEu(state, selectedMachine))}`,
+        detail: 'EU network',
+        tone: 'supply',
+        fillPercent: availableConnectedEu(state, selectedMachine) > 0 ? 100 : 0,
+      })
+      addRateMetric('Uses', selectedMachineEuUsagePerSecond, ' EU/s', 'usage', 'recipe draw')
+      if (isEuBlastMachine(selectedMachine.machineId) && selectedMachineRecipe?.minimumEuStored) {
+        selectedMachineMetrics.push({
+          label: 'Buffer',
+          value: `${formatAmount(selectedMachineRecipe.minimumEuStored)}`,
+          detail: 'EU needed',
+          tone: 'eu',
+          fillPercent: metricFill(process.euStored, selectedMachineRecipe.minimumEuStored),
+        })
+      }
+    }
+
+    const primaryFluidOutflow = [...currentFluidOutputFlows(state, selectedMachine)].sort((a, b) => b.litresPerSecond - a.litresPerSecond)[0]
+    if (primaryFluidOutflow) {
+      addRateMetric('Outflow', primaryFluidOutflow.litresPerSecond, 'L/s', 'fluid', `${fluidLabels[primaryFluidOutflow.fluidId]} out`)
+    }
+  }
   const pendingProcessMachine = pendingProcessInsert
     ? state.machineInstances.find((instance) => instance.uid === pendingProcessInsert.uid) ?? null
     : null
@@ -2443,6 +2606,12 @@ function App() {
   const handleClaimQuestReward = (questId: QuestId) => {
     setState((current) => claimQuestReward(current, questId))
     addFloatText('reward claimed')
+  }
+
+  const handleClaimAllQuestRewards = () => {
+    if (claimableQuestRewardCount < 1) return
+    setState((current) => claimAllQuestRewards(current))
+    addFloatText(`claimed x${formatAmount(claimableQuestRewardCount)}`)
   }
 
   const handleBuyShopItem = (resourceId: ResourceId) => {
@@ -3218,7 +3387,6 @@ function App() {
 
             <div className="terminal-output-column">
               <div className="output-row">
-                <span className="craft-arrow" aria-hidden="true" />
                 <button
                   type="button"
                   className={terminalMatch ? 'output-slot matched' : 'output-slot'}
@@ -3485,18 +3653,23 @@ function App() {
                           <span>Station</span>
                           <div className="recipe-slot-row">
                             {selectedRecipe.requiredMachine && (
-                              <MachineSlot
-                                id={selectedRecipe.requiredMachine}
-                                muted={state.machines[selectedRecipe.requiredMachine] < 1}
-                              />
+                              <span className="recipe-station-entry">
+                                <MachineSlot
+                                  id={selectedRecipe.requiredMachine}
+                                  muted={state.machines[selectedRecipe.requiredMachine] < 1}
+                                />
+                                <span>{machines[selectedRecipe.requiredMachine].name}</span>
+                              </span>
                             )}
                             {selectedRecipe.machineInputs?.map((amount) => (
-                              <MachineSlot
-                                id={amount.id}
-                                amount={amount.amount}
-                                muted={state.machines[amount.id] < amount.amount}
-                                key={amount.id}
-                              />
+                              <span className="recipe-station-entry" key={amount.id}>
+                                <MachineSlot
+                                  id={amount.id}
+                                  amount={amount.amount}
+                                  muted={state.machines[amount.id] < amount.amount}
+                                />
+                                <span>{machines[amount.id].name}</span>
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -3954,101 +4127,14 @@ function App() {
                   </div>
                 </>
                 )}
-                <div className="machine-status-row">
-                  <span>{machineStatus(state, selectedMachine)}</span>
-                  {selectedMachine.machineId === 'steamBoiler' && (
-                    <strong>
-                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(boilerSteamCapacityMs)}L
-                      {' | '}
-                      Produces {formatAmount(boilerSteamProductionLitresPerSecond)}L/s
-                    </strong>
-                  )}
-                  {selectedMachine.machineId === 'steamMacerator' && (
-                    <strong>
-                      Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamMaceratorCapacityMs)}L
-                      {' | '}
-                      Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
-                      {' | '}
-                      Uses {formatAmount(selectedMachineSteamUsagePerSecond)}L/s
-                    </strong>
-                  )}
-                  {isSteamPoweredMachine(selectedMachine.machineId) && selectedMachine.machineId !== 'steamMacerator' && !isAutoMinerMachine(selectedMachine.machineId) && (
-                    <strong>
-                      Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(steamMaceratorCapacityMs)}L
-                      {' | '}
-                      Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
-                      {' | '}
-                      Uses {formatAmount(selectedMachineSteamUsagePerSecond)}L/s
-                    </strong>
-                  )}
-                  {selectedMachine.machineId === 'steamTank' && (
-                    <strong>
-                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(selectedSteamTankCapacityMs)}L
-                      {(selectedMachine.process.fluids.creosote ?? 0) > 0
-                        ? ` | Creosote ${formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/${selectedSteamTankFluidCapacityLitres}L`
-                        : ''}
-                      {(selectedMachine.process.fluids.water ?? 0) > 0 ? ` | Water ${formatLitres(selectedMachine.process.fluids.water ?? 0)}L/${selectedSteamTankFluidCapacityLitres}L` : ''}
-                    </strong>
-                  )}
-                  {selectedMachine.machineId === 'cokeOven' && (
-                    <strong>Creosote {formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/{selectedMachine.process.fluidCapacityLitres || cokeOvenFluidCapacityLitres}L</strong>
-                  )}
-                  {isLiquidSteamBoilerMachine(selectedMachine.machineId) && (
-                    <strong>
-                      Steam {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(liquidSteamBoilerCapacityMs)}L
-                      {' | '}
-                      Creosote {formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L/{liquidSteamBoilerFluidCapacityLitres}L
-                      {' | '}
-                      Makes {formatAmount(liquidSteamBoilerSteamProductionLitresPerSecond)}L/s
-                    </strong>
-                  )}
-                  {isEuStorageMachine(selectedMachine.machineId) && (
-                    <strong>
-                      EU {Math.floor(selectedMachine.process.euStored)}/{selectedMachine.process.euCapacity || lvBatteryBufferEuCapacity}
-                      {' | '}
-                      Supply {formatAmount(lvBatteryBufferOutputEuPerSecond)} EU/s
-                    </strong>
-                  )}
-                  {isEuProducerMachine(selectedMachine.machineId) && (
-                    <strong>
-                      EU {Math.floor(selectedMachine.process.euStored)}/{steamTurbineEuCapacity}
-                      {' | '}
-                      Steam supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
-                      {' | '}
-                      Uses {formatAmount(steamTurbineSteamUseLitresPerSecond)}L/s
-                      {' | '}
-                      Makes {formatAmount(steamTurbineSteamUseLitresPerSecond * 2)} EU/s
-                    </strong>
-                  )}
-                  {isEuPoweredMachine(selectedMachine.machineId) && !isAutoMinerMachine(selectedMachine.machineId) && (
-                    <strong>
-                      Internal {Math.floor(selectedMachine.process.euStored)}/{selectedMachine.process.euCapacity || 0} EU
-                      {' | '}
-                      Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
-                      {' | '}
-                      Uses {formatAmount(selectedMachineEuUsagePerSecond)} EU/s
-                      {isEuBlastMachine(selectedMachine.machineId) && selectedMachineRecipe?.minimumEuStored
-                        ? ` | Needs ${formatAmount(selectedMachineRecipe.minimumEuStored)} buffered EU`
-                        : ''}
-                    </strong>
-                  )}
-                  {selectedMachine.machineId === 'steamAutoMiner' && (
-                    <strong>
-                      Internal {formatSteamLitres(selectedMachine.process.steamStoredMs)}L/{formatSteamLitres(selectedMachine.process.steamCapacityMs || steamMachineInternalCapacityMs)}L
-                      {' | '}
-                      Supply {formatSteamLitres(availableConnectedSteam(state, selectedMachine))}L
-                      {' | '}
-                      Uses {formatAmount(steamAutoMinerSteamUsagePerSecond)}L/s
-                    </strong>
-                  )}
-                  {selectedMachine.machineId === 'lvAutoMiner' && (
-                    <strong>
-                      Internal {Math.floor(selectedMachine.process.euStored)}/{selectedMachine.process.euCapacity || 0} EU
-                      {' | '}
-                      Supply {Math.floor(availableConnectedEu(state, selectedMachine))} EU
-                      {' | '}
-                      Uses {formatAmount(lvAutoMinerEuUsagePerSecond)} EU/s
-                    </strong>
+                <div className={selectedMachineMetrics.length > 0 ? 'machine-status-row has-metrics' : 'machine-status-row'}>
+                  <span className="machine-status-pill">{machineStatus(state, selectedMachine)}</span>
+                  {selectedMachineMetrics.length > 0 && (
+                    <div className="machine-meter-grid">
+                      {selectedMachineMetrics.map((metric) => (
+                        <MachineMetricTile metric={metric} key={`${metric.label}-${metric.tone}`} />
+                      ))}
+                    </div>
                   )}
                 </div>
                 {selectedMachine.machineId === 'well' ? (
@@ -4223,6 +4309,7 @@ function App() {
                         }%`,
                       }}
                     />
+                    {selectedMachineProcessTimeLabel && <strong>{selectedMachineProcessTimeLabel}</strong>}
                   </div>
                   {selectedMachine.machineId !== 'steamBoiler' && (
                     <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
@@ -4304,6 +4391,8 @@ function App() {
               {shopItems.map((item) => {
                 const discovered = isResourceDiscovered(state, item.id)
                 const canBuy = canBuyShopItem(state, item)
+                const cooldownMs = shopItemCooldownMs(item)
+                const cooldownRemainingMs = shopItemCooldownRemainingMs(state, item)
                 return (
                   <article className={discovered ? 'shop-card' : 'shop-card locked'} key={`buy-${item.id}`}>
                     <span className="item-slot filled">
@@ -4312,9 +4401,18 @@ function App() {
                     <div>
                       <strong>{resourceLabels[item.id]}</strong>
                       <span>{item.age === 'gettingStarted' ? 'Getting Started' : item.age === 'steamAge' ? 'Steam Age' : 'LV Age'}</span>
+                      {cooldownMs > 0 && (
+                        <span className="shop-cooldown">
+                          {cooldownRemainingMs > 0 ? `Part cooldown ${formatDuration(cooldownRemainingMs)}` : `Part cooldown ${formatDuration(cooldownMs)}`}
+                        </span>
+                      )}
                     </div>
                     <button type="button" disabled={!canBuy} onClick={() => handleBuyShopItem(item.id)}>
-                      {discovered ? `${formatAmount(item.buyPrice)} Scrip` : 'Undiscovered'}
+                      {!discovered
+                        ? 'Undiscovered'
+                        : cooldownRemainingMs > 0
+                          ? `Wait ${formatDuration(cooldownRemainingMs)}`
+                          : `${formatAmount(item.buyPrice)} Scrip`}
                     </button>
                   </article>
                 )
@@ -4357,6 +4455,8 @@ function App() {
             selectedQuestId={selectedQuestId}
             onSelectChapter={setActiveQuestChapterId}
             onSelectQuest={handleSelectQuest}
+            onClaimAll={handleClaimAllQuestRewards}
+            claimableRewardCount={claimableQuestRewardCount}
           />
         </section>
       )}
