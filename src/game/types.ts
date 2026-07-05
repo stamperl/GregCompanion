@@ -483,6 +483,7 @@ export type OfflineProgressResult = {
 
 export type ProcessSlotId = 'input' | 'secondaryInput' | 'fuel' | 'output'
 export type PipeDirection = 'north' | 'east' | 'south' | 'west'
+export type PipeSideMode = 'both' | 'input' | 'output' | 'blocked'
 
 export type MachineProcessState = {
   input: ProcessSlot
@@ -509,6 +510,7 @@ export type MachineInstance = {
   y: number
   level: number
   pipeDisabledSides?: Partial<Record<PipeDirection, boolean>>
+  pipeSideModes?: Partial<Record<PipeDirection, PipeSideMode>>
   process: MachineProcessState
 }
 

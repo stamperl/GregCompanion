@@ -62,6 +62,7 @@ import {
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
   simulateOfflineProgress,
+  setPipeSideMode,
   setPipeSideDisabled,
   steamMaceratorCapacityMs,
   steamTankCapacityMs,
@@ -2140,6 +2141,34 @@ describe('game engine', () => {
     expect(nextOven.process.fluids.creosote).toBe(56)
     expect(nextTank.process.steamStoredMs).toBe(steamTankCapacityMs)
     expect(nextTank.process.fluids.creosote).toBe(24)
+  })
+
+  it('uses pipe side modes to control liquid flow direction', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.copperPipe = 1
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    cokeOven.process.fluids.creosote = 80
+    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+
+    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'input')
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(80)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote ?? 0).toBe(0)
+
+    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(56)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote).toBe(24)
   })
 
   it('does not mix two liquid types in one steam tank', () => {

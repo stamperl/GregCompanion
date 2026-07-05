@@ -57,6 +57,7 @@ import type {
   ProcessSlot,
   ProcessSlotId,
   PipeDirection,
+  PipeSideMode,
   Quest,
   QuestObjective,
   QuestId,
@@ -175,6 +176,13 @@ const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
 }
 
 export const pipeDirections: PipeDirection[] = ['north', 'east', 'south', 'west']
+export const pipeSideModes: PipeSideMode[] = ['both', 'output', 'input', 'blocked']
+export const pipeSideModeLabels: Record<PipeSideMode, string> = {
+  both: 'Both',
+  output: 'Out',
+  input: 'In',
+  blocked: 'Blocked',
+}
 const oppositePipeDirection: Record<PipeDirection, PipeDirection> = {
   north: 'south',
   east: 'west',
@@ -279,6 +287,19 @@ function normalizePipeDisabledSides(parsed?: Partial<Record<PipeDirection, boole
   return normalized
 }
 
+function normalizePipeSideModes(parsed?: Partial<Record<PipeDirection, PipeSideMode>>, disabledSides?: Partial<Record<PipeDirection, boolean>>) {
+  const normalized: Partial<Record<PipeDirection, PipeSideMode>> = {}
+  for (const direction of pipeDirections) {
+    const parsedMode = parsed?.[direction]
+    if (parsedMode && pipeSideModes.includes(parsedMode)) {
+      if (parsedMode !== 'both') normalized[direction] = parsedMode
+      continue
+    }
+    if (disabledSides?.[direction]) normalized[direction] = 'blocked'
+  }
+  return normalized
+}
+
 const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
   helmet: [],
   chestplate: [],
@@ -314,18 +335,22 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
   return instances
     .filter((instance): instance is Partial<MachineInstance> => Boolean(instance?.uid && instance.machineId && instance.machineId in machines))
     .filter((instance) => isInsideGridSize(grid, instance.x ?? -1, instance.y ?? -1))
-    .map((instance) => ({
-      uid: String(instance.uid),
-      machineId: instance.machineId as MachineId,
-      x: Math.floor(instance.x ?? 0),
-      y: Math.floor(instance.y ?? 0),
-      level:
-        instance.machineId === 'steamTank'
-          ? Math.max(0, Math.floor(instance.level ?? 1))
-          : Math.max(1, Math.floor(instance.level ?? 1)),
-      pipeDisabledSides: normalizePipeDisabledSides(instance.pipeDisabledSides),
-      process: normalizeProcessState(instance.process),
-    }))
+    .map((instance) => {
+      const pipeDisabledSides = normalizePipeDisabledSides(instance.pipeDisabledSides)
+      return {
+        uid: String(instance.uid),
+        machineId: instance.machineId as MachineId,
+        x: Math.floor(instance.x ?? 0),
+        y: Math.floor(instance.y ?? 0),
+        level:
+          instance.machineId === 'steamTank'
+            ? Math.max(0, Math.floor(instance.level ?? 1))
+            : Math.max(1, Math.floor(instance.level ?? 1)),
+        pipeDisabledSides,
+        pipeSideModes: normalizePipeSideModes(instance.pipeSideModes, pipeDisabledSides),
+        process: normalizeProcessState(instance.process),
+      }
+    })
 }
 
 export function cloneState(state: GameState): GameState {
@@ -336,6 +361,7 @@ export function cloneState(state: GameState): GameState {
     machineInstances: state.machineInstances.map((instance) => ({
       ...instance,
       pipeDisabledSides: { ...instance.pipeDisabledSides },
+      pipeSideModes: { ...instance.pipeSideModes },
       process: cloneProcessState(instance.process),
     })),
     scrip: Math.max(0, Math.floor(state.scrip ?? 0)),
@@ -1126,13 +1152,38 @@ function directionBetween(from: MachineInstance, to: MachineInstance): PipeDirec
 }
 
 function connectorAllowsDirection(instance: MachineInstance, direction: PipeDirection) {
-  return !isConfigurableConnector(instance.machineId) || !instance.pipeDisabledSides?.[direction]
+  return !isConfigurableConnector(instance.machineId) || pipeSideMode(instance, direction) !== 'blocked'
+}
+
+export function pipeSideMode(instance: MachineInstance, direction: PipeDirection): PipeSideMode {
+  if (!isConfigurableConnector(instance.machineId)) return 'both'
+  if (instance.pipeSideModes?.[direction]) return instance.pipeSideModes[direction]
+  if (instance.pipeDisabledSides?.[direction]) return 'blocked'
+  return 'both'
+}
+
+function connectorAllowsFlowOut(instance: MachineInstance, direction: PipeDirection) {
+  if (!isConfigurableConnector(instance.machineId)) return true
+  const mode = pipeSideMode(instance, direction)
+  return mode === 'both' || mode === 'output'
+}
+
+function connectorAllowsFlowIn(instance: MachineInstance, direction: PipeDirection) {
+  if (!isConfigurableConnector(instance.machineId)) return true
+  const mode = pipeSideMode(instance, direction)
+  return mode === 'both' || mode === 'input'
 }
 
 export function machinesCanConnect(from: MachineInstance, to: MachineInstance) {
   const direction = directionBetween(from, to)
   if (!direction) return false
   return connectorAllowsDirection(from, direction) && connectorAllowsDirection(to, oppositePipeDirection[direction])
+}
+
+function machinesCanFlow(from: MachineInstance, to: MachineInstance) {
+  const direction = directionBetween(from, to)
+  if (!direction) return false
+  return connectorAllowsFlowOut(from, direction) && connectorAllowsFlowIn(to, oppositePipeDirection[direction])
 }
 
 function multiblockControllerSpecs() {
@@ -1397,7 +1448,7 @@ function canStoreFluid(state: GameState, instance: MachineInstance, fluidId: Flu
   return storedTypes.length < 1 || storedTypes.every((id) => id === fluidId)
 }
 
-function connectedFluidNetwork(state: GameState, start: MachineInstance) {
+function connectedFluidNetwork(state: GameState, start: MachineInstance, flowOnly = false) {
   const visited = new Set<string>()
   const queue = [start]
   const network: MachineInstance[] = []
@@ -1414,7 +1465,7 @@ function connectedFluidNetwork(state: GameState, start: MachineInstance) {
       const next = machineAt(state, position.x, position.y)
       if (
         next &&
-        machinesCanConnect(instance, next) &&
+        (flowOnly ? machinesCanFlow(instance, next) : machinesCanConnect(instance, next)) &&
         (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well') &&
         !visited.has(next.uid)
       ) {
@@ -1426,7 +1477,7 @@ function connectedFluidNetwork(state: GameState, start: MachineInstance) {
   return network
 }
 
-function connectedSteamNetwork(state: GameState, start: MachineInstance) {
+function connectedSteamNetwork(state: GameState, start: MachineInstance, flowOnly = false) {
   if (!isSteamNetworkMachine(start.machineId)) return [] as MachineInstance[]
   const visited = new Set<string>()
   const queue = [start]
@@ -1442,7 +1493,7 @@ function connectedSteamNetwork(state: GameState, start: MachineInstance) {
 
     for (const position of adjacentPositions(state, instance.x, instance.y)) {
       const next = machineAt(state, position.x, position.y)
-      if (next && machinesCanConnect(instance, next) && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
+      if (next && (flowOnly ? machinesCanFlow(instance, next) : machinesCanConnect(instance, next)) && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
     }
   }
   return network
@@ -1483,15 +1534,64 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
   return network
 }
 
+function connectedEuFlowNetwork(state: GameState, start: MachineInstance) {
+  if (!isEuNetworkMachine(start.machineId)) return [] as MachineInstance[]
+  const visited = new Set<string>()
+  const queue = [start]
+  const network: MachineInstance[] = []
+
+  const isEuMultiblockBridge = (instance: MachineInstance) => {
+    const controller = multiblockCenterForInstance(state, instance)
+    return Boolean(controller && isEuNetworkMachine(controller.spec.controller))
+  }
+
+  while (queue.length > 0) {
+    const instance = queue.shift()!
+    if (visited.has(instance.uid)) continue
+    visited.add(instance.uid)
+    network.push(instance)
+
+    if (instance.uid !== start.uid && !isEuCableMachine(instance.machineId) && !isEuMultiblockBridge(instance)) continue
+
+    for (const position of adjacentPositions(state, instance.x, instance.y)) {
+      const next = machineAt(state, position.x, position.y)
+      if (!next || (!isEuNetworkMachine(next.machineId) && !isEuMultiblockBridge(next))) continue
+      if (!machinesCanFlow(instance, next) || visited.has(next.uid)) continue
+      queue.push(next)
+    }
+  }
+
+  return network
+}
+
+function canEuFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
+  return connectedEuFlowNetwork(state, source).some((instance) => instance.uid === target.uid)
+}
+
+function flowCellsForInstance(state: GameState, instance: MachineInstance) {
+  const tankStructure = instance.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
+  return tankStructure?.positions.map((position) => machineAt(state, position.x, position.y)).filter((cell): cell is MachineInstance => Boolean(cell)) ?? [instance]
+}
+
+function canSteamFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
+  const targetUids = new Set(flowCellsForInstance(state, target).map((cell) => cell.uid))
+  return flowCellsForInstance(state, source).some((sourceCell) => connectedSteamNetwork(state, sourceCell, true).some((instance) => targetUids.has(instance.uid)))
+}
+
+function canFluidFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
+  const targetUids = new Set(flowCellsForInstance(state, target).map((cell) => cell.uid))
+  return flowCellsForInstance(state, source).some((sourceCell) => connectedFluidNetwork(state, sourceCell, true).some((instance) => targetUids.has(instance.uid)))
+}
+
 function connectedEuProducers(state: GameState, start: MachineInstance) {
   return connectedEuNetworkWithDistance(state, start)
-    .filter((entry) => entry.instance.uid !== start.uid && isEuProducerMachine(entry.instance.machineId))
+    .filter((entry) => entry.instance.uid !== start.uid && isEuProducerMachine(entry.instance.machineId) && canEuFlowBetween(state, entry.instance, start))
     .sort((a, b) => a.cableDistance - b.cableDistance || a.instance.uid.localeCompare(b.instance.uid))
 }
 
 function connectedEuSources(state: GameState, start: MachineInstance) {
   return connectedEuNetworkWithDistance(state, start)
-    .filter((entry) => entry.instance.uid !== start.uid && (isEuProducerMachine(entry.instance.machineId) || isEuStorageMachine(entry.instance.machineId)))
+    .filter((entry) => entry.instance.uid !== start.uid && (isEuProducerMachine(entry.instance.machineId) || isEuStorageMachine(entry.instance.machineId)) && canEuFlowBetween(state, entry.instance, start))
     .sort((a, b) => {
       const aStorage = isEuStorageMachine(a.instance.machineId) ? 0 : 1
       const bStorage = isEuStorageMachine(b.instance.machineId) ? 0 : 1
@@ -1521,7 +1621,7 @@ function connectedSteamStorage(state: GameState, start: MachineInstance) {
     connectedSteamNetwork(state, start)
       .filter((instance) => instance.uid !== start.uid && isSteamStorageMachine(instance.machineId))
       .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
-      .filter((instance) => instance.uid !== startStorage.uid),
+      .filter((instance) => instance.uid !== startStorage.uid && canSteamFlowBetween(state, instance, startStorage)),
   )
 }
 
@@ -1556,7 +1656,7 @@ export function isAutoMinerPowered(state: GameState, instance: MachineInstance) 
 function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId: FluidId) {
   const startStorage = start.machineId === 'steamTank' ? steamTankStorageForInstance(state, start) : start
   return uniqueMachineInstances(
-    connectedFluidNetwork(state, start)
+    connectedFluidNetwork(state, start, true)
       .filter((instance) => instance.uid !== start.uid)
       .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
       .filter((instance) => instance.uid !== startStorage.uid && canStoreFluid(state, instance, fluidId)),
@@ -1569,7 +1669,7 @@ function connectedFluidSources(state: GameState, start: MachineInstance, fluidId
     connectedFluidNetwork(state, start)
       .filter((instance) => instance.uid !== start.uid)
       .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
-      .filter((instance) => instance.uid !== startStorage.uid && (instance.process.fluids[fluidId] ?? 0) > 0),
+      .filter((instance) => instance.uid !== startStorage.uid && (instance.process.fluids[fluidId] ?? 0) > 0 && canFluidFlowBetween(state, instance, startStorage)),
   ).sort((a, b) => a.uid.localeCompare(b.uid))
 }
 
@@ -1867,14 +1967,24 @@ export function unassignAutoMiner(state: GameState, uid: string) {
 export function setPipeSideDisabled(state: GameState, uid: string, direction: PipeDirection, disabled: boolean) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isConfigurableConnector(instance.machineId)) return state
+  return setPipeSideMode(state, uid, direction, disabled ? 'blocked' : 'both')
+}
+
+export function setPipeSideMode(state: GameState, uid: string, direction: PipeDirection, mode: PipeSideMode) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isConfigurableConnector(instance.machineId) || !pipeSideModes.includes(mode)) return state
 
   const next = cloneState(state)
   const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
   if (!nextInstance) return state
-  const sides = { ...nextInstance.pipeDisabledSides }
-  if (disabled) sides[direction] = true
-  else delete sides[direction]
-  nextInstance.pipeDisabledSides = sides
+  const modes = { ...nextInstance.pipeSideModes }
+  const disabledSides = { ...nextInstance.pipeDisabledSides }
+  if (mode === 'both') delete modes[direction]
+  else modes[direction] = mode
+  if (mode === 'blocked') disabledSides[direction] = true
+  else delete disabledSides[direction]
+  nextInstance.pipeSideModes = modes
+  nextInstance.pipeDisabledSides = disabledSides
   next.lastSavedAt = Date.now()
   return next
 }
@@ -1883,6 +1993,15 @@ export function togglePipeSideDisabled(state: GameState, uid: string, direction:
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isConfigurableConnector(instance.machineId)) return state
   return setPipeSideDisabled(state, uid, direction, !instance.pipeDisabledSides?.[direction])
+}
+
+export function cyclePipeSideMode(state: GameState, uid: string, direction: PipeDirection) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isConfigurableConnector(instance.machineId)) return state
+  const currentMode = pipeSideMode(instance, direction)
+  const currentIndex = pipeSideModes.indexOf(currentMode)
+  const nextMode = pipeSideModes[(currentIndex + 1) % pipeSideModes.length]
+  return setPipeSideMode(state, uid, direction, nextMode)
 }
 
 export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTargetId, machineId?: MachineId) {
@@ -2911,6 +3030,7 @@ function migrateMachineInstances(machinesState: Record<MachineId, number>, found
       y: Math.floor(index / grid.width),
       level: 1,
       pipeDisabledSides: {},
+      pipeSideModes: {},
       process: emptyProcessState(),
     })
   }

@@ -3833,6 +3833,20 @@ button.craft-output:disabled {
   background: #7fb84d;
 }
 
+.pipe-polarity-side.mode-both.connected {
+  background: linear-gradient(90deg, #7fb84d 0 45%, #425f88 45% 55%, #7fb84d 55%);
+}
+
+.pipe-polarity-side.mode-output.connected,
+.pipe-polarity-side.mode-output.open {
+  background: #d28a38;
+}
+
+.pipe-polarity-side.mode-input.connected,
+.pipe-polarity-side.mode-input.open {
+  background: #4d79b8;
+}
+
 .pipe-polarity-side.blocked {
   background:
     linear-gradient(135deg, transparent 42%, #f4e4d1 42% 58%, transparent 58%),
@@ -4066,7 +4080,7 @@ button.craft-output:disabled {
   display: grid;
   font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
   gap: 2px;
-  height: 58px;
+  height: 66px;
   justify-items: center;
   min-width: 0;
   padding: 3px;
@@ -4092,13 +4106,7 @@ button.craft-output:disabled {
 }
 
 .pipe-config-cell.disabled-side::after {
-  background: #3a3a3a;
-  bottom: 5px;
-  content: "OFF";
-  font-size: 0.5rem;
-  left: 5px;
-  padding: 1px 3px;
-  position: absolute;
+  display: none;
 }
 
 .pipe-config-cell.center {
@@ -4121,6 +4129,32 @@ button.craft-output:disabled {
 .pipe-config-cell strong {
   font-size: 0.5rem;
   line-height: 1;
+}
+
+.pipe-side-mode {
+  background: #4f4633;
+  border: 1px solid #272116;
+  color: #f8f1d4;
+  font: 950 0.48rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+  min-width: 42px;
+  padding: 2px 3px;
+}
+
+.pipe-config-cell.mode-both .pipe-side-mode {
+  background: #5f7041;
+}
+
+.pipe-config-cell.mode-output .pipe-side-mode {
+  background: #8a5c2b;
+}
+
+.pipe-config-cell.mode-input .pipe-side-mode {
+  background: #425f88;
+}
+
+.pipe-config-cell.mode-blocked .pipe-side-mode {
+  background: #79352e;
 }
 
 .empty-pipe-neighbour {

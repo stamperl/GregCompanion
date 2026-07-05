@@ -74,6 +74,7 @@ import {
   collectProcessOutput,
   createCreativeState,
   currentFluidOutputFlows,
+  cyclePipeSideMode,
   craftableQuantity,
   craftRecipeInstant,
   equipResource,
@@ -100,6 +101,8 @@ import {
   multiblockControllerForInstance,
   placeMachineInstance,
   pipeDirections,
+  pipeSideMode,
+  pipeSideModeLabels,
   processStackLimit,
   questProgress,
   questObjectiveProgress,
@@ -139,7 +142,6 @@ import {
   canExpandFactoryFloor,
   terminalAvailableAmount,
   tickGame,
-  togglePipeSideDisabled,
   unassignAutoMiner,
   unequipSlot,
   visibleQuests,
@@ -181,6 +183,7 @@ import type {
   MachineInstance,
   OfflineProgressResult,
   PipeDirection,
+  PipeSideMode,
   ProcessSlot,
   ProcessSlotId,
   Quest,
@@ -2135,7 +2138,7 @@ function App() {
   }
 
   const handleTogglePipeSide = (uid: string, direction: PipeDirection) => {
-    setState((current) => togglePipeSideDisabled(current, uid, direction))
+    setState((current) => cyclePipeSideMode(current, uid, direction))
   }
 
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
@@ -2459,7 +2462,7 @@ function App() {
     setPage('terminal')
   }
 
-  const pipePolarityForInstance = (instance: MachineInstance): Array<{ direction: PipeDirection; state: PipeSideState; label: string }> | null => {
+  const pipePolarityForInstance = (instance: MachineInstance): Array<{ direction: PipeDirection; state: PipeSideState; mode: PipeSideMode; label: string }> | null => {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
     const isEuCable = isEuCableMachine(instance.machineId)
     if (!isSteamPipe && !isEuCable) return null
@@ -2467,7 +2470,8 @@ function App() {
     return pipeDirections.map((direction) => {
       const offset = pipeDirectionOffsets[direction]
       const neighbour = machineAtFactoryCell(instance.x + offset.dx, instance.y + offset.dy)
-      const blocked = Boolean(instance.pipeDisabledSides?.[direction])
+      const mode = pipeSideMode(instance, direction)
+      const blocked = mode === 'blocked'
       const isSteamPipeNeighbour = (machineId: MachineId) => isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
       const connected = Boolean(
         !blocked &&
@@ -2477,8 +2481,9 @@ function App() {
       )
       return {
         direction,
+        mode,
         state: blocked ? 'blocked' : connected ? 'connected' : 'open',
-        label: `${offset.label} ${blocked ? 'blocked' : connected ? 'connected' : 'open'}`,
+        label: `${offset.label} ${pipeSideModeLabels[mode]}`,
       }
     })
   }
@@ -3982,7 +3987,7 @@ function App() {
                           {pipePolarity && (
                             <span className="pipe-polarity-overlay" aria-label="Pipe polarity">
                               {pipePolarity.map((side) => (
-                                <span className={`pipe-polarity-side ${side.direction} ${side.state}`} title={side.label} key={side.direction} />
+                                <span className={`pipe-polarity-side ${side.direction} ${side.state} mode-${side.mode}`} title={side.label} key={side.direction} />
                               ))}
                             </span>
                           )}
@@ -4053,7 +4058,8 @@ function App() {
                         return offset.dx === dx && offset.dy === dy
                       })
                       const isCenter = dx === 0 && dy === 0
-                      const disabled = direction ? Boolean(selectedPipeConfig.pipeDisabledSides?.[direction]) : false
+                      const mode = direction ? pipeSideMode(selectedPipeConfig, direction) : null
+                      const disabled = mode === 'blocked'
                       const connected = Boolean(direction && neighbour && machinesCanConnect(selectedPipeConfig, neighbour))
                       const className = [
                         'pipe-config-cell',
@@ -4061,6 +4067,7 @@ function App() {
                         direction ? 'toggle' : '',
                         disabled ? 'disabled-side' : '',
                         connected ? 'connected-side' : '',
+                        mode ? `mode-${mode}` : '',
                       ].filter(Boolean).join(' ')
                       const content = isCenter ? (
                         <MachineGlyph id={selectedPipeConfig.machineId} active pipeConnections={pipeConnectionsForInstance(selectedPipeConfig)} />
@@ -4080,19 +4087,19 @@ function App() {
                         <button
                           type="button"
                           className={className}
-                          aria-pressed={!disabled}
-                          aria-label={`${disabled ? 'Enable' : 'Disable'} ${pipeDirectionOffsets[direction].label} connection`}
+                          aria-label={`${pipeDirectionOffsets[direction].label} flow ${pipeSideModeLabels[mode ?? 'both']}. Tap to cycle mode.`}
                           onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
                           key={`${dx},${dy}`}
                         >
                           {content}
                           <strong>{pipeDirectionOffsets[direction].label}</strong>
+                          <span className="pipe-side-mode">{pipeSideModeLabels[mode ?? 'both']}</span>
                         </button>
                       )
                     }),
                   )}
                 </div>
-                <p className="pipe-config-note">Tap a side to block or restore that pipe connection.</p>
+                <p className="pipe-config-note">Tap a side to cycle flow: Both, Out, In, Blocked.</p>
               </section>
             </div>
           )}
