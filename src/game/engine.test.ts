@@ -2142,6 +2142,45 @@ describe('game engine', () => {
     expect(nextTank.process.fluids.creosote).toBe(24)
   })
 
+  it('does not mix two liquid types in one steam tank', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.copperPipe = 1
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    cokeOven.process.fluids.creosote = 80
+    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    tank.process.fluids.water = 32
+    tank.process.fluidCapacityLitres = ironTankFluidCapacityLitres
+
+    state = tickGame(state, 1000).state
+
+    const nextOven = state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!
+    const nextTank = state.machineInstances.find((instance) => instance.uid === tank.uid)!
+    expect(nextOven.process.fluids.creosote).toBe(80)
+    expect(nextTank.process.fluids.water).toBe(32)
+    expect(nextTank.process.fluids.creosote).toBe(0)
+  })
+
+  it('normalizes mixed liquid tank save state to one liquid type', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    tank.process.fluids.water = 20
+    tank.process.fluids.creosote = 30
+
+    state = tickGame(state, 1000).state
+
+    const nextTank = state.machineInstances.find((instance) => instance.uid === tank.uid)!
+    expect(nextTank.process.fluids.water).toBe(0)
+    expect(nextTank.process.fluids.creosote).toBe(30)
+  })
+
   it('stops a coke oven when its creosote buffer is full', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1

@@ -3785,6 +3785,60 @@ button.craft-output:disabled {
   width: 16px;
 }
 
+.factory-cell > .pipe-polarity-overlay {
+  background: transparent;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  width: auto;
+  height: auto;
+  z-index: 4;
+}
+
+.pipe-polarity-side {
+  background: #c0a14e;
+  border: 1px solid #493920;
+  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.45), -1px -1px 0 rgba(0, 0, 0, 0.32);
+  display: block;
+  height: 5px;
+  position: absolute;
+  width: 12px;
+}
+
+.pipe-polarity-side.north {
+  left: 50%;
+  top: 2px;
+  transform: translateX(-50%);
+}
+
+.pipe-polarity-side.east {
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.pipe-polarity-side.south {
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.pipe-polarity-side.west {
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.pipe-polarity-side.connected {
+  background: #7fb84d;
+}
+
+.pipe-polarity-side.blocked {
+  background:
+    linear-gradient(135deg, transparent 42%, #f4e4d1 42% 58%, transparent 58%),
+    #9a3f32;
+}
+
 .factory-cell.placing {
   border-color: #fff8aa;
   border-bottom-color: #806c22;

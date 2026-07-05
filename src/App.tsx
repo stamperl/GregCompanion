@@ -212,6 +212,7 @@ type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'uses'
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryPan = { x: number; y: number }
+type PipeSideState = 'connected' | 'open' | 'blocked'
 type NavigationSnapshot = {
   page: Page
   gatherArea: GatherAreaId
@@ -1928,10 +1929,11 @@ function App() {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
     const isEuCable = isEuCableMachine(instance.machineId)
     if (!isSteamPipe && !isEuCable) return undefined
+    const isSteamPipeNeighbour = (machineId: MachineId) => isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
     const connectsTo = (x: number, y: number) => {
       const neighbour = machineAtFactoryCell(x, y)
       if (!neighbour) return false
-      return machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamNetworkMachine(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
+      return machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
     }
     return {
       up: connectsTo(instance.x, instance.y - 1),
@@ -2455,6 +2457,30 @@ function App() {
     setTerminalNotice(missingLine(state, recipe) ? `Missing ${missingLine(state, recipe)}` : `${recipe.name} loaded.`)
     setIsRecipeModalOpen(false)
     setPage('terminal')
+  }
+
+  const pipePolarityForInstance = (instance: MachineInstance): Array<{ direction: PipeDirection; state: PipeSideState; label: string }> | null => {
+    const isSteamPipe = isSteamPipeMachine(instance.machineId)
+    const isEuCable = isEuCableMachine(instance.machineId)
+    if (!isSteamPipe && !isEuCable) return null
+
+    return pipeDirections.map((direction) => {
+      const offset = pipeDirectionOffsets[direction]
+      const neighbour = machineAtFactoryCell(instance.x + offset.dx, instance.y + offset.dy)
+      const blocked = Boolean(instance.pipeDisabledSides?.[direction])
+      const isSteamPipeNeighbour = (machineId: MachineId) => isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
+      const connected = Boolean(
+        !blocked &&
+          neighbour &&
+          machinesCanConnect(instance, neighbour) &&
+          (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId)),
+      )
+      return {
+        direction,
+        state: blocked ? 'blocked' : connected ? 'connected' : 'open',
+        label: `${offset.label} ${blocked ? 'blocked' : connected ? 'connected' : 'open'}`,
+      }
+    })
   }
 
   const handleOpenProcessRecipe = (recipe: Recipe) => {
@@ -3894,6 +3920,7 @@ function App() {
                       const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
                       const multiblockController = instance ? controllerForMultiblockPart(instance) : null
                       const tankStructure = instance?.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
+                      const pipePolarity = instance ? pipePolarityForInstance(instance) : null
                       const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
                       const isTankStructureController = Boolean(tankStructure && instance && tankStructure.controller.uid === instance.uid && tankStructure.area > 1)
                       const isTankStructureChild = Boolean(tankStructure && instance && tankStructure.controller.uid !== instance.uid)
@@ -3915,6 +3942,7 @@ function App() {
                             (isEuNetworkMachine(instance.machineId) && instance.process.euStored > 0) ||
                             Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0) ||
                             (isSteamPipeMachine(instance.machineId) && availableConnectedSteam(state, instance) > 0) ||
+                            (isSteamPipeMachine(instance.machineId) && currentFluidOutputFlows(state, instance).some((flow) => flow.litresPerSecond > 0)) ||
                             (isEuCableMachine(instance.machineId) && availableConnectedEu(state, instance) > 0)),
                       )
                       return (
@@ -3950,6 +3978,13 @@ function App() {
                             <MachineGlyph id={instance.machineId} active={isMachineActive} pipeConnections={pipeConnectionsForInstance(instance)} />
                           ) : (
                             <span />
+                          )}
+                          {pipePolarity && (
+                            <span className="pipe-polarity-overlay" aria-label="Pipe polarity">
+                              {pipePolarity.map((side) => (
+                                <span className={`pipe-polarity-side ${side.direction} ${side.state}`} title={side.label} key={side.direction} />
+                              ))}
+                            </span>
                           )}
                         </button>
                       )
@@ -4151,7 +4186,7 @@ function App() {
                     ) : (
                       <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={selectedSteamTankCapacityMs} />
                     )}
-                    <span>Stores steam and one fluid from connected pipes</span>
+                    <span>Stores steam and one liquid from connected pipes</span>
                   </div>
                 ) : isSteamPipeMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">

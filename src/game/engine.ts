@@ -227,10 +227,18 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
 }
 
 function normalizeFluidStore(fluids?: Partial<Record<FluidId, number>>) {
+  const water = Math.max(0, Math.floor(fluids?.water ?? 0))
+  const creosote = Math.max(0, Math.floor(fluids?.creosote ?? 0))
+  const fluidId: FluidId | null = creosote >= water && creosote > 0 ? 'creosote' : water > 0 ? 'water' : null
+
   return {
-    water: Math.max(0, Math.floor(fluids?.water ?? 0)),
-    creosote: Math.max(0, Math.floor(fluids?.creosote ?? 0)),
+    water: fluidId === 'water' ? water : 0,
+    creosote: fluidId === 'creosote' ? creosote : 0,
   } satisfies Partial<Record<FluidId, number>>
+}
+
+function enforceSingleFluidStore(process: MachineProcessState) {
+  process.fluids = normalizeFluidStore(process.fluids)
 }
 
 function normalizeProcessSlot(slot: unknown): ProcessSlot {
@@ -2463,6 +2471,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
         instance.process.steamCapacityMs = capacity
         instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
         instance.process.fluidCapacityLitres = steamTankFluidCapacityLitresForInstance(next, instance)
+        enforceSingleFluidStore(instance.process)
       }
     }
     if (instance.machineId === 'steamTurbine') {
