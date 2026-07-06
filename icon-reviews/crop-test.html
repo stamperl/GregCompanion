@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Icon Crop Test</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      body {
+        background: #151515;
+        color: #f2f2f2;
+        margin: 0;
+        padding: 14px;
+      }
+
+      main {
+        display: grid;
+        gap: 12px;
+        margin: 0 auto;
+        max-width: 720px;
+      }
+
+      h1 {
+        font-size: 1rem;
+        line-height: 1.1;
+        margin: 0;
+      }
+
+      .grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .row {
+        align-items: center;
+        background: #242424;
+        border: 1px solid #3a3a3a;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 92px repeat(4, auto);
+        min-width: 0;
+        padding: 8px;
+      }
+
+      span {
+        color: #d6d6d6;
+        font-size: 0.75rem;
+        font-weight: 800;
+      }
+
+      .slot {
+        align-items: center;
+        background: #777;
+        border: 2px solid #efefef;
+        border-bottom-color: #4f4f4f;
+        border-right-color: #4f4f4f;
+        display: grid;
+        height: 68px;
+        justify-content: center;
+        width: 68px;
+      }
+
+      img {
+        display: block;
+        image-rendering: pixelated;
+        object-fit: contain;
+      }
+
+      .s22 { height: 22px; width: 22px; }
+      .s32 { height: 32px; width: 32px; }
+      .s44 { height: 44px; width: 44px; }
+      .s64 { height: 64px; width: 64px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Icon Crop Test</h1>
+      <div class="grid">
+        <div class="row">
+          <span>wooden axe</span>
+          <div class="slot"><img class="s22" src="../game-icons/resources/woodenAxe.png" alt="Wooden axe at 22px" /></div>
+          <div class="slot"><img class="s32" src="../game-icons/resources/woodenAxe.png" alt="Wooden axe at 32px" /></div>
+          <div class="slot"><img class="s44" src="../game-icons/resources/woodenAxe.png" alt="Wooden axe at 44px" /></div>
+          <div class="slot"><img class="s64" src="../game-icons/resources/woodenAxe.png" alt="Wooden axe at 64px" /></div>
+        </div>
+        <div class="row">
+          <span>iron ingot</span>
+          <div class="slot"><img class="s22" src="../game-icons/resources/ironIngot.png" alt="Iron ingot at 22px" /></div>
+          <div class="slot"><img class="s32" src="../game-icons/resources/ironIngot.png" alt="Iron ingot at 32px" /></div>
+          <div class="slot"><img class="s44" src="../game-icons/resources/ironIngot.png" alt="Iron ingot at 44px" /></div>
+          <div class="slot"><img class="s64" src="../game-icons/resources/ironIngot.png" alt="Iron ingot at 64px" /></div>
+        </div>
+        <div class="row">
+          <span>steam boiler</span>
+          <div class="slot"><img class="s22" src="../game-icons/machines/steamBoiler.png" alt="Steam boiler at 22px" /></div>
+          <div class="slot"><img class="s32" src="../game-icons/machines/steamBoiler.png" alt="Steam boiler at 32px" /></div>
+          <div class="slot"><img class="s44" src="../game-icons/machines/steamBoiler.png" alt="Steam boiler at 44px" /></div>
+          <div class="slot"><img class="s64" src="../game-icons/machines/steamBoiler.png" alt="Steam boiler at 64px" /></div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
