@@ -64,6 +64,7 @@ import {
   simulateOfflineProgress,
   setPipeSideMode,
   setPipeSideDisabled,
+  pipeSideMode,
   steamMaceratorCapacityMs,
   steamTankCapacityMs,
   steamTankCapacityMsForInstance,
@@ -78,13 +79,27 @@ import {
   visibleQuests,
   visibleRecipes,
 } from './engine'
-import type { CraftSlot, Recipe } from './types'
+import type { CraftSlot, MachineId, PipeDirection, PipeSideMode, Recipe } from './types'
 
 describe('game engine', () => {
   function createFactoryState(now = 1000, level = 2) {
     const state = createInitialState(now)
     state.factoryFoundationLevel = level
     return state
+  }
+
+  function configurePlacedConnector(
+    state: ReturnType<typeof createInitialState>,
+    machineId: MachineId,
+    modes: Partial<Record<PipeDirection, PipeSideMode>>,
+  ) {
+    const connector = state.machineInstances.find((instance) => instance.machineId === machineId)
+    if (!connector) return state
+    let next = state
+    for (const [direction, mode] of Object.entries(modes) as Array<[PipeDirection, PipeSideMode]>) {
+      next = setPipeSideMode(next, connector.uid, direction, mode)
+    }
+    return next
   }
 
   it('starts with no factory floor until foundations are built', () => {
@@ -1882,6 +1897,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'steamBoiler', 1, 0)
     state = placeMachineInstance(state, 'copperPipe', 2, 0)
     state = placeMachineInstance(state, 'steamTank', 3, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     boiler.process.steamStoredMs = 80000
@@ -1937,6 +1953,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'steamTank', 0, 0)
     state = placeMachineInstance(state, 'copperPipe', 1, 0)
     state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
     const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
@@ -1951,6 +1968,24 @@ describe('game engine', () => {
     state = setPipeSideDisabled(state, pipe.uid, 'east', false)
 
     expect(availableConnectedSteam(state, macerator)).toBe(steamTankCapacityMs)
+  })
+
+  it('places new pipes with every side closed until the player configures flow', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.copperPipe = 1
+    state.machines.steamMacerator = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    tank.process.steamStoredMs = steamTankCapacityMs
+
+    expect(pipeSideMode(pipe, 'west')).toBe('blocked')
+    expect(pipeSideMode(pipe, 'east')).toBe('blocked')
+    expect(availableConnectedSteam(state, macerator)).toBe(0)
   })
 
   it('fills an iron steam tank directly from an adjacent boiler', () => {
@@ -2099,6 +2134,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'cokeOven', 0, 0)
     state = placeMachineInstance(state, 'copperPipe', 1, 0)
     state = placeMachineInstance(state, 'steamTank', 2, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
@@ -2128,6 +2164,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'cokeOven', 0, 0)
     state = placeMachineInstance(state, 'copperPipe', 1, 0)
     state = placeMachineInstance(state, 'steamTank', 2, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     cokeOven.process.fluids.creosote = 80
@@ -2151,6 +2188,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'cokeOven', 0, 0)
     state = placeMachineInstance(state, 'copperPipe', 1, 0)
     state = placeMachineInstance(state, 'steamTank', 2, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
@@ -2179,6 +2217,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'cokeOven', 0, 0)
     state = placeMachineInstance(state, 'copperPipe', 1, 0)
     state = placeMachineInstance(state, 'steamTank', 2, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     cokeOven.process.fluids.creosote = 80
@@ -2236,6 +2275,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'steamTank', 0, 0)
     state = placeMachineInstance(state, 'ironPipe', 1, 0)
     state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    state = configurePlacedConnector(state, 'ironPipe', { west: 'input', east: 'output' })
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
     tank.process.steamStoredMs = 64000
@@ -2519,6 +2559,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
     state = placeMachineInstance(state, 'tinCable', 1, 0)
     state = placeMachineInstance(state, 'lvWiremill', 2, 0)
+    state = configurePlacedConnector(state, 'tinCable', { west: 'input', east: 'output' })
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
     state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 100
@@ -2545,6 +2586,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'tinCable', 1, 0)
     state = placeMachineInstance(state, 'lvBatteryBuffer', 2, 0)
     state = placeMachineInstance(state, 'lvWiremill', 3, 0)
+    state = configurePlacedConnector(state, 'tinCable', { west: 'input', east: 'output' })
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!

@@ -289,6 +289,30 @@ const pipeDirectionOffsets: Record<PipeDirection, { dx: number; dy: number; labe
   south: { dx: 0, dy: 1, label: 'South' },
   west: { dx: -1, dy: 0, label: 'West' },
 }
+const oppositePipeDirection: Record<PipeDirection, PipeDirection> = {
+  north: 'south',
+  east: 'west',
+  south: 'north',
+  west: 'east',
+}
+
+function pipeFlowDirections(direction: PipeDirection, mode: PipeSideMode) {
+  if (mode === 'blocked') return [] as PipeDirection[]
+  if (mode === 'output') return [direction]
+  if (mode === 'input') return [oppositePipeDirection[direction]]
+  return [direction, oppositePipeDirection[direction]]
+}
+
+function PipeFlowArrows({ direction, mode }: { direction: PipeDirection; mode: PipeSideMode }) {
+  const arrows = pipeFlowDirections(direction, mode)
+  return (
+    <span className={arrows.length > 1 ? 'pipe-flow-arrows dual' : 'pipe-flow-arrows'} aria-hidden="true">
+      {arrows.map((arrow, index) => (
+        <span className={`pipe-flow-arrow arrow-${arrow}`} key={`${arrow}-${index}`} />
+      ))}
+    </span>
+  )
+}
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
 
@@ -3987,7 +4011,9 @@ function App() {
                           {pipePolarity && (
                             <span className="pipe-polarity-overlay" aria-label="Pipe polarity">
                               {pipePolarity.map((side) => (
-                                <span className={`pipe-polarity-side ${side.direction} ${side.state} mode-${side.mode}`} title={side.label} key={side.direction} />
+                                <span className={`pipe-polarity-side ${side.direction} ${side.state} mode-${side.mode}`} title={side.label} key={side.direction}>
+                                  <PipeFlowArrows direction={side.direction} mode={side.mode} />
+                                </span>
                               ))}
                             </span>
                           )}
@@ -4087,19 +4113,20 @@ function App() {
                         <button
                           type="button"
                           className={className}
-                          aria-label={`${pipeDirectionOffsets[direction].label} flow ${pipeSideModeLabels[mode ?? 'both']}. Tap to cycle mode.`}
+                          aria-label={`${pipeDirectionOffsets[direction].label} flow ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
                           onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
                           key={`${dx},${dy}`}
                         >
                           {content}
+                          <PipeFlowArrows direction={direction} mode={mode ?? 'blocked'} />
                           <strong>{pipeDirectionOffsets[direction].label}</strong>
-                          <span className="pipe-side-mode">{pipeSideModeLabels[mode ?? 'both']}</span>
+                          <span className="pipe-side-mode">{pipeSideModeLabels[mode ?? 'blocked']}</span>
                         </button>
                       )
                     }),
                   )}
                 </div>
-                <p className="pipe-config-note">Tap a side to cycle flow: Both, Out, In, Blocked.</p>
+                <p className="pipe-config-note">Tap a side to cycle flow: Closed, Out, In, Both.</p>
               </section>
             </div>
           )}

@@ -3796,61 +3796,148 @@ button.craft-output:disabled {
 }
 
 .pipe-polarity-side {
-  background: #c0a14e;
-  border: 1px solid #493920;
-  box-shadow: 1px 1px 0 rgba(255, 255, 255, 0.45), -1px -1px 0 rgba(0, 0, 0, 0.32);
-  display: block;
-  height: 5px;
+  align-items: center;
+  background: transparent;
+  display: flex;
+  height: 14px;
+  justify-content: center;
   position: absolute;
-  width: 12px;
+  width: 14px;
 }
 
 .pipe-polarity-side.north {
   left: 50%;
-  top: 2px;
+  top: -1px;
   transform: translateX(-50%);
 }
 
 .pipe-polarity-side.east {
-  right: 2px;
+  right: -1px;
   top: 50%;
-  transform: translateY(-50%) rotate(90deg);
+  transform: translateY(-50%);
 }
 
 .pipe-polarity-side.south {
-  bottom: 2px;
+  bottom: -1px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .pipe-polarity-side.west {
-  left: 2px;
+  left: -1px;
   top: 50%;
-  transform: translateY(-50%) rotate(90deg);
+  transform: translateY(-50%);
 }
 
-.pipe-polarity-side.connected {
-  background: #7fb84d;
+.pipe-flow-arrows {
+  align-items: center;
+  display: flex;
+  height: 18px;
+  justify-content: center;
+  position: relative;
+  width: 18px;
 }
 
-.pipe-polarity-side.mode-both.connected {
-  background: linear-gradient(90deg, #7fb84d 0 45%, #425f88 45% 55%, #7fb84d 55%);
+.pipe-flow-arrows.dual {
+  width: 22px;
 }
 
-.pipe-polarity-side.mode-output.connected,
-.pipe-polarity-side.mode-output.open {
-  background: #d28a38;
+.pipe-flow-arrow {
+  display: block;
+  height: 14px;
+  position: absolute;
+  width: 14px;
 }
 
-.pipe-polarity-side.mode-input.connected,
-.pipe-polarity-side.mode-input.open {
-  background: #4d79b8;
+.pipe-flow-arrow::before,
+.pipe-flow-arrow::after {
+  content: "";
+  position: absolute;
 }
 
-.pipe-polarity-side.blocked {
-  background:
-    linear-gradient(135deg, transparent 42%, #f4e4d1 42% 58%, transparent 58%),
-    #9a3f32;
+.pipe-flow-arrow::before {
+  background: #f8f1d4;
+  box-shadow:
+    1px 1px 0 rgba(0, 0, 0, 0.7),
+    -1px -1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.pipe-flow-arrow::after {
+  border-color: transparent;
+  border-style: solid;
+  filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.7));
+}
+
+.pipe-flow-arrow.arrow-east::before,
+.pipe-flow-arrow.arrow-west::before {
+  height: 3px;
+  left: 2px;
+  top: 6px;
+  width: 9px;
+}
+
+.pipe-flow-arrow.arrow-east::after {
+  border-left-color: #f8f1d4;
+  border-width: 5px 0 5px 6px;
+  left: 10px;
+  top: 2px;
+}
+
+.pipe-flow-arrow.arrow-west::after {
+  border-right-color: #f8f1d4;
+  border-width: 5px 6px 5px 0;
+  left: -1px;
+  top: 2px;
+}
+
+.pipe-flow-arrow.arrow-north::before,
+.pipe-flow-arrow.arrow-south::before {
+  height: 9px;
+  left: 6px;
+  top: 2px;
+  width: 3px;
+}
+
+.pipe-flow-arrow.arrow-north::after {
+  border-bottom-color: #f8f1d4;
+  border-width: 0 5px 6px;
+  left: 2px;
+  top: -1px;
+}
+
+.pipe-flow-arrow.arrow-south::after {
+  border-top-color: #f8f1d4;
+  border-width: 6px 5px 0;
+  left: 2px;
+  top: 10px;
+}
+
+.pipe-flow-arrows.dual .pipe-flow-arrow.arrow-east,
+.pipe-flow-arrows.dual .pipe-flow-arrow.arrow-south {
+  transform: translate(3px, 3px);
+}
+
+.pipe-flow-arrows.dual .pipe-flow-arrow.arrow-west,
+.pipe-flow-arrows.dual .pipe-flow-arrow.arrow-north {
+  transform: translate(-3px, -3px);
+}
+
+.pipe-polarity-side.mode-blocked::before,
+.pipe-polarity-side.mode-blocked::after {
+  background: rgba(248, 241, 212, 0.78);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
+  content: "";
+  height: 3px;
+  position: absolute;
+  width: 12px;
+}
+
+.pipe-polarity-side.mode-blocked::before {
+  transform: rotate(45deg);
+}
+
+.pipe-polarity-side.mode-blocked::after {
+  transform: rotate(-45deg);
 }
 
 .factory-cell.placing {
@@ -4080,7 +4167,7 @@ button.craft-output:disabled {
   display: grid;
   font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
   gap: 2px;
-  height: 66px;
+  height: 74px;
   justify-items: center;
   min-width: 0;
   padding: 3px;
@@ -4117,13 +4204,13 @@ button.craft-output:disabled {
 }
 
 .pipe-config-cell .machine-glyph {
-  height: 34px;
-  width: 34px;
+  height: 28px;
+  width: 28px;
 }
 
 .pipe-config-cell.center .machine-glyph {
-  height: 42px;
-  width: 42px;
+  height: 40px;
+  width: 40px;
 }
 
 .pipe-config-cell strong {
@@ -4132,7 +4219,7 @@ button.craft-output:disabled {
 }
 
 .pipe-side-mode {
-  background: #4f4633;
+  background: #4f4f4f;
   border: 1px solid #272116;
   color: #f8f1d4;
   font: 950 0.48rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -4142,19 +4229,44 @@ button.craft-output:disabled {
 }
 
 .pipe-config-cell.mode-both .pipe-side-mode {
-  background: #5f7041;
+  background: #4f4f4f;
 }
 
 .pipe-config-cell.mode-output .pipe-side-mode {
-  background: #8a5c2b;
+  background: #4f4f4f;
 }
 
 .pipe-config-cell.mode-input .pipe-side-mode {
-  background: #425f88;
+  background: #4f4f4f;
 }
 
 .pipe-config-cell.mode-blocked .pipe-side-mode {
-  background: #79352e;
+  background: #3d3d3d;
+  color: #d6d0bd;
+}
+
+.pipe-config-cell .pipe-flow-arrows {
+  height: 20px;
+  margin: -1px 0;
+  width: 24px;
+}
+
+.pipe-config-cell.mode-blocked .pipe-flow-arrows::before,
+.pipe-config-cell.mode-blocked .pipe-flow-arrows::after {
+  background: rgba(248, 241, 212, 0.78);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
+  content: "";
+  height: 3px;
+  position: absolute;
+  width: 14px;
+}
+
+.pipe-config-cell.mode-blocked .pipe-flow-arrows::before {
+  transform: rotate(45deg);
+}
+
+.pipe-config-cell.mode-blocked .pipe-flow-arrows::after {
+  transform: rotate(-45deg);
 }
 
 .empty-pipe-neighbour {

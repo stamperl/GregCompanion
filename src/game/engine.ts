@@ -176,12 +176,12 @@ const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
 }
 
 export const pipeDirections: PipeDirection[] = ['north', 'east', 'south', 'west']
-export const pipeSideModes: PipeSideMode[] = ['both', 'output', 'input', 'blocked']
+export const pipeSideModes: PipeSideMode[] = ['blocked', 'output', 'input', 'both']
 export const pipeSideModeLabels: Record<PipeSideMode, string> = {
   both: 'Both',
   output: 'Out',
   input: 'In',
-  blocked: 'Blocked',
+  blocked: 'Closed',
 }
 const oppositePipeDirection: Record<PipeDirection, PipeDirection> = {
   north: 'south',
@@ -1922,6 +1922,10 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
     y,
     level: 1,
     process: emptyProcessState(),
+  }
+  if (isConfigurableConnector(machineId)) {
+    placed.pipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
+    placed.pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
   }
   next.machineInstances.push(placed)
   tryFormMultiblock(next, placed)
