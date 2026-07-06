@@ -3922,24 +3922,6 @@ button.craft-output:disabled {
   transform: translate(-3px, -3px);
 }
 
-.pipe-polarity-side.mode-blocked::before,
-.pipe-polarity-side.mode-blocked::after {
-  background: rgba(248, 241, 212, 0.78);
-  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
-  content: "";
-  height: 3px;
-  position: absolute;
-  width: 12px;
-}
-
-.pipe-polarity-side.mode-blocked::before {
-  transform: rotate(45deg);
-}
-
-.pipe-polarity-side.mode-blocked::after {
-  transform: rotate(-45deg);
-}
-
 .factory-cell.placing {
   border-color: #fff8aa;
   border-bottom-color: #806c22;
@@ -4249,24 +4231,6 @@ button.craft-output:disabled {
   height: 20px;
   margin: -1px 0;
   width: 24px;
-}
-
-.pipe-config-cell.mode-blocked .pipe-flow-arrows::before,
-.pipe-config-cell.mode-blocked .pipe-flow-arrows::after {
-  background: rgba(248, 241, 212, 0.78);
-  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
-  content: "";
-  height: 3px;
-  position: absolute;
-  width: 14px;
-}
-
-.pipe-config-cell.mode-blocked .pipe-flow-arrows::before {
-  transform: rotate(45deg);
-}
-
-.pipe-config-cell.mode-blocked .pipe-flow-arrows::after {
-  transform: rotate(-45deg);
 }
 
 .empty-pipe-neighbour {
