@@ -6,6 +6,7 @@ const isWindows = process.platform === 'win32'
 const lane = process.argv[2]
 const args = process.argv.slice(3)
 const releaseManifestPath = new URL('../src/release-manifest.json', import.meta.url)
+const devManifestPath = new URL('../src/dev-manifest.json', import.meta.url)
 
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, { stdio: 'inherit', ...options })
@@ -104,6 +105,10 @@ function readManifest() {
   return JSON.parse(readFileSync(releaseManifestPath, 'utf8'))
 }
 
+function readDevManifest() {
+  return JSON.parse(readFileSync(devManifestPath, 'utf8'))
+}
+
 function writeManifest(options) {
   const current = readManifest()
   const next = {
@@ -167,11 +172,12 @@ async function main() {
 
   if (lane === 'home-dev') {
     const port = '4173'
+    const devManifest = readDevManifest()
     runNpm(['run', 'build'], {
       env: {
         ...process.env,
         VITE_RELEASE_CHANNEL: 'home-dev',
-        VITE_RELEASE_REVISION: 'local',
+        VITE_RELEASE_REVISION: `dev.${devManifest.revision}`,
         VITE_RELEASE_TITLE: 'Home test build',
         VITE_RELEASE_NOTES: 'Local production preview|Only devices on this network can reach it',
       },

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
   fuelDefinitions,
+  fluidIds,
   gatherTargets,
   machineRegistry,
   machines,
@@ -41,6 +42,26 @@ function expectMachineAmountReferences(amounts: MachineAmount[], context: string
     expect(Number.isInteger(amount.amount), `${context} ${amount.id} amount should be an integer`).toBe(true)
     expect(amount.amount, `${context} ${amount.id} amount should be positive`).toBeGreaterThan(0)
   }
+}
+
+function resourceAmountCounts(amounts: ResourceAmount[]) {
+  return amounts.reduce(
+    (counts, amount) => {
+      counts[amount.id] = (counts[amount.id] ?? 0) + amount.amount
+      return counts
+    },
+    {} as Partial<Record<ResourceAmount['id'], number>>,
+  )
+}
+
+function patternCounts(pattern: Recipe['pattern']) {
+  return (pattern ?? []).reduce(
+    (counts, id) => {
+      if (id) counts[id] = (counts[id] ?? 0) + 1
+      return counts
+    },
+    {} as Partial<Record<ResourceAmount['id'], number>>,
+  )
 }
 
 function recipeReferenceBuckets(recipe: Recipe) {
@@ -152,6 +173,9 @@ describe('content validation', () => {
         for (const id of recipe.pattern.filter((item): item is NonNullable<typeof item> => Boolean(item))) {
           expect(resourceLabels, `${recipe.id} pattern references unknown resource ${id}`).toHaveProperty(id)
         }
+        expect(patternCounts(recipe.pattern), `${recipe.id} pattern should match declared inputs and catalysts`).toEqual(
+          resourceAmountCounts([...recipe.inputs, ...(recipe.catalysts ?? [])]),
+        )
       }
     }
   })
@@ -168,7 +192,7 @@ describe('content validation', () => {
       expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
       if (recipe.fluidOutput) {
         expect(recipe.fluidOutput.amount, `${recipe.id} fluid output amount should be positive`).toBeGreaterThan(0)
-        expect(['water', 'creosote'], `${recipe.id} fluid output should be known`).toContain(recipe.fluidOutput.id)
+        expect(fluidIds, `${recipe.id} fluid output should be known`).toContain(recipe.fluidOutput.id)
       }
     }
   })

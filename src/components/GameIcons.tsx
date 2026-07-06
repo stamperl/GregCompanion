@@ -1,6 +1,7 @@
 import { isEuCableMachine, isSteamPipeMachine } from '../game/content'
 import type { MachineId, ResourceId } from '../game/types'
 import { machineIconSrc, resourceIconSrc } from './gameIconAssets'
+import { useState } from 'react'
 
 export type PipeConnections = {
   up: boolean
@@ -10,9 +11,10 @@ export type PipeConnections = {
 }
 
 export function PixelIcon({ id }: { id: ResourceId }) {
+  const [failed, setFailed] = useState(false)
   return (
-    <span className="pixel-icon item-sprite-icon" aria-hidden="true">
-      <img src={resourceIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" />
+    <span className={failed ? `pixel-icon pixel-${id}` : 'pixel-icon item-sprite-icon'} aria-hidden="true">
+      {!failed && <img src={resourceIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" onError={() => setFailed(true)} />}
       <span />
     </span>
   )
@@ -77,10 +79,11 @@ function loosePipeCapPoints(connections?: PipeConnections) {
 }
 
 export function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
+  const [failed, setFailed] = useState(false)
   const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id)
   const className = [
     'machine-glyph',
-    isConnector && pipeConnections ? 'machine-connector-glyph' : 'machine-sprite-glyph',
+    isConnector && pipeConnections ? 'machine-connector-glyph' : failed ? '' : 'machine-sprite-glyph',
     `machine-${id}`,
     active ? 'active' : '',
     isConnector ? pipeConnectionClass(pipeConnections) : '',
@@ -106,7 +109,7 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
   }
   return (
     <span className={className} aria-hidden="true">
-      <img src={machineIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" />
+      {!failed && <img src={machineIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" onError={() => setFailed(true)} />}
       <span />
     </span>
   )

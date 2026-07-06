@@ -13,12 +13,13 @@ npm run test
 npm run build
 npm run lint
 npm run check
+npm run dev:bump
 npm run release:home-dev
 npm run release:remote-dev
 npm run release:full -- --revision 0.2.0 --title "Patch title" --note "Patch note"
 ```
 
-`npm run dev` starts the normal hot Vite server. `npm run dev:host` exposes that hot server on the local network for phone testing.
+`npm run dev` starts the normal hot Vite server. `npm run dev:host` exposes that hot server on the local network for phone testing. `npm run dev:bump` increments the dev-only home-screen revision in `src/dev-manifest.json`; it does not change the public release revision.
 
 `npm run release:home-dev` builds the app as a home-dev production preview and hosts it locally on port 4173. It prints both localhost and LAN URLs, and the local save API is available in this preview server.
 
@@ -36,7 +37,7 @@ The older `npm run deploy:test` and `npm run deploy:release` commands remain as 
 | Remote test dev | `npm run release:remote-dev` | GitHub Pages `/remote-dev/` path | `Remote dev` |
 | Full release | `npm run release:full -- --revision 0.2.0 --title "Patch title" --note "Patch note"` | Main GitHub Pages URL | `Full release` |
 
-Patch notes and revision numbers are shown on the home screen through `src/release-manifest.json`. Remote-dev builds override the manifest at build time so testers can immediately see they are not on the public release.
+Patch notes and public revision numbers are shown on the home screen through `src/release-manifest.json`. Home-dev uses `src/dev-manifest.json` for a separate `dev.x` revision, and remote-dev builds override the revision at build time so testers can immediately see they are not on the public release.
 
 ## iOS App
 

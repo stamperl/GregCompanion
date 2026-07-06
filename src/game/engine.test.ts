@@ -67,6 +67,7 @@ import {
   setPipeSideMode,
   setPipeSideDisabled,
   pipeSideMode,
+  steamMsPerLitre,
   steamPipeBufferCapacityMs,
   steamMaceratorCapacityMs,
   steamTankCapacityMs,
@@ -332,6 +333,8 @@ describe('game engine', () => {
     expect(getBestToolForTarget(state, 'tree').id).toBe('ironAxe')
     expect(getBestToolForTarget(state, 'copperVein').id).toBe('ironPickaxe')
     expect(hitGatherTarget(state, 'copperVein').state.gatherProgress.copperVein).toBe(6)
+    expect(hitGatherTarget(state, 'nickelVein').state.gatherProgress.nickelVein).toBe(5)
+    expect(hitGatherTarget(state, 'bauxiteVein').state.gatherProgress.bauxiteVein).toBe(5)
   })
 
   it('auto-completes ready guide quests and leaves rewards unclaimed', () => {
@@ -417,13 +420,28 @@ describe('game engine', () => {
     expect(buyShopItem(state, 'brick')).toBe(state)
   })
 
-  it('keeps LV circuit items out of the shop and uses longer cooldowns for critical parts', () => {
-    const bbfCasingShopItem = shopItems.find((item) => item.id === 'bbfCasing')!
-    const heatProofCasingShopItem = shopItems.find((item) => item.id === 'heatProofCasing')!
+  it('gates shop stock by the displayed age', () => {
+    let state = createInitialState(1000)
+    const copperShopItem = shopItems.find((item) => item.id === 'copperOre')!
+    const steelShopItem = shopItems.find((item) => item.id === 'steelIngot')!
+    state.completedQuests.push('buildFoundation')
+    state.discoveredResources = ['copperOre', 'steelIngot']
+    state.scrip = 1000
 
+    expect(canBuyShopItem(state, copperShopItem)).toBe(false)
+    expect(canBuyShopItem(state, steelShopItem)).toBe(false)
+
+    state.completedQuests.push('bronzeAge')
+    expect(canBuyShopItem(state, copperShopItem)).toBe(true)
+    expect(canBuyShopItem(state, steelShopItem)).toBe(false)
+
+    state.completedQuests.push('steelPlateQuest')
+    expect(canBuyShopItem(state, steelShopItem)).toBe(true)
+  })
+
+  it('keeps LV circuit and multiblock casing shortcuts out of the shop', () => {
     expect(shopItems.some((item) => item.id === 'basicBoard' || item.id === 'primitiveCircuit')).toBe(false)
-    expect(shopItemCooldownMs(bbfCasingShopItem)).toBe(25 * 60 * 1000)
-    expect(shopItemCooldownMs(heatProofCasingShopItem)).toBe(25 * 60 * 1000)
+    expect(shopItems.some((item) => item.id === 'bbfCasing' || item.id === 'heatProofCasing')).toBe(false)
   })
 
   it('sells only the fixed gathered material list for Foundry Scrip', () => {
@@ -515,6 +533,9 @@ describe('game engine', () => {
     expect(visibleQuests(state)).not.toContain(wireQuest)
 
     state.completedQuests.push('findRedstone')
+    expect(visibleQuests(state)).not.toContain(alloyQuest)
+
+    state.completedQuests.push('steamUtilityBranch')
     expect(visibleQuests(state)).toContain(alloyQuest)
     expect(visibleQuests(state)).not.toContain(wireQuest)
   })
@@ -594,8 +615,25 @@ describe('game engine', () => {
     expect(arcFurnace.prerequisites).toEqual(['makeHeatingCoilsQuest'])
     expect(chargedArc.prerequisites).toEqual(['buildArcBlastFurnaceQuest', 'bufferLvPowerQuest'])
     expect(aluminium.prerequisites).toEqual(['makeAluminiumDustQuest', 'bufferArcBlastFurnaceQuest'])
-    expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 4 })
+    expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 8 })
     expect(arcFurnace.requirements.machines).toEqual([{ id: 'arcBlastFurnace', amount: 1 }])
+  })
+
+  it('keeps quest-unlocked LV recipes visible before all ingredients are owned', () => {
+    const state = createFactoryState(1000)
+    state.completedQuests.push('steelPlateQuest')
+
+    expect(visibleRecipes(state).map((recipe) => recipe.id)).toContain('craft_heat_proof_casing')
+  })
+
+  it('keeps coke oven and blast multiblock quest counts aligned with their assembly recipes', () => {
+    const cokeBrickQuest = quests.find((quest) => quest.id === 'cokeOvenBrickQuest')!
+    const coils = quests.find((quest) => quest.id === 'makeHeatingCoilsQuest')!
+    const cokeOven = recipes.find((recipe) => recipe.id === 'build_coke_oven')!
+    const arcFurnace = recipes.find((recipe) => recipe.id === 'build_arc_blast_furnace')!
+
+    expect(cokeBrickQuest.requirements.resources).toContainEqual({ id: 'cokeOvenBrick', amount: cokeOven.inputs.find((input) => input.id === 'cokeOvenBrick')!.amount })
+    expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: arcFurnace.inputs.find((input) => input.id === 'heatProofCasing')!.amount })
   })
 
   it('migrates old saves into the new wood-opening state shape', () => {
@@ -1778,6 +1816,23 @@ describe('game engine', () => {
     expect(state.machines.brickedBlastFurnace).toBe(0)
   })
 
+  it('assembles eight heat-proof casings into four arc furnace multiblock parts', () => {
+    let state = createFactoryState(1000)
+    state.resources.heatProofCasing = 8
+    state.resources.ironWrench = 1
+    const arcFurnace = recipes.find((recipe) => recipe.id === 'build_arc_blast_furnace')!
+
+    expect(recipeFitsTerminalGrid(arcFurnace)).toBe(true)
+    expect(arcFurnace.inputs).toEqual([{ id: 'heatProofCasing', amount: 8 }])
+    expect(canCraft(state, arcFurnace)).toBe(true)
+
+    state = craftRecipeInstant(state, arcFurnace, 1)
+
+    expect(state.resources.heatProofCasing).toBe(0)
+    expect(state.machines.arcBlastFurnacePart).toBe(4)
+    expect(state.machines.arcBlastFurnace).toBe(0)
+  })
+
   it('forms and disassembles a bricked blast furnace 2x2 multiblock', () => {
     let state = createFactoryState(1000)
     state.machines.brickedBlastFurnacePart = 4
@@ -1895,6 +1950,26 @@ describe('game engine', () => {
 
     expect(state.machineInstances.find((instance) => instance.uid === adjacentBoiler.uid)!.process.steamStoredMs).toBe(12000)
     expect(state.machineInstances.find((instance) => instance.uid === distantBoiler.uid)!.process.steamStoredMs).toBe(0)
+  })
+
+  it('uses wells connected through configured pipes to supply steam boilers', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.copperPipe = 1
+    state.machines.steamBoiler = 1
+    state.resources.log = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 2, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+
+    expect(boilerHasWater(state, boiler)).toBe(true)
+
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(12000)
   })
 
   it('lets one well supply four adjacent boilers', () => {
@@ -2162,6 +2237,30 @@ describe('game engine', () => {
     expect(currentSteamPipeFlowLitresPerSecond(state, firstPipe)).toBeGreaterThan(0)
   })
 
+  it('shares one steam pipe transfer budget across multiple consumers', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.copperPipe = 1
+    state.machines.steamMacerator = 2
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 1, 1)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    tank.process.steamStoredMs = steamTankCapacityMs
+    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+    state = setPipeSideMode(state, pipe.uid, 'south', 'output')
+
+    state = tickGame(state, 1000).state
+
+    const storedSteam = state.machineInstances
+      .filter((instance) => instance.machineId === 'steamMacerator')
+      .reduce((sum, instance) => sum + instance.process.steamStoredMs, 0)
+    expect(storedSteam).toBeLessThanOrEqual(24 * steamMsPerLitre)
+  })
+
   it('fills an iron steam tank directly from an adjacent boiler', () => {
     let state = createFactoryState(1000)
     state.machines.steamBoiler = 1
@@ -2219,6 +2318,24 @@ describe('game engine', () => {
       expect(tank.level).toBe(0)
       expect(steamTankStructureForInstance(state, tank)?.controller.uid).toBe(controller.uid)
     }
+  })
+
+  it('keeps one liquid type when forming a steam tank structure that already has steam', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 4
+    state = placeMachineInstance(state, 'steamTank', 1, 0)
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamTank', 0, 1)
+    const firstTank = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)!
+    firstTank.process.steamStoredMs = steamTankCapacityMs
+    firstTank.process.fluids.creosote = 64
+    state = placeMachineInstance(state, 'steamTank', 1, 1)
+
+    const controller = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)!
+
+    expect(steamTankStructureForInstance(state, controller)?.area).toBe(4)
+    expect(controller.process.steamStoredMs).toBe(steamTankCapacityMs)
+    expect(controller.process.fluids.creosote).toBe(64)
   })
 
   it('removes an entire formed iron steam tank structure from any cell', () => {
@@ -2352,6 +2469,36 @@ describe('game engine', () => {
     expect(nextOven.process.fluids.creosote).toBe(56)
     expect(nextTank.process.steamStoredMs).toBe(steamTankCapacityMs)
     expect(nextTank.process.fluids.creosote).toBe(24)
+  })
+
+  it('shares one pipe network transfer rate across multiple liquid exporters', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 2
+    state.machines.copperPipe = 2
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'cokeOven', 0, 1)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 1)
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+    const [topPipe, bottomPipe] = state.machineInstances.filter((instance) => instance.machineId === 'copperPipe').sort((a, b) => a.y - b.y)
+    state = setPipeSideMode(state, topPipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, topPipe.uid, 'south', 'input')
+    state = setPipeSideMode(state, topPipe.uid, 'east', 'output')
+    state = setPipeSideMode(state, bottomPipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, bottomPipe.uid, 'north', 'output')
+
+    for (const oven of state.machineInstances.filter((instance) => instance.machineId === 'cokeOven')) {
+      oven.process.fluids.creosote = 80
+      oven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    }
+
+    state = tickGame(state, 1000).state
+
+    const ovens = state.machineInstances.filter((instance) => instance.machineId === 'cokeOven').sort((a, b) => a.y - b.y)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    expect(ovens.map((oven) => oven.process.fluids.creosote)).toEqual([68, 68])
+    expect(tank.process.fluids.creosote).toBe(24)
   })
 
   it('uses pipe side modes to control liquid flow direction', () => {
@@ -2863,6 +3010,27 @@ describe('game engine', () => {
     expect(boiler.process.steamCapacityMs).toBe(liquidSteamBoilerCapacityMs)
     expect(boiler.process.fluidCapacityLitres).toBe(liquidSteamBoilerFluidCapacityLitres)
     expect(boiler.process.fluids.creosote).toBe(15)
+  })
+
+  it('limits liquid steam boiler creosote pulls by pipe transfer rate', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.copperPipe = 1
+    state.machines.well = 1
+    state.machines.liquidSteamBoiler = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'liquidSteamBoiler', 2, 0)
+    state = placeMachineInstance(state, 'well', 2, 1)
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+    state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!.process.fluids.creosote = 200
+
+    state = tickGame(state, 1000).state
+
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'liquidSteamBoiler')!
+    expect(boiler.process.fluids.creosote ?? 0).toBeLessThanOrEqual(24)
   })
 
   it('requires buffered EU before the Arc Blast Furnace starts aluminium', () => {

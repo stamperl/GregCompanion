@@ -1,5 +1,6 @@
 import type {
   EquipmentState,
+  FluidId,
   FuelDefinition,
   GameState,
   GatherTargetId,
@@ -125,6 +126,14 @@ export const resourceRegistry = {
 export const resourceLabels: Record<ResourceId, string> = Object.fromEntries(
   Object.entries(resourceRegistry).map(([id, spec]) => [id, spec.label]),
 ) as Record<ResourceId, string>
+
+export const fluidRegistry = {
+  water: { id: 'water', label: 'Water' },
+  creosote: { id: 'creosote', label: 'Creosote' },
+} satisfies Record<FluidId, { id: FluidId; label: string }>
+
+export const fluidIds = Object.keys(fluidRegistry) as FluidId[]
+export const fluidLabels = Object.fromEntries(Object.entries(fluidRegistry).map(([id, spec]) => [id, spec.label])) as Record<FluidId, string>
 
 export const tools: Record<ToolId, Tool> = {
   bareHand: {
@@ -330,8 +339,8 @@ export const machineRegistry = {
   },
   steamTank: {
     id: 'steamTank',
-    name: 'Iron Steam Tank',
-    description: 'Stores steam from nearby boilers so machines can draw from a local reserve.',
+    name: 'Iron Tank',
+    description: 'Stores steam or one liquid from nearby pipes so machines can draw from a local reserve.',
     tier: 'steam',
     placeable: true,
     processKind: 'steamStorage',
@@ -581,7 +590,7 @@ export const machineRegistry = {
   arcBlastFurnacePart: {
     id: 'arcBlastFurnacePart',
     name: 'Arc Furnace Casing',
-    description: 'One heat-proof casing block. Place four in a 2x2 to form an Arc Blast Furnace.',
+    description: 'One staged blast casing block. Place four in a 2x2 to form an Arc Blast Furnace.',
     tier: 'lv',
     placeable: true,
     processKind: 'none',
@@ -1095,8 +1104,8 @@ export const recipes: Recipe[] = [
   },
   {
     id: 'build_steam_tank',
-    name: 'Build Iron Steam Tank',
-    description: 'Iron plates and a bucket make a small buffer for awkward early steam layouts.',
+    name: 'Build Iron Tank',
+    description: 'Iron plates and a bucket make a small tank for awkward early steam and liquid layouts.',
     tier: 'steam',
     durationMs: 6500,
     inputs: [
@@ -1544,7 +1553,7 @@ export const recipes: Recipe[] = [
   },
   {
     id: 'mix_cupronickel_dust',
-    name: 'Mix Cupronickel Dust',
+    name: 'Alloy Cupronickel Ingots',
     description: 'Nickel and copper dust alloy into heat-resistant coil stock.',
     tier: 'lv',
     durationMs: 3600,
@@ -1579,7 +1588,7 @@ export const recipes: Recipe[] = [
     durationMs: 6500,
     inputs: [
       { id: 'firebrick', amount: 2 },
-      { id: 'steelPlate', amount: 2 },
+      { id: 'steelPlate', amount: 3 },
       { id: 'heatingCoil', amount: 1 },
     ],
     pattern: ['firebrick', 'steelPlate', 'firebrick', 'steelPlate', 'heatingCoil', 'steelPlate', null, null, null],
@@ -1589,7 +1598,7 @@ export const recipes: Recipe[] = [
   {
     id: 'build_arc_blast_furnace',
     name: 'Assemble Arc Blast Furnace',
-    description: 'Stage four heat-proof casings as a 2x2 factory-floor blast furnace structure.',
+    description: 'Stage eight heat-proof casings into four 2x2 factory-floor blast furnace blocks.',
     tier: 'lv',
     durationMs: 3000,
     inputs: [{ id: 'heatProofCasing', amount: 8 }],
@@ -1627,14 +1636,14 @@ export const recipes: Recipe[] = [
     ],
     catalysts: [{ id: 'bronzeWrench', amount: 1 }],
     durabilityCosts: [{ id: 'bronzeWrench', amount: 1 }],
-    pattern: ['firebrick', 'ironPlate', 'firebrick', null, 'bronzeWrench', null, 'firebrick', null, 'firebrick'],
+    pattern: ['firebrick', 'ironPlate', 'firebrick', 'firebrick', 'bronzeWrench', 'firebrick', 'firebrick', 'ironPlate', 'firebrick'],
     outputs: [{ id: 'bbfCasing', amount: 1 }],
     unlockedBy: 'bronzeAge',
   },
   {
     id: 'build_bricked_blast_furnace',
     name: 'Assemble BBF Multiblock',
-    description: 'Lay out four BBF Casings in a 2x2 to stage the factory-floor blast furnace structure.',
+    description: 'Stage eight BBF casings into four 2x2 factory-floor blast furnace blocks.',
     tier: 'steam',
     durationMs: 8000,
     inputs: [{ id: 'bbfCasing', amount: 8 }],
@@ -3121,7 +3130,6 @@ export const shopItems: ShopItem[] = [
   { id: 'steamCasing', age: 'steamAge', buyPrice: 240 },
   { id: 'cokeOvenBrick', age: 'steamAge', buyPrice: 95 },
   { id: 'firebrick', age: 'steamAge', buyPrice: 125 },
-  { id: 'bbfCasing', age: 'steamAge', buyPrice: 360 },
   { id: 'rubberSap', age: 'steamAge', buyPrice: 10 },
   { id: 'rubber', age: 'lvAge', buyPrice: 70 },
   { id: 'redstoneDust', age: 'lvAge', buyPrice: 16 },
@@ -3132,7 +3140,6 @@ export const shopItems: ShopItem[] = [
   { id: 'copperWire', age: 'lvAge', buyPrice: 65 },
   { id: 'conductiveWire', age: 'lvAge', buyPrice: 110 },
   { id: 'tinWire', age: 'lvAge', buyPrice: 75 },
-  { id: 'tinCable', age: 'lvAge', buyPrice: 115 },
   { id: 'steelIngot', age: 'lvAge', buyPrice: 42 },
   { id: 'steelPlate', age: 'lvAge', buyPrice: 180 },
   { id: 'steelRod', age: 'lvAge', buyPrice: 130 },
@@ -3141,8 +3148,6 @@ export const shopItems: ShopItem[] = [
   { id: 'nickelOre', age: 'lvAge', buyPrice: 24 },
   { id: 'bauxiteOre', age: 'lvAge', buyPrice: 24 },
   { id: 'cupronickelIngot', age: 'lvAge', buyPrice: 42 },
-  { id: 'heatingCoil', age: 'lvAge', buyPrice: 360 },
-  { id: 'heatProofCasing', age: 'lvAge', buyPrice: 460 },
   { id: 'aluminiumDust', age: 'lvAge', buyPrice: 70 },
 ]
 
@@ -3478,19 +3483,14 @@ export const quests: Quest[] = [
     id: 'steamUtilityBranch',
     chapterId: 'steamAge',
     chapter: 'Steam Age',
-    title: 'Broaden the steam line',
-    description: 'Optional workshop breadth: compressor, extractor, alloy smelter, and steam furnace make later chains smoother, but steel is the Steam Age goal.',
+    title: 'Build the steam alloy smelter',
+    description: 'Red alloy is the first signal metal, and it needs a steam alloy smelter. Build this before trying to move into LV electronics.',
     position: { x: 790, y: 140 },
     icon: { type: 'machine', id: 'steamAlloySmelter' },
-    kind: 'optional',
+    kind: 'main',
     prerequisites: ['steamForgeHammerQuest'],
     requirements: {
-      machines: [
-        { id: 'steamCompressor', amount: 1 },
-        { id: 'steamExtractor', amount: 1 },
-        { id: 'steamAlloySmelter', amount: 1 },
-        { id: 'steamFurnace', amount: 1 },
-      ],
+      machines: [{ id: 'steamAlloySmelter', amount: 1 }],
     },
     rewards: {},
   },
@@ -3516,12 +3516,12 @@ export const quests: Quest[] = [
     chapterId: 'cokeAndSteel',
     chapter: 'Coke & Steel',
     title: 'Pack coke oven brick',
-    description: 'The coke oven is the first real refractory build. Stock a full set of packed bricks before assembling the oven.',
+    description: 'The coke oven is the first real refractory build. Stock the eight packed bricks needed for the oven shell before assembly.',
     position: { x: 185, y: 140 },
     icon: { type: 'resource', id: 'cokeOvenBrick' },
     prerequisites: ['treeTapQuest', 'makeBricks'],
     requirements: {
-      resources: [{ id: 'cokeOvenBrick', amount: 16 }],
+      resources: [{ id: 'cokeOvenBrick', amount: 8 }],
     },
     rewards: {},
   },
@@ -3563,7 +3563,7 @@ export const quests: Quest[] = [
     icon: { type: 'resource', id: 'firebrick' },
     prerequisites: ['creosoteQuest', 'steamForgeHammerQuest'],
     requirements: {
-      resources: [{ id: 'firebrick', amount: 32 }],
+      resources: [{ id: 'firebrick', amount: 48 }],
     },
     rewards: {},
   },
@@ -3572,7 +3572,7 @@ export const quests: Quest[] = [
     chapterId: 'cokeAndSteel',
     chapter: 'Coke & Steel',
     title: 'Craft BBF casings',
-    description: 'Bolt firebrick and iron plates into four dense casing blocks. This is the expensive body of the first blast furnace.',
+    description: 'Bolt firebrick and iron plates into eight casing items. They stage into four placed blocks for the first blast furnace.',
     position: { x: 610, y: 80 },
     icon: { type: 'resource', id: 'bbfCasing' },
     prerequisites: ['firebrickQuest'],
@@ -3586,7 +3586,7 @@ export const quests: Quest[] = [
     chapterId: 'cokeAndSteel',
     chapter: 'Coke & Steel',
     title: 'Form the BBF multiblock',
-    description: 'Place the four casings as a 2x2 structure on the factory floor. The machine only matters once the structure forms.',
+    description: 'Use the assembled casing set, then place the four staged blocks as a 2x2 structure on the factory floor.',
     position: { x: 790, y: 80 },
     icon: { type: 'machine', id: 'brickedBlastFurnace' },
     prerequisites: ['bbfCasingsQuest'],
@@ -3645,7 +3645,7 @@ export const quests: Quest[] = [
     description: 'Run copper with redstone through the steam alloy smelter. This creates the signal metal used before real circuits exist.',
     position: { x: 250, y: 140 },
     icon: { type: 'resource', id: 'redAlloyIngot' },
-    prerequisites: ['findRedstone'],
+    prerequisites: ['findRedstone', 'steamUtilityBranch'],
     requirements: {
       resources: [{ id: 'redAlloyIngot', amount: 1 }],
     },
@@ -3896,7 +3896,7 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Build the LV bender',
-    description: 'Optional efficiency branch: the bender makes plates at one ingot per plate, saving steel for blast infrastructure.',
+    description: 'The bender makes plates at one ingot per plate. This becomes required once aluminium and blast infrastructure start eating steel.',
     position: { x: 250, y: 140 },
     icon: { type: 'machine', id: 'lvBender' },
     prerequisites: ['bufferLvPowerQuest'],
@@ -3924,7 +3924,7 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Build the LV lathe',
-    description: 'Optional efficiency branch: the lathe turns ingots into rods cleanly, including rods used by buffers and coil parts.',
+    description: 'The lathe turns ingots into rods cleanly, including rods used by buffers and coil parts. This is part of the aluminium route.',
     position: { x: 250, y: 260 },
     icon: { type: 'machine', id: 'lvLathe' },
     prerequisites: ['bufferLvPowerQuest'],
@@ -3994,15 +3994,12 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Wind heating coils',
-    description: 'Wind cupronickel into coils and make heat-proof casings. These parts become the body of the electric blast structure.',
+    description: 'Wind cupronickel into coils and make eight heat-proof casings. These parts become the staged body of the electric blast structure.',
     position: { x: 970, y: 180 },
     icon: { type: 'resource', id: 'heatingCoil' },
     prerequisites: ['makeCupronickelQuest'],
     requirements: {
-      resources: [
-        { id: 'heatingCoil', amount: 4 },
-        { id: 'heatProofCasing', amount: 4 },
-      ],
+      resources: [{ id: 'heatProofCasing', amount: 8 }],
     },
     rewards: {},
   },
@@ -4039,7 +4036,7 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Form the Arc Furnace multiblock',
-    description: 'Place four heat-proof casing blocks as a 2x2 on the factory floor. This multiblock structure is required before aluminium can be blasted.',
+    description: 'Use the eight heat-proof casings, then place the four staged blocks as a 2x2 on the factory floor before aluminium can be blasted.',
     position: { x: 1150, y: 180 },
     icon: { type: 'machine', id: 'arcBlastFurnace' },
     prerequisites: ['makeHeatingCoilsQuest'],

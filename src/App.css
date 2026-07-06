@@ -1180,6 +1180,15 @@ button.craft-output:disabled {
   font: 700 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
+.empty-tank {
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  min-height: 74px;
+  min-width: 160px;
+  padding: 8px;
+}
+
 .item-slot,
 .output-slot,
 .pixel-grid .craft-slot {
@@ -3755,6 +3764,21 @@ button.craft-output:disabled {
   grid-column: 1 / -1;
 }
 
+.dual-tank-interface {
+  align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+}
+
+.dual-tank-interface > .steam-tank {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+.dual-tank-interface > span {
+  grid-column: 1 / -1;
+}
+
 .factory-pan-viewport {
   background:
     linear-gradient(90deg, rgba(70, 70, 70, 0.18) 1px, transparent 1px),
@@ -4501,7 +4525,10 @@ button.craft-output:disabled {
   box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
   display: grid;
   gap: 10px;
+  max-height: calc(100svh - var(--top-safe-clearance, 0px) - var(--bottom-nav-clearance, 0px) - 28px);
   max-width: min(390px, calc(100vw - 20px));
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 10px;
   width: 100%;
 }
@@ -5362,6 +5389,7 @@ button.craft-output:disabled {
   border: 0;
   color: inherit;
   cursor: pointer;
+  min-height: 44px;
   min-width: 0;
   padding: 0;
   text-align: left;
@@ -5456,10 +5484,17 @@ button.craft-output:disabled {
 }
 
 .game-shell.home-shell {
-  align-content: center;
+  align-content: start;
   min-height: 100dvh;
-  overflow: hidden;
-  padding: var(--top-safe-clearance) 14px max(18px, env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--top-safe-clearance) 14px calc(18px + env(safe-area-inset-bottom));
+}
+
+@media (min-height: 780px) {
+  .game-shell.home-shell {
+    align-content: center;
+  }
 }
 
 .home-panel {
@@ -8283,26 +8318,18 @@ button.recipe-jump-slot {
   border-bottom-color: var(--bevel-dark);
   border-radius: 0;
   border-right-color: var(--bevel-dark);
-  bottom: max(4px, env(safe-area-inset-bottom));
+  bottom: 0;
   box-shadow: 0 3px 0 var(--bevel-drop), 0 -6px 0 rgba(32, 32, 32, 0.2);
   display: grid;
   gap: 3px;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   isolation: isolate;
   left: 50%;
-  padding: 3px;
+  padding: 3px 3px max(3px, env(safe-area-inset-bottom));
   position: fixed;
   transform: translateX(-50%);
   width: min(calc(100% - 8px), 760px);
   z-index: 9;
-}
-
-.page-tabs::before {
-  background: var(--bevel-drop);
-  content: "";
-  inset: -3px -8px calc(-1 * max(8px, env(safe-area-inset-bottom))) -8px;
-  position: absolute;
-  z-index: -1;
 }
 
 .page-tabs.wide-tabs {
@@ -8310,7 +8337,7 @@ button.recipe-jump-slot {
 }
 
 .page-tabs button {
-  min-height: 36px;
+  min-height: 44px;
   min-width: 0;
   padding: 4px 3px;
 }
@@ -8338,7 +8365,8 @@ button.recipe-jump-slot {
 }
 
 .game-header .icon-button {
-  min-width: 32px;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 .header-actions {
@@ -8355,7 +8383,7 @@ button.recipe-jump-slot {
   color: #fff7d2;
   cursor: pointer;
   font: 950 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
-  min-height: 32px;
+  min-height: 44px;
   padding: 0 7px;
   text-transform: uppercase;
 }
@@ -8374,8 +8402,8 @@ button.recipe-jump-slot {
   color: #f7f7f7;
   cursor: pointer;
   font: 900 0.72rem "Courier New", ui-monospace, monospace;
-  min-height: 32px;
-  min-width: 32px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 5px;
 }
 
@@ -8426,7 +8454,7 @@ button.recipe-jump-slot {
     gap: 2px;
     justify-content: center;
     line-height: 1;
-    min-height: 38px;
+    min-height: 44px;
     padding: 3px 2px;
     text-align: center;
   }
@@ -8478,9 +8506,9 @@ button.recipe-jump-slot {
 
   .quest-map-scroll {
     box-sizing: border-box;
-    height: calc(100svh - var(--sticky-header-height) - var(--bottom-nav-clearance) - 156px);
+    height: clamp(190px, calc(100svh - var(--sticky-header-height) - var(--bottom-nav-clearance) - 170px), 430px);
     max-height: none;
-    min-height: 270px;
+    min-height: 0;
     overflow: hidden;
     padding: 6px;
     width: 100%;

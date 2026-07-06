@@ -8,6 +8,7 @@
     "dev:host": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
     "check": "npm run lint && npm run test && npm run build",
+    "dev:bump": "node scripts/bump-dev-revision.mjs",
     "deploy:test": "npm run release:home-dev",
     "deploy:release": "npm run release:full",
     "lint": "oxlint",

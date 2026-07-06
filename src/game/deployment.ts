@@ -1,9 +1,11 @@
 import releaseManifest from '../release-manifest.json'
+import devManifest from '../dev-manifest.json'
 
 const deployedAt = import.meta.env.VITE_DEPLOYED_AT || new Date().toISOString()
 const commitSha = import.meta.env.VITE_DEPLOY_VERSION || 'local'
 const releaseChannel = import.meta.env.VITE_RELEASE_CHANNEL || (import.meta.env.PROD ? 'release' : 'home-dev')
-const releaseRevision = import.meta.env.VITE_RELEASE_REVISION || releaseManifest.revision
+const devRevision = `dev.${devManifest.revision}`
+const releaseRevision = import.meta.env.VITE_RELEASE_REVISION || (releaseChannel === 'release' ? releaseManifest.revision : devRevision)
 const releaseTitle = import.meta.env.VITE_RELEASE_TITLE || releaseManifest.title
 const releaseNotes = import.meta.env.VITE_RELEASE_NOTES
   ? String(import.meta.env.VITE_RELEASE_NOTES).split('|').map((note) => note.trim()).filter(Boolean)

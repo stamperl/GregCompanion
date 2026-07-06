@@ -29,6 +29,8 @@ import {
 import './App.css'
 import {
   fuelDefinitions,
+  fluidIds,
+  fluidLabels,
   gatherTargets,
   canAutoMinerTarget,
   isAutoMinerMachine,
@@ -50,7 +52,6 @@ import {
   processRecipes,
   questChapters,
   quests as questDefinitions,
-  recipes,
   resourceLabels,
   sellItems,
   shopItems,
@@ -95,6 +96,7 @@ import {
   hasFactoryFloor,
   hitGatherTarget,
   isAutoMinerPowered,
+  isRecipeVisible,
   isResourceDiscovered,
   insertProcessSlot,
   loadGame,
@@ -181,15 +183,17 @@ import {
 } from './game/recipeGroups'
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
-import { preloadGeneratedIconImages } from './components/gameIconAssets'
+import { preloadGeneratedIconImages, preloadGeneratedIconLinks } from './components/gameIconAssets'
 import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
 import type {
   CraftSlot,
   EquipmentSlotId,
+  FluidId,
   GatherTargetId,
   GameState,
   MachineId,
   MachineInstance,
+  MachineProcessState,
   OfflineProgressResult,
   PipeDirection,
   PipeSideMode,
@@ -289,10 +293,16 @@ const machineOrder: MachineId[] = [
 const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks'])
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
 const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWrench']
-const fluidLabels = {
-  creosote: 'Creosote',
-  water: 'Water',
-} as const
+
+function fluidLabel(fluidId: FluidId) {
+  return fluidLabels[fluidId]
+}
+
+function storedFluids(process: MachineProcessState) {
+  return fluidIds
+    .map((id) => ({ id, amount: process.fluids[id] ?? 0 }))
+    .filter((fluid) => fluid.amount > 0)
+}
 
 const pipeDirectionOffsets: Record<PipeDirection, { dx: number; dy: number; label: string }> = {
   north: { dx: 0, dy: -1, label: 'North' },
@@ -574,7 +584,7 @@ function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
   if (!isFactoryFloorLayoutRecipe(recipe)) return null
   const machineId = recipe.id === 'build_arc_blast_furnace' ? 'arcBlastFurnace' : 'brickedBlastFurnace'
   const partId = recipe.id === 'build_arc_blast_furnace' ? 'arcBlastFurnacePart' : 'brickedBlastFurnacePart'
-  const label = recipe.id === 'build_arc_blast_furnace' ? 'heat-proof casings' : 'BBF Casings'
+  const label = recipe.id === 'build_arc_blast_furnace' ? 'arc casing blocks' : 'BBF casing blocks'
 
   return (
     <div className="factory-layout-preview" aria-label={`${recipeDisplayName(recipe)} factory floor layout`}>
@@ -586,7 +596,7 @@ function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
           </span>
         ))}
       </div>
-      <p>Place 4 {label} as a 2x2 on the factory floor.</p>
+      <p>Place the 4 staged {label} as a 2x2 on the factory floor.</p>
     </div>
   )
 }
@@ -632,12 +642,12 @@ function SteamTank({ storedMs, capacityMs }: { storedMs: number; capacityMs: num
   const fillPercent = capacityMs > 0 ? Math.max(0, Math.min(100, (storedMs / capacityMs) * 100)) : 0
 
   return (
-    <div className="steam-tank" aria-label={`Steam tank ${storedLitres} of ${capacityLitres} litres`}>
+    <div className="steam-tank" aria-label={`Steam buffer ${storedLitres} of ${capacityLitres} litres`}>
       <div className="steam-tank-gauge">
         <span style={{ height: `${fillPercent}%` }} />
       </div>
       <div className="steam-tank-readout">
-        <span>Steam tank</span>
+        <span>Steam buffer</span>
         <strong>{storedLitres}L</strong>
         <small>{capacityLitres}L max</small>
       </div>
@@ -657,6 +667,15 @@ function FluidTank({ label, storedLitres, capacityLitres }: { label: string; sto
         <strong>{formatLitres(storedLitres)}L</strong>
         <small>{formatLitres(capacityLitres)}L max</small>
       </div>
+    </div>
+  )
+}
+
+function EmptyTank({ capacityLitres, label = 'Empty tank' }: { capacityLitres: number; label?: string }) {
+  return (
+    <div className="empty-storage empty-tank" aria-label={`${label} ${capacityLitres} litres capacity`}>
+      <p>{label}</p>
+      <span>{formatLitres(capacityLitres)}L capacity</span>
     </div>
   )
 }
@@ -851,8 +870,8 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     return process.activeRecipeId ? `Feeding ${pipeDirectionOffsets[outputDirection].label}` : `Ready ${pipeDirectionOffsets[outputDirection].label}`
   }
   if (instance.machineId === 'steamTank') {
-    if ((process.fluids.creosote ?? 0) > 0) return 'Holding creosote'
-    if ((process.fluids.water ?? 0) > 0) return 'Holding water'
+    const storedFluid = storedFluids(process)[0]
+    if (storedFluid) return `Holding ${fluidLabel(storedFluid.id).toLowerCase()}`
     return process.steamStoredMs > 0 ? 'Holding steam' : 'Empty tank'
   }
   if (isSteamPipeMachine(instance.machineId)) return `${steamPipeTransferLitresPerSecond[instance.machineId] ?? 0}L/s transfer`
@@ -1179,6 +1198,21 @@ function QuestBook({
   const mapWidth = Math.max(360, ...chapterQuests.map((quest) => questX(quest) + nodeWidth + mapMargin))
   const mapHeight = Math.max(160, ...chapterQuests.map((quest) => questY(quest) + nodeHeight + mapMargin))
   const clampZoom = (zoom: number) => Math.max(0.55, Math.min(1.35, zoom))
+  const clampMapView = (view: { x: number; y: number; zoom: number }, viewport?: { width: number; height: number }) => {
+    if (!viewport) return view
+    const scaledWidth = mapWidth * view.zoom
+    const scaledHeight = mapHeight * view.zoom
+    const slack = 42
+    const minX = Math.min(slack, viewport.width - scaledWidth - slack)
+    const maxX = Math.max(viewport.width - scaledWidth - slack, slack)
+    const minY = Math.min(slack, viewport.height - scaledHeight - slack)
+    const maxY = Math.max(viewport.height - scaledHeight - slack, slack)
+    return {
+      ...view,
+      x: Math.max(minX, Math.min(maxX, view.x)),
+      y: Math.max(minY, Math.min(maxY, view.y)),
+    }
+  }
   const emptyChapterHint =
     chapter.id === 'lvAge'
       ? 'LV Age opens after the Steam Age ends: make steel in the bricked blast furnace, then hammer the first steel plate.'
@@ -1252,20 +1286,27 @@ function QuestBook({
       const center = pointerCenter(first, second)
       const nextZoom = clampZoom((gestureRef.current.zoom * pointerDistance(first, second)) / gestureRef.current.distance)
       const zoomRatio = nextZoom / gestureRef.current.zoom
-      setMapView({
-        x: center.x - (gestureRef.current.centerX - gestureRef.current.startX) * zoomRatio,
-        y: center.y - (gestureRef.current.centerY - gestureRef.current.startY) * zoomRatio,
+      const rect = event.currentTarget.getBoundingClientRect()
+      setMapView(clampMapView({
+        x: center.x - rect.left - (gestureRef.current.centerX - rect.left - gestureRef.current.startX) * zoomRatio,
+        y: center.y - rect.top - (gestureRef.current.centerY - rect.top - gestureRef.current.startY) * zoomRatio,
         zoom: nextZoom,
-      })
+      }, rect))
       return
     }
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
-    setMapView((current) => ({
-      ...current,
-      x: drag.startX + event.clientX - drag.x,
-      y: drag.startY + event.clientY - drag.y,
-    }))
+    const rect = event.currentTarget.getBoundingClientRect()
+    setMapView((current) =>
+      clampMapView(
+        {
+          ...current,
+          x: drag.startX + event.clientX - drag.x,
+          y: drag.startY + event.clientY - drag.y,
+        },
+        rect,
+      ),
+    )
   }
 
   const handleMapPointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1295,11 +1336,14 @@ function QuestBook({
     setMapView((current) => {
       const nextZoom = clampZoom(current.zoom + (event.deltaY < 0 ? 0.08 : -0.08))
       const zoomRatio = nextZoom / current.zoom
-      return {
-        x: pointerX - (pointerX - current.x) * zoomRatio,
-        y: pointerY - (pointerY - current.y) * zoomRatio,
-        zoom: nextZoom,
-      }
+      return clampMapView(
+        {
+          x: pointerX - (pointerX - current.x) * zoomRatio,
+          y: pointerY - (pointerY - current.y) * zoomRatio,
+          zoom: nextZoom,
+        },
+        rect,
+      )
     })
   }
 
@@ -1423,6 +1467,7 @@ function App() {
   const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
   const [saveNameDraft, setSaveNameDraft] = useState('')
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
+  const [isEnteringGame, setIsEnteringGame] = useState(false)
   const [isMobileClient, setIsMobileClient] = useState(() => isMobileClientAllowed())
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
@@ -1561,6 +1606,7 @@ function App() {
   }, [isCreativeMode])
 
   useEffect(() => {
+    preloadGeneratedIconLinks()
     void preloadGeneratedIconImages()
   }, [])
 
@@ -1759,7 +1805,15 @@ function App() {
       ),
     [],
   )
-  const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
+  const visibleProcessRecipeCards = useMemo(
+    () =>
+      processRecipeCards.filter((recipe) => {
+        if (recipe.requiredMachine && state.machines[recipe.requiredMachine] > 0) return true
+        return isRecipeVisible(state, recipe)
+      }),
+    [processRecipeCards, state],
+  )
+  const recipeCatalog = useMemo(() => [...unlockedRecipes, ...visibleProcessRecipeCards], [unlockedRecipes, visibleProcessRecipeCards])
   const unplacedMachineCounts = Object.fromEntries(machineOrder.map((id) => [id, availableUnplacedMachineCount(state, id)])) as Record<MachineId, number>
   const autoMinerInstances = state.machineInstances.filter((instance) => isAutoMinerMachine(instance.machineId))
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
@@ -1774,10 +1828,16 @@ function App() {
     if (!query) return true
     return id.toLowerCase().includes(query) || machines[id].name.toLowerCase().includes(query)
   })
-  const recipeCandidates = recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipeCatalog) : recipeCatalog
-  const selectedResourceForRecipes = selectedResource ?? 'log'
-  const usageRecipes = recipesUsingInput(selectedResourceForRecipes, recipeCatalog)
-  const listedRecipeGroups = terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : singleRecipeGroups(usageRecipes)
+  const selectedResourceForRecipes = selectedResource
+  const recipeCandidates = useMemo(() => (recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipeCatalog) : recipeCatalog), [recipeCatalog, recipeSearch])
+  const usageRecipes = useMemo(
+    () => (selectedResourceForRecipes ? recipesUsingInput(selectedResourceForRecipes, recipeCatalog) : []),
+    [recipeCatalog, selectedResourceForRecipes],
+  )
+  const listedRecipeGroups = useMemo(
+    () => (terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : singleRecipeGroups(usageRecipes)),
+    [recipeCandidates, terminalMode, usageRecipes],
+  )
   const selectedRecipeGroup = listedRecipeGroups.find((group) => group.key === selectedRecipeGroupKey) ?? listedRecipeGroups[0]
   const clampedSelectedRecipeIndex = selectedRecipeGroup
     ? Math.min(selectedRecipeIndex, Math.max(0, selectedRecipeGroup.recipes.length - 1))
@@ -1808,6 +1868,24 @@ function App() {
         ? formatDuration(selectedMachineRecipe.durationMs)
         : ''
     : ''
+
+  useEffect(() => {
+    if (terminalMode === 'uses' && !selectedResourceForRecipes) {
+      setTerminalMode('recipes')
+      return
+    }
+    if (listedRecipeGroups.length < 1) {
+      if (selectedRecipeGroupKey !== null) setSelectedRecipeGroupKey(null)
+      if (selectedRecipeIndex !== 0) setSelectedRecipeIndex(0)
+      return
+    }
+    if (!selectedRecipeGroupKey || !listedRecipeGroups.some((group) => group.key === selectedRecipeGroupKey)) {
+      setSelectedRecipeGroupKey(listedRecipeGroups[0].key)
+      setSelectedRecipeIndex(0)
+      return
+    }
+    if (selectedRecipeIndex !== clampedSelectedRecipeIndex) setSelectedRecipeIndex(clampedSelectedRecipeIndex)
+  }, [clampedSelectedRecipeIndex, listedRecipeGroups, selectedRecipeGroupKey, selectedRecipeIndex, selectedResourceForRecipes, terminalMode])
   const selectedMachineMetrics: MachineMetric[] = []
   if (selectedMachine) {
     const process = selectedMachine.process
@@ -1856,15 +1934,17 @@ function App() {
         fillPercent: metricFill(storedLitres, capacityLitres),
       })
     }
+    const addStoredFluidMetrics = (fluidProcess: MachineProcessState, capacityLitres: number) => {
+      for (const fluid of storedFluids(fluidProcess)) addFluidMetric(fluidLabel(fluid.id), fluid.amount, capacityLitres)
+    }
 
     if (isSteamPipeMachine(selectedMachine.machineId)) {
       const steamCapacity = process.steamCapacityMs || steamPipeBufferCapacityMs(selectedMachine.machineId)
       const fluidCapacity = process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)
       const steamFlow = currentSteamPipeFlowLitresPerSecond(state, selectedMachine)
-      if (steamCapacity > 0) addSteamMetric('Steam', process.steamStoredMs, steamCapacity)
-      if ((process.fluids.creosote ?? 0) > 0) addFluidMetric('Creosote', process.fluids.creosote ?? 0, fluidCapacity)
-      if ((process.fluids.water ?? 0) > 0) addFluidMetric('Water', process.fluids.water ?? 0, fluidCapacity)
-      addRateMetric('Flow', steamFlow, 'L/s', 'supply', 'steam moving')
+      if (process.steamStoredMs > 0 || steamFlow > 0) addSteamMetric('Steam', process.steamStoredMs, steamCapacity)
+      addStoredFluidMetrics(process, fluidCapacity)
+      addRateMetric('Flow', steamFlow, 'L/s', 'supply', steamFlow > 0 ? 'steam moving' : 'no contents moving')
     } else if (isEuCableMachine(selectedMachine.machineId)) {
       addEuMetric('Buffer', process.euStored, process.euCapacity || euCableBufferCapacity(selectedMachine.machineId))
       addRateMetric('Flow', currentEuCableFlowEuPerSecond(state, selectedMachine), ' EU/s', 'supply', 'power moving')
@@ -1872,14 +1952,13 @@ function App() {
       addSteamMetric('Steam', process.steamStoredMs, boilerSteamCapacityMs)
       addRateMetric('Makes', boilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
     } else if (selectedMachine.machineId === 'steamTank') {
-      addSteamMetric('Steam', process.steamStoredMs, selectedSteamTankCapacityMs)
-      if ((process.fluids.creosote ?? 0) > 0) addFluidMetric('Creosote', process.fluids.creosote ?? 0, selectedSteamTankFluidCapacityLitres)
-      if ((process.fluids.water ?? 0) > 0) addFluidMetric('Water', process.fluids.water ?? 0, selectedSteamTankFluidCapacityLitres)
+      if (process.steamStoredMs > 0) addSteamMetric('Steam', process.steamStoredMs, selectedSteamTankCapacityMs)
+      addStoredFluidMetrics(process, selectedSteamTankFluidCapacityLitres)
     } else if (selectedMachine.machineId === 'cokeOven') {
-      addFluidMetric('Creosote', process.fluids.creosote ?? 0, process.fluidCapacityLitres || cokeOvenFluidCapacityLitres)
+      if ((process.fluids.creosote ?? 0) > 0) addFluidMetric(fluidLabel('creosote'), process.fluids.creosote ?? 0, process.fluidCapacityLitres || cokeOvenFluidCapacityLitres)
     } else if (isLiquidSteamBoilerMachine(selectedMachine.machineId)) {
       addSteamMetric('Steam', process.steamStoredMs, liquidSteamBoilerCapacityMs)
-      addFluidMetric('Creosote', process.fluids.creosote ?? 0, liquidSteamBoilerFluidCapacityLitres)
+      if ((process.fluids.creosote ?? 0) > 0) addFluidMetric(fluidLabel('creosote'), process.fluids.creosote ?? 0, liquidSteamBoilerFluidCapacityLitres)
       addRateMetric('Makes', liquidSteamBoilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
     } else if (isEuStorageMachine(selectedMachine.machineId)) {
       addEuMetric('Stored EU', process.euStored, process.euCapacity || lvBatteryBufferEuCapacity)
@@ -1928,7 +2007,7 @@ function App() {
 
     const primaryFluidOutflow = [...currentFluidOutputFlows(state, selectedMachine)].sort((a, b) => b.litresPerSecond - a.litresPerSecond)[0]
     if (primaryFluidOutflow) {
-      addRateMetric('Outflow', primaryFluidOutflow.litresPerSecond, 'L/s', 'fluid', `${fluidLabels[primaryFluidOutflow.fluidId]} out`)
+      addRateMetric('Outflow', primaryFluidOutflow.litresPerSecond, 'L/s', 'fluid', `${fluidLabel(primaryFluidOutflow.fluidId)} out`)
     }
   }
   const pendingProcessMachine = pendingProcessInsert
@@ -2736,37 +2815,44 @@ function App() {
   }
 
   const handleReset = async () => {
+    if (isEnteringGame) return
+    setIsEnteringGame(true)
     cancelPendingSave()
-    await clearSavedGame(selectedSaveSlotId)
-    setIsCreativeMode(false)
-    await refreshSaveSlots()
-    const freshState = loadGame(null)
-    setState(freshState)
-    knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
-    handleClearGrid()
-    setOfflineNotice('')
-    setOfflinePrompt('')
-    setTerminalNotice('')
-    setFactoryNotice('')
-    setTerminalSearch('')
-    setRecipeSearch('')
-    setFactoryMachineSearch('')
-    setSelectedResource(null)
-    setBatchQuantity(1)
-    setPendingProcessInsert(null)
-    setMissingBatch(null)
-    setIsRecipeModalOpen(false)
-    setIsFactoryExpandModalOpen(false)
-    setAchievementToasts([])
-    setPlacingMachineId(null)
-    setSelectedMachineUid(null)
-    setSelectedQuestId(null)
-    setSelectedRecipeGroupKey(null)
-    setSelectedRecipeIndex(0)
-    setNavigationStack([])
-    setHighlightedGatherTarget(null)
-    setPage('gather')
-    addFloatText('new save')
+    try {
+      await clearSavedGame(selectedSaveSlotId)
+      setIsCreativeMode(false)
+      await refreshSaveSlots()
+      await preloadGeneratedIconImages()
+      const freshState = loadGame(null)
+      setState(freshState)
+      knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
+      handleClearGrid()
+      setOfflineNotice('')
+      setOfflinePrompt('')
+      setTerminalNotice('')
+      setFactoryNotice('')
+      setTerminalSearch('')
+      setRecipeSearch('')
+      setFactoryMachineSearch('')
+      setSelectedResource(null)
+      setBatchQuantity(1)
+      setPendingProcessInsert(null)
+      setMissingBatch(null)
+      setIsRecipeModalOpen(false)
+      setIsFactoryExpandModalOpen(false)
+      setAchievementToasts([])
+      setPlacingMachineId(null)
+      setSelectedMachineUid(null)
+      setSelectedQuestId(null)
+      setSelectedRecipeGroupKey(null)
+      setSelectedRecipeIndex(0)
+      setNavigationStack([])
+      setHighlightedGatherTarget(null)
+      setPage('gather')
+      addFloatText('new save')
+    } finally {
+      setIsEnteringGame(false)
+    }
   }
 
   const handleToggleCreativeMode = async () => {
@@ -2787,12 +2873,19 @@ function App() {
   }
 
   const handleContinueFromHome = async () => {
-    const savedState = await loadSlotIntoGame(selectedSaveSlotId)
-    setState(savedState)
-    knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
-    setIsCreativeMode(false)
-    setNavigationStack([])
-    setPage('gather')
+    if (isEnteringGame) return
+    setIsEnteringGame(true)
+    try {
+      const savedState = await loadSlotIntoGame(selectedSaveSlotId)
+      await preloadGeneratedIconImages()
+      setState(savedState)
+      knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
+      setIsCreativeMode(false)
+      setNavigationStack([])
+      setPage('gather')
+    } finally {
+      setIsEnteringGame(false)
+    }
   }
 
   const handleRenameSelectedSave = async () => {
@@ -3014,6 +3107,7 @@ function App() {
     : deploymentInfo.channel === 'remote-dev'
       ? 'Remote dev'
       : 'Home dev'
+  const releaseRevisionLabel = deploymentInfo.channel === 'release' ? `r${deploymentInfo.revision}` : deploymentInfo.revision
   const releaseNotes = deploymentInfo.notes.slice(0, 3)
 
   if (!isMobileClient) {
@@ -3029,7 +3123,7 @@ function App() {
           <h1>Nice try, factory overlord.</h1>
           <p>This foundry runs on pocket power only. Put the spreadsheet away, grab your phone, and go touch some grass before the boiler files a complaint.</p>
           <strong>Open Click Foundry on mobile to play.</strong>
-          <span>{releaseChannelLabel} | r{deploymentInfo.revision} | {buildLabel} | {deployedAtLabel}</span>
+          <span>{releaseChannelLabel} | {releaseRevisionLabel} | {buildLabel} | {deployedAtLabel}</span>
         </section>
       </main>
     )
@@ -3136,13 +3230,13 @@ function App() {
               <p className="eyebrow">Block-tech idle</p>
               <h1><span>Click</span><span>Foundry</span></h1>
               <p className="home-save-status">{saveStatus}</p>
-              <p className="home-deploy-version">{releaseChannelLabel} | r{deploymentInfo.revision} | {buildLabel} | {deployedAtLabel}</p>
+              <p className="home-deploy-version">{releaseChannelLabel} | {releaseRevisionLabel} | {buildLabel} | {deployedAtLabel}</p>
             </div>
           </div>
           <section className="home-release-card" aria-label="Release notes">
             <div>
               <span>{releaseChannelLabel}</span>
-              <strong>r{deploymentInfo.revision}</strong>
+              <strong>{releaseRevisionLabel}</strong>
             </div>
             <p>{deploymentInfo.title}</p>
             {releaseNotes.length > 0 && (
@@ -3185,10 +3279,10 @@ function App() {
             <button type="submit">Rename</button>
           </form>
           <div className="home-actions">
-            <button type="button" className="home-action primary" disabled={!hasLoadedSave} onClick={handleContinueFromHome}>
-              Continue {selectedSaveLabel}
+            <button type="button" className="home-action primary" disabled={!hasLoadedSave || isEnteringGame} onClick={handleContinueFromHome}>
+              {isEnteringGame ? 'Loading Icons...' : `Continue ${selectedSaveLabel}`}
             </button>
-            <button type="button" className="home-action danger" disabled={!hasLoadedSave} onClick={handleReset}>
+            <button type="button" className="home-action danger" disabled={!hasLoadedSave || isEnteringGame} onClick={handleReset}>
               New Game In {selectedSaveLabel}
             </button>
           </div>
@@ -3646,7 +3740,7 @@ function App() {
                 <div className="modal-head">
                   <div>
                     <p className="eyebrow">Recipe browser</p>
-                    <h2>{terminalMode === 'recipes' ? 'Recipes' : `Uses: ${resourceLabels[selectedResourceForRecipes]}`}</h2>
+                    <h2>{terminalMode === 'recipes' ? 'Recipes' : selectedResourceForRecipes ? `Uses: ${resourceLabels[selectedResourceForRecipes]}` : 'Uses'}</h2>
                   </div>
                   <button type="button" className="icon-button" aria-label="Close recipes" onClick={() => setIsRecipeModalOpen(false)}>
                     <X size={18} />
@@ -3665,7 +3759,12 @@ function App() {
                   <button type="button" className={terminalMode === 'recipes' ? 'active' : ''} onClick={() => setTerminalMode('recipes')}>
                     Recipes
                   </button>
-                  <button type="button" className={terminalMode === 'uses' ? 'active' : ''} onClick={() => setTerminalMode('uses')}>
+                  <button
+                    type="button"
+                    className={terminalMode === 'uses' ? 'active' : ''}
+                    disabled={!selectedResourceForRecipes}
+                    onClick={() => setTerminalMode('uses')}
+                  >
                     Uses
                   </button>
                 </div>
@@ -4338,38 +4437,39 @@ function App() {
                     <span>Supplies adjacent boilers</span>
                   </div>
                 ) : selectedMachine.machineId === 'steamTank' ? (
-                  <div className="well-interface">
-                    {(selectedMachine.process.fluids.creosote ?? 0) > 0 ? (
-                      <FluidTank label="Creosote" storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={selectedSteamTankFluidCapacityLitres} />
-                    ) : (selectedMachine.process.fluids.water ?? 0) > 0 ? (
-                      <FluidTank label="Water" storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={selectedSteamTankFluidCapacityLitres} />
-                    ) : (
+                  <div className="well-interface dual-tank-interface">
+                    {selectedMachine.process.steamStoredMs > 0 && (
                       <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={selectedSteamTankCapacityMs} />
                     )}
-                    <span>Stores steam and one liquid from connected pipes</span>
+                    {storedFluids(selectedMachine.process).map((fluid) => (
+                      <FluidTank label={fluidLabel(fluid.id)} storedLitres={fluid.amount} capacityLitres={selectedSteamTankFluidCapacityLitres} key={fluid.id} />
+                    ))}
+                    {selectedMachine.process.steamStoredMs < 1 && storedFluids(selectedMachine.process).length < 1 && (
+                      <EmptyTank capacityLitres={selectedSteamTankFluidCapacityLitres} />
+                    )}
+                    <span>Stores one contents type from connected pipes</span>
                   </div>
                 ) : isSteamPipeMachine(selectedMachine.machineId) ? (
-                  <div className="well-interface">
-                    {(selectedMachine.process.fluids.creosote ?? 0) > 0 ? (
-                      <FluidTank
-                        label="Creosote"
-                        storedLitres={selectedMachine.process.fluids.creosote ?? 0}
-                        capacityLitres={selectedMachine.process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)}
-                      />
-                    ) : (selectedMachine.process.fluids.water ?? 0) > 0 ? (
-                      <FluidTank
-                        label="Water"
-                        storedLitres={selectedMachine.process.fluids.water ?? 0}
-                        capacityLitres={selectedMachine.process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)}
-                      />
-                    ) : (
+                  <div className="well-interface dual-tank-interface">
+                    {selectedMachine.process.steamStoredMs > 0 && (
                       <SteamTank
                         storedMs={selectedMachine.process.steamStoredMs}
                         capacityMs={selectedMachine.process.steamCapacityMs || steamPipeBufferCapacityMs(selectedMachine.machineId)}
                       />
                     )}
+                    {storedFluids(selectedMachine.process).map((fluid) => (
+                      <FluidTank
+                        label={fluidLabel(fluid.id)}
+                        storedLitres={fluid.amount}
+                        capacityLitres={selectedMachine.process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)}
+                        key={fluid.id}
+                      />
+                    ))}
+                    {selectedMachine.process.steamStoredMs < 1 && storedFluids(selectedMachine.process).length < 1 && (
+                      <EmptyTank label="Empty pipe" capacityLitres={fluidPipeBufferCapacityLitres(selectedMachine.machineId)} />
+                    )}
                     <span>
-                      Flow {formatAmount(currentSteamPipeFlowLitresPerSecond(state, selectedMachine))}L/s | Limit {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s
+                      Content flow {formatAmount(currentSteamPipeFlowLitresPerSecond(state, selectedMachine))}L/s | Limit {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s
                     </span>
                   </div>
                 ) : isEuCableMachine(selectedMachine.machineId) ? (
@@ -4382,7 +4482,9 @@ function App() {
                 ) : isLiquidSteamBoilerMachine(selectedMachine.machineId) ? (
                   <div className="well-interface liquid-boiler-interface">
                     <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={liquidSteamBoilerCapacityMs} />
-                    <FluidTank label="Creosote" storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
+                    {(selectedMachine.process.fluids.creosote ?? 0) > 0 && (
+                      <FluidTank label={fluidLabel('creosote')} storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
+                    )}
                     <span>
                       Burns {formatAmount(liquidSteamBoilerCreosoteUseLitresPerSecond)}L/s creosote into {formatAmount(liquidSteamBoilerSteamProductionLitresPerSecond)}L/s steam
                     </span>
@@ -4448,9 +4550,9 @@ function App() {
                         <span className="steam-usage-line">{formatAmount(selectedMachineEuUsagePerSecond)} EU/s</span>
                       </>
                     )}
-                    {selectedMachine.machineId === 'cokeOven' && (
+                    {selectedMachine.machineId === 'cokeOven' && (selectedMachine.process.fluids.creosote ?? 0) > 0 && (
                       <FluidTank
-                        label="Creosote"
+                        label={fluidLabel('creosote')}
                         storedLitres={selectedMachine.process.fluids.creosote ?? 0}
                         capacityLitres={selectedMachine.process.fluidCapacityLitres || cokeOvenFluidCapacityLitres}
                       />
