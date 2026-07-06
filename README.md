@@ -13,15 +13,30 @@ npm run test
 npm run build
 npm run lint
 npm run check
-npm run deploy:test
-npm run deploy:release
+npm run release:home-dev
+npm run release:remote-dev
+npm run release:full -- --revision 0.2.0 --title "Patch title" --note "Patch note"
 ```
 
 `npm run dev` starts the normal hot Vite server. `npm run dev:host` exposes that hot server on the local network for phone testing.
 
-`npm run deploy:test` builds the app and hosts the production preview locally on port 4173. It prints both localhost and LAN URLs, and the local save API is available in this preview server.
+`npm run release:home-dev` builds the app as a home-dev production preview and hosts it locally on port 4173. It prints both localhost and LAN URLs, and the local save API is available in this preview server.
 
-`npm run deploy:release` is the guarded GitHub Pages release path. Run it from a clean `main` branch after committing; it runs lint, tests, and build, pushes `main`, then watches the existing Pages workflow when the GitHub CLI is available.
+`npm run release:remote-dev` is the remote test lane. Run it from a clean committed worktree; it runs lint, tests, and build, then pushes the current commit to `origin/remote-dev`. GitHub Pages publishes that build under `/GregCompanion/remote-dev/` without changing the public release.
+
+`npm run release:full` is the guarded public GitHub Pages release path. Run it from a clean `main` branch after committing game changes. Pass a revision, title, and one or more patch notes; it stamps `src/release-manifest.json`, runs lint/tests/build, commits the release manifest, pushes `main`, then watches the Pages workflow when the GitHub CLI is available.
+
+The older `npm run deploy:test` and `npm run deploy:release` commands remain as aliases for the home-dev and full-release lanes.
+
+## Release Lanes
+
+| Lane | Command | Where it is playable | Home screen channel |
+| --- | --- | --- | --- |
+| Home test dev | `npm run release:home-dev` | Local PC/LAN URL printed by the command | `Home dev` |
+| Remote test dev | `npm run release:remote-dev` | GitHub Pages `/remote-dev/` path | `Remote dev` |
+| Full release | `npm run release:full -- --revision 0.2.0 --title "Patch title" --note "Patch note"` | Main GitHub Pages URL | `Full release` |
+
+Patch notes and revision numbers are shown on the home screen through `src/release-manifest.json`. Remote-dev builds override the manifest at build time so testers can immediately see they are not on the public release.
 
 ## iOS App
 

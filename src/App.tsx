@@ -38,6 +38,9 @@ import {
   isEuPoweredMachine,
   isEuProducerMachine,
   isEuStorageMachine,
+  isItemAutomationMachine,
+  isItemHopperMachine,
+  isItemStorageMachine,
   isLiquidSteamBoilerMachine,
   isPlaceableMachine,
   isSteamNetworkMachine,
@@ -74,6 +77,8 @@ import {
   collectProcessOutput,
   createCreativeState,
   currentFluidOutputFlows,
+  currentEuCableFlowEuPerSecond,
+  currentSteamPipeFlowLitresPerSecond,
   cyclePipeSideMode,
   craftableQuantity,
   craftRecipeInstant,
@@ -85,6 +90,7 @@ import {
   factoryFoundationCost,
   factoryFoundationSizes,
   factoryGridForState,
+  fluidPipeBufferCapacityLitres,
   getBestToolForTarget,
   hasFactoryFloor,
   hitGatherTarget,
@@ -115,9 +121,11 @@ import {
   removeProcessSlot,
   searchTerminalRecipes,
   sellShopItem,
+  setHopperOutputDirection,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
   steamMachineInternalCapacityMs,
+  steamPipeBufferCapacityMs,
   steamAutoMinerActionDamage,
   steamAutoMinerActionMs,
   steamAutoMinerSteamUseLitres,
@@ -135,6 +143,7 @@ import {
   liquidSteamBoilerFluidCapacityLitres,
   liquidSteamBoilerSteamProductionLitresPerSecond,
   tinCableLossEuPerTile,
+  euCableBufferCapacity,
   lvAutoMinerActionDamage,
   lvAutoMinerActionMs,
   lvAutoMinerEuUse,
@@ -232,7 +241,7 @@ type NavigationSnapshot = {
 }
 type PendingProcessInsert = {
   uid: string
-  slotId: Exclude<ProcessSlotId, 'output'>
+  slotId: ProcessSlotId
   resourceId: ResourceId
   quantity: number
 }
@@ -247,6 +256,8 @@ const machineOrder: MachineId[] = [
   'well',
   'steamBoiler',
   'steamTank',
+  'standardChest',
+  'hopper',
   'copperPipe',
   'bronzePipe',
   'ironPipe',
@@ -534,7 +545,7 @@ function RecipePatternPreview({
   const grid = makeGridForRecipe(recipe, state)
 
   return (
-    <div className="recipe-pattern-grid" aria-label={`${recipe.name} pattern`}>
+    <div className="recipe-pattern-grid" aria-label={`${recipeDisplayName(recipe)} pattern`}>
       {grid.map((slot, index) => {
         const className = slot ? (slot.ghost ? 'recipe-pattern-slot ghost' : 'recipe-pattern-slot filled') : 'recipe-pattern-slot'
         if (!slot) return <span className={className} key={index} />
@@ -556,7 +567,7 @@ function RecipePatternPreview({
 }
 
 function isFactoryFloorLayoutRecipe(recipe: Recipe) {
-  return recipe.id === 'build_bricked_blast_furnace' || recipe.id === 'build_arc_blast_furnace'
+  return recipe.recipeType === 'machine'
 }
 
 function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
@@ -566,7 +577,7 @@ function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
   const label = recipe.id === 'build_arc_blast_furnace' ? 'heat-proof casings' : 'BBF Casings'
 
   return (
-    <div className="factory-layout-preview" aria-label={`${recipe.name} factory floor layout`}>
+    <div className="factory-layout-preview" aria-label={`${recipeDisplayName(recipe)} factory floor layout`}>
       <div className="factory-layout-multiblock">
         <MachineGlyph id={machineId} />
         {Array.from({ length: 4 }, (_, index) => (
@@ -609,6 +620,10 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
   }
 
   return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
+}
+
+function recipeDisplayName(recipe: Recipe) {
+  return recipePrimaryOutput(recipe).label
 }
 
 function SteamTank({ storedMs, capacityMs }: { storedMs: number; capacityMs: number }) {
@@ -736,7 +751,9 @@ function missingResourceLine(state: GameState, costs: ResourceAmount[]) {
     .join(', ')
 }
 
-function canResourceEnterProcessSlot(machineId: MachineId, slotId: Exclude<ProcessSlotId, 'output'>, resourceId: ResourceId) {
+function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
+  if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
+  if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
   if (slotId === 'input') {
     return processRecipes.some(
       (recipe) =>
@@ -754,17 +771,19 @@ function canResourceEnterProcessSlot(machineId: MachineId, slotId: Exclude<Proce
         (machineId !== 'steamAlloySmelter' || resourceId.endsWith('Ingot') || resourceId.endsWith('Dust')),
     )
   }
+  if (slotId !== 'fuel') return false
   if (machineId === 'brickedBlastFurnace') return processRecipes.some((recipe) => recipe.machineId === machineId && recipe.fuelInput?.id === resourceId)
   return (machineId === 'furnace' || machineId === 'steamBoiler') && resourceId in fuelDefinitions
 }
 
 function canResourceEnterMachine(machineId: MachineId, resourceId: ResourceId) {
+  if (isItemAutomationMachine(machineId)) return true
   return canResourceEnterProcessSlot(machineId, 'input', resourceId) || canResourceEnterProcessSlot(machineId, 'fuel', resourceId)
 }
 
 function suggestedProcessInsertQuantity(
   instance: MachineInstance,
-  slotId: Exclude<ProcessSlotId, 'output'>,
+  slotId: ProcessSlotId,
   resourceId: ResourceId,
   available: number,
 ) {
@@ -773,7 +792,9 @@ function suggestedProcessInsertQuantity(
   const recipe =
     slotId === 'fuel'
       ? candidates.find((candidate) => candidate.fuelInput?.id === resourceId)
-      : candidates.find((candidate) => candidate.input.id === resourceId || candidate.secondaryInput?.id === resourceId)
+      : slotId === 'output'
+        ? undefined
+        : candidates.find((candidate) => candidate.input.id === resourceId || candidate.secondaryInput?.id === resourceId)
   const required =
     slotId === 'fuel'
       ? recipe?.fuelInput?.amount
@@ -805,6 +826,7 @@ function findSelectedProcessRecipe(instance: MachineInstance | null) {
 
 function machineUsesProcessStorage(machineId: MachineId) {
   if (isAutoMinerMachine(machineId)) return false
+  if (isItemAutomationMachine(machineId)) return true
   return (
     machineId === 'furnace' ||
     machineId === 'steamBoiler' ||
@@ -819,7 +841,15 @@ function machineUsesProcessStorage(machineId: MachineId) {
 function machineStatus(state: GameState, instance: MachineInstance) {
   const process = instance.process
   const recipe = findSelectedProcessRecipe(instance)
+  const storedItemCount = [process.input, process.secondaryInput, process.fuel, process.output].reduce((sum, slot) => sum + (slot?.amount ?? 0), 0)
   if (instance.machineId === 'well') return 'Supplying water'
+  if (isItemStorageMachine(instance.machineId)) return storedItemCount > 0 ? `Storing ${formatAmount(storedItemCount)} items` : 'Empty storage'
+  if (isItemHopperMachine(instance.machineId)) {
+    const outputDirection = pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'output')
+    if (!outputDirection) return 'No output side'
+    if (storedItemCount < 1) return 'Empty hopper'
+    return process.activeRecipeId ? `Feeding ${pipeDirectionOffsets[outputDirection].label}` : `Ready ${pipeDirectionOffsets[outputDirection].label}`
+  }
   if (instance.machineId === 'steamTank') {
     if ((process.fluids.creosote ?? 0) > 0) return 'Holding creosote'
     if ((process.fluids.water ?? 0) > 0) return 'Holding water'
@@ -1827,7 +1857,18 @@ function App() {
       })
     }
 
-    if (selectedMachine.machineId === 'steamBoiler') {
+    if (isSteamPipeMachine(selectedMachine.machineId)) {
+      const steamCapacity = process.steamCapacityMs || steamPipeBufferCapacityMs(selectedMachine.machineId)
+      const fluidCapacity = process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)
+      const steamFlow = currentSteamPipeFlowLitresPerSecond(state, selectedMachine)
+      if (steamCapacity > 0) addSteamMetric('Steam', process.steamStoredMs, steamCapacity)
+      if ((process.fluids.creosote ?? 0) > 0) addFluidMetric('Creosote', process.fluids.creosote ?? 0, fluidCapacity)
+      if ((process.fluids.water ?? 0) > 0) addFluidMetric('Water', process.fluids.water ?? 0, fluidCapacity)
+      addRateMetric('Flow', steamFlow, 'L/s', 'supply', 'steam moving')
+    } else if (isEuCableMachine(selectedMachine.machineId)) {
+      addEuMetric('Buffer', process.euStored, process.euCapacity || euCableBufferCapacity(selectedMachine.machineId))
+      addRateMetric('Flow', currentEuCableFlowEuPerSecond(state, selectedMachine), ' EU/s', 'supply', 'power moving')
+    } else if (selectedMachine.machineId === 'steamBoiler') {
       addSteamMetric('Steam', process.steamStoredMs, boilerSteamCapacityMs)
       addRateMetric('Makes', boilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
     } else if (selectedMachine.machineId === 'steamTank') {
@@ -2124,12 +2165,12 @@ function App() {
         return
       }
       if (isFactoryPipeConfigMode) {
-        if (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId)) {
+        if (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId) || isItemHopperMachine(instance.machineId)) {
           setSelectedMachineUid(null)
           setSelectedPipeConfigUid(instance.uid)
           return
         }
-        setFactoryNotice('Wrench only configures pipes and cables.')
+        setFactoryNotice('Wrench configures pipes, cables, and hoppers.')
         return
       }
       const structureController = controllerForFactoryStructure(instance)
@@ -2162,13 +2203,18 @@ function App() {
   }
 
   const handleTogglePipeSide = (uid: string, direction: PipeDirection) => {
+    const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+    if (instance && isItemHopperMachine(instance.machineId)) {
+      setState((current) => setHopperOutputDirection(current, uid, direction))
+      return
+    }
     setState((current) => cyclePipeSideMode(current, uid, direction))
   }
 
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
     if (!selectedMachine) return
     const slot = selectedMachine.process[slotId]
-    if (slotId === 'output') {
+    if (slotId === 'output' && !isItemHopperMachine(selectedMachine.machineId)) {
       setState((current) => collectProcessOutput(current, selectedMachine.uid))
       return
     }
@@ -2437,7 +2483,7 @@ function App() {
     const missingResources = missingForQuantity(state, recipe, quantity, terminalGrid)
     const missingRecipe = missingForRecipe(state, recipe)
     setMissingBatch({
-      recipeName: recipe.name,
+      recipeName: recipeDisplayName(recipe),
       quantity,
       missingResources,
       missingSetup: missingRecipe.missingMachines
@@ -2458,7 +2504,7 @@ function App() {
 
     setState((current) => craftRecipeInstant(current, terminalMatch, requestedQuantity))
     handleClearGrid()
-    setTerminalNotice(`${terminalMatch.name} x${formatAmount(requestedQuantity)} crafted.`)
+    setTerminalNotice(`${recipeDisplayName(terminalMatch)} x${formatAmount(requestedQuantity)} crafted.`)
     addFloatText(`crafted x${formatAmount(requestedQuantity)}`)
   }
 
@@ -2481,7 +2527,7 @@ function App() {
     }
 
     setTerminalGrid(makeGridForRecipe(recipe, state))
-    setTerminalNotice(missingLine(state, recipe) ? `Missing ${missingLine(state, recipe)}` : `${recipe.name} loaded.`)
+    setTerminalNotice(missingLine(state, recipe) ? `Missing ${missingLine(state, recipe)}` : `${recipeDisplayName(recipe)} loaded.`)
     setIsRecipeModalOpen(false)
     setPage('terminal')
   }
@@ -2489,7 +2535,8 @@ function App() {
   const pipePolarityForInstance = (instance: MachineInstance): Array<{ direction: PipeDirection; state: PipeSideState; mode: PipeSideMode; label: string }> | null => {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
     const isEuCable = isEuCableMachine(instance.machineId)
-    if (!isSteamPipe && !isEuCable) return null
+    const isHopper = isItemHopperMachine(instance.machineId)
+    if (!isSteamPipe && !isEuCable && !isHopper) return null
 
     return pipeDirections.map((direction) => {
       const offset = pipeDirectionOffsets[direction]
@@ -2500,8 +2547,9 @@ function App() {
       const connected = Boolean(
         !blocked &&
           neighbour &&
-          machinesCanConnect(instance, neighbour) &&
-          (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId)),
+          (isHopper
+            ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId)
+            : machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))),
       )
       return {
         direction,
@@ -2550,7 +2598,7 @@ function App() {
     }
 
     handleCraft(recipe)
-    setTerminalNotice(`${recipe.name} ${recipe.machineOutputs ? 'built' : 'crafted'}.`)
+    setTerminalNotice(`${recipeDisplayName(recipe)} ${recipe.machineOutputs ? 'built' : 'crafted'}.`)
     setIsRecipeModalOpen(false)
   }
 
@@ -2961,6 +3009,12 @@ function App() {
       : `${selectedSaveLabel} is empty`
   const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
   const buildLabel = deploymentInfo.version === 'local' ? 'Local build' : `Build ${deploymentInfo.version}`
+  const releaseChannelLabel = deploymentInfo.channel === 'release'
+    ? 'Full release'
+    : deploymentInfo.channel === 'remote-dev'
+      ? 'Remote dev'
+      : 'Home dev'
+  const releaseNotes = deploymentInfo.notes.slice(0, 3)
 
   if (!isMobileClient) {
     return (
@@ -2975,7 +3029,7 @@ function App() {
           <h1>Nice try, factory overlord.</h1>
           <p>This foundry runs on pocket power only. Put the spreadsheet away, grab your phone, and go touch some grass before the boiler files a complaint.</p>
           <strong>Open Click Foundry on mobile to play.</strong>
-          <span>{buildLabel} · {deployedAtLabel}</span>
+          <span>{releaseChannelLabel} | r{deploymentInfo.revision} | {buildLabel} | {deployedAtLabel}</span>
         </section>
       </main>
     )
@@ -3082,9 +3136,23 @@ function App() {
               <p className="eyebrow">Block-tech idle</p>
               <h1><span>Click</span><span>Foundry</span></h1>
               <p className="home-save-status">{saveStatus}</p>
-              <p className="home-deploy-version">{buildLabel} · {deployedAtLabel}</p>
+              <p className="home-deploy-version">{releaseChannelLabel} | r{deploymentInfo.revision} | {buildLabel} | {deployedAtLabel}</p>
             </div>
           </div>
+          <section className="home-release-card" aria-label="Release notes">
+            <div>
+              <span>{releaseChannelLabel}</span>
+              <strong>r{deploymentInfo.revision}</strong>
+            </div>
+            <p>{deploymentInfo.title}</p>
+            {releaseNotes.length > 0 && (
+              <ul>
+                {releaseNotes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            )}
+          </section>
           <div className="home-save-slots" aria-label="Save slots">
             {(saveSlotSummaries.length > 0 ? saveSlotSummaries : [{ id: 'slot-1' as const, label: 'Save 1', updatedAt: null, exists: false }, { id: 'slot-2' as const, label: 'Save 2', updatedAt: null, exists: false }, { id: 'slot-3' as const, label: 'Save 3', updatedAt: null, exists: false }]).map((slot) => (
               <button
@@ -3616,7 +3684,7 @@ function App() {
                           missing ? 'missing' : 'ready',
                         ].join(' ')}
                         aria-label={output.label}
-                        title={group.recipes.map((recipe) => recipe.name).join(' / ')}
+                        title={recipeGroupDisplayOutput(group).label}
                         onClick={() => handleSelectRecipeGroup(group.key, true)}
                         key={group.key}
                       >
@@ -3629,11 +3697,11 @@ function App() {
                   </div>
 
                   {selectedRecipe && selectedRecipeOutput && selectedRecipeMissing && selectedRecipeGroup && (
-                    <aside className="recipe-detail" aria-label={`${selectedRecipe.name} details`}>
+                    <aside className="recipe-detail" aria-label={`${recipeDisplayName(selectedRecipe)} details`}>
                       <div className="recipe-detail-head">
                         <div>
                           <p className="eyebrow">{selectedRecipe.tier}</p>
-                          <h3>{selectedRecipe.name}</h3>
+                          <h3>{recipeDisplayName(selectedRecipe)}</h3>
                         </div>
                         <div className="recipe-detail-actions">
                           {selectedRecipeGroup.recipes.length > 1 && (
@@ -3708,23 +3776,34 @@ function App() {
                           <span>Station</span>
                           <div className="recipe-slot-row">
                             {selectedRecipe.requiredMachine && (
-                              <span className="recipe-station-entry">
+                              <button
+                                type="button"
+                                className="recipe-station-entry"
+                                aria-label={`Find ${machines[selectedRecipe.requiredMachine].name}`}
+                                onClick={() => handleJumpToMachineRecipe(selectedRecipe.requiredMachine!)}
+                              >
                                 <MachineSlot
                                   id={selectedRecipe.requiredMachine}
                                   muted={state.machines[selectedRecipe.requiredMachine] < 1}
                                 />
                                 <span>{machines[selectedRecipe.requiredMachine].name}</span>
-                              </span>
+                              </button>
                             )}
                             {selectedRecipe.machineInputs?.map((amount) => (
-                              <span className="recipe-station-entry" key={amount.id}>
+                              <button
+                                type="button"
+                                className="recipe-station-entry"
+                                aria-label={`Find ${machines[amount.id].name}`}
+                                onClick={() => handleJumpToMachineRecipe(amount.id)}
+                                key={amount.id}
+                              >
                                 <MachineSlot
                                   id={amount.id}
                                   amount={amount.amount}
                                   muted={state.machines[amount.id] < amount.amount}
                                 />
                                 <span>{machines[amount.id].name}</span>
-                              </span>
+                              </button>
                             ))}
                           </div>
                         </div>
@@ -3882,7 +3961,7 @@ function App() {
                             title={
                               id === 'ironCrowbar'
                                 ? `${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`
-                                : `${resourceLabels[id]} - configure pipe and cable connections`
+                                : `${resourceLabels[id]} - configure pipe, cable, and hopper connections`
                             }
                             onClick={() => {
                               setPlacingMachineId(null)
@@ -4057,7 +4136,7 @@ function App() {
             </div>
           )}
 
-          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId)) && (
+          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId)) && (
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"
@@ -4068,14 +4147,19 @@ function App() {
               >
                 <div className="modal-head">
                   <div>
-                    <p className="eyebrow">Pipe Routing</p>
+                    <p className="eyebrow">{isItemHopperMachine(selectedPipeConfig.machineId) ? 'Hopper Output' : 'Pipe Routing'}</p>
                     <h2>{machines[selectedPipeConfig.machineId].name}</h2>
                   </div>
-                  <button type="button" className="icon-button" aria-label="Close pipe routing" onClick={() => setSelectedPipeConfigUid(null)}>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={isItemHopperMachine(selectedPipeConfig.machineId) ? 'Close hopper output' : 'Close pipe routing'}
+                    onClick={() => setSelectedPipeConfigUid(null)}
+                  >
                     <X size={18} />
                   </button>
                 </div>
-                <div className="pipe-config-grid" aria-label="Pipe routing directions">
+                <div className="pipe-config-grid" aria-label={isItemHopperMachine(selectedPipeConfig.machineId) ? 'Hopper output directions' : 'Pipe routing directions'}>
                   {[-1, 0, 1].flatMap((dy) =>
                     [-1, 0, 1].map((dx) => {
                       const neighbour = machineAtFactoryCell(selectedPipeConfig.x + dx, selectedPipeConfig.y + dy)
@@ -4086,7 +4170,8 @@ function App() {
                       const isCenter = dx === 0 && dy === 0
                       const mode = direction ? pipeSideMode(selectedPipeConfig, direction) : null
                       const disabled = mode === 'blocked'
-                      const connected = Boolean(direction && neighbour && machinesCanConnect(selectedPipeConfig, neighbour))
+                      const isHopperConfig = isItemHopperMachine(selectedPipeConfig.machineId)
+                      const connected = Boolean(direction && neighbour && (isHopperConfig ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId) : machinesCanConnect(selectedPipeConfig, neighbour)))
                       const className = [
                         'pipe-config-cell',
                         isCenter ? 'center' : '',
@@ -4113,7 +4198,7 @@ function App() {
                         <button
                           type="button"
                           className={className}
-                          aria-label={`${pipeDirectionOffsets[direction].label} flow ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
+                          aria-label={`${pipeDirectionOffsets[direction].label} ${isHopperConfig ? 'hopper output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
                           onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
                           key={`${dx},${dy}`}
                         >
@@ -4126,7 +4211,9 @@ function App() {
                     }),
                   )}
                 </div>
-                <p className="pipe-config-note">Tap a side to cycle flow: Closed, Out, In, Both.</p>
+                <p className="pipe-config-note">
+                  {isItemHopperMachine(selectedPipeConfig.machineId) ? 'Tap one side to choose where this hopper pushes items.' : 'Tap a side to cycle flow: Closed, Out, In, Both.'}
+                </p>
               </section>
             </div>
           )}
@@ -4206,7 +4293,46 @@ function App() {
                     </div>
                   )}
                 </div>
-                {selectedMachine.machineId === 'well' ? (
+                {isItemAutomationMachine(selectedMachine.machineId) ? (
+                  <div className={`furnace-interface ${selectedMachine.machineId}-process-interface item-automation-interface`}>
+                    <div className="furnace-inputs">
+                      <ProcessItemSlot
+                        slot={selectedMachine.process.input}
+                        label="Slot 1"
+                        onClick={() => handleProcessSlotPress('input')}
+                      />
+                      {isItemHopperMachine(selectedMachine.machineId) ? (
+                        <>
+                          <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Slot 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
+                          <ProcessItemSlot slot={selectedMachine.process.fuel} label="Slot 3" onClick={() => handleProcessSlotPress('fuel')} />
+                          <ProcessItemSlot slot={selectedMachine.process.output} label="Slot 4" onClick={() => handleProcessSlotPress('output')} />
+                        </>
+                      ) : isItemStorageMachine(selectedMachine.machineId) ? (
+                        <>
+                          <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Slot 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
+                          <ProcessItemSlot slot={selectedMachine.process.fuel} label="Slot 3" onClick={() => handleProcessSlotPress('fuel')} />
+                        </>
+                      ) : null}
+                      <MachineGlyph
+                        id={selectedMachine.machineId}
+                        active={Boolean(
+                          selectedMachine.process.activeRecipeId ||
+                            selectedMachine.process.input ||
+                            selectedMachine.process.secondaryInput ||
+                            selectedMachine.process.fuel ||
+                            selectedMachine.process.output,
+                        )}
+                      />
+                    </div>
+                    {isItemHopperMachine(selectedMachine.machineId) && (
+                      <span className="hopper-direction-line">
+                        Output: {pipeDirections.find((direction) => pipeSideMode(selectedMachine, direction) === 'output')
+                          ? pipeDirectionOffsets[pipeDirections.find((direction) => pipeSideMode(selectedMachine, direction) === 'output')!].label
+                          : 'Configure with wrench'}
+                      </span>
+                    )}
+                  </div>
+                ) : selectedMachine.machineId === 'well' ? (
                   <div className="well-interface">
                     <MachineGlyph id="well" active />
                     <span>Supplies adjacent boilers</span>
@@ -4224,13 +4350,34 @@ function App() {
                   </div>
                 ) : isSteamPipeMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">
-                    <MachineGlyph id={selectedMachine.machineId} active />
-                    <span>Transfers steam at {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s</span>
+                    {(selectedMachine.process.fluids.creosote ?? 0) > 0 ? (
+                      <FluidTank
+                        label="Creosote"
+                        storedLitres={selectedMachine.process.fluids.creosote ?? 0}
+                        capacityLitres={selectedMachine.process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)}
+                      />
+                    ) : (selectedMachine.process.fluids.water ?? 0) > 0 ? (
+                      <FluidTank
+                        label="Water"
+                        storedLitres={selectedMachine.process.fluids.water ?? 0}
+                        capacityLitres={selectedMachine.process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)}
+                      />
+                    ) : (
+                      <SteamTank
+                        storedMs={selectedMachine.process.steamStoredMs}
+                        capacityMs={selectedMachine.process.steamCapacityMs || steamPipeBufferCapacityMs(selectedMachine.machineId)}
+                      />
+                    )}
+                    <span>
+                      Flow {formatAmount(currentSteamPipeFlowLitresPerSecond(state, selectedMachine))}L/s | Limit {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s
+                    </span>
                   </div>
                 ) : isEuCableMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">
-                    <MachineGlyph id={selectedMachine.machineId} active />
-                    <span>Loses {tinCableLossEuPerTile} EU per cable tile in a powered route</span>
+                    <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || euCableBufferCapacity(selectedMachine.machineId)} />
+                    <span>
+                      Flow {formatAmount(currentEuCableFlowEuPerSecond(state, selectedMachine))} EU/s | Loses {tinCableLossEuPerTile} EU per cable tile
+                    </span>
                   </div>
                 ) : isLiquidSteamBoilerMachine(selectedMachine.machineId) ? (
                   <div className="well-interface liquid-boiler-interface">
@@ -4436,7 +4583,11 @@ function App() {
                   </div>
                 )}
                 {machineUsesProcessStorage(selectedMachine.machineId) && (
-                  <p className="furnace-help">Tap storage, then a valid slot to choose an amount. Tap Output to collect.</p>
+                  <p className="furnace-help">
+                    {isItemHopperMachine(selectedMachine.machineId)
+                      ? 'Tap storage, then a hopper slot to choose an amount.'
+                      : 'Tap storage, then a valid slot to choose an amount. Tap Output to collect.'}
+                  </p>
                 )}
               </section>
             </div>

@@ -8,6 +8,8 @@ import type { Plugin, PreviewServer, ViteDevServer } from 'vite'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const savesDir = path.join(rootDir, 'server', 'saves')
+const githubPagesPath = process.env.GITHUB_PAGES_PATH?.replace(/^\/+|\/+$/g, '')
+const githubPagesBase = githubPagesPath ? `/GregCompanion/${githubPagesPath}/` : '/GregCompanion/'
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json' })
@@ -121,6 +123,6 @@ function localSaveApi(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: process.env.GITHUB_PAGES === 'true' ? '/GregCompanion/' : '/',
+  base: process.env.GITHUB_PAGES === 'true' ? githubPagesBase : '/',
   plugins: [react(), localSaveApi()],
 })

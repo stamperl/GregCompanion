@@ -1,0 +1,10 @@
+{
+  "revision": "0.1.0",
+  "date": "2026-07-06",
+  "title": "Release lanes and automation update",
+  "notes": [
+    "Added home-dev, remote-dev, and full-release publishing lanes.",
+    "Home screen now shows channel, revision, build hash, date, and patch notes.",
+    "Added early item automation with chests, configurable hoppers, and a red-alloy mechanical piston path."
+  ]
+}

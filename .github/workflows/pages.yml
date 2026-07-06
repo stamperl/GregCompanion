@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, remote-dev]
   workflow_dispatch:
 
 permissions:
@@ -31,7 +31,17 @@ jobs:
         run: npm ci
 
       - name: Set deployment metadata
-        run: echo "VITE_DEPLOYED_AT=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+        run: |
+          echo "VITE_DEPLOYED_AT=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+          if [ "${GITHUB_REF_NAME}" = "remote-dev" ]; then
+            echo "GITHUB_PAGES_PATH=remote-dev" >> "$GITHUB_ENV"
+            echo "VITE_RELEASE_CHANNEL=remote-dev" >> "$GITHUB_ENV"
+            echo "VITE_RELEASE_REVISION=dev-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+            echo "VITE_RELEASE_TITLE=Remote test build" >> "$GITHUB_ENV"
+            echo "VITE_RELEASE_NOTES=Remote GitHub Pages test lane|Not the public player release" >> "$GITHUB_ENV"
+          else
+            echo "VITE_RELEASE_CHANNEL=release" >> "$GITHUB_ENV"
+          fi
 
       - name: Build
         run: npm run build
@@ -44,12 +54,29 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -rf ../gh-pages-dist
-          git worktree add --detach ../gh-pages-dist
-          cd ../gh-pages-dist
-          git checkout --orphan gh-pages
-          git rm -rf . || true
-          cp -a "$GITHUB_WORKSPACE/dist/." .
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git worktree add ../gh-pages-dist origin/gh-pages
+            cd ../gh-pages-dist
+            git checkout -B gh-pages origin/gh-pages
+          else
+            git worktree add --detach ../gh-pages-dist
+            cd ../gh-pages-dist
+            git checkout --orphan gh-pages
+            git rm -rf . || true
+          fi
+          if [ "${GITHUB_REF_NAME}" = "remote-dev" ]; then
+            rm -rf remote-dev
+            mkdir -p remote-dev
+            cp -a "$GITHUB_WORKSPACE/dist/." remote-dev/
+          else
+            find . -mindepth 1 -maxdepth 1 ! -name ".git" ! -name "remote-dev" -exec rm -rf {} +
+            cp -a "$GITHUB_WORKSPACE/dist/." .
+          fi
           touch .nojekyll
           git add -A
-          git commit -m "Deploy ${GITHUB_SHA}"
+          if git diff --cached --quiet; then
+            echo "No Pages changes to deploy."
+            exit 0
+          fi
+          git commit -m "Deploy ${GITHUB_REF_NAME} ${GITHUB_SHA}"
           git push origin HEAD:gh-pages --force

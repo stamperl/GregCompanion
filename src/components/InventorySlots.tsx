@@ -56,11 +56,41 @@ export function ItemSlot({
   )
 }
 
-export function MachineSlot({ id, amount = 1, muted = false }: { id: MachineId; amount?: number; muted?: boolean }) {
-  return (
-    <span className={muted ? 'mini-slot machine-slot muted' : 'mini-slot machine-slot'} title={machines[id].name}>
+export function MachineSlot({
+  id,
+  amount = 1,
+  muted = false,
+  onClick,
+}: {
+  id: MachineId
+  amount?: number
+  muted?: boolean
+  onClick?: (id: MachineId) => void
+}) {
+  const content = (
+    <>
       <MachineGlyph id={id} />
       <span className="item-count">{formatAmount(amount)}</span>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={muted ? 'mini-slot machine-slot recipe-jump-slot muted' : 'mini-slot machine-slot recipe-jump-slot'}
+        aria-label={`Find ${machines[id].name}`}
+        title={`Find ${machines[id].name}`}
+        onClick={() => onClick(id)}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <span className={muted ? 'mini-slot machine-slot muted' : 'mini-slot machine-slot'} title={machines[id].name}>
+      {content}
     </span>
   )
 }

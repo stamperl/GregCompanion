@@ -13,6 +13,9 @@ import {
   isEuPoweredMachine,
   isEuProducerMachine,
   isEuStorageMachine,
+  isItemAutomationMachine,
+  isItemHopperMachine,
+  isItemStorageMachine,
   isLiquidSteamBoilerMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
@@ -143,6 +146,17 @@ export const steamPipeTransferLitresPerSecond = Object.fromEntries(
     .map((machineId) => [machineId, machinePipeTransferLitresPerSecond(machineId)] as const)
     .filter(([, transferRate]) => transferRate > 0),
 ) as Partial<Record<MachineId, number>>
+export function steamPipeBufferCapacityMs(machineId: MachineId) {
+  const rate = steamPipeTransferLitresPerSecond[machineId] ?? 0
+  return isSteamPipeMachine(machineId) ? Math.max(4, Math.ceil(rate / 4)) * steamMsPerLitre : 0
+}
+export function fluidPipeBufferCapacityLitres(machineId: MachineId) {
+  const rate = steamPipeTransferLitresPerSecond[machineId] ?? 0
+  return isSteamPipeMachine(machineId) ? Math.max(4, Math.ceil(rate / 4)) : 0
+}
+export function euCableBufferCapacity(machineId: MachineId) {
+  return isEuCableMachine(machineId) ? 32 : 0
+}
 
 const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   woodenAxe: 32,
@@ -188,6 +202,12 @@ const oppositePipeDirection: Record<PipeDirection, PipeDirection> = {
   east: 'west',
   south: 'north',
   west: 'east',
+}
+const pipeDirectionOffsets: Record<PipeDirection, { dx: number; dy: number }> = {
+  north: { dx: 0, dy: -1 },
+  east: { dx: 1, dy: 0 },
+  south: { dx: 0, dy: 1 },
+  west: { dx: -1, dy: 0 },
 }
 
 function emptyProcessState(): MachineProcessState {
@@ -1140,7 +1160,22 @@ function machineAt(state: GameState, x: number, y: number) {
 }
 
 function isConfigurableConnector(machineId: MachineId) {
-  return isSteamPipeMachine(machineId) || isEuCableMachine(machineId)
+  return isSteamPipeMachine(machineId) || isEuCableMachine(machineId) || isItemHopperMachine(machineId)
+}
+
+function connectorsCanAutoConnect(first: MachineId, second: MachineId) {
+  return (isSteamPipeMachine(first) && isSteamPipeMachine(second)) || (isEuCableMachine(first) && isEuCableMachine(second))
+}
+
+function setConnectorSideModeInPlace(instance: MachineInstance, direction: PipeDirection, mode: PipeSideMode) {
+  const modes = { ...instance.pipeSideModes }
+  const disabledSides = { ...instance.pipeDisabledSides }
+  if (mode === 'both') delete modes[direction]
+  else modes[direction] = mode
+  if (mode === 'blocked') disabledSides[direction] = true
+  else delete disabledSides[direction]
+  instance.pipeSideModes = modes
+  instance.pipeDisabledSides = disabledSides
 }
 
 function directionBetween(from: MachineInstance, to: MachineInstance): PipeDirection | null {
@@ -1669,7 +1704,7 @@ function connectedFluidSources(state: GameState, start: MachineInstance, fluidId
     connectedFluidNetwork(state, start)
       .filter((instance) => instance.uid !== start.uid)
       .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
-      .filter((instance) => instance.uid !== startStorage.uid && (instance.process.fluids[fluidId] ?? 0) > 0 && canFluidFlowBetween(state, instance, startStorage)),
+      .filter((instance) => instance.uid !== startStorage.uid && canExportFluidSource(instance) && (instance.process.fluids[fluidId] ?? 0) > 0 && canFluidFlowBetween(state, instance, startStorage)),
   ).sort((a, b) => a.uid.localeCompare(b.uid))
 }
 
@@ -1751,6 +1786,85 @@ export function currentFluidOutputFlows(state: GameState, instance: MachineInsta
       }
     })
     .filter((flow): flow is CurrentFluidOutputFlow => Boolean(flow))
+}
+
+export function currentSteamPipeFlowLitresPerSecond(state: GameState, instance: MachineInstance) {
+  if (!isSteamPipeMachine(instance.machineId)) return 0
+  const sourceSteamMs = availableConnectedSteam(state, instance)
+  if (sourceSteamMs <= 0) return 0
+
+  const sourceUids = new Set(connectedSteamStorage(state, instance).map((source) => source.uid))
+  const demandMs = uniqueMachineInstances(connectedSteamNetwork(state, instance, true))
+    .filter((target) => target.uid !== instance.uid && !sourceUids.has(target.uid))
+    .reduce((sum, target) => {
+      if (isSteamPoweredMachine(target.machineId)) {
+        const capacity = machineSteamCapacityLitres(target.machineId) * steamMsPerLitre
+        return sum + Math.max(0, capacity - target.process.steamStoredMs)
+      }
+      if (isEuProducerMachine(target.machineId)) {
+        return sum + (target.process.euStored < steamTurbineEuCapacity ? steamTurbineSteamUseLitresPerSecond * steamMsPerLitre : 0)
+      }
+      if (target.machineId === 'steamTank') {
+        const storage = steamTankStorageForInstance(state, target)
+        if (sourceUids.has(storage.uid)) return sum
+        return sum + Math.max(0, steamTankCapacityMsForInstance(state, storage) - storage.process.steamStoredMs)
+      }
+      return sum
+    }, 0)
+
+  if (demandMs <= 0) return 0
+  return Math.min(connectedSteamTransferRateMs(state, instance) / steamMsPerLitre, sourceSteamMs / steamMsPerLitre, demandMs / steamMsPerLitre)
+}
+
+export function currentEuCableFlowEuPerSecond(state: GameState, instance: MachineInstance) {
+  if (!isEuCableMachine(instance.machineId)) return 0
+  const availableEu = availableConnectedEu(state, instance)
+  if (availableEu <= 0) return 0
+
+  const sourceUids = new Set(connectedEuSources(state, instance).map((source) => source.instance.uid))
+  const demandEu = uniqueMachineInstances(connectedEuFlowNetwork(state, instance))
+    .filter((target) => target.uid !== instance.uid && !sourceUids.has(target.uid))
+    .reduce((sum, target) => {
+      if (isEuStorageMachine(target.machineId) || isEuPoweredMachine(target.machineId)) {
+        return sum + Math.max(0, machineEuCapacity(target.machineId) - target.process.euStored)
+      }
+      return sum
+    }, 0)
+
+  if (demandEu <= 0) return 0
+  return Math.min(lvBatteryBufferOutputEuPerSecond, availableEu, demandEu)
+}
+
+function tickPipeDisplayBuffers(state: GameState) {
+  for (const instance of state.machineInstances) {
+    if (isSteamPipeMachine(instance.machineId)) {
+      const steamCapacity = steamPipeBufferCapacityMs(instance.machineId)
+      const fluidCapacity = fluidPipeBufferCapacityLitres(instance.machineId)
+      const steamFlowLitres = currentSteamPipeFlowLitresPerSecond(state, instance)
+      const sourceSteamMs = availableConnectedSteam(state, instance)
+      const primaryFluidFlow = [...currentFluidOutputFlows(state, instance)].sort((a, b) => b.litresPerSecond - a.litresPerSecond)[0]
+
+      instance.process.steamCapacityMs = steamCapacity
+      instance.process.steamStoredMs =
+        sourceSteamMs > 0 ? Math.min(steamCapacity, sourceSteamMs, Math.max(steamFlowLitres * steamMsPerLitre * 0.5, steamCapacity * 0.35)) : 0
+      instance.process.fluidCapacityLitres = fluidCapacity
+      instance.process.fluids = primaryFluidFlow
+        ? {
+            [primaryFluidFlow.fluidId]: Math.min(
+              fluidCapacity,
+              primaryFluidFlow.storedLitres,
+              Math.max(primaryFluidFlow.litresPerSecond * 0.5, fluidCapacity * 0.35),
+            ),
+          }
+        : { water: 0, creosote: 0 }
+    } else if (isEuCableMachine(instance.machineId)) {
+      const capacity = euCableBufferCapacity(instance.machineId)
+      const flowEu = currentEuCableFlowEuPerSecond(state, instance)
+      const availableEu = availableConnectedEu(state, instance)
+      instance.process.euCapacity = capacity
+      instance.process.euStored = availableEu > 0 ? Math.min(capacity, availableEu, Math.max(flowEu * 0.5, capacity * 0.35)) : 0
+    }
+  }
 }
 
 function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, fluidId: FluidId, elapsedMs: number) {
@@ -1926,6 +2040,13 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   if (isConfigurableConnector(machineId)) {
     placed.pipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
     placed.pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
+    for (const direction of pipeDirections) {
+      const offset = pipeDirectionOffsets[direction]
+      const neighbour = machineAt(next, x + offset.dx, y + offset.dy)
+      if (!neighbour || !connectorsCanAutoConnect(machineId, neighbour.machineId)) continue
+      setConnectorSideModeInPlace(placed, direction, 'both')
+      setConnectorSideModeInPlace(neighbour, oppositePipeDirection[direction], 'both')
+    }
   }
   next.machineInstances.push(placed)
   tryFormMultiblock(next, placed)
@@ -1989,6 +2110,23 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   else delete disabledSides[direction]
   nextInstance.pipeSideModes = modes
   nextInstance.pipeDisabledSides = disabledSides
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function setHopperOutputDirection(state: GameState, uid: string, direction: PipeDirection) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isItemHopperMachine(instance.machineId)) return state
+
+  const nextMode: PipeSideMode = pipeSideMode(instance, direction) === 'output' ? 'blocked' : 'output'
+  const next = cloneState(state)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextInstance) return state
+
+  nextInstance.pipeSideModes = Object.fromEntries(pipeDirections.map((candidate) => [candidate, candidate === direction ? nextMode : 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
+  nextInstance.pipeDisabledSides = Object.fromEntries(
+    pipeDirections.filter((candidate) => candidate !== direction || nextMode === 'blocked').map((candidate) => [candidate, true]),
+  ) as Partial<Record<PipeDirection, boolean>>
   next.lastSavedAt = Date.now()
   return next
 }
@@ -2069,7 +2207,9 @@ export function crowbarRemoveMachineInstance(state: GameState, uid: string) {
   return removeMachineInstance(applyDurabilityCosts(state, [{ id: 'ironCrowbar', amount: 1 }]), uid)
 }
 
-function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
+export function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
+  if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
+  if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
   if (slotId === 'input') {
     return processRecipes.some(
       (recipe) =>
@@ -2097,9 +2237,9 @@ function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId
 }
 
 export function insertProcessSlot(state: GameState, uid: string, slotId: ProcessSlotId, resourceId: ResourceId, amount = processStackLimit) {
-  if (slotId === 'output') return state
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !canResourceEnterProcessSlot(instance.machineId, slotId, resourceId)) return state
+  if (slotId === 'output' && !isItemHopperMachine(instance.machineId)) return state
 
   const currentSlot = instance.process[slotId]
   if (currentSlot && currentSlot.id !== resourceId) return state
@@ -2117,8 +2257,8 @@ export function insertProcessSlot(state: GameState, uid: string, slotId: Process
 }
 
 export function removeProcessSlot(state: GameState, uid: string, slotId: ProcessSlotId) {
-  if (slotId === 'output') return collectProcessOutput(state, uid)
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (slotId === 'output' && instance && !isItemHopperMachine(instance.machineId)) return collectProcessOutput(state, uid)
   const slot = instance?.process[slotId]
   if (!instance || !slot) return state
 
@@ -2577,8 +2717,73 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
   instance.process.activeRecipeId = completedAction || (instance.process.progressMs > 0 && isAutoMinerPowered(state, instance)) ? `auto_mine_${targetId}` : null
 }
 
+function processSlotAcceptsItem(slot: ProcessSlot, resourceId: ResourceId) {
+  return !slot || (slot.id === resourceId && slot.amount < processStackLimit)
+}
+
+const hopperStorageSlotIds = ['input', 'secondaryInput', 'fuel', 'output'] as const satisfies readonly ProcessSlotId[]
+
+function hopperTargetSlot(machineId: MachineId, process: MachineProcessState, resourceId: ResourceId): Exclude<ProcessSlotId, 'output'> | null {
+  const slotIds: Array<Exclude<ProcessSlotId, 'output'>> = ['input', 'secondaryInput', 'fuel']
+  return slotIds.find((slotId) => canResourceEnterProcessSlot(machineId, slotId, resourceId) && processSlotAcceptsItem(process[slotId], resourceId)) ?? null
+}
+
+function hopperFeedCandidate(target: MachineInstance, hopperProcess: MachineProcessState) {
+  for (const hopperSlotId of hopperStorageSlotIds) {
+    const stored = hopperProcess[hopperSlotId]
+    if (!stored) continue
+    const targetSlotId = hopperTargetSlot(target.machineId, target.process, stored.id)
+    if (targetSlotId) return { hopperSlotId, targetSlotId, stored }
+  }
+  return null
+}
+
+function hopperOutputDirection(instance: MachineInstance): PipeDirection | null {
+  return pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'output') ?? null
+}
+
+function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const direction = hopperOutputDirection(instance)
+  if (!hopperStorageSlotIds.some((slotId) => instance.process[slotId]) || !direction) {
+    instance.process.activeRecipeId = null
+    instance.process.progressMs = 0
+    instance.process.durationMs = 0
+    return
+  }
+
+  const offset = pipeDirectionOffsets[direction]
+  const target = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+  if (!target || isItemAutomationMachine(target.machineId)) {
+    instance.process.activeRecipeId = null
+    instance.process.progressMs = 0
+    instance.process.durationMs = 0
+    return
+  }
+
+  instance.process.durationMs = 1000
+  instance.process.progressMs += elapsedMs
+  let moved = 0
+
+  while (instance.process.progressMs >= instance.process.durationMs) {
+    const candidate = hopperFeedCandidate(target, instance.process)
+    if (!candidate) break
+
+    const targetSlot = target.process[candidate.targetSlotId]
+    target.process[candidate.targetSlotId] = targetSlot ? { id: candidate.stored.id, amount: targetSlot.amount + 1 } : { id: candidate.stored.id, amount: 1 }
+    instance.process[candidate.hopperSlotId] = decrementProcessSlot(instance.process[candidate.hopperSlotId], 1)
+    instance.process.progressMs -= instance.process.durationMs
+    moved += 1
+  }
+
+  if (!hopperStorageSlotIds.some((slotId) => instance.process[slotId])) instance.process.progressMs = 0
+  instance.process.activeRecipeId = moved > 0 || instance.process.progressMs > 0 ? 'hopper_feed' : null
+}
+
 export function tickMachineInstances(state: GameState, elapsedMs: number, now = Date.now()) {
   const next = cloneState(state)
+  for (const instance of next.machineInstances) {
+    if (isItemHopperMachine(instance.machineId)) tickItemHopper(next, instance, elapsedMs)
+  }
   for (const instance of next.machineInstances) {
     if (instance.machineId === 'furnace') tickFurnaceProcess(instance, elapsedMs)
     if (instance.machineId === 'steamBoiler') tickSteamBoiler(next, instance, elapsedMs)
@@ -2635,6 +2840,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
   for (const instance of next.machineInstances) {
     if (isAutoMinerMachine(instance.machineId)) tickAutoMiner(next, instance, elapsedMs)
   }
+  tickPipeDisplayBuffers(next)
   next.lastSavedAt = now
   return next
 }
