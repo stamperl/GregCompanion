@@ -329,11 +329,11 @@
   <body>
     <main>
       <header>
-        <h1>Machine UI Size Approval V4</h1>
+        <h1>Machine UI Size Approval V6</h1>
         <p>Review the candidate machine PNGs at the sizes they appear in the recipe browser, factory parts tray, factory floor, and larger detail views. These are not applied to the game until this round is approved.</p>
         <div class="actions">
           <a href="./index.html">Back to icon board</a>
-          <a href="./machine-candidates-v4/cokeOven.png">Open Coke Oven Candidate</a>
+          <a href="./machine-candidates-v6/cokeOven.png">Open Coke Oven Candidate</a>
           <a href="./bbf-casing-candidate-v3-source.png">BBF Casing Source</a>
           <a href="./arc-casing-candidate-v3-source.png">Arc Casing Source</a>
           <button type="button" id="approve-all">Approve all visible</button>
@@ -352,8 +352,8 @@
     </main>
 
     <script>
-      const storageKey = 'click-foundry-machine-ui-size-approval-v4'
-      const assetVersion = 'ui-size-approval-2026-07-08-4'
+      const storageKey = 'click-foundry-machine-ui-size-approval-v6'
+      const assetVersion = 'ui-size-approval-2026-07-08-6'
       const machines = [
         ['furnace', 'Stone Furnace', 'steam'],
         ['well', 'Well', 'steam'],
@@ -409,7 +409,7 @@
       const summaryOutput = document.getElementById('summary-output')
 
       function srcFor(id) {
-        return `./machine-candidates-v4/${id}.png?v=${assetVersion}`
+        return `./machine-candidates-v6/${id}.png?v=${assetVersion}`
       }
 
       function saveState() {
@@ -432,7 +432,7 @@
         const waiting = machines.filter((machine) => !state[machine[0]])
         summaryCounts.textContent = `${approved.length} approved, ${rejected.length} rejected, ${waiting.length} waiting.`
         const lines = [
-          `Machine UI Size Approval V4`,
+          `Machine UI Size Approval V6`,
           `Approved: ${approved.length}`,
           `Rejected: ${rejected.length}`,
           `Waiting: ${waiting.length}`,
