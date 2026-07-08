@@ -1,16 +1,18 @@
 import { machines, resourceRegistry } from '../game/content'
+import { deploymentInfo } from '../game/deployment'
 import type { MachineId, ResourceId } from '../game/types'
 
 const preloadedIconImages = new Map<string, HTMLImageElement>()
 const preloadedIconLinks = new Set<string>()
 let iconPreloadPromise: Promise<void> | null = null
+const iconAssetVersion = encodeURIComponent(`${deploymentInfo.channel}-${deploymentInfo.revision}-${deploymentInfo.version}`)
 
 export function resourceIconSrc(id: ResourceId) {
-  return `${import.meta.env.BASE_URL}game-icons/resources/${id}.png`
+  return `${import.meta.env.BASE_URL}game-icons/resources/${id}.png?v=${iconAssetVersion}`
 }
 
 export function machineIconSrc(id: MachineId) {
-  return `${import.meta.env.BASE_URL}game-icons/machines/${id}.png`
+  return `${import.meta.env.BASE_URL}game-icons/machines/${id}.png?v=${iconAssetVersion}`
 }
 
 function preloadImage(src: string) {
