@@ -1,12 +1,10 @@
 {
-  "revision": "0.1.1",
-  "date": "2026-07-06",
-  "title": "Automation and fluid polish",
+  "revision": "0.1.2",
+  "date": "2026-07-08",
+  "title": "Coke Oven multiblock",
   "notes": [
-    "Added early factory automation with standard chests, configurable hoppers, and mechanical pistons.",
-    "Reworked tanks and pipes so they show only the fluid they actually contain, with clearer flow and capacity readouts.",
-    "Balanced steam and LV recipe paths so machine processing is easier to leave running while later parts stay harder to make.",
-    "Improved steam, EU, and liquid transfer so connected machines share pipe and cable limits more consistently.",
-    "Polished mobile quest maps, recipe browsing, and machine panels so core screens are easier to use."
+    "Reworked the Coke Oven into a multiblock built from Coke Oven Blocks.",
+    "Existing placed Coke Ovens now prompt players to replace them and grant the new blocks needed for the rebuild.",
+    "Updated machine artwork so steam, LV, and multiblock machines are easier to tell apart on the factory floor."
   ]
 }
