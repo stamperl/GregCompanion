@@ -717,6 +717,12 @@ describe('game engine', () => {
       'tinCable',
       'lvBatteryBuffer',
       'liquidSteamBoiler',
+      'lvMacerator',
+      'lvForgeHammer',
+      'lvCompressor',
+      'lvExtractor',
+      'lvAlloySmelter',
+      'lvFurnace',
       'lvWiremill',
       'lvBender',
       'lvLathe',
@@ -742,6 +748,12 @@ describe('game engine', () => {
     expect(state.machines.tinCable).toBe(0)
     expect(state.machines.lvBatteryBuffer).toBe(0)
     expect(state.machines.liquidSteamBoiler).toBe(0)
+    expect(state.machines.lvMacerator).toBe(0)
+    expect(state.machines.lvForgeHammer).toBe(0)
+    expect(state.machines.lvCompressor).toBe(0)
+    expect(state.machines.lvExtractor).toBe(0)
+    expect(state.machines.lvAlloySmelter).toBe(0)
+    expect(state.machines.lvFurnace).toBe(0)
     expect(state.machines.lvWiremill).toBe(0)
     expect(state.machines.lvBender).toBe(0)
     expect(state.machines.lvLathe).toBe(0)
@@ -3082,7 +3094,7 @@ describe('game engine', () => {
       ['lv_assembler_insulated_copper_wire', 'lvAssembler', { id: 'copperWire', amount: 2 }, { id: 'rubber', amount: 1 }, { id: 'conductiveWire', amount: 2 }],
       ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 3 }],
       ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 6 }, { id: 'basicBoard', amount: 1 }],
-      ['lv_alloy_cupronickel', 'lvAssembler', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 5 }],
+      ['lv_alloy_cupronickel', 'lvAlloySmelter', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 5 }],
     ] as const
 
     for (const [id, machineId, input, secondaryInput, output] of expectations) {

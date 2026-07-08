@@ -276,6 +276,12 @@ const machineOrder: MachineId[] = [
   'tinCable',
   'lvBatteryBuffer',
   'liquidSteamBoiler',
+  'lvMacerator',
+  'lvForgeHammer',
+  'lvCompressor',
+  'lvExtractor',
+  'lvAlloySmelter',
+  'lvFurnace',
   'lvWiremill',
   'lvBender',
   'lvLathe',
@@ -457,6 +463,22 @@ function isCenteredCraftSlotHit(element: HTMLElement, clientX: number, clientY: 
 
 function saveSlotsFallbackLabel(slotId: SaveSlotId) {
   return `Save ${slotId.replace('slot-', '')}`
+}
+
+function waitForEntryLoadingPaint() {
+  if (typeof window === 'undefined') return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+function waitForEntryLoadingMinimum() {
+  if (typeof window === 'undefined') return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 2000)
+  })
 }
 
 function formatOfflineDuration(ms: number) {
@@ -1468,6 +1490,7 @@ function App() {
   const [saveNameDraft, setSaveNameDraft] = useState('')
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
   const [isEnteringGame, setIsEnteringGame] = useState(false)
+  const [entryLoadingMessage, setEntryLoadingMessage] = useState('Loading save')
   const [isMobileClient, setIsMobileClient] = useState(() => isMobileClientAllowed())
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
@@ -2816,7 +2839,10 @@ function App() {
 
   const handleReset = async () => {
     if (isEnteringGame) return
+    setEntryLoadingMessage(`Preparing ${selectedSaveLabel}`)
     setIsEnteringGame(true)
+    await waitForEntryLoadingPaint()
+    const minimumLoading = waitForEntryLoadingMinimum()
     cancelPendingSave()
     try {
       await clearSavedGame(selectedSaveSlotId)
@@ -2851,7 +2877,9 @@ function App() {
       setPage('gather')
       addFloatText('new save')
     } finally {
+      await minimumLoading
       setIsEnteringGame(false)
+      setEntryLoadingMessage('Loading save')
     }
   }
 
@@ -2874,7 +2902,10 @@ function App() {
 
   const handleContinueFromHome = async () => {
     if (isEnteringGame) return
+    setEntryLoadingMessage(`Loading ${selectedSaveLabel}`)
     setIsEnteringGame(true)
+    await waitForEntryLoadingPaint()
+    const minimumLoading = waitForEntryLoadingMinimum()
     try {
       const savedState = await loadSlotIntoGame(selectedSaveSlotId)
       await preloadGeneratedIconImages()
@@ -2884,7 +2915,9 @@ function App() {
       setNavigationStack([])
       setPage('gather')
     } finally {
+      await minimumLoading
       setIsEnteringGame(false)
+      setEntryLoadingMessage('Loading save')
     }
   }
 
@@ -3211,6 +3244,26 @@ function App() {
         </div>
       )}
 
+      {isEnteringGame && (
+        <div className="modal-backdrop compact-backdrop entry-loading-backdrop" role="presentation">
+          <section className="entry-loading-panel" role="status" aria-live="assertive" aria-label="Loading save">
+            <p className="eyebrow">Entering save</p>
+            <h2>{entryLoadingMessage}</h2>
+            <div className="entry-loading-machine" aria-hidden="true">
+              <MachineGlyph id="steamBoiler" active />
+              <span className="entry-loading-belt">
+                <span />
+              </span>
+              <MachineGlyph id="steamMacerator" active />
+            </div>
+            <div className="entry-loading-track" aria-hidden="true">
+              <span />
+            </div>
+            <p>Simulating offline time and warming the factory UI.</p>
+          </section>
+        </div>
+      )}
+
       {page === 'home' && (
         <section className="home-panel" aria-label="Click Foundry home">
           <div className="home-hero">
@@ -3280,7 +3333,7 @@ function App() {
           </form>
           <div className="home-actions">
             <button type="button" className="home-action primary" disabled={!hasLoadedSave || isEnteringGame} onClick={handleContinueFromHome}>
-              {isEnteringGame ? 'Loading Icons...' : `Continue ${selectedSaveLabel}`}
+              {isEnteringGame ? 'Loading save...' : `Continue ${selectedSaveLabel}`}
             </button>
             <button type="button" className="home-action danger" disabled={!hasLoadedSave || isEnteringGame} onClick={handleReset}>
               New Game In {selectedSaveLabel}
@@ -4535,7 +4588,7 @@ function App() {
                   {selectedMachine.machineId !== 'steamBoiler' && (
                   <div className="furnace-inputs">
                     <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
-                    {(selectedMachine.machineId === 'steamAlloySmelter' || selectedMachine.machineId === 'lvAssembler' || selectedMachine.machineId === 'lvCentrifuge') && (
+                    {(selectedMachine.machineId === 'steamAlloySmelter' || selectedMachine.machineId === 'lvAlloySmelter' || selectedMachine.machineId === 'lvAssembler' || selectedMachine.machineId === 'lvCentrifuge') && (
                       <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                     )}
                     {isSteamPoweredMachine(selectedMachine.machineId) && (

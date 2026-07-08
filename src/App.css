@@ -4360,6 +4360,12 @@ button.craft-output:disabled {
 .factory-cell.occupied.machine-steamAlloySmelter-cell .machine-glyph,
 .factory-cell.occupied.machine-steamFurnace-cell .machine-glyph,
 .factory-cell.occupied.machine-steamAutoMiner-cell .machine-glyph,
+.factory-cell.occupied.machine-lvMacerator-cell .machine-glyph,
+.factory-cell.occupied.machine-lvForgeHammer-cell .machine-glyph,
+.factory-cell.occupied.machine-lvCompressor-cell .machine-glyph,
+.factory-cell.occupied.machine-lvExtractor-cell .machine-glyph,
+.factory-cell.occupied.machine-lvAlloySmelter-cell .machine-glyph,
+.factory-cell.occupied.machine-lvFurnace-cell .machine-glyph,
 .factory-cell.occupied.machine-steamTurbine-cell .machine-glyph,
 .factory-cell.occupied.machine-lvWiremill-cell .machine-glyph,
 .factory-cell.occupied.machine-lvAutoMiner-cell .machine-glyph {
@@ -7256,6 +7262,12 @@ button.craft-output:disabled {
 }
 
 .machine-lvBatteryBuffer,
+.machine-lvMacerator,
+.machine-lvForgeHammer,
+.machine-lvCompressor,
+.machine-lvExtractor,
+.machine-lvAlloySmelter,
+.machine-lvFurnace,
 .machine-lvBender,
 .machine-lvLathe,
 .machine-lvElectrolyzer,
@@ -7317,12 +7329,63 @@ button.craft-output:disabled {
 .machine-lvLathe span,
 .machine-lvElectrolyzer span,
 .machine-lvAssembler span,
-.machine-lvCentrifuge span {
+.machine-lvCentrifuge span,
+.machine-lvMacerator span,
+.machine-lvForgeHammer span,
+.machine-lvCompressor span,
+.machine-lvExtractor span,
+.machine-lvAlloySmelter span,
+.machine-lvFurnace span {
   background: #151515;
   height: 16%;
   left: 24%;
   top: 54%;
   width: 34%;
+}
+
+.machine-lvMacerator span {
+  box-shadow:
+    5px -9px 0 #d8dde0,
+    10px 0 0 #3f474b,
+    13px -8px 0 #aae8f6;
+}
+
+.machine-lvForgeHammer span {
+  box-shadow:
+    7px -5px 0 #d8dde0,
+    12px -5px 0 #3f474b,
+    10px 7px 0 #aae8f6;
+}
+
+.machine-lvCompressor span {
+  background: #d8dde0;
+  box-shadow:
+    0 7px 0 #7f8b91,
+    0 14px 0 #3f474b,
+    14px 4px 0 #aae8f6;
+}
+
+.machine-lvExtractor span {
+  background: #aae8f6;
+  box-shadow:
+    0 6px 0 #75bfd4,
+    0 12px 0 #3f474b,
+    12px 10px 0 #151515;
+}
+
+.machine-lvAlloySmelter span {
+  box-shadow:
+    8px 0 0 #151515,
+    4px 10px 0 #ffb044,
+    11px 10px 0 #d66a30,
+    15px -7px 0 #aae8f6;
+}
+
+.machine-lvFurnace span {
+  box-shadow:
+    9px 0 0 #111,
+    5px 13px 0 #ff9f3e,
+    14px -7px 0 #aae8f6;
 }
 
 .machine-lvBender span {
@@ -7708,6 +7771,12 @@ button.craft-output:disabled {
 .machine-steamFurnace.active,
 .machine-steamAutoMiner.active,
 .machine-steamTurbine.active,
+.machine-lvMacerator.active,
+.machine-lvForgeHammer.active,
+.machine-lvCompressor.active,
+.machine-lvExtractor.active,
+.machine-lvAlloySmelter.active,
+.machine-lvFurnace.active,
 .machine-lvWiremill.active,
 .machine-lvBender.active,
 .machine-lvLathe.active,
@@ -7841,6 +7910,134 @@ button.craft-output:disabled {
 
 .offline-progress-dialog .load-recipe-button {
   justify-self: stretch;
+}
+
+.entry-loading-backdrop {
+  background:
+    linear-gradient(90deg, rgba(74, 74, 74, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(74, 74, 74, 0.07) 1px, transparent 1px),
+    var(--paper);
+  background-size: 18px 18px;
+  inset: 0;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  position: fixed;
+  z-index: 120;
+}
+
+.entry-loading-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 44%),
+    var(--bevel-face);
+  border: 3px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  box-shadow: 0 12px 0 rgba(0, 0, 0, 0.32);
+  color: var(--ink-strong);
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+  padding: 12px;
+  width: min(100%, 420px);
+}
+
+.entry-loading-panel h2 {
+  color: var(--ink-strong);
+  font-family: var(--display-font);
+  font-size: 1rem;
+  line-height: 1.05;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.entry-loading-panel > p:last-child {
+  color: var(--bevel-drop);
+  font-size: 0.7rem;
+  font-weight: 950;
+  line-height: 1.2;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.entry-loading-machine {
+  align-items: center;
+  background:
+    linear-gradient(90deg, rgba(74, 74, 74, 0.22) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(74, 74, 74, 0.18) 1px, transparent 1px),
+    var(--bevel-well);
+  background-size: 18px 18px;
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 58px minmax(0, 1fr) 58px;
+  min-height: 76px;
+  padding: 8px;
+}
+
+.entry-loading-machine .machine-glyph {
+  height: 52px;
+  width: 52px;
+}
+
+.entry-loading-belt {
+  background: #3c3429;
+  border: 2px solid #1b1712;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.18);
+  display: block;
+  height: 18px;
+  overflow: hidden;
+  position: relative;
+}
+
+.entry-loading-belt span {
+  animation: entryBeltMove 620ms steps(6, end) infinite;
+  background: repeating-linear-gradient(90deg, #d58d47 0 12px, #6b4b2f 12px 18px, #2b241c 18px 24px);
+  display: block;
+  height: 100%;
+  width: 150%;
+}
+
+.entry-loading-track {
+  background: var(--bevel-inset);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  height: 16px;
+  overflow: hidden;
+}
+
+.entry-loading-track span {
+  animation: entryLoadingSweep 1.15s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--signal), var(--copper), var(--steam));
+  display: block;
+  height: 100%;
+  width: 42%;
+}
+
+@keyframes entryBeltMove {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-48px);
+  }
+}
+
+@keyframes entryLoadingSweep {
+  0% {
+    transform: translateX(-105%);
+  }
+
+  55% {
+    transform: translateX(68%);
+  }
+
+  100% {
+    transform: translateX(245%);
+  }
 }
 
 .missing-slot-list {

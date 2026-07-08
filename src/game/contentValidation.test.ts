@@ -5,6 +5,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import {
+  canAutoMinerTarget,
   fuelDefinitions,
   fluidIds,
   gatherTargets,
@@ -18,7 +19,7 @@ import {
   resourceRegistry,
   tools,
 } from './content'
-import type { MachineAmount, QuestObjective, Recipe, ResourceAmount } from './types'
+import type { MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount } from './types'
 
 const appCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../App.css'), 'utf8')
 const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../public')
@@ -124,6 +125,29 @@ describe('content validation', () => {
       if (machine.produces) expectResourceAmountReferences(machine.produces, `${id} produces`)
       if (machine.consumes) expectResourceAmountReferences(machine.consumes, `${id} consumes`)
       if (machine.unlockedBy) expect(quests.some((quest) => quest.id === machine.unlockedBy), `${id} unlockedBy should reference a quest`).toBe(true)
+    }
+  })
+
+  it('keeps core steam processing machines paired with LV equivalents', () => {
+    const steamToLvMachinePairs: Array<[MachineId, MachineId]> = [
+      ['steamMacerator', 'lvMacerator'],
+      ['steamForgeHammer', 'lvForgeHammer'],
+      ['steamCompressor', 'lvCompressor'],
+      ['steamExtractor', 'lvExtractor'],
+      ['steamAlloySmelter', 'lvAlloySmelter'],
+      ['steamFurnace', 'lvFurnace'],
+      ['steamAutoMiner', 'lvAutoMiner'],
+    ]
+
+    for (const [steamMachineId, lvMachineId] of steamToLvMachinePairs) {
+      expect(machines, `${steamMachineId} should exist`).toHaveProperty(steamMachineId)
+      expect(machines, `${lvMachineId} should exist as ${steamMachineId} LV equivalent`).toHaveProperty(lvMachineId)
+      expect(recipes.some((recipe) => recipe.machineOutputs?.some((output) => output.id === lvMachineId)), `${lvMachineId} should have a build recipe`).toBe(true)
+      if (lvMachineId === 'lvAutoMiner') {
+        expect(canAutoMinerTarget(lvMachineId, 'stone'), `${lvMachineId} should support auto-mining targets`).toBe(true)
+      } else {
+        expect(processRecipes.some((recipe) => recipe.machineId === lvMachineId), `${lvMachineId} should have process recipes`).toBe(true)
+      }
     }
   })
 
