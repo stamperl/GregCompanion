@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Machine UI Size Approval</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        --paper: #c8bd95;
+        --panel: #b5aa83;
+        --field: #8f886c;
+        --ink: #20170f;
+        --dark: #15100b;
+        --line: #efe2b1;
+        --edge: #51442b;
+        --ready: #31592d;
+        --reject: #6b2e2b;
+        --muted: #5e5848;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #080706;
+        color: var(--ink);
+        margin: 0;
+        padding: 10px;
+      }
+
+      main {
+        display: grid;
+        gap: 10px;
+        margin: 0 auto;
+        max-width: 1180px;
+      }
+
+      header,
+      .panel,
+      .machine-card {
+        background: var(--paper);
+        border: 3px solid var(--line);
+        border-bottom-color: var(--edge);
+        border-radius: 0;
+        border-right-color: var(--edge);
+        box-shadow: 0 4px 0 #050403;
+      }
+
+      header,
+      .panel {
+        padding: 10px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 1rem;
+        line-height: 1.05;
+        text-transform: uppercase;
+      }
+
+      h2 {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+      }
+
+      h3 {
+        font-size: 0.78rem;
+        line-height: 1.05;
+        text-transform: uppercase;
+      }
+
+      p,
+      textarea {
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 9px;
+      }
+
+      a,
+      button {
+        background: #443826;
+        border: 2px solid var(--line);
+        border-bottom-color: #3f321f;
+        border-radius: 0;
+        border-right-color: #3f321f;
+        color: #fff7dd;
+        cursor: pointer;
+        font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+        min-height: 34px;
+        padding: 7px 9px;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+
+      button.approve {
+        background: var(--ready);
+      }
+
+      button.reject {
+        background: var(--reject);
+      }
+
+      button.selected {
+        outline: 3px solid #fff38a;
+      }
+
+      button:active,
+      a:active {
+        transform: translateY(2px);
+      }
+
+      .grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      }
+
+      .machine-card {
+        display: grid;
+        gap: 8px;
+        padding: 8px;
+      }
+
+      .machine-head {
+        align-items: start;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .badge {
+        background: #4b4030;
+        color: #f4e4b4;
+        font-size: 0.58rem;
+        font-weight: 950;
+        padding: 4px 6px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .badge.lv {
+        background: #30404b;
+        color: #cfe9f4;
+      }
+
+      .badge.multi {
+        background: #4c302c;
+      }
+
+      .samples {
+        display: grid;
+        gap: 6px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .sample {
+        align-content: start;
+        background: var(--panel);
+        border: 2px solid #e7d9a9;
+        border-bottom-color: #62583e;
+        border-right-color: #62583e;
+        display: grid;
+        gap: 4px;
+        justify-items: center;
+        min-width: 0;
+        padding: 5px;
+      }
+
+      .sample-label {
+        color: #514b3c;
+        font-size: 0.54rem;
+        font-weight: 950;
+        line-height: 1;
+        min-height: 1.1em;
+        text-align: center;
+        text-transform: uppercase;
+      }
+
+      .slot {
+        align-items: center;
+        background: #b9b6a4;
+        border: 2px solid #f3f0df;
+        border-bottom-color: #5b594f;
+        border-right-color: #5b594f;
+        display: grid;
+        justify-items: center;
+        position: relative;
+      }
+
+      .slot.recipe {
+        height: 34px;
+        width: 34px;
+      }
+
+      .slot.parts {
+        height: 44px;
+        width: 44px;
+      }
+
+      .slot.factory {
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+          linear-gradient(315deg, rgba(0, 0, 0, 0.2), transparent 42%),
+          #4c5251;
+        border-color: #242929;
+        border-bottom-color: #6b7370;
+        border-right-color: #6b7370;
+        height: 50px;
+        width: 50px;
+      }
+
+      .slot.detail {
+        height: 72px;
+        width: 72px;
+      }
+
+      .slot.factory::before {
+        background:
+          radial-gradient(ellipse at 50% 58%, rgba(0, 0, 0, 0.36) 0 52%, transparent 54%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.12)),
+          #3b4140;
+        content: "";
+        height: 36px;
+        position: absolute;
+        width: 36px;
+      }
+
+      .slot img {
+        display: block;
+        image-rendering: pixelated;
+        object-fit: contain;
+        position: relative;
+        z-index: 1;
+      }
+
+      .slot.recipe img {
+        height: 26px;
+        width: 26px;
+      }
+
+      .slot.parts img {
+        height: 32px;
+        width: 32px;
+      }
+
+      .slot.factory img {
+        filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, 0.35));
+        height: 48px;
+        width: 48px;
+      }
+
+      .slot.detail img {
+        height: 64px;
+        width: 64px;
+      }
+
+      .status {
+        color: #524c3d;
+        font-size: 0.65rem;
+        font-weight: 950;
+        min-height: 1rem;
+        text-transform: uppercase;
+      }
+
+      .status.approve {
+        color: #244b20;
+      }
+
+      .status.reject {
+        color: #642622;
+      }
+
+      .summary {
+        display: grid;
+        gap: 8px;
+      }
+
+      textarea {
+        background: #1d1a14;
+        border: 2px solid #f0dfaa;
+        border-bottom-color: #4c3b23;
+        border-radius: 0;
+        border-right-color: #4c3b23;
+        color: #fff6d8;
+        min-height: 112px;
+        padding: 8px;
+        resize: vertical;
+        width: 100%;
+      }
+
+      @media (max-width: 620px) {
+        body {
+          padding: 7px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .samples {
+          gap: 5px;
+        }
+
+        a,
+        button {
+          font-size: 0.62rem;
+          padding: 6px 7px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Machine UI Size Approval</h1>
+        <p>Review the exact machine PNGs currently used by the app at the sizes they appear in the recipe browser, factory parts tray, factory floor, and larger detail views.</p>
+        <div class="actions">
+          <a href="./index.html">Back to icon board</a>
+          <a href="../game-icons/machines/cokeOven.png">Open Coke Oven PNG</a>
+          <button type="button" id="approve-all">Approve all visible</button>
+          <button type="button" id="reset-review">Reset review</button>
+          <button type="button" id="copy-summary">Copy summary</button>
+        </div>
+      </header>
+
+      <section class="panel summary">
+        <h2>Review Summary</h2>
+        <p id="summary-counts">No review decisions yet.</p>
+        <textarea id="summary-output" readonly spellcheck="false" aria-label="Review summary"></textarea>
+      </section>
+
+      <section class="grid" id="machine-grid" aria-label="Machine icon approval grid"></section>
+    </main>
+
+    <script>
+      const storageKey = 'click-foundry-machine-ui-size-approval-v1'
+      const assetVersion = 'ui-size-approval-2026-07-08-1'
+      const machines = [
+        ['furnace', 'Stone Furnace', 'steam'],
+        ['well', 'Well', 'steam'],
+        ['steamBoiler', 'Steam Boiler', 'steam'],
+        ['steamTank', 'Iron Tank', 'steam'],
+        ['standardChest', 'Standard Chest', 'steam'],
+        ['hopper', 'Hopper', 'steam'],
+        ['copperPipe', 'Copper Pipe', 'pipe'],
+        ['bronzePipe', 'Bronze Pipe', 'pipe'],
+        ['ironPipe', 'Iron Pipe', 'pipe'],
+        ['steamMacerator', 'Steam Macerator', 'steam'],
+        ['steamForgeHammer', 'Steam Forge Hammer', 'steam'],
+        ['steamCompressor', 'Steam Compressor', 'steam'],
+        ['steamExtractor', 'Steam Extractor', 'steam'],
+        ['steamAlloySmelter', 'Steam Alloy Smelter', 'steam'],
+        ['steamFurnace', 'Steam Furnace', 'steam'],
+        ['steamAutoMiner', 'Steam Auto Miner', 'steam'],
+        ['steamTurbine', 'Steam Turbine', 'steam'],
+        ['tinCable', 'Tin Cable', 'pipe'],
+        ['lvBatteryBuffer', 'LV Battery Buffer', 'lv'],
+        ['liquidSteamBoiler', 'Liquid Steam Boiler', 'steam'],
+        ['lvMacerator', 'LV Macerator', 'lv'],
+        ['lvForgeHammer', 'LV Forge Hammer', 'lv'],
+        ['lvCompressor', 'LV Compressor', 'lv'],
+        ['lvExtractor', 'LV Extractor', 'lv'],
+        ['lvAlloySmelter', 'LV Alloy Smelter', 'lv'],
+        ['lvFurnace', 'LV Furnace', 'lv'],
+        ['lvWiremill', 'LV Wiremill', 'lv'],
+        ['lvBender', 'LV Bender', 'lv'],
+        ['lvLathe', 'LV Lathe', 'lv'],
+        ['lvElectrolyzer', 'LV Electrolyzer', 'lv'],
+        ['lvAssembler', 'LV Assembler', 'lv'],
+        ['lvCentrifuge', 'LV Centrifuge', 'lv'],
+        ['lvAutoMiner', 'LV Auto Miner', 'lv'],
+        ['cokeOvenPart', 'Coke Oven Block', 'multi'],
+        ['cokeOven', 'Coke Oven', 'multi'],
+        ['brickedBlastFurnacePart', 'BBF Casing', 'multi'],
+        ['brickedBlastFurnace', 'Bricked Blast Furnace', 'multi'],
+        ['arcBlastFurnacePart', 'Arc Furnace Casing', 'multi'],
+        ['arcBlastFurnace', 'Arc Furnace', 'multi'],
+      ]
+
+      const sizeSamples = [
+        ['recipe', 'Recipe 26px'],
+        ['parts', 'Parts 32px'],
+        ['factory', 'Floor 48px'],
+        ['detail', 'Detail 64px'],
+      ]
+
+      const state = JSON.parse(localStorage.getItem(storageKey) || '{}')
+      const grid = document.getElementById('machine-grid')
+      const summaryCounts = document.getElementById('summary-counts')
+      const summaryOutput = document.getElementById('summary-output')
+
+      function srcFor(id) {
+        return `../game-icons/machines/${id}.png?v=${assetVersion}`
+      }
+
+      function saveState() {
+        localStorage.setItem(storageKey, JSON.stringify(state))
+      }
+
+      function statusText(value) {
+        if (value === 'approve') return 'Approved'
+        if (value === 'reject') return 'Rejected'
+        return 'Waiting for review'
+      }
+
+      function machineLine([id, name, tier]) {
+        return `${name} (${id}, ${tier})`
+      }
+
+      function updateSummary() {
+        const approved = machines.filter((machine) => state[machine[0]] === 'approve')
+        const rejected = machines.filter((machine) => state[machine[0]] === 'reject')
+        const waiting = machines.filter((machine) => !state[machine[0]])
+        summaryCounts.textContent = `${approved.length} approved, ${rejected.length} rejected, ${waiting.length} waiting.`
+        const lines = [
+          `Machine UI Size Approval`,
+          `Approved: ${approved.length}`,
+          `Rejected: ${rejected.length}`,
+          `Waiting: ${waiting.length}`,
+          '',
+          'Rejected machines:',
+          ...(rejected.length ? rejected.map(machineLine) : ['None']),
+          '',
+          'Approved machines:',
+          ...(approved.length ? approved.map(machineLine) : ['None']),
+        ]
+        summaryOutput.value = lines.join('\n')
+      }
+
+      function render() {
+        grid.innerHTML = ''
+        machines.forEach(([id, name, tier], index) => {
+          const decision = state[id]
+          const card = document.createElement('article')
+          card.className = 'machine-card'
+          card.innerHTML = `
+            <div class="machine-head">
+              <div>
+                <h3>${index + 1}. ${name}</h3>
+                <p>${id}</p>
+              </div>
+              <span class="badge ${tier}">${tier}</span>
+            </div>
+            <div class="samples">
+              ${sizeSamples
+                .map(([className, label]) => `
+                  <div class="sample">
+                    <span class="sample-label">${label}</span>
+                    <span class="slot ${className}">
+                      <img src="${srcFor(id)}" alt="" draggable="false" />
+                    </span>
+                  </div>
+                `)
+                .join('')}
+            </div>
+            <p class="status ${decision || ''}">${statusText(decision)}</p>
+            <div class="actions">
+              <button type="button" class="approve ${decision === 'approve' ? 'selected' : ''}" data-id="${id}" data-value="approve">Approve</button>
+              <button type="button" class="reject ${decision === 'reject' ? 'selected' : ''}" data-id="${id}" data-value="reject">Reject</button>
+            </div>
+          `
+          grid.append(card)
+        })
+        updateSummary()
+      }
+
+      grid.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-id]')
+        if (!button) return
+        state[button.dataset.id] = button.dataset.value
+        saveState()
+        render()
+      })
+
+      document.getElementById('approve-all').addEventListener('click', () => {
+        for (const [id] of machines) {
+          if (!state[id]) state[id] = 'approve'
+        }
+        saveState()
+        render()
+      })
+
+      document.getElementById('reset-review').addEventListener('click', () => {
+        for (const [id] of machines) delete state[id]
+        saveState()
+        render()
+      })
+
+      document.getElementById('copy-summary').addEventListener('click', async () => {
+        summaryOutput.select()
+        try {
+          await navigator.clipboard.writeText(summaryOutput.value)
+        } catch {
+          document.execCommand('copy')
+        }
+      })
+
+      render()
+    </script>
+  </body>
+</html>
