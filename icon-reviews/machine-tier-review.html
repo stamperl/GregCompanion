@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Machine Tier Icon Review</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #111;
+        color: #f4f0dc;
+        margin: 0;
+        padding: 12px;
+      }
+
+      main {
+        display: grid;
+        gap: 12px;
+        margin: 0 auto;
+        max-width: 1180px;
+      }
+
+      header,
+      .panel,
+      .tile {
+        background: #25221b;
+        border: 2px solid #d7c99b;
+        border-bottom-color: #5c5038;
+        border-right-color: #5c5038;
+        box-shadow: 0 3px 0 #080706;
+      }
+
+      header,
+      .panel {
+        padding: 10px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 1rem;
+        line-height: 1.1;
+        text-transform: uppercase;
+      }
+
+      h2 {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+      }
+
+      p,
+      li {
+        color: #d9d0b5;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      a,
+      button {
+        background: #443826;
+        border: 2px solid #f0dfaa;
+        border-bottom-color: #4c3b23;
+        border-radius: 0;
+        border-right-color: #4c3b23;
+        color: #fff7dd;
+        cursor: pointer;
+        font: 900 0.74rem Inter, ui-sans-serif, system-ui, sans-serif;
+        min-height: 36px;
+        padding: 7px 10px;
+        text-decoration: none;
+        text-transform: uppercase;
+      }
+
+      button.reject {
+        background: #4c2626;
+      }
+
+      button.approve {
+        background: #2f4a2d;
+      }
+
+      button.selected {
+        outline: 3px solid #fff38a;
+      }
+
+      .sheet-preview {
+        background: #777;
+        display: block;
+        image-rendering: pixelated;
+        width: 100%;
+      }
+
+      .grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      }
+
+      .tile {
+        display: grid;
+        gap: 8px;
+        padding: 8px;
+      }
+
+      .icon-crop {
+        aspect-ratio: 1;
+        background-image: url("./machine-tier-family-v2.png");
+        background-repeat: no-repeat;
+        background-size: 500% 500%;
+        border: 2px solid #5f5f5f;
+        image-rendering: pixelated;
+        width: 100%;
+      }
+
+      .tile-head {
+        display: flex;
+        gap: 6px;
+        justify-content: space-between;
+      }
+
+      .tile strong {
+        color: #fff7dd;
+        font-size: 0.76rem;
+        line-height: 1.08;
+        text-transform: uppercase;
+      }
+
+      .badge {
+        background: #313c46;
+        color: #bdeeff;
+        font-size: 0.56rem;
+        font-weight: 950;
+        padding: 3px 5px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .badge.steam {
+        background: #4c351f;
+        color: #ffd18a;
+      }
+
+      .badge.new {
+        background: #173d47;
+      }
+
+      .status {
+        color: #bfb8a0;
+        font-size: 0.68rem;
+        font-weight: 950;
+        min-height: 1rem;
+        text-transform: uppercase;
+      }
+
+      .summary-list {
+        display: grid;
+        gap: 6px;
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      @media (max-width: 540px) {
+        body {
+          padding: 8px;
+        }
+
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        a,
+        button {
+          font-size: 0.66rem;
+          padding: 6px 7px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Machine Tier Icon Review</h1>
+        <p>Generated draft using the image generator. V2 pushes the steam tier warmer and more bronze while keeping the LV tier steel-led and slightly more technical.</p>
+        <div class="actions">
+          <a href="./machine-tier-family-v2.png">Open v2 full sheet</a>
+          <a href="./machine-tier-family-v1.png">Compare v1</a>
+          <a href="./index.html">Back to icon board</a>
+          <button type="button" id="reset-review">Reset review</button>
+        </div>
+      </header>
+
+      <section class="panel">
+        <h2>Full generated sheet</h2>
+        <img class="sheet-preview" src="./machine-tier-family-v2.png" alt="Generated machine tier concept sheet." />
+      </section>
+
+      <section class="panel">
+        <h2>Approve / reject by machine</h2>
+        <div class="grid" id="machine-grid"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Review summary</h2>
+        <p id="summary-counts">No review decisions yet.</p>
+        <ol class="summary-list" id="summary-list"></ol>
+      </section>
+    </main>
+
+    <script>
+      const storageKey = 'click-foundry-machine-tier-review-v2'
+      const machines = [
+        ['steamBoiler', 'Steam Boiler', 'steam'],
+        ['steamTank', 'Iron Tank', 'steam'],
+        ['steamMacerator', 'Steam Macerator', 'steam'],
+        ['steamForgeHammer', 'Steam Forge Hammer', 'steam'],
+        ['steamCompressor', 'Steam Compressor', 'steam'],
+        ['steamExtractor', 'Steam Extractor', 'steam'],
+        ['steamAlloySmelter', 'Steam Alloy Smelter', 'steam'],
+        ['steamFurnace', 'Steam Furnace', 'steam'],
+        ['steamAutoMiner', 'Steam Auto Miner', 'steam'],
+        ['steamTurbine', 'Steam Turbine', 'steam'],
+        ['liquidSteamBoiler', 'Liquid Steam Boiler', 'lv'],
+        ['lvMacerator', 'LV Macerator', 'new'],
+        ['lvForgeHammer', 'LV Forge Hammer', 'new'],
+        ['lvCompressor', 'LV Compressor', 'new'],
+        ['lvExtractor', 'LV Extractor', 'new'],
+        ['lvAlloySmelter', 'LV Alloy Smelter', 'new'],
+        ['lvFurnace', 'LV Furnace', 'new'],
+        ['lvWiremill', 'LV Wiremill', 'lv'],
+        ['lvBender', 'LV Bender', 'lv'],
+        ['lvLathe', 'LV Lathe', 'lv'],
+        ['lvElectrolyzer', 'LV Electrolyzer', 'lv'],
+        ['lvAssembler', 'LV Assembler', 'lv'],
+        ['lvCentrifuge', 'LV Centrifuge', 'lv'],
+        ['lvAutoMiner', 'LV Auto Miner', 'lv'],
+        ['lvBatteryBuffer', 'LV Battery Buffer', 'lv'],
+      ]
+
+      const state = JSON.parse(localStorage.getItem(storageKey) || '{}')
+      const grid = document.getElementById('machine-grid')
+      const summaryCounts = document.getElementById('summary-counts')
+      const summaryList = document.getElementById('summary-list')
+
+      function saveState() {
+        localStorage.setItem(storageKey, JSON.stringify(state))
+      }
+
+      function cropStyle(index) {
+        const col = index % 5
+        const row = Math.floor(index / 5)
+        return `background-position: ${col * 25}% ${row * 25}%`
+      }
+
+      function statusText(value) {
+        if (value === 'approve') return 'Approved'
+        if (value === 'reject') return 'Rejected'
+        return 'Waiting for review'
+      }
+
+      function updateSummary() {
+        const approved = machines.filter(([id]) => state[id] === 'approve')
+        const rejected = machines.filter(([id]) => state[id] === 'reject')
+        summaryCounts.textContent = `${approved.length} approved, ${rejected.length} rejected, ${machines.length - approved.length - rejected.length} waiting.`
+        summaryList.innerHTML = ''
+        for (const [id, name, tier] of rejected) {
+          const item = document.createElement('li')
+          item.textContent = `${name} (${tier === 'new' ? 'new LV' : tier})`
+          summaryList.append(item)
+        }
+      }
+
+      function render() {
+        grid.innerHTML = ''
+        machines.forEach(([id, name, tier], index) => {
+          const tile = document.createElement('article')
+          tile.className = 'tile'
+          tile.innerHTML = `
+            <div class="tile-head">
+              <strong>${index + 1}. ${name}</strong>
+              <span class="badge ${tier}">${tier === 'new' ? 'new LV' : tier}</span>
+            </div>
+            <div class="icon-crop" style="${cropStyle(index)}" aria-hidden="true"></div>
+            <p class="status">${statusText(state[id])}</p>
+            <div class="actions">
+              <button type="button" class="approve ${state[id] === 'approve' ? 'selected' : ''}" data-id="${id}" data-value="approve">Approve</button>
+              <button type="button" class="reject ${state[id] === 'reject' ? 'selected' : ''}" data-id="${id}" data-value="reject">Reject</button>
+            </div>
+          `
+          grid.append(tile)
+        })
+        updateSummary()
+      }
+
+      grid.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-id]')
+        if (!button) return
+        state[button.dataset.id] = button.dataset.value
+        saveState()
+        render()
+      })
+
+      document.getElementById('reset-review').addEventListener('click', () => {
+        for (const [id] of machines) delete state[id]
+        saveState()
+        render()
+      })
+
+      render()
+    </script>
+  </body>
+</html>
