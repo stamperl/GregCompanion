@@ -289,6 +289,7 @@ const machineOrder: MachineId[] = [
   'lvAssembler',
   'lvCentrifuge',
   'lvAutoMiner',
+  'cokeOvenPart',
   'cokeOven',
   'brickedBlastFurnacePart',
   'brickedBlastFurnace',
@@ -367,7 +368,15 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
 }
 const craftSlotHitboxScale = 0.64
 
-const multiblockQuestIds = new Set<QuestId>(['bbfCasingsQuest', 'buildBbfQuest', 'makeHeatingCoilsQuest', 'buildArcBlastFurnaceQuest', 'bufferArcBlastFurnaceQuest'])
+const multiblockQuestIds = new Set<QuestId>([
+  'cokeOvenBrickQuest',
+  'cokeOvenQuest',
+  'bbfCasingsQuest',
+  'buildBbfQuest',
+  'makeHeatingCoilsQuest',
+  'buildArcBlastFurnaceQuest',
+  'bufferArcBlastFurnaceQuest',
+])
 
 function questBookChapterId(quest: Quest): QuestChapterId {
   if (quest.chapterId === 'lvFoundations' || quest.chapterId === 'blastPrep') return 'lvAge'
@@ -513,6 +522,11 @@ function offlineProgressNotice(offline: OfflineProgressResult) {
     questLine ? `Quests completed: ${questLine}.` : '',
   ].filter(Boolean)
   return parts.join(' ')
+}
+
+function migrationNoticeText(notices: string[]) {
+  if (!notices.includes('coke-oven-multiblock')) return ''
+  return 'Coke Ovens are now 2x2 multiblocks. Your old Coke Oven has been unpacked and replaced with four Coke Oven Blocks in Factory Parts. Place those four blocks in a 2x2 to form the working oven again.'
 }
 
 function isMobileClientAllowed() {
@@ -1505,6 +1519,7 @@ function App() {
   const [, setFactoryNotice] = useState('')
   const [offlineNotice, setOfflineNotice] = useState('')
   const [offlinePrompt, setOfflinePrompt] = useState('')
+  const [migrationPrompt, setMigrationPrompt] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(false)
@@ -1575,13 +1590,14 @@ function App() {
     if (notice) setOfflinePrompt(notice)
   }
 
-  const loadSlotIntoGame = async (slotId: SaveSlotId, applyOffline = true) => {
+  const loadSlotIntoGame = async (slotId: SaveSlotId, applyOffline = true, showMigrationNotice = applyOffline) => {
     const now = localTimeProvider.now()
     if (!applyOffline) {
       const loadedState = await loadSavedGame(slotId, now)
       stateRef.current = loadedState
       setState(loadedState)
       knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
+      if (showMigrationNotice) setMigrationPrompt(migrationNoticeText(loadedState.migrationNotices ?? []))
       return loadedState
     }
 
@@ -1589,6 +1605,7 @@ function App() {
     stateRef.current = loadedState
     setState(loadedState)
     knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
+    if (showMigrationNotice) setMigrationPrompt(migrationNoticeText(loadedState.migrationNotices ?? []))
     applyOfflineNotice(offline)
     if (offline.reason !== 'new-save' && (offline.applied || offline.suspicious || offline.reason === 'missing-save-time')) {
       await persistGameState(loadedState, slotId)
@@ -2285,6 +2302,7 @@ function App() {
           setSelectedMachineUid(structureController.uid)
           return
         }
+        if (instance.machineId === 'cokeOvenPart') setFactoryNotice('Place Coke Oven Blocks in a full 2x2 to form the oven.')
         if (instance.machineId === 'brickedBlastFurnacePart') setFactoryNotice('Place BBF casings in a full 2x2 to form the furnace.')
         if (instance.machineId === 'arcBlastFurnacePart') setFactoryNotice('Place arc casings in a full 2x2 to form the furnace.')
         return
@@ -3238,6 +3256,23 @@ function App() {
             </div>
             <p>{offlinePrompt}</p>
             <button type="button" className="load-recipe-button" onClick={() => setOfflinePrompt('')}>
+              Continue
+            </button>
+          </section>
+        </div>
+      )}
+
+      {!offlinePrompt && migrationPrompt && (
+        <div className="modal-backdrop compact-backdrop offline-progress-backdrop" role="presentation">
+          <section className="missing-modal offline-progress-dialog" role="dialog" aria-modal="true" aria-label="Save migration notice">
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Factory update</p>
+                <h2>Coke oven changed</h2>
+              </div>
+            </div>
+            <p>{migrationPrompt}</p>
+            <button type="button" className="load-recipe-button" onClick={() => setMigrationPrompt('')}>
               Continue
             </button>
           </section>

@@ -75,6 +75,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
+export const currentSaveVersion = 2
 export const factoryGrid = { width: 8, height: 6 }
 export const maxFactoryFoundationLevel = 5
 export const factoryFoundationSizes = [
@@ -427,6 +428,7 @@ export function cloneState(state: GameState): GameState {
     gatherProgress: { ...state.gatherProgress },
     autoMinerAssignments: { ...state.autoMinerAssignments },
     machineProgress: { ...state.machineProgress },
+    migrationNotices: [...(state.migrationNotices ?? [])],
   }
 }
 
@@ -864,7 +866,7 @@ export function createCreativeState(base: GameState, now = Date.now()): GameStat
     ...cloneState(base),
     resources: resourceIds.reduce((resources, id) => ({ ...resources, [id]: Math.max(32, base.resources[id] ?? 0) }), {} as Record<ResourceId, number>),
     machines: machineIds.reduce(
-      (builtMachines, id) => ({ ...builtMachines, [id]: id === 'brickedBlastFurnace' ? (base.machines[id] ?? 0) : Math.max(32, base.machines[id] ?? 0) }),
+      (builtMachines, id) => ({ ...builtMachines, [id]: machines[id].multiblock ? (base.machines[id] ?? 0) : Math.max(32, base.machines[id] ?? 0) }),
       {} as Record<MachineId, number>,
     ),
     factoryFoundationLevel: maxFactoryFoundationLevel,
@@ -3348,25 +3350,50 @@ function normalizeFactoryFoundationLevel(parsed: Partial<GameState>) {
   return legacySaveHasFactoryMachines(parsed) ? 2 : 0
 }
 
-function migrateMachineInstances(machinesState: Record<MachineId, number>, foundationLevel: number, parsedInstances?: Partial<MachineInstance>[]) {
+function addReturnedProcessSlots(resources: Record<ResourceId, number>, instance: MachineInstance) {
+  for (const slot of [instance.process.input, instance.process.secondaryInput, instance.process.fuel, instance.process.output]) {
+    if (!slot) continue
+    resources[slot.id] += slot.amount
+  }
+}
+
+function migrateMachineInstances(
+  machinesState: Record<MachineId, number>,
+  resourcesState: Record<ResourceId, number>,
+  foundationLevel: number,
+  legacyCokeOvenSave: boolean,
+  migrationNotices: string[],
+  parsedInstances?: Partial<MachineInstance>[],
+) {
   const instances = normalizeMachineInstances(parsedInstances, foundationLevel)
+  if (legacyCokeOvenSave) {
+    const placedLegacyCokeOvens = instances.filter((instance) => instance.machineId === 'cokeOven')
+    const legacyCokeOvenCount = Math.max(machinesState.cokeOven, placedLegacyCokeOvens.length)
+    if (legacyCokeOvenCount > 0) {
+      for (const instance of placedLegacyCokeOvens) addReturnedProcessSlots(resourcesState, instance)
+      machinesState.cokeOven = 0
+      machinesState.cokeOvenPart += legacyCokeOvenCount * 4
+      migrationNotices.push('coke-oven-multiblock')
+    }
+  }
+  const migratedInstances = legacyCokeOvenSave ? instances.filter((instance) => instance.machineId !== 'cokeOven') : instances
   if (parsedInstances) {
-    const placedBlastFurnaces = instances.filter((instance) => instance.machineId === 'brickedBlastFurnace').length
+    const placedBlastFurnaces = migratedInstances.filter((instance) => instance.machineId === 'brickedBlastFurnace').length
     const unplacedLegacyBlastFurnaces = Math.max(0, machinesState.brickedBlastFurnace - placedBlastFurnaces)
     if (unplacedLegacyBlastFurnaces > 0) {
       machinesState.brickedBlastFurnace -= unplacedLegacyBlastFurnaces
       machinesState.brickedBlastFurnacePart += unplacedLegacyBlastFurnaces * 4
     }
-    const placedArcBlastFurnaces = instances.filter((instance) => instance.machineId === 'arcBlastFurnace').length
+    const placedArcBlastFurnaces = migratedInstances.filter((instance) => instance.machineId === 'arcBlastFurnace').length
     const unplacedLegacyArcBlastFurnaces = Math.max(0, machinesState.arcBlastFurnace - placedArcBlastFurnaces)
     if (unplacedLegacyArcBlastFurnaces > 0) {
       machinesState.arcBlastFurnace -= unplacedLegacyArcBlastFurnaces
       machinesState.arcBlastFurnacePart += unplacedLegacyArcBlastFurnaces * 4
     }
-    return instances
+    return migratedInstances
   }
 
-  const migrated = [...instances]
+  const migrated = [...migratedInstances]
   const furnaceCount = machinesState.furnace ?? 0
   const grid = factoryFoundationSizes[clampFactoryFoundationLevel(foundationLevel)] ?? factoryGrid
   if (grid.width < 1 || grid.height < 1) return migrated
@@ -3409,10 +3436,13 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       unlockedQuests.unshift('punchTree')
     }
 
+    const parsedVersion = typeof parsed.version === 'number' ? parsed.version : 1
+    const migrationNotices: string[] = []
+    const legacyCokeOvenSave = parsedVersion < 2
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
-    const machineInstances = migrateMachineInstances(machinesState, factoryFoundationLevel, parsed.machineInstances)
     const migratedResources = migrateResources({ ...fresh.resources, ...parsed.resources })
+    const machineInstances = migrateMachineInstances(machinesState, migratedResources, factoryFoundationLevel, legacyCokeOvenSave, migrationNotices, parsed.machineInstances)
 
     return {
       ...fresh,
@@ -3432,8 +3462,9 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       gatherProgress: parsed.gatherProgress ?? {},
       autoMinerAssignments: normalizeAutoMinerAssignments(parsed, machineInstances),
       machineProgress: parsed.machineProgress ?? {},
+      migrationNotices,
       lastSavedAt: now,
-      version: 1,
+      version: currentSaveVersion,
     }
   } catch {
     return createInitialState(now)
@@ -3451,5 +3482,5 @@ export function loadGameWithOfflineProgress(raw: string | null, now = Date.now()
 }
 
 export function saveGame(state: GameState, now = Date.now()) {
-  return JSON.stringify({ ...state, lastSavedAt: now })
+  return JSON.stringify({ ...state, migrationNotices: [], version: currentSaveVersion, lastSavedAt: now })
 }

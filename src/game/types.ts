@@ -135,6 +135,7 @@ export type MachineId =
   | 'lvAssembler'
   | 'lvCentrifuge'
   | 'lvAutoMiner'
+  | 'cokeOvenPart'
   | 'cokeOven'
   | 'brickedBlastFurnacePart'
   | 'brickedBlastFurnace'
@@ -477,6 +478,7 @@ export type GameState = {
   gatherProgress: Partial<Record<GatherTargetId, number>>
   autoMinerAssignments: Record<string, GatherTargetId>
   machineProgress: Partial<Record<MachineId, number>>
+  migrationNotices: string[]
   lastSavedAt: number
 }
 

@@ -632,7 +632,7 @@ describe('game engine', () => {
     const cokeOven = recipes.find((recipe) => recipe.id === 'build_coke_oven')!
     const arcFurnace = recipes.find((recipe) => recipe.id === 'build_arc_blast_furnace')!
 
-    expect(cokeBrickQuest.requirements.resources).toContainEqual({ id: 'cokeOvenBrick', amount: cokeOven.inputs.find((input) => input.id === 'cokeOvenBrick')!.amount })
+    expect(cokeBrickQuest.requirements.resources).toContainEqual({ id: 'cokeOvenBrick', amount: cokeOven.inputs.find((input) => input.id === 'cokeOvenBrick')!.amount * 4 })
     expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: arcFurnace.inputs.find((input) => input.id === 'heatProofCasing')!.amount })
   })
 
@@ -730,6 +730,7 @@ describe('game engine', () => {
       'lvAssembler',
       'lvCentrifuge',
       'lvAutoMiner',
+      'cokeOvenPart',
       'cokeOven',
       'brickedBlastFurnacePart',
       'brickedBlastFurnace',
@@ -761,6 +762,7 @@ describe('game engine', () => {
     expect(state.machines.lvAssembler).toBe(0)
     expect(state.machines.lvCentrifuge).toBe(0)
     expect(state.machines.steamMacerator).toBe(0)
+    expect(state.machines.cokeOvenPart).toBe(0)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.brickedBlastFurnace).toBe(0)
     expect(state.factoryFoundationLevel).toBe(2)
@@ -768,6 +770,65 @@ describe('game engine', () => {
     expect(state.machineInstances).toHaveLength(2)
     expect(state.machineInstances[0]).toMatchObject({ machineId: 'furnace', x: 0, y: 0, level: 1 })
     expect(state.machineInstances[1]).toMatchObject({ machineId: 'steamBoiler', x: 1, y: 0, level: 1 })
+  })
+
+  it('unpacks legacy coke ovens into four new placeable coke oven blocks', () => {
+    const state = loadGame(
+      JSON.stringify({
+        version: 1,
+        factoryFoundationLevel: 2,
+        machines: { cokeOven: 1 },
+        resources: { log: 0, charcoal: 0 },
+        machineInstances: [
+          {
+            uid: 'old-coke',
+            machineId: 'cokeOven',
+            x: 0,
+            y: 0,
+            level: 1,
+            process: {
+              input: { id: 'log', amount: 1 },
+              secondaryInput: null,
+              fuel: null,
+              output: { id: 'charcoal', amount: 1 },
+              fluids: { creosote: 20 },
+            },
+          },
+        ],
+      }),
+      1000,
+    )
+
+    expect(state.version).toBe(2)
+    expect(state.machines.cokeOven).toBe(0)
+    expect(state.machines.cokeOvenPart).toBe(4)
+    expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
+    expect(state.resources.log).toBe(1)
+    expect(state.resources.charcoal).toBe(1)
+    expect(state.migrationNotices).toContain('coke-oven-multiblock')
+  })
+
+  it('keeps current 2x2 coke oven multiblocks intact when loading current saves', () => {
+    const state = loadGame(
+      JSON.stringify({
+        version: 2,
+        factoryFoundationLevel: 2,
+        machines: { cokeOven: 1, cokeOvenPart: 3 },
+        machineInstances: [
+          { uid: 'coke-controller', machineId: 'cokeOven', x: 0, y: 0, level: 1 },
+          { uid: 'coke-part-1', machineId: 'cokeOvenPart', x: 1, y: 0, level: 1 },
+          { uid: 'coke-part-2', machineId: 'cokeOvenPart', x: 0, y: 1, level: 1 },
+          { uid: 'coke-part-3', machineId: 'cokeOvenPart', x: 1, y: 1, level: 1 },
+        ],
+      }),
+      1000,
+    )
+
+    expect(state.machines.cokeOven).toBe(1)
+    expect(state.machines.cokeOvenPart).toBe(3)
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'cokeOven')).toHaveLength(1)
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'cokeOvenPart')).toHaveLength(3)
+    expect(state.migrationNotices).toEqual([])
   })
 
   it('migrates old machine process states with an empty secondary input slot', () => {
@@ -803,9 +864,17 @@ describe('game engine', () => {
     const state = createCreativeState(createInitialState(1000), 2000)
 
     expect(Object.values(state.resources).every((amount) => amount >= 32)).toBe(true)
-    expect(Object.entries(state.machines).every(([id, amount]) => id === 'brickedBlastFurnace' || amount >= 32)).toBe(true)
+    expect(
+      Object.entries(state.machines).every(([id, amount]) =>
+        id === 'cokeOven' || id === 'brickedBlastFurnace' || id === 'arcBlastFurnace' ? amount === 0 : amount >= 32,
+      ),
+    ).toBe(true)
+    expect(state.machines.cokeOven).toBe(0)
+    expect(state.machines.cokeOvenPart).toBe(32)
     expect(state.machines.brickedBlastFurnace).toBe(0)
     expect(state.machines.brickedBlastFurnacePart).toBe(32)
+    expect(state.machines.arcBlastFurnace).toBe(0)
+    expect(state.machines.arcBlastFurnacePart).toBe(32)
     expect(state.factoryFoundationLevel).toBe(5)
     expect(state.craftedResources).toEqual(Object.keys(state.resources))
     expect(state.lastSavedAt).toBe(2000)
@@ -1843,6 +1912,52 @@ describe('game engine', () => {
     expect(state.resources.heatProofCasing).toBe(0)
     expect(state.machines.arcBlastFurnacePart).toBe(4)
     expect(state.machines.arcBlastFurnace).toBe(0)
+  })
+
+  it('assembles and forms a Coke Oven from four 2x2 multiblock parts', () => {
+    let state = createFactoryState(1000)
+    state.resources.cokeOvenBrick = 24
+    state.resources.ironPlate = 8
+    state.resources.pipeSealant = 4
+    state.resources.bronzeWrench = 1
+    const cokeOven = recipes.find((recipe) => recipe.id === 'build_coke_oven')!
+
+    expect(recipeFitsTerminalGrid(cokeOven)).toBe(true)
+    expect(cokeOven.inputs).toEqual([
+      { id: 'cokeOvenBrick', amount: 6 },
+      { id: 'ironPlate', amount: 2 },
+      { id: 'pipeSealant', amount: 1 },
+    ])
+    expect(canCraft(state, cokeOven)).toBe(true)
+
+    state = craftRecipeInstant(state, cokeOven, 4)
+
+    expect(state.resources.cokeOvenBrick).toBe(0)
+    expect(state.resources.ironPlate).toBe(0)
+    expect(state.resources.pipeSealant).toBe(0)
+    expect(state.machines.cokeOvenPart).toBe(4)
+    expect(state.machines.cokeOven).toBe(0)
+
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) {
+        state = placeMachineInstance(state, 'cokeOvenPart', x, y)
+      }
+    }
+
+    expect(state.machineInstances).toHaveLength(4)
+    expect(state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)?.machineId).toBe('cokeOven')
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'cokeOvenPart')).toHaveLength(3)
+    expect(state.machines.cokeOvenPart).toBe(3)
+    expect(state.machines.cokeOven).toBe(1)
+    expect(availableUnplacedMachineCount(state, 'cokeOvenPart')).toBe(0)
+
+    state.resources.ironCrowbar = 1
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    state = crowbarRemoveMachineInstance(state, controller.uid)
+
+    expect(state.machineInstances).toHaveLength(0)
+    expect(state.machines.cokeOvenPart).toBe(4)
+    expect(state.machines.cokeOven).toBe(0)
   })
 
   it('forms and disassembles a bricked blast furnace 2x2 multiblock', () => {

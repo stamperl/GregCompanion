@@ -7634,6 +7634,22 @@ button.craft-output:disabled {
   width: 100%;
 }
 
+.machine-cokeOvenPart {
+  --m1: #8e4530;
+  --m2: #2f1814;
+  --m3: #5f6467;
+  background:
+    linear-gradient(90deg, transparent 0 12%, #2d3032 12% 22%, transparent 22% 78%, #2d3032 78% 88%, transparent 88%),
+    linear-gradient(180deg, transparent 0 12%, #2d3032 12% 22%, transparent 22% 78%, #2d3032 78% 88%, transparent 88%),
+    radial-gradient(circle at 21% 21%, #b8895d 0 5%, transparent 6%),
+    radial-gradient(circle at 79% 21%, #b8895d 0 5%, transparent 6%),
+    radial-gradient(circle at 21% 79%, #b8895d 0 5%, transparent 6%),
+    radial-gradient(circle at 79% 79%, #b8895d 0 5%, transparent 6%),
+    repeating-linear-gradient(90deg, #9c4f35 0 9px, #653025 9px 18px),
+    repeating-linear-gradient(180deg, rgba(47, 24, 20, 0.42) 0 2px, transparent 2px 10px),
+    linear-gradient(180deg, #b96b49 0 18%, #8e4530 18% 82%, #2f1814 82%);
+}
+
 .machine-cokeOven {
   --m1: #9c4f35;
   --m2: #4a241c;
