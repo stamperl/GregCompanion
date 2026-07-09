@@ -105,9 +105,9 @@
           const card = document.createElement('article')
           card.className = 'card'
           card.innerHTML = `
-            <div class="preview"><img src="/game-icons/${kind}/${id}.png" alt="${id}" /></div>
+            <div class="preview"><img src="../game-icons/${kind}/${id}.png" alt="${id}" /></div>
             <strong>${id}</strong>
-            <small>/game-icons/${kind}/${id}.png</small>
+            <small>../game-icons/${kind}/${id}.png</small>
           `
           target.appendChild(card)
         }
