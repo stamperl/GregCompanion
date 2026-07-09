@@ -111,6 +111,7 @@ import {
   missingForRecipe,
   machinesCanConnect,
   multiblockControllerForInstance,
+  multiblockPositions,
   placeMachineInstance,
   pipeDirections,
   pipeSideMode,
@@ -2158,6 +2159,35 @@ function App() {
     return controllerForMultiblockPart(instance)
   }
 
+  const fluidOutputFacesForInstance = (instance: MachineInstance) => {
+    const controller = controllerForFactoryStructure(instance) ?? instance
+    const multiblock = multiblockControllerForInstance(state, controller)
+    if (!multiblock || !isFluidOutletConfigurableMachine(multiblock.spec.controller)) return []
+    const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+    const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+    const maxX = originX + multiblock.spec.width - 1
+    const maxY = originY + multiblock.spec.height - 1
+    return multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
+      .map((position) => {
+        const cell = machineAtFactoryCell(position.x, position.y)
+        if (!cell) return []
+        const directions: PipeDirection[] = []
+        if (position.y === originY) directions.push('north')
+        if (position.x === maxX) directions.push('east')
+        if (position.y === maxY) directions.push('south')
+        if (position.x === originX) directions.push('west')
+        return directions.map((direction) => ({
+          cell,
+          direction,
+          blockColumn: position.x - originX + 2,
+          blockRow: position.y - originY + 2,
+          sideColumn: direction === 'west' ? 1 : direction === 'east' ? multiblock.spec.width + 2 : position.x - originX + 2,
+          sideRow: direction === 'north' ? 1 : direction === 'south' ? multiblock.spec.height + 2 : position.y - originY + 2,
+        }))
+      })
+      .flat()
+  }
+
   const addFloatText = (label: string, targetId?: GatherTargetId, variant?: FloatText['variant']) => {
     const id = (floatTextIdRef.current += 1)
     setFloatTexts((current) => [...current.slice(-4), { id, label, targetId, variant }])
@@ -2691,7 +2721,28 @@ function App() {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
     const isEuCable = isEuCableMachine(instance.machineId)
     const isHopper = isItemHopperMachine(instance.machineId)
-    if (!isSteamPipe && !isEuCable && !isHopper) return null
+    const fluidFaces = isFluidOutletConfigurableMachine(instance.machineId)
+      ? fluidOutputFacesForInstance(instance).filter((face) => face.cell.uid === instance.uid)
+      : []
+    if (!isSteamPipe && !isEuCable && !isHopper && fluidFaces.length < 1) return null
+
+    if (fluidFaces.length > 0) {
+      const sides = fluidFaces.flatMap<{ direction: PipeDirection; state: PipeSideState; mode: PipeSideMode; label: string }>((face) => {
+        const offset = pipeDirectionOffsets[face.direction]
+        const mode = pipeSideMode(face.cell, face.direction)
+        if (mode !== 'output') return []
+        const neighbour = machineAtFactoryCell(face.cell.x + offset.dx, face.cell.y + offset.dy)
+        return [
+          {
+            direction: face.direction,
+            mode,
+            state: neighbour && machinesCanConnect(face.cell, neighbour) ? 'connected' as const : 'open' as const,
+            label: `${offset.label} ${pipeSideModeLabels[mode]}`,
+          },
+        ]
+      })
+      return sides.length > 0 ? sides : null
+    }
 
     return pipeDirections.map((direction) => {
       const offset = pipeDirectionOffsets[direction]
@@ -4387,72 +4438,117 @@ function App() {
                     <X size={18} />
                   </button>
                 </div>
-                <div className="pipe-config-grid" aria-label={isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? 'Output directions' : 'Pipe routing directions'}>
-                  {[-1, 0, 1].flatMap((dy) =>
-                    [-1, 0, 1].map((dx) => {
-                      const neighbour = machineAtFactoryCell(selectedPipeConfig.x + dx, selectedPipeConfig.y + dy)
-                      const direction = pipeDirections.find((candidate) => {
-                        const offset = pipeDirectionOffsets[candidate]
-                        return offset.dx === dx && offset.dy === dy
-                      })
-                      const isCenter = dx === 0 && dy === 0
-                      const mode = direction ? pipeSideMode(selectedPipeConfig, direction) : null
-                      const disabled = mode === 'blocked'
-                      const isHopperConfig = isItemHopperMachine(selectedPipeConfig.machineId)
-                      const isFluidOutputConfig = isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
-                      const connected = Boolean(
-                        direction &&
-                          neighbour &&
-                          (isHopperConfig
-                            ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId)
-                            : isFluidOutputConfig
-                              ? mode === 'output' && machinesCanConnect(selectedPipeConfig, neighbour)
-                              : machinesCanConnect(selectedPipeConfig, neighbour)),
-                      )
-                      const className = [
-                        'pipe-config-cell',
-                        isCenter ? 'center' : '',
-                        direction ? 'toggle' : '',
-                        disabled ? 'disabled-side' : '',
-                        connected ? 'connected-side' : '',
-                        mode ? `mode-${mode}` : '',
-                      ].filter(Boolean).join(' ')
-                      const content = isCenter ? (
-                        <MachineGlyph id={selectedPipeConfig.machineId} active pipeConnections={pipeConnectionsForInstance(selectedPipeConfig)} />
-                      ) : neighbour ? (
-                        <MachineGlyph id={neighbour.machineId} active={connected} pipeConnections={pipeConnectionsForInstance(neighbour)} />
-                      ) : (
-                        <span className="empty-pipe-neighbour" />
-                      )
-                      if (!direction) {
-                        return (
-                          <span className={className} key={`${dx},${dy}`}>
-                            {content}
+                {isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? (
+                  (() => {
+                    const faces = fluidOutputFacesForInstance(selectedPipeConfig)
+                    const cells = Array.from(new Map(faces.map((face) => [face.cell.uid, face])).values())
+                    return (
+                      <div className="fluid-output-config-grid" aria-label="Fluid output faces">
+                        {cells.map((face) => (
+                          <span
+                            className="fluid-output-block"
+                            style={{ gridColumn: face.blockColumn, gridRow: face.blockRow }}
+                            key={`block-${face.cell.uid}`}
+                          >
+                            <MachineGlyph id={face.cell.machineId} active={faces.some((candidate) => candidate.cell.uid === face.cell.uid && pipeSideMode(candidate.cell, candidate.direction) === 'output')} />
                           </span>
+                        ))}
+                        {faces.map((face) => {
+                          const offset = pipeDirectionOffsets[face.direction]
+                          const neighbour = machineAtFactoryCell(face.cell.x + offset.dx, face.cell.y + offset.dy)
+                          const mode = pipeSideMode(face.cell, face.direction)
+                          const connected = Boolean(mode === 'output' && neighbour && machinesCanConnect(face.cell, neighbour))
+                          const className = [
+                            'pipe-config-cell',
+                            'fluid-output-face',
+                            'toggle',
+                            mode === 'blocked' ? 'disabled-side' : '',
+                            connected ? 'connected-side' : '',
+                            `mode-${mode}`,
+                          ].filter(Boolean).join(' ')
+                          return (
+                            <button
+                              type="button"
+                              className={className}
+                              style={{ gridColumn: face.sideColumn, gridRow: face.sideRow }}
+                              aria-label={`${offset.label} output ${pipeSideModeLabels[mode]}. Tap to toggle output.`}
+                              onClick={() => handleTogglePipeSide(face.cell.uid, face.direction)}
+                              key={`${face.cell.uid}-${face.direction}`}
+                            >
+                              <PipeFlowArrows direction={face.direction} mode={mode} />
+                              <strong>{offset.label}</strong>
+                              <span className="pipe-side-mode">{pipeSideModeLabels[mode]}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()
+                ) : (
+                  <div className="pipe-config-grid" aria-label={isItemHopperMachine(selectedPipeConfig.machineId) ? 'Output directions' : 'Pipe routing directions'}>
+                    {[-1, 0, 1].flatMap((dy) =>
+                      [-1, 0, 1].map((dx) => {
+                        const neighbour = machineAtFactoryCell(selectedPipeConfig.x + dx, selectedPipeConfig.y + dy)
+                        const direction = pipeDirections.find((candidate) => {
+                          const offset = pipeDirectionOffsets[candidate]
+                          return offset.dx === dx && offset.dy === dy
+                        })
+                        const isCenter = dx === 0 && dy === 0
+                        const mode = direction ? pipeSideMode(selectedPipeConfig, direction) : null
+                        const disabled = mode === 'blocked'
+                        const isHopperConfig = isItemHopperMachine(selectedPipeConfig.machineId)
+                        const connected = Boolean(
+                          direction &&
+                            neighbour &&
+                            (isHopperConfig
+                              ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId)
+                              : machinesCanConnect(selectedPipeConfig, neighbour)),
                         )
-                      }
-                      return (
-                        <button
-                          type="button"
-                          className={className}
-                          aria-label={`${pipeDirectionOffsets[direction].label} ${isHopperConfig || isFluidOutputConfig ? 'output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
-                          onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
-                          key={`${dx},${dy}`}
-                        >
-                          {content}
-                          <PipeFlowArrows direction={direction} mode={mode ?? 'blocked'} />
-                          <strong>{pipeDirectionOffsets[direction].label}</strong>
-                          <span className="pipe-side-mode">{pipeSideModeLabels[mode ?? 'blocked']}</span>
-                        </button>
-                      )
-                    }),
-                  )}
-                </div>
+                        const className = [
+                          'pipe-config-cell',
+                          isCenter ? 'center' : '',
+                          direction ? 'toggle' : '',
+                          disabled ? 'disabled-side' : '',
+                          connected ? 'connected-side' : '',
+                          mode ? `mode-${mode}` : '',
+                        ].filter(Boolean).join(' ')
+                        const content = isCenter ? (
+                          <MachineGlyph id={selectedPipeConfig.machineId} active pipeConnections={pipeConnectionsForInstance(selectedPipeConfig)} />
+                        ) : neighbour ? (
+                          <MachineGlyph id={neighbour.machineId} active={connected} pipeConnections={pipeConnectionsForInstance(neighbour)} />
+                        ) : (
+                          <span className="empty-pipe-neighbour" />
+                        )
+                        if (!direction) {
+                          return (
+                            <span className={className} key={`${dx},${dy}`}>
+                              {content}
+                            </span>
+                          )
+                        }
+                        return (
+                          <button
+                            type="button"
+                            className={className}
+                            aria-label={`${pipeDirectionOffsets[direction].label} ${isHopperConfig ? 'output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
+                            onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
+                            key={`${dx},${dy}`}
+                          >
+                            {content}
+                            <PipeFlowArrows direction={direction} mode={mode ?? 'blocked'} />
+                            <strong>{pipeDirectionOffsets[direction].label}</strong>
+                            <span className="pipe-side-mode">{pipeSideModeLabels[mode ?? 'blocked']}</span>
+                          </button>
+                        )
+                      }),
+                    )}
+                  </div>
+                )}
                 <p className="pipe-config-note">
                   {isItemHopperMachine(selectedPipeConfig.machineId)
                     ? 'Tap one side to choose where this hopper pushes items.'
                     : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
-                      ? 'Tap one side to choose where this machine drains fluid.'
+                      ? 'Tap any outside face to choose where this structure drains fluid.'
                       : 'Tap a side to cycle flow: Closed, Out, In, Both.'}
                 </p>
               </section>

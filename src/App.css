@@ -4244,6 +4244,44 @@ button.craft-output:disabled {
   padding: 8px;
 }
 
+.fluid-output-config-grid {
+  background:
+    linear-gradient(90deg, rgba(70, 70, 70, 0.16) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(70, 70, 70, 0.16) 1px, transparent 1px),
+    #a8a8a8;
+  background-size: 12px 12px;
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 58px repeat(2, minmax(0, 1fr)) 58px;
+  grid-template-rows: 58px repeat(2, 62px) 58px;
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.fluid-output-block {
+  align-items: center;
+  background: #6f6a53;
+  border: 2px solid #fff8aa;
+  border-bottom-color: #806c22;
+  border-right-color: #806c22;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.fluid-output-block .machine-glyph {
+  height: 40px;
+  width: 40px;
+}
+
+.fluid-output-face {
+  height: auto;
+  min-height: 54px;
+}
+
 .pipe-config-cell {
   align-items: center;
   background: var(--bevel-well);
@@ -4520,6 +4558,12 @@ button.craft-output:disabled {
 .factory-cell.occupied.multiblock-bbf-child > span,
 .factory-cell.occupied.multiblock-bbf-child .machine-glyph {
   display: none;
+}
+
+.factory-cell.occupied.multiblock-bbf-controller > .pipe-polarity-overlay,
+.factory-cell.occupied.multiblock-bbf-child > .pipe-polarity-overlay {
+  display: block;
+  z-index: 8;
 }
 
 .factory-cell.occupied.multiblock-bbf-child.removing {

@@ -2612,6 +2612,34 @@ describe('game engine', () => {
     expect(nextTank.process.fluids.creosote).toBe(24)
   })
 
+  it('moves coke oven creosote from a configured multiblock casing face', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOvenPart = 4
+    state.machines.steamTank = 1
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) {
+        state = placeMachineInstance(state, 'cokeOvenPart', x, y)
+      }
+    }
+    state = placeMachineInstance(state, 'steamTank', 2, 1)
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const lowerRightCasing = state.machineInstances.find((instance) => instance.x === 1 && instance.y === 1)!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    cokeOven.process.fluids.creosote = 40
+    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(40)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote ?? 0).toBe(0)
+
+    state = setFluidOutputDirection(state, lowerRightCasing.uid, 'east')
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(16)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote).toBe(24)
+  })
+
   it('shares one pipe network transfer rate across multiple liquid exporters', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 2

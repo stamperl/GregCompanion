@@ -1227,7 +1227,7 @@ function machineAt(state: GameState, x: number, y: number) {
 }
 
 export function isFluidOutletConfigurableMachine(machineId: MachineId) {
-  return machineId === 'cokeOven'
+  return machineId === 'cokeOven' || machineId === 'cokeOvenPart'
 }
 
 function isConfigurableConnector(machineId: MachineId) {
@@ -1303,7 +1303,7 @@ function multiblockSpecForMachine(machineId: MachineId) {
   return multiblockControllerSpecs().find((spec) => spec.controller === machineId || spec.part === machineId) ?? null
 }
 
-function multiblockPositions(state: GameState, controllerX: number, controllerY: number, spec: NonNullable<(typeof machines)[MachineId]['multiblock']>) {
+export function multiblockPositions(state: GameState, controllerX: number, controllerY: number, spec: NonNullable<(typeof machines)[MachineId]['multiblock']>) {
   const offsetX = spec.controllerOffsetX ?? 0
   const offsetY = spec.controllerOffsetY ?? 0
   const originX = controllerX - offsetX
@@ -1702,7 +1702,20 @@ function canEuFlowBetween(state: GameState, source: MachineInstance, target: Mac
 
 function flowCellsForInstance(state: GameState, instance: MachineInstance) {
   const tankStructure = instance.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
-  return tankStructure?.positions.map((position) => machineAt(state, position.x, position.y)).filter((cell): cell is MachineInstance => Boolean(cell)) ?? [instance]
+  if (tankStructure) return tankStructure.positions.map((position) => machineAt(state, position.x, position.y)).filter((cell): cell is MachineInstance => Boolean(cell))
+
+  const multiblock = multiblockCenterForInstance(state, instance)
+  if (multiblock && isFluidOutletConfigurableMachine(multiblock.spec.controller)) {
+    return multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
+      .map((position) => machineAt(state, position.x, position.y))
+      .filter((cell): cell is MachineInstance => Boolean(cell))
+  }
+
+  return [instance]
+}
+
+function connectedFluidNetworkForInstance(state: GameState, start: MachineInstance, flowOnly = false) {
+  return uniqueMachineInstances(flowCellsForInstance(state, start).flatMap((cell) => connectedFluidNetwork(state, cell, flowOnly)))
 }
 
 function canSteamFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
@@ -1789,7 +1802,7 @@ export function isAutoMinerPowered(state: GameState, instance: MachineInstance) 
 function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId: FluidId) {
   const startStorage = start.machineId === 'steamTank' ? steamTankStorageForInstance(state, start) : start
   return uniqueMachineInstances(
-    connectedFluidNetwork(state, start, true)
+    connectedFluidNetworkForInstance(state, start, true)
       .filter((instance) => instance.uid !== start.uid)
       .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
       .filter(
@@ -1804,7 +1817,7 @@ function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId
 function connectedFluidSources(state: GameState, start: MachineInstance, fluidId: FluidId) {
   const startStorage = start.machineId === 'steamTank' ? steamTankStorageForInstance(state, start) : start
   return uniqueMachineInstances(
-    connectedFluidNetwork(state, start)
+    connectedFluidNetworkForInstance(state, start)
       .filter((instance) => instance.uid !== start.uid)
       .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
       .filter((instance) => instance.uid !== startStorage.uid && canExportFluidSource(instance) && (instance.process.fluids[fluidId] ?? 0) > 0 && canFluidFlowBetween(state, instance, startStorage)),
@@ -1812,14 +1825,14 @@ function connectedFluidSources(state: GameState, start: MachineInstance, fluidId
 }
 
 function connectedFluidTransferRateLitres(state: GameState, start: MachineInstance) {
-  const pipeRates = connectedFluidNetwork(state, start)
+  const pipeRates = connectedFluidNetworkForInstance(state, start)
     .map((instance) => steamPipeTransferLitresPerSecond[instance.machineId])
     .filter((rate): rate is number => typeof rate === 'number')
   return pipeRates.length > 0 ? Math.min(...pipeRates) : 24
 }
 
 function fluidExportSourceCountForNetwork(state: GameState, source: MachineInstance, fluidId: FluidId) {
-  const network = connectedFluidNetwork(state, source)
+  const network = connectedFluidNetworkForInstance(state, source)
   const sourceTargetUids = new Set(connectedFluidOutputTargets(state, source, fluidId).map((target) => target.uid))
   const sources = uniqueMachineInstances(
     network
@@ -2044,7 +2057,7 @@ function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, 
   const stored = source.process.fluids[fluidId] ?? 0
   if (stored < 1) return 0
 
-  const key = transferNetworkKey(`fluid:${fluidId}`, connectedFluidNetwork(state, source))
+  const key = transferNetworkKey(`fluid:${fluidId}`, connectedFluidNetworkForInstance(state, source))
   const sourceTransferLimit = Math.max(0, Math.floor((fluidExportTransferRateLitres(state, source, fluidId) * elapsedMs) / 1000))
   const networkTransferLimit = Math.max(0, Math.floor((connectedFluidTransferRateLitres(state, source) * elapsedMs) / 1000))
   let remaining = Math.min(stored, sourceTransferLimit, consumeTickBudget(activeFluidTransferBudgets, key, networkTransferLimit, networkTransferLimit))
@@ -2249,7 +2262,7 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
 }
 
 function pullFluidFromConnectedSources(state: GameState, instance: MachineInstance, fluidId: FluidId, amount: number, elapsedMs: number) {
-  const key = transferNetworkKey(`fluid:${fluidId}`, connectedFluidNetwork(state, instance))
+  const key = transferNetworkKey(`fluid:${fluidId}`, connectedFluidNetworkForInstance(state, instance))
   const fullTransferLimit = Math.max(0, Math.floor((connectedFluidTransferRateLitres(state, instance) * elapsedMs) / 1000))
   const transferLimit = consumeTickBudget(activeFluidTransferBudgets, key, fullTransferLimit, fullTransferLimit)
   let remaining = Math.min(Math.max(0, Math.floor(amount)), transferLimit)
@@ -2321,10 +2334,7 @@ export function setFluidOutputDirection(state: GameState, uid: string, direction
   const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
   if (!nextInstance) return state
 
-  nextInstance.pipeSideModes = Object.fromEntries(pipeDirections.map((candidate) => [candidate, candidate === direction ? nextMode : 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
-  nextInstance.pipeDisabledSides = Object.fromEntries(
-    pipeDirections.filter((candidate) => candidate !== direction || nextMode === 'blocked').map((candidate) => [candidate, true]),
-  ) as Partial<Record<PipeDirection, boolean>>
+  setConnectorSideModeInPlace(nextInstance, direction, nextMode)
   next.lastSavedAt = Date.now()
   return next
 }
