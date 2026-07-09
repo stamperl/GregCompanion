@@ -4462,6 +4462,7 @@ function App() {
                             'pipe-config-cell',
                             'fluid-output-face',
                             'toggle',
+                            `face-${face.direction}`,
                             mode === 'blocked' ? 'disabled-side' : '',
                             connected ? 'connected-side' : '',
                             `mode-${mode}`,
@@ -4476,7 +4477,7 @@ function App() {
                               key={`${face.cell.uid}-${face.direction}`}
                             >
                               <PipeFlowArrows direction={face.direction} mode={mode} />
-                              <strong>{offset.label}</strong>
+                              <span className="fluid-face-label">{offset.label.slice(0, 1)}</span>
                               <span className="pipe-side-mode">{pipeSideModeLabels[mode]}</span>
                             </button>
                           )
