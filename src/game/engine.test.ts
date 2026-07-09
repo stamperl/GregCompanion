@@ -2534,14 +2534,14 @@ describe('game engine', () => {
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     state = insertProcessSlot(state, cokeOven.uid, 'input', 'log', 1)
 
-    state = tickGame(state, 45000).state
+    state = tickGame(state, 30000).state
     state = tickGame(state, 1000).state
 
     const ovenProcess = state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process
     const tankProcess = state.machineInstances.find((instance) => instance.uid === tank.uid)!.process
     expect(ovenProcess.output).toEqual({ id: 'charcoal', amount: 1 })
     expect(ovenProcess.fluids.creosote ?? 0).toBe(0)
-    expect(tankProcess.fluids.creosote).toBe(16)
+    expect(tankProcess.fluids.creosote).toBe(8)
   })
 
   it('reports current liquid output flow through connected pipes', () => {
@@ -2707,7 +2707,7 @@ describe('game engine', () => {
     cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
     state = insertProcessSlot(state, cokeOven.uid, 'input', 'log', 1)
 
-    state = tickGame(state, 45000).state
+    state = tickGame(state, 30000).state
 
     const process = state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process
     expect(process.input).toEqual({ id: 'log', amount: 1 })
@@ -2763,7 +2763,7 @@ describe('game engine', () => {
     state = insertProcessSlot(state, blastFurnace.uid, 'input', 'ironIngot', 1)
     state = insertProcessSlot(state, blastFurnace.uid, 'fuel', 'coalCoke', 1)
 
-    state = tickGame(state, 25000).state
+    state = tickGame(state, 50000).state
 
     expect(state.machineInstances.find((instance) => instance.uid === blastFurnace.uid)!.process.output).toEqual({ id: 'steelIngot', amount: 1 })
   })
@@ -2781,9 +2781,9 @@ describe('game engine', () => {
     expect(charcoalRecipe.input).toEqual({ id: 'ironIngot', amount: 1 })
     expect(charcoalRecipe.fuelInput).toEqual({ id: 'charcoal', amount: 1 })
     expect(charcoalRecipe.output).toEqual({ id: 'steelIngot', amount: 1 })
-    expect(charcoalRecipe.durationMs).toBe(40000)
-    expect(coalRecipe.durationMs).toBe(35000)
-    expect(coalCokeRecipe.durationMs).toBe(25000)
+    expect(charcoalRecipe.durationMs).toBe(80000)
+    expect(coalRecipe.durationMs).toBe(70000)
+    expect(coalCokeRecipe.durationMs).toBe(50000)
   })
 
   it('makes steel plates from steel ingots with hammer recipes', () => {
