@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { canAutoMinerTarget, createInitialState, fuelDefinitions, gatherTargets, processRecipes, quests, recipes, sellItems, shopItems } from './content'
+import { canAutoMinerTarget, createInitialState, fuelDefinitions, gatherTargets, machines, processRecipes, quests, recipes, sellItems, shopItems } from './content'
 import { processRecipesProducingResource, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableConnectedEu,
+  availableConnectedEuAmps,
   availableConnectedEuStorage,
   availableConnectedSteam,
   availableResourceAmount,
@@ -40,6 +41,7 @@ import {
   hitGatherTarget,
   ironTankFluidCapacityLitres,
   insertProcessSlot,
+  installLvBatteryInBuffer,
   isAutoMinerPowered,
   loadGame,
   loadGameWithOfflineProgress,
@@ -604,6 +606,10 @@ describe('game engine', () => {
     const electrolyzer = quests.find((quest) => quest.id === 'buildLvElectrolyzerQuest')!
     const bauxite = quests.find((quest) => quest.id === 'findBauxiteQuest')!
     const aluminiumDust = quests.find((quest) => quest.id === 'makeAluminiumDustQuest')!
+    const emptyCell = quests.find((quest) => quest.id === 'makeEmptyBatteryCellQuest')!
+    const filledBattery = quests.find((quest) => quest.id === 'fillLvBatteryQuest')!
+    const fourAmpCable = quests.find((quest) => quest.id === 'buildFourAmpCableQuest')!
+    const fourAmpBuffer = quests.find((quest) => quest.id === 'buildFourAmpBufferQuest')!
     const coils = quests.find((quest) => quest.id === 'makeHeatingCoilsQuest')!
     const arcFurnace = quests.find((quest) => quest.id === 'buildArcBlastFurnaceQuest')!
     const chargedArc = quests.find((quest) => quest.id === 'bufferArcBlastFurnaceQuest')!
@@ -616,8 +622,12 @@ describe('game engine', () => {
     expect(electrolyzer.prerequisites).toEqual(['runLvBenderQuest', 'runLvLatheQuest'])
     expect(bauxite.prerequisites).toEqual(['buildLvElectrolyzerQuest'])
     expect(aluminiumDust.prerequisites).toEqual(['findBauxiteQuest'])
+    expect(emptyCell.prerequisites).toEqual(['bufferLvPowerQuest'])
+    expect(filledBattery.prerequisites).toEqual(['makeEmptyBatteryCellQuest'])
+    expect(fourAmpCable.prerequisites).toEqual(['buildTwoAmpCableQuest'])
+    expect(fourAmpBuffer.prerequisites).toEqual(['buildFourAmpCableQuest'])
     expect(arcFurnace.prerequisites).toEqual(['makeHeatingCoilsQuest'])
-    expect(chargedArc.prerequisites).toEqual(['buildArcBlastFurnaceQuest', 'bufferLvPowerQuest'])
+    expect(chargedArc.prerequisites).toEqual(['buildArcBlastFurnaceQuest', 'buildFourAmpBufferQuest'])
     expect(aluminium.prerequisites).toEqual(['makeAluminiumDustQuest', 'bufferArcBlastFurnaceQuest'])
     expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 8 })
     expect(arcFurnace.requirements.machines).toEqual([{ id: 'arcBlastFurnace', amount: 1 }])
@@ -700,47 +710,7 @@ describe('game engine', () => {
     )
 
     expect(state.machines.furnace).toBe(2)
-    expect(Object.keys(state.machines)).toEqual([
-      'furnace',
-      'well',
-      'steamBoiler',
-      'steamTank',
-      'standardChest',
-      'hopper',
-      'copperPipe',
-      'bronzePipe',
-      'ironPipe',
-      'steamMacerator',
-      'steamForgeHammer',
-      'steamCompressor',
-      'steamExtractor',
-      'steamAlloySmelter',
-      'steamFurnace',
-      'steamAutoMiner',
-      'steamTurbine',
-      'tinCable',
-      'lvBatteryBuffer',
-      'liquidSteamBoiler',
-      'lvMacerator',
-      'lvForgeHammer',
-      'lvCompressor',
-      'lvExtractor',
-      'lvAlloySmelter',
-      'lvFurnace',
-      'lvWiremill',
-      'lvBender',
-      'lvLathe',
-      'lvElectrolyzer',
-      'lvAssembler',
-      'lvCentrifuge',
-      'lvAutoMiner',
-      'cokeOvenPart',
-      'cokeOven',
-      'brickedBlastFurnacePart',
-      'brickedBlastFurnace',
-      'arcBlastFurnacePart',
-      'arcBlastFurnace',
-    ])
+    expect(Object.keys(state.machines)).toEqual(Object.keys(machines))
     expect(state.machines.well).toBe(0)
     expect(state.machines.steamBoiler).toBe(3)
     expect(state.machines.steamTank).toBe(0)
@@ -751,7 +721,13 @@ describe('game engine', () => {
     expect(state.machines.ironPipe).toBe(0)
     expect(state.machines.steamTurbine).toBe(0)
     expect(state.machines.tinCable).toBe(0)
+    expect(state.machines.tinCable2A).toBe(0)
+    expect(state.machines.tinCable4A).toBe(0)
+    expect(state.machines.tinCable8A).toBe(0)
     expect(state.machines.lvBatteryBuffer).toBe(0)
+    expect(state.machines.lvBatteryBuffer2A).toBe(0)
+    expect(state.machines.lvBatteryBuffer4A).toBe(0)
+    expect(state.machines.lvBatteryBuffer8A).toBe(0)
     expect(state.machines.liquidSteamBoiler).toBe(0)
     expect(state.machines.lvMacerator).toBe(0)
     expect(state.machines.lvForgeHammer).toBe(0)
@@ -765,6 +741,7 @@ describe('game engine', () => {
     expect(state.machines.lvElectrolyzer).toBe(0)
     expect(state.machines.lvAssembler).toBe(0)
     expect(state.machines.lvCentrifuge).toBe(0)
+    expect(state.machines.lvCanner).toBe(0)
     expect(state.machines.steamMacerator).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(0)
     expect(state.machines.cokeOven).toBe(0)
@@ -803,7 +780,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(2)
+    expect(state.version).toBe(3)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -3105,7 +3082,7 @@ describe('game engine', () => {
     state = tickGame(state, 10000).state
 
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
-    expect(turbine.process.euStored).toBe(240)
+    expect(turbine.process.euStored).toBe(256)
     expect(turbine.process.euCapacity).toBe(steamTurbineEuCapacity)
   })
 
@@ -3120,7 +3097,7 @@ describe('game engine', () => {
     const offline = simulateOfflineProgress(state, 10_000, 11_000).state
     const turbine = offline.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
 
-    expect(turbine.process.euStored).toBe(240)
+    expect(turbine.process.euStored).toBe(256)
   })
 
   it('does not run an LV Wiremill without connected EU', () => {
@@ -3170,6 +3147,7 @@ describe('game engine', () => {
     state.machines.lvBatteryBuffer = 1
     state.machines.lvWiremill = 1
     state.resources.tinIngot = 1
+    state.resources.lvBattery = 1
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
     state = placeMachineInstance(state, 'tinCable', 1, 0)
     state = placeMachineInstance(state, 'lvBatteryBuffer', 2, 0)
@@ -3178,7 +3156,8 @@ describe('game engine', () => {
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
-    turbine.process.euStored = 200
+    state = installLvBatteryInBuffer(state, buffer.uid)
+    state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 200
 
     state = tickGame(state, 10000).state
     const chargedBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
@@ -3261,24 +3240,30 @@ describe('game engine', () => {
   it('requires buffered EU before the Arc Blast Furnace starts aluminium', () => {
     let state = createFactoryState(1000)
     state.machines.arcBlastFurnacePart = 4
-    state.machines.lvBatteryBuffer = 1
+    state.machines.tinCable4A = 1
+    state.machines.lvBatteryBuffer4A = 1
     state.resources.aluminiumDust = 1
+    state.resources.lvBattery = 4
     for (let y = 0; y < 2; y += 1) {
       for (let x = 0; x < 2; x += 1) {
         state = placeMachineInstance(state, 'arcBlastFurnacePart', x, y)
       }
     }
-    state = placeMachineInstance(state, 'lvBatteryBuffer', 2, 0)
+    state = placeMachineInstance(state, 'tinCable4A', 2, 0)
+    state = placeMachineInstance(state, 'lvBatteryBuffer4A', 3, 0)
+    state = configurePlacedConnector(state, 'tinCable4A', { east: 'input', west: 'output' })
     const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
-    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
-    buffer.process.euStored = 700
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer4A')!
+    for (let index = 0; index < 4; index += 1) state = installLvBatteryInBuffer(state, buffer.uid)
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 700
     state = insertProcessSlot(state, arc.uid, 'input', 'aluminiumDust', 1)
 
     state = tickGame(state, 5000).state
     expect(state.machineInstances.find((instance) => instance.uid === arc.uid)!.process.progressMs).toBe(0)
 
-    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 2048
-    for (let step = 0; step < 5; step += 1) {
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
+    expect(availableConnectedEuAmps(state, state.machineInstances.find((instance) => instance.uid === arc.uid)!)).toBe(4)
+    for (let step = 0; step < 6; step += 1) {
       state = tickGame(state, 5000).state
     }
 

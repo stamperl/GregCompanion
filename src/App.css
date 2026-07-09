@@ -9718,6 +9718,115 @@ button.button-primary:disabled,
   word-break: normal;
 }
 
+.pixel-tinCable2A,
+.pixel-tinCable4A,
+.pixel-tinCable8A {
+  --p1: #d8dde0;
+  --p2: #454b50;
+  --p3: #111;
+}
+
+.pixel-tinCable2A::before,
+.pixel-tinCable4A::before,
+.pixel-tinCable8A::before {
+  background:
+    linear-gradient(90deg, var(--p1) 0 24%, #0f0f0f 24% 76%, var(--p1) 76% 100%);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+  height: 8px;
+}
+
+.pixel-tinCable2A::after,
+.pixel-tinCable4A::after,
+.pixel-tinCable8A::after {
+  display: none;
+}
+
+.pixel-leadOre,
+.pixel-crushedLeadOre,
+.pixel-leadDust,
+.pixel-leadIngot,
+.pixel-leadPlate,
+.pixel-sodiumSalt,
+.pixel-sodiumDust,
+.pixel-lithiumOre,
+.pixel-lithiumDust,
+.pixel-batteryAlloyIngot,
+.pixel-batteryAlloyPlate,
+.pixel-emptyBatteryCell,
+.pixel-lvBattery {
+  --p1: #a6abb0;
+  --p2: #596066;
+  --p3: #252b30;
+}
+
+.machine-tinCable2A,
+.machine-tinCable4A,
+.machine-tinCable8A,
+.machine-lvBatteryBuffer2A,
+.machine-lvBatteryBuffer4A,
+.machine-lvBatteryBuffer8A,
+.machine-lvCanner {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.18) 0 10%, transparent 11%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.18));
+}
+
+.machine-tinCable2A.machine-connector-glyph,
+.machine-tinCable4A.machine-connector-glyph,
+.machine-tinCable8A.machine-connector-glyph {
+  --connector-dark: #080a0c;
+  --connector-mid: #242b2f;
+  --connector-light: #ffe58a;
+  --connector-core: #f4c950;
+}
+
+.factory-cell.occupied.machine-tinCable2A-cell,
+.factory-cell.occupied.machine-tinCable4A-cell,
+.factory-cell.occupied.machine-tinCable8A-cell {
+  background: #3f4645;
+}
+
+.factory-cell.occupied.machine-tinCable2A-cell::before,
+.factory-cell.occupied.machine-tinCable4A-cell::before,
+.factory-cell.occupied.machine-tinCable8A-cell::before,
+.factory-cell.occupied.machine-tinCable2A-cell::after,
+.factory-cell.occupied.machine-tinCable4A-cell::after,
+.factory-cell.occupied.machine-tinCable8A-cell::after {
+  display: none;
+}
+
+.buffer-cell-controls {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.buffer-cell-buttons {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.buffer-cell-buttons button {
+  background: var(--ink);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  color: var(--paper);
+  font: inherit;
+  font-weight: 900;
+  min-height: 34px;
+}
+
+.buffer-cell-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 @media (max-width: 430px) {
   .terminal-panel {
     max-width: 100%;

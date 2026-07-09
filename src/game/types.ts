@@ -76,6 +76,9 @@ export type ResourceId =
   | 'steelRod'
   | 'tinWire'
   | 'tinCable'
+  | 'tinCable2A'
+  | 'tinCable4A'
+  | 'tinCable8A'
   | 'copperWire'
   | 'glass'
   | 'glassTube'
@@ -100,6 +103,19 @@ export type ResourceId =
   | 'basicBoard'
   | 'conductiveWire'
   | 'primitiveCircuit'
+  | 'leadOre'
+  | 'crushedLeadOre'
+  | 'leadDust'
+  | 'leadIngot'
+  | 'leadPlate'
+  | 'sodiumSalt'
+  | 'sodiumDust'
+  | 'lithiumOre'
+  | 'lithiumDust'
+  | 'batteryAlloyIngot'
+  | 'batteryAlloyPlate'
+  | 'emptyBatteryCell'
+  | 'lvBattery'
 
 export type MachineId =
   | 'furnace'
@@ -120,7 +136,13 @@ export type MachineId =
   | 'steamAutoMiner'
   | 'steamTurbine'
   | 'tinCable'
+  | 'tinCable2A'
+  | 'tinCable4A'
+  | 'tinCable8A'
   | 'lvBatteryBuffer'
+  | 'lvBatteryBuffer2A'
+  | 'lvBatteryBuffer4A'
+  | 'lvBatteryBuffer8A'
   | 'liquidSteamBoiler'
   | 'lvMacerator'
   | 'lvForgeHammer'
@@ -134,6 +156,7 @@ export type MachineId =
   | 'lvElectrolyzer'
   | 'lvAssembler'
   | 'lvCentrifuge'
+  | 'lvCanner'
   | 'lvAutoMiner'
   | 'cokeOvenPart'
   | 'cokeOven'
@@ -192,6 +215,11 @@ export type QuestId =
   | 'makeTinCableQuest'
   | 'routeLvPowerQuest'
   | 'bufferLvPowerQuest'
+  | 'makeEmptyBatteryCellQuest'
+  | 'fillLvBatteryQuest'
+  | 'buildTwoAmpCableQuest'
+  | 'buildFourAmpCableQuest'
+  | 'buildFourAmpBufferQuest'
   | 'creosoteBoilerQuest'
   | 'buildLvWiremillQuest'
   | 'runLvWiremillQuest'
@@ -286,6 +314,9 @@ export type GatherTargetId =
   | 'bauxiteVein'
   | 'redstoneVein'
   | 'coalSeam'
+  | 'leadVein'
+  | 'saltDeposit'
+  | 'lithiumVein'
 
 export type FluidId = 'water' | 'creosote'
 
@@ -343,6 +374,7 @@ export type ProcessRecipe = {
   durationMs: number
   steamCostLitres?: number
   euCost?: number
+  requiredEuAmps?: number
   input: ResourceAmount
   secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
@@ -435,6 +467,7 @@ export type MachineSpec = Machine & {
   fluidCapacityLitres?: number
   euCapacity?: number
   euOutputPerSecond?: number
+  euAmps?: number
   euCableLossPerTile?: number
   multiblock?: {
     width: number

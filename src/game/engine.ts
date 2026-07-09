@@ -24,6 +24,7 @@ import {
   isSteamStorageMachine,
   machineEuCableLossPerTile,
   machineEuCapacity,
+  machineEuAmps,
   machineEuOutputPerSecond,
   machineFluidCapacityLitres,
   machinePipeTransferLitresPerSecond,
@@ -76,7 +77,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 2
+export const currentSaveVersion = 3
 export const factoryGrid = { width: 8, height: 6 }
 export const maxFactoryFoundationLevel = 5
 export const factoryFoundationSizes = [
@@ -128,11 +129,13 @@ export const ironTankFluidCapacityLitres = machineFluidCapacityLitres('steamTank
 export const steamMachineInternalCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
 export const euPerSteamLitre = 2
 export const boilerSteamProductionLitresPerSecond = 12
-export const steamTurbineSteamUseLitresPerSecond = 12
+export const steamTurbineSteamUseLitresPerSecond = 16
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
+export const lvEuPerAmpSecond = 32
+export const lvBatteryEuCapacity = 2048
 export const lvBatteryBufferEuCapacity = machineEuCapacity('lvBatteryBuffer')
-export const lvBatteryBufferOutputEuPerSecond = 96
+export const lvBatteryBufferOutputEuPerSecond = lvEuPerAmpSecond
 export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
 export const liquidSteamBoilerCapacityMs = machineSteamCapacityLitres('liquidSteamBoiler') * steamMsPerLitre
 export const liquidSteamBoilerFluidCapacityLitres = machineFluidCapacityLitres('liquidSteamBoiler')
@@ -184,7 +187,7 @@ export function fluidPipeBufferCapacityLitres(machineId: MachineId) {
   return isSteamPipeMachine(machineId) ? Math.max(4, Math.ceil(rate / 4)) : 0
 }
 export function euCableBufferCapacity(machineId: MachineId) {
-  return isEuCableMachine(machineId) ? 32 : 0
+  return isEuCableMachine(machineId) ? Math.max(6, machineEuCapacity(machineId)) : 0
 }
 
 const durabilityMaximums: Partial<Record<ResourceId, number>> = {
@@ -1744,6 +1747,49 @@ function connectedEuSources(state: GameState, start: MachineInstance) {
     })
 }
 
+function euNetworkKey(state: GameState, start: MachineInstance) {
+  return uniqueMachineInstances(connectedEuFlowNetwork(state, start))
+    .filter((instance) => isEuCableMachine(instance.machineId))
+    .map((instance) => instance.uid)
+    .sort()
+    .join('|')
+}
+
+function euNetworkCableAmps(state: GameState, start: MachineInstance) {
+  const cables = uniqueMachineInstances(connectedEuFlowNetwork(state, start)).filter((instance) => isEuCableMachine(instance.machineId))
+  if (cables.length < 1) return Number.POSITIVE_INFINITY
+  return Math.min(...cables.map((instance) => Math.max(1, machineEuAmps(instance.machineId))))
+}
+
+export function batteryBufferSlots(machineId: MachineId) {
+  return isEuStorageMachine(machineId) ? Math.max(1, machineEuAmps(machineId)) : 0
+}
+
+export function batteryBufferInstalledBatteries(instance: MachineInstance) {
+  if (!isEuStorageMachine(instance.machineId)) return 0
+  return instance.process.input?.id === 'lvBattery' ? Math.min(batteryBufferSlots(instance.machineId), instance.process.input.amount) : 0
+}
+
+function batteryBufferEuCapacity(instance: MachineInstance) {
+  return batteryBufferInstalledBatteries(instance) * lvBatteryEuCapacity
+}
+
+function euSourceOutputAmps(instance: MachineInstance) {
+  if (isEuStorageMachine(instance.machineId)) return batteryBufferInstalledBatteries(instance)
+  return Math.max(0, machineEuAmps(instance.machineId))
+}
+
+function euSourceOutputPerSecond(instance: MachineInstance) {
+  if (isEuStorageMachine(instance.machineId)) return euSourceOutputAmps(instance) * lvEuPerAmpSecond
+  return machineEuOutputPerSecond(instance.machineId)
+}
+
+export function availableConnectedEuAmps(state: GameState, instance: MachineInstance) {
+  const sourceAmps = connectedEuSources(state, instance).reduce((sum, source) => sum + euSourceOutputAmps(source.instance), 0)
+  const cableAmps = euNetworkCableAmps(state, instance)
+  return Math.max(0, Math.min(sourceAmps, cableAmps))
+}
+
 function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance) {
   const structure = steamTankStructureForInstance(state, tank)
   const tankCells = structure?.positions.map((position) => machineAt(state, position.x, position.y)).filter((cell): cell is MachineInstance => Boolean(cell)) ?? [tank]
@@ -2012,13 +2058,14 @@ export function currentEuCableFlowEuPerSecond(state: GameState, instance: Machin
     .filter((target) => target.uid !== instance.uid && !sourceUids.has(target.uid))
     .reduce((sum, target) => {
       if (isEuStorageMachine(target.machineId) || isEuPoweredMachine(target.machineId)) {
-        return sum + Math.max(0, machineEuCapacity(target.machineId) - target.process.euStored)
+        const capacity = isEuStorageMachine(target.machineId) ? batteryBufferEuCapacity(target) : machineEuCapacity(target.machineId)
+        return sum + Math.max(0, capacity - target.process.euStored)
       }
       return sum
     }, 0)
 
   if (demandEu <= 0) return 0
-  return Math.min(lvBatteryBufferOutputEuPerSecond, availableEu, demandEu)
+  return Math.min(euNetworkCableAmps(state, instance) * lvEuPerAmpSecond, availableEu, demandEu)
 }
 
 function tickPipeDisplayBuffers(state: GameState) {
@@ -2138,23 +2185,28 @@ function recipeEuCost(recipe: ProcessRecipe) {
   return recipe.euCost ?? Math.ceil(recipe.durationMs / 1000) * 8
 }
 
-function euSourceOutputPerSecond(machineId: MachineId) {
-  if (isEuStorageMachine(machineId)) return lvBatteryBufferOutputEuPerSecond
-  return machineEuOutputPerSecond(machineId)
-}
-
 function consumeConnectedEuFromProducers(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
   let remaining = amount
   let deliveredTotal = 0
+  const networkKey = euNetworkKey(state, instance)
+  const networkAmps = euNetworkCableAmps(state, instance)
+  const networkBudgetKey = networkKey ? `eu-network:${networkKey}` : ''
+  const networkLimit = Number.isFinite(networkAmps) ? (networkAmps * lvEuPerAmpSecond * elapsedMs) / 1000 : Number.POSITIVE_INFINITY
 
   for (const producer of connectedEuProducers(state, instance)) {
     if (remaining <= 0) break
-    const outputPerSecond = machineEuOutputPerSecond(producer.instance.machineId)
-    const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile
+    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), networkAmps)
+    if (routeAmps <= 0) continue
+    const outputPerSecond = Math.min(euSourceOutputPerSecond(producer.instance), routeAmps * lvEuPerAmpSecond)
+    const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile * Math.max(1, routeAmps)
     const deliverablePerSecond = Math.max(0, outputPerSecond - lossPerSecond)
     const fullTransferLimit = (deliverablePerSecond * elapsedMs) / 1000
     const budgetKey = `eu-source:${producer.instance.uid}`
-    const transferLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullTransferLimit, fullTransferLimit)
+    const sourceLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullTransferLimit, fullTransferLimit)
+    const cableLimit = networkBudgetKey
+      ? consumeTickBudget(activeEuTransferBudgets, networkBudgetKey, networkLimit, networkLimit)
+      : Number.POSITIVE_INFINITY
+    const transferLimit = Math.min(sourceLimit, cableLimit)
     if (transferLimit <= 0) continue
 
     const routeLoss = (lossPerSecond * elapsedMs) / 1000
@@ -2165,6 +2217,7 @@ function consumeConnectedEuFromProducers(state: GameState, instance: MachineInst
 
     producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
     spendTickBudget(activeEuTransferBudgets, budgetKey, delivered)
+    if (networkBudgetKey) spendTickBudget(activeEuTransferBudgets, networkBudgetKey, delivered)
     remaining -= delivered
     deliveredTotal += delivered
   }
@@ -2175,15 +2228,25 @@ function consumeConnectedEuFromProducers(state: GameState, instance: MachineInst
 function consumeConnectedEu(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
   let remaining = amount
   let deliveredTotal = 0
+  const networkKey = euNetworkKey(state, instance)
+  const networkAmps = euNetworkCableAmps(state, instance)
+  const networkBudgetKey = networkKey ? `eu-network:${networkKey}` : ''
+  const networkLimit = Number.isFinite(networkAmps) ? (networkAmps * lvEuPerAmpSecond * elapsedMs) / 1000 : Number.POSITIVE_INFINITY
 
   for (const producer of connectedEuSources(state, instance)) {
     if (remaining <= 0) break
-    const outputPerSecond = euSourceOutputPerSecond(producer.instance.machineId)
-    const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile
+    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), networkAmps)
+    if (routeAmps <= 0) continue
+    const outputPerSecond = Math.min(euSourceOutputPerSecond(producer.instance), routeAmps * lvEuPerAmpSecond)
+    const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile * Math.max(1, routeAmps)
     const deliverablePerSecond = Math.max(0, outputPerSecond - lossPerSecond)
     const fullTransferLimit = (deliverablePerSecond * elapsedMs) / 1000
     const budgetKey = `eu-source:${producer.instance.uid}`
-    const transferLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullTransferLimit, fullTransferLimit)
+    const sourceLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullTransferLimit, fullTransferLimit)
+    const cableLimit = networkBudgetKey
+      ? consumeTickBudget(activeEuTransferBudgets, networkBudgetKey, networkLimit, networkLimit)
+      : Number.POSITIVE_INFINITY
+    const transferLimit = Math.min(sourceLimit, cableLimit)
     if (transferLimit <= 0) continue
 
     const routeLoss = (lossPerSecond * elapsedMs) / 1000
@@ -2194,6 +2257,7 @@ function consumeConnectedEu(state: GameState, instance: MachineInstance, amount:
 
     producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
     spendTickBudget(activeEuTransferBudgets, budgetKey, delivered)
+    if (networkBudgetKey) spendTickBudget(activeEuTransferBudgets, networkBudgetKey, delivered)
     remaining -= delivered
     deliveredTotal += delivered
   }
@@ -2201,11 +2265,12 @@ function consumeConnectedEu(state: GameState, instance: MachineInstance, amount:
   return deliveredTotal
 }
 
-function fillInternalEuFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
+function fillInternalEuFromConnectedStorage(state: GameState, instance: MachineInstance, elapsedMs: number, requiredAmps = 1) {
   const capacity = machineEuCapacity(instance.machineId)
   if (capacity < 1) return 0
   instance.process.euCapacity = capacity
   instance.process.euStored = Math.min(instance.process.euStored, capacity)
+  if (availableConnectedEuAmps(state, instance) < requiredAmps) return 0
   const needed = capacity - instance.process.euStored
   if (needed <= 0) return 0
   const moved = consumeConnectedEu(state, instance, needed, elapsedMs)
@@ -2227,6 +2292,39 @@ function decrementProcessSlot(slot: ProcessSlot, amount: number): ProcessSlot {
 export function availableUnplacedMachineCount(state: GameState, machineId: MachineId) {
   const placed = state.machineInstances.filter((instance) => instance.machineId === machineId).length
   return Math.max(0, state.machines[machineId] - placed)
+}
+
+export function installLvBatteryInBuffer(state: GameState, uid: string) {
+  const instance = state.machineInstances.find((machine) => machine.uid === uid)
+  if (!instance || !isEuStorageMachine(instance.machineId) || availableResourceAmount(state, 'lvBattery') < 1) return state
+  const installed = batteryBufferInstalledBatteries(instance)
+  if (installed >= batteryBufferSlots(instance.machineId)) return state
+
+  const next = cloneState(state)
+  const target = next.machineInstances.find((machine) => machine.uid === uid)
+  if (!target) return state
+  next.resources.lvBattery -= 1
+  target.process.input = { id: 'lvBattery', amount: installed + 1 }
+  target.process.euCapacity = batteryBufferEuCapacity(target)
+  target.process.euStored = Math.min(target.process.euStored, target.process.euCapacity)
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function removeLvBatteryFromBuffer(state: GameState, uid: string) {
+  const instance = state.machineInstances.find((machine) => machine.uid === uid)
+  if (!instance || !isEuStorageMachine(instance.machineId) || batteryBufferInstalledBatteries(instance) < 1) return state
+
+  const next = cloneState(state)
+  const target = next.machineInstances.find((machine) => machine.uid === uid)
+  if (!target) return state
+  const installed = batteryBufferInstalledBatteries(target)
+  target.process.input = installed > 1 ? { id: 'lvBattery', amount: installed - 1 } : null
+  target.process.euCapacity = batteryBufferEuCapacity(target)
+  target.process.euStored = Math.min(target.process.euStored, target.process.euCapacity)
+  next.resources.lvBattery += 1
+  next.lastSavedAt = Date.now()
+  return next
 }
 
 export function placeMachineInstance(state: GameState, machineId: MachineId, x: number, y: number) {
@@ -2685,7 +2783,7 @@ function tickSteamTurbine(state: GameState, instance: MachineInstance, elapsedMs
 
 function tickEuStorage(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const process = instance.process
-  process.euCapacity = machineEuCapacity(instance.machineId)
+  process.euCapacity = batteryBufferEuCapacity(instance)
   process.euStored = Math.min(process.euStored, process.euCapacity)
   const needed = process.euCapacity - process.euStored
   if (needed <= 0) {
@@ -2744,7 +2842,6 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   const process = instance.process
   process.euCapacity = machineEuCapacity(instance.machineId)
   process.euStored = Math.min(process.euStored, process.euCapacity)
-  fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
@@ -2758,6 +2855,8 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
       }
       break
     }
+    const requiredEuAmps = recipe.requiredEuAmps ?? 1
+    fillInternalEuFromConnectedStorage(state, instance, remainingMs, requiredEuAmps)
 
     if (process.euStored <= 0) {
       process.activeRecipeId = null
@@ -2770,9 +2869,13 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
         process.activeRecipeId = null
         break
       }
+      if (requiredEuAmps > 1 && availableConnectedEuAmps(state, instance) < requiredEuAmps) {
+        process.activeRecipeId = null
+        break
+      }
       const startupEu = recipe.startupEu ?? 0
       if (startupEu > 0) {
-        fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+        fillInternalEuFromConnectedStorage(state, instance, elapsedMs, requiredEuAmps)
         if (process.euStored < startupEu) {
           process.activeRecipeId = null
           break
@@ -3044,7 +3147,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       instance.process.euStored = Math.min(instance.process.euStored, steamTurbineEuCapacity)
     }
     if (isEuStorageMachine(instance.machineId)) {
-      instance.process.euCapacity = machineEuCapacity(instance.machineId)
+      instance.process.euCapacity = batteryBufferEuCapacity(instance)
       instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
     }
     if (isEuCableMachine(instance.machineId)) {
@@ -3462,6 +3565,7 @@ function migrateMachineInstances(
   resourcesState: Record<ResourceId, number>,
   foundationLevel: number,
   legacyCokeOvenSave: boolean,
+  legacyBatteryBufferSave: boolean,
   migrationNotices: string[],
   parsedInstances?: Partial<MachineInstance>[],
 ) {
@@ -3477,6 +3581,20 @@ function migrateMachineInstances(
     }
   }
   const migratedInstances = legacyCokeOvenSave ? instances.filter((instance) => instance.machineId !== 'cokeOven') : instances
+  if (legacyBatteryBufferSave) {
+    const placedBuffers = migratedInstances.filter((instance) => isEuStorageMachine(instance.machineId))
+    let filledPlacedBuffers = 0
+    for (const instance of placedBuffers) {
+      if (batteryBufferInstalledBatteries(instance) > 0) continue
+      instance.process.input = { id: 'lvBattery', amount: 1 }
+      instance.process.euCapacity = batteryBufferEuCapacity(instance)
+      instance.process.euStored = Math.min(instance.process.euStored || instance.process.euCapacity, instance.process.euCapacity)
+      filledPlacedBuffers += 1
+    }
+    const unplacedOldBuffers = Math.max(0, machinesState.lvBatteryBuffer - placedBuffers.filter((instance) => instance.machineId === 'lvBatteryBuffer').length)
+    if (unplacedOldBuffers > 0) resourcesState.lvBattery += unplacedOldBuffers
+    if (filledPlacedBuffers > 0 || unplacedOldBuffers > 0) migrationNotices.push('lv-buffer-batteries')
+  }
   if (parsedInstances) {
     const placedBlastFurnaces = migratedInstances.filter((instance) => instance.machineId === 'brickedBlastFurnace').length
     const unplacedLegacyBlastFurnaces = Math.max(0, machinesState.brickedBlastFurnace - placedBlastFurnaces)
@@ -3539,10 +3657,19 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     const parsedVersion = typeof parsed.version === 'number' ? parsed.version : 1
     const migrationNotices: string[] = []
     const legacyCokeOvenSave = parsedVersion < 2
+    const legacyBatteryBufferSave = parsedVersion < 3
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
     const migratedResources = migrateResources({ ...fresh.resources, ...parsed.resources })
-    const machineInstances = migrateMachineInstances(machinesState, migratedResources, factoryFoundationLevel, legacyCokeOvenSave, migrationNotices, parsed.machineInstances)
+    const machineInstances = migrateMachineInstances(
+      machinesState,
+      migratedResources,
+      factoryFoundationLevel,
+      legacyCokeOvenSave,
+      legacyBatteryBufferSave,
+      migrationNotices,
+      parsed.machineInstances,
+    )
 
     return {
       ...fresh,

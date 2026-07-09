@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LV Power Icon Review V1</title>
+    <style>
+      body {
+        background: #15130f;
+        color: #f4ecd0;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 18px;
+      }
+
+      h1,
+      h2 {
+        margin: 0 0 12px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+        margin-bottom: 24px;
+      }
+
+      .card {
+        background: #b8aa83;
+        border: 3px solid #efe7bf;
+        border-bottom-color: #4d412a;
+        border-right-color: #4d412a;
+        color: #231d13;
+        padding: 10px;
+      }
+
+      .preview {
+        align-items: center;
+        background:
+          linear-gradient(45deg, #343a38 25%, transparent 25%),
+          linear-gradient(-45deg, #343a38 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #343a38 75%),
+          linear-gradient(-45deg, transparent 75%, #343a38 75%),
+          #2b302f;
+        background-position:
+          0 0,
+          0 8px,
+          8px -8px,
+          -8px 0;
+        background-size: 16px 16px;
+        display: grid;
+        height: 96px;
+        justify-items: center;
+        margin-bottom: 8px;
+      }
+
+      img {
+        image-rendering: pixelated;
+        max-height: 82px;
+        max-width: 82px;
+      }
+
+      strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      small {
+        display: block;
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>LV Power Icon Review V1</h1>
+    <h2>Resources</h2>
+    <section class="grid" id="resources"></section>
+    <h2>Machines</h2>
+    <section class="grid" id="machines"></section>
+    <script>
+      const resources = [
+        'tinCable2A',
+        'tinCable4A',
+        'tinCable8A',
+        'leadOre',
+        'crushedLeadOre',
+        'leadDust',
+        'leadIngot',
+        'leadPlate',
+        'sodiumSalt',
+        'sodiumDust',
+        'lithiumOre',
+        'lithiumDust',
+        'batteryAlloyIngot',
+        'batteryAlloyPlate',
+        'emptyBatteryCell',
+        'lvBattery',
+      ]
+
+      const machines = ['tinCable2A', 'tinCable4A', 'tinCable8A', 'lvBatteryBuffer2A', 'lvBatteryBuffer4A', 'lvBatteryBuffer8A', 'lvCanner']
+
+      function addCards(targetId, kind, ids) {
+        const target = document.getElementById(targetId)
+        for (const id of ids) {
+          const card = document.createElement('article')
+          card.className = 'card'
+          card.innerHTML = `
+            <div class="preview"><img src="/game-icons/${kind}/${id}.png" alt="${id}" /></div>
+            <strong>${id}</strong>
+            <small>/game-icons/${kind}/${id}.png</small>
+          `
+          target.appendChild(card)
+        }
+      }
+
+      addCards('resources', 'resources', resources)
+      addCards('machines', 'machines', machines)
+    </script>
+  </body>
+</html>

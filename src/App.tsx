@@ -80,6 +80,7 @@ import {
   createCreativeState,
   currentFluidOutputFlows,
   currentEuCableFlowEuPerSecond,
+  availableConnectedEuAmps,
   currentSteamPipeFlowLitresPerSecond,
   cyclePipeSideMode,
   craftableQuantity,
@@ -103,6 +104,7 @@ import {
   isRecipeVisible,
   isResourceDiscovered,
   insertProcessSlot,
+  installLvBatteryInBuffer,
   loadGame,
   simulateOfflineProgress,
   makeGridForRecipe,
@@ -146,6 +148,8 @@ import {
   steamTankStructureForInstance,
   lvBatteryBufferEuCapacity,
   lvBatteryBufferOutputEuPerSecond,
+  batteryBufferInstalledBatteries,
+  batteryBufferSlots,
   liquidSteamBoilerCapacityMs,
   liquidSteamBoilerCreosoteUseLitresPerSecond,
   liquidSteamBoilerFluidCapacityLitres,
@@ -159,6 +163,7 @@ import {
   canExpandFactoryFloor,
   terminalAvailableAmount,
   tickGame,
+  removeLvBatteryFromBuffer,
   unassignAutoMiner,
   unequipSlot,
   visibleQuests,
@@ -280,7 +285,13 @@ const machineOrder: MachineId[] = [
   'steamAutoMiner',
   'steamTurbine',
   'tinCable',
+  'tinCable2A',
+  'tinCable4A',
+  'tinCable8A',
   'lvBatteryBuffer',
+  'lvBatteryBuffer2A',
+  'lvBatteryBuffer4A',
+  'lvBatteryBuffer8A',
   'liquidSteamBoiler',
   'lvMacerator',
   'lvForgeHammer',
@@ -294,6 +305,7 @@ const machineOrder: MachineId[] = [
   'lvElectrolyzer',
   'lvAssembler',
   'lvCentrifuge',
+  'lvCanner',
   'lvAutoMiner',
   'cokeOvenPart',
   'cokeOven',
@@ -355,7 +367,11 @@ type GatherAreaId = 'forest' | 'lake' | 'mine'
 const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTargetId[] }> = [
   { id: 'forest', label: 'Forest', targets: ['tree', 'rubberTree'] },
   { id: 'lake', label: 'Lake', targets: ['sandPatch', 'clayPatch', 'gravelPatch'] },
-  { id: 'mine', label: 'Mine', targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam'] },
+  {
+    id: 'mine',
+    label: 'Mine',
+    targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam', 'leadVein', 'saltDeposit', 'lithiumVein'],
+  },
 ]
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tree: 'log',
@@ -371,6 +387,9 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   bauxiteVein: 'bauxiteOre',
   redstoneVein: 'redstoneDust',
   coalSeam: 'coal',
+  leadVein: 'leadOre',
+  saltDeposit: 'sodiumSalt',
+  lithiumVein: 'lithiumOre',
 }
 const craftSlotHitboxScale = 0.64
 
@@ -443,19 +462,24 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   runLvWiremillQuest: { x: 1875, y: 335 },
   bufferLvPowerQuest: { x: 2070, y: 220 },
   creosoteBoilerQuest: { x: 2250, y: 50 },
-  buildLvBenderQuest: { x: 2250, y: 190 },
-  runLvBenderQuest: { x: 2430, y: 190 },
-  buildLvLatheQuest: { x: 2250, y: 330 },
-  runLvLatheQuest: { x: 2430, y: 330 },
-  buildLvElectrolyzerQuest: { x: 2620, y: 190 },
-  findBauxiteQuest: { x: 2800, y: 105 },
-  makeAluminiumDustQuest: { x: 2980, y: 105 },
-  findNickelQuest: { x: 2250, y: 510 },
-  makeCupronickelQuest: { x: 2430, y: 510 },
-  makeHeatingCoilsQuest: { x: 2620, y: 510 },
-  buildArcBlastFurnaceQuest: { x: 2800, y: 510 },
-  bufferArcBlastFurnaceQuest: { x: 2980, y: 510 },
-  firstAluminiumQuest: { x: 3160, y: 300 },
+  makeEmptyBatteryCellQuest: { x: 2250, y: 190 },
+  fillLvBatteryQuest: { x: 2430, y: 190 },
+  buildTwoAmpCableQuest: { x: 2610, y: 190 },
+  buildFourAmpCableQuest: { x: 2790, y: 190 },
+  buildFourAmpBufferQuest: { x: 2970, y: 190 },
+  buildLvBenderQuest: { x: 2250, y: 350 },
+  runLvBenderQuest: { x: 2430, y: 350 },
+  buildLvLatheQuest: { x: 2250, y: 500 },
+  runLvLatheQuest: { x: 2430, y: 500 },
+  buildLvElectrolyzerQuest: { x: 3150, y: 350 },
+  findBauxiteQuest: { x: 3330, y: 260 },
+  makeAluminiumDustQuest: { x: 3510, y: 260 },
+  findNickelQuest: { x: 3150, y: 510 },
+  makeCupronickelQuest: { x: 3330, y: 510 },
+  makeHeatingCoilsQuest: { x: 3510, y: 510 },
+  buildArcBlastFurnaceQuest: { x: 3690, y: 510 },
+  bufferArcBlastFurnaceQuest: { x: 3870, y: 510 },
+  firstAluminiumQuest: { x: 4050, y: 360 },
 }
 
 const multiblockQuestPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>> = {
@@ -919,9 +943,14 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     return process.steamStoredMs > 0 ? 'Holding steam' : 'Empty tank'
   }
   if (isSteamPipeMachine(instance.machineId)) return `${steamPipeTransferLitresPerSecond[instance.machineId] ?? 0}L/s transfer`
-  if (isEuCableMachine(instance.machineId)) return `${tinCableLossEuPerTile} EU/tile loss`
+  if (isEuCableMachine(instance.machineId)) {
+    const cableAmps = machines[instance.machineId].euAmps ?? 1
+    return `${cableAmps}A LV cable`
+  }
   if (isEuStorageMachine(instance.machineId)) {
-    if (process.euStored >= (process.euCapacity || lvBatteryBufferEuCapacity)) return 'EU buffer full'
+    const installedBatteries = batteryBufferInstalledBatteries(instance)
+    if (installedBatteries < 1) return 'Needs battery'
+    if (process.euStored >= process.euCapacity) return 'EU buffer full'
     return process.activeRecipeId ? 'Charging EU' : 'Buffer ready'
   }
   if (isLiquidSteamBoilerMachine(instance.machineId)) {
@@ -982,6 +1011,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
     const minimumEuStored = recipe.minimumEuStored ?? 0
     if (minimumEuStored > 0 && process.progressMs === 0 && process.euStored + availableConnectedEuStorage(state, instance) < minimumEuStored) return 'Waiting for buffer'
+    if (recipe.requiredEuAmps && availableConnectedEuAmps(state, instance) < recipe.requiredEuAmps) return `Needs ${recipe.requiredEuAmps}A route`
     if (process.euStored + availableConnectedEu(state, instance) < 1) return 'Underpowered'
     return process.activeRecipeId ? 'Blasting' : 'Ready'
   }
@@ -2005,7 +2035,7 @@ function App() {
       addRateMetric('Flow', steamFlow, 'L/s', 'supply', steamFlow > 0 ? 'steam moving' : 'no contents moving')
     } else if (isEuCableMachine(selectedMachine.machineId)) {
       addEuMetric('Buffer', process.euStored, process.euCapacity || euCableBufferCapacity(selectedMachine.machineId))
-      addRateMetric('Flow', currentEuCableFlowEuPerSecond(state, selectedMachine), ' EU/s', 'supply', 'power moving')
+      addRateMetric('Flow', currentEuCableFlowEuPerSecond(state, selectedMachine), ' EU/s', 'supply', `${machines[selectedMachine.machineId].euAmps ?? 1}A route`)
     } else if (selectedMachine.machineId === 'steamBoiler') {
       addSteamMetric('Steam', process.steamStoredMs, boilerSteamCapacityMs)
       addRateMetric('Makes', boilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
@@ -2019,8 +2049,10 @@ function App() {
       if ((process.fluids.creosote ?? 0) > 0) addFluidMetric(fluidLabel('creosote'), process.fluids.creosote ?? 0, liquidSteamBoilerFluidCapacityLitres)
       addRateMetric('Makes', liquidSteamBoilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
     } else if (isEuStorageMachine(selectedMachine.machineId)) {
-      addEuMetric('Stored EU', process.euStored, process.euCapacity || lvBatteryBufferEuCapacity)
-      addRateMetric('Output', lvBatteryBufferOutputEuPerSecond, ' EU/s', 'supply', 'buffer limit')
+      const installedBatteries = batteryBufferInstalledBatteries(selectedMachine)
+      const batterySlots = batteryBufferSlots(selectedMachine.machineId)
+      addEuMetric('Stored EU', process.euStored, process.euCapacity || batterySlots * lvBatteryBufferEuCapacity)
+      addRateMetric('Output', installedBatteries * lvBatteryBufferOutputEuPerSecond, ' EU/s', 'supply', `${installedBatteries}/${batterySlots} cells`)
     } else if (isEuProducerMachine(selectedMachine.machineId)) {
       addEuMetric('Stored EU', process.euStored, steamTurbineEuCapacity)
       addSteamSupplyMetric(availableConnectedSteam(state, selectedMachine))
@@ -2034,7 +2066,7 @@ function App() {
       selectedMachineMetrics.push({
         label: 'Supply',
         value: `${Math.floor(availableConnectedEu(state, selectedMachine))}`,
-        detail: 'EU network',
+        detail: `${formatAmount(availableConnectedEuAmps(state, selectedMachine))}A route`,
         tone: 'supply',
         fillPercent: availableConnectedEu(state, selectedMachine) > 0 ? 100 : 0,
       })
@@ -2047,11 +2079,20 @@ function App() {
       selectedMachineMetrics.push({
         label: 'Supply',
         value: `${Math.floor(availableConnectedEu(state, selectedMachine))}`,
-        detail: 'EU network',
+        detail: `${formatAmount(availableConnectedEuAmps(state, selectedMachine))}A route`,
         tone: 'supply',
         fillPercent: availableConnectedEu(state, selectedMachine) > 0 ? 100 : 0,
       })
       addRateMetric('Uses', selectedMachineEuUsagePerSecond, ' EU/s', 'usage', 'recipe draw')
+      if (isEuBlastMachine(selectedMachine.machineId) && selectedMachineRecipe?.requiredEuAmps) {
+        selectedMachineMetrics.push({
+          label: 'Amps',
+          value: `${formatAmount(availableConnectedEuAmps(state, selectedMachine))}/${selectedMachineRecipe.requiredEuAmps}A`,
+          detail: 'route needed',
+          tone: 'eu',
+          fillPercent: metricFill(availableConnectedEuAmps(state, selectedMachine), selectedMachineRecipe.requiredEuAmps),
+        })
+      }
       if (isEuBlastMachine(selectedMachine.machineId) && selectedMachineRecipe?.minimumEuStored) {
         selectedMachineMetrics.push({
           label: 'Buffer',
@@ -2256,6 +2297,14 @@ function App() {
       if (!miner) return current
       return unassignAutoMiner(current, miner.uid)
     })
+  }
+
+  const handleInstallBufferBattery = (uid: string) => {
+    setState((current) => installLvBatteryInBuffer(current, uid))
+  }
+
+  const handleRemoveBufferBattery = (uid: string) => {
+    setState((current) => removeLvBatteryFromBuffer(current, uid))
   }
 
   const handleCraft = (recipe: Recipe) => {
@@ -4754,9 +4803,32 @@ function App() {
                   </div>
                 ) : isEuStorageMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">
-                    <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || lvBatteryBufferEuCapacity} />
+                    <EnergyTank
+                      storedEu={selectedMachine.process.euStored}
+                      capacityEu={selectedMachine.process.euCapacity || batteryBufferSlots(selectedMachine.machineId) * lvBatteryBufferEuCapacity}
+                    />
                     <MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.euStored > 0} />
-                    <span>Stores LV power and supplies nearby electric machines through lossy cable routes</span>
+                    <div className="buffer-cell-controls">
+                      <span>
+                        Cells {batteryBufferInstalledBatteries(selectedMachine)}/{batteryBufferSlots(selectedMachine.machineId)} | Output{' '}
+                        {batteryBufferInstalledBatteries(selectedMachine) * lvBatteryBufferOutputEuPerSecond} EU/s
+                      </span>
+                      <div className="buffer-cell-buttons">
+                        <button
+                          type="button"
+                          disabled={
+                            availableResourceAmount(state, 'lvBattery') < 1 ||
+                            batteryBufferInstalledBatteries(selectedMachine) >= batteryBufferSlots(selectedMachine.machineId)
+                          }
+                          onClick={() => handleInstallBufferBattery(selectedMachine.uid)}
+                        >
+                          Install
+                        </button>
+                        <button type="button" disabled={batteryBufferInstalledBatteries(selectedMachine) < 1} onClick={() => handleRemoveBufferBattery(selectedMachine.uid)}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : isEuProducerMachine(selectedMachine.machineId) ? (
                   <div className="well-interface">
@@ -4798,7 +4870,11 @@ function App() {
                   {selectedMachine.machineId !== 'steamBoiler' && (
                   <div className="furnace-inputs">
                     <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
-                    {(selectedMachine.machineId === 'steamAlloySmelter' || selectedMachine.machineId === 'lvAlloySmelter' || selectedMachine.machineId === 'lvAssembler' || selectedMachine.machineId === 'lvCentrifuge') && (
+                    {(selectedMachine.machineId === 'steamAlloySmelter' ||
+                      selectedMachine.machineId === 'lvAlloySmelter' ||
+                      selectedMachine.machineId === 'lvAssembler' ||
+                      selectedMachine.machineId === 'lvCentrifuge' ||
+                      selectedMachine.machineId === 'lvCanner') && (
                       <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                     )}
                     {isSteamPoweredMachine(selectedMachine.machineId) && (
