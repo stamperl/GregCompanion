@@ -249,6 +249,10 @@ function emptyProcessState(): MachineProcessState {
   return {
     input: null,
     secondaryInput: null,
+    extraInput1: null,
+    extraInput2: null,
+    extraInput3: null,
+    extraInput4: null,
     fuel: null,
     output: null,
     activeRecipeId: null,
@@ -273,6 +277,10 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
   return {
     input: cloneProcessSlot(process.input),
     secondaryInput: cloneProcessSlot(process.secondaryInput),
+    extraInput1: cloneProcessSlot(process.extraInput1),
+    extraInput2: cloneProcessSlot(process.extraInput2),
+    extraInput3: cloneProcessSlot(process.extraInput3),
+    extraInput4: cloneProcessSlot(process.extraInput4),
     fuel: cloneProcessSlot(process.fuel),
     output: cloneProcessSlot(process.output),
     activeRecipeId: process.activeRecipeId,
@@ -315,6 +323,10 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
   return {
     input: normalizeProcessSlot(process.input),
     secondaryInput: normalizeProcessSlot(process.secondaryInput),
+    extraInput1: normalizeProcessSlot(process.extraInput1),
+    extraInput2: normalizeProcessSlot(process.extraInput2),
+    extraInput3: normalizeProcessSlot(process.extraInput3),
+    extraInput4: normalizeProcessSlot(process.extraInput4),
     fuel: normalizeProcessSlot(process.fuel),
     output: normalizeProcessSlot(process.output),
     activeRecipeId: process.activeRecipeId ?? null,
@@ -1156,6 +1168,13 @@ type MatchedProcessRecipe = {
   recipe: ProcessRecipe
   inputCost: ResourceAmount
   secondaryInputCost?: ResourceAmount
+  extraInputCosts?: ResourceAmount[]
+}
+
+const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3', 'extraInput4'] as const
+
+function extraProcessInputSlots(process: MachineProcessState): ProcessSlot[] {
+  return assemblerExtraInputSlotIds.map((slotId) => process[slotId])
 }
 
 function isAlloySmelterIngredient(resourceId: ResourceId) {
@@ -1170,7 +1189,18 @@ function processSlotCanPay(slot: ProcessSlot, cost: ResourceAmount) {
   return Boolean(slot && slot.id === cost.id && slot.amount >= cost.amount)
 }
 
-function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot): MatchedProcessRecipe | undefined {
+function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot, extraInputs: ProcessSlot[] = []): MatchedProcessRecipe | undefined {
+  const extraCosts = recipe.extraInputs ?? []
+  if (extraCosts.length > 0) {
+    if (!processSlotCanPay(input, recipe.input)) return undefined
+    if (recipe.secondaryInput && !processSlotCanPay(secondaryInput, recipe.secondaryInput)) return undefined
+    if (!recipe.secondaryInput && secondaryInput) return undefined
+    if (!extraCosts.every((cost, index) => processSlotCanPay(extraInputs[index] ?? null, cost))) return undefined
+    if (extraInputs.slice(extraCosts.length).some(Boolean)) return undefined
+    return { recipe, inputCost: recipe.input, secondaryInputCost: recipe.secondaryInput, extraInputCosts: extraCosts }
+  }
+  if (extraInputs.some(Boolean)) return undefined
+
   if (!recipe.secondaryInput) {
     if (secondaryInput) return undefined
     return processSlotCanPay(input, recipe.input) ? { recipe, inputCost: recipe.input } : undefined
@@ -1189,10 +1219,10 @@ function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, sec
   return undefined
 }
 
-function findMatchedProcessRecipe(machineId: MachineId, input: ProcessSlot, secondaryInput: ProcessSlot = null) {
+function findMatchedProcessRecipe(machineId: MachineId, input: ProcessSlot, secondaryInput: ProcessSlot = null, extraInputs: ProcessSlot[] = []) {
   return processRecipes
     .filter((recipe) => recipe.machineId === machineId)
-    .map((recipe) => matchProcessRecipeInputs(recipe, input, secondaryInput))
+    .map((recipe) => matchProcessRecipeInputs(recipe, input, secondaryInput, extraInputs))
     .find((match): match is MatchedProcessRecipe => Boolean(match))
 }
 
@@ -1918,6 +1948,7 @@ function freeFluidCapacity(state: GameState, instance: MachineInstance, fluidId:
 function manualBucketTargetForInstance(state: GameState, instance: MachineInstance) {
   if (instance.machineId === 'steamTank') return steamTankStorageForInstance(state, instance)
   if (isLiquidSteamBoilerMachine(instance.machineId)) return instance
+  if (instance.machineId === 'lvAssembler') return instance
   return null
 }
 
@@ -2507,7 +2538,16 @@ export function removeMachineInstance(state: GameState, uid: string) {
     const positions = multiblockPositions(state, multiblockCenter.x, multiblockCenter.y, multiblockCenter.spec)
     const positionKeys = new Set(positions.map((position) => `${position.x},${position.y}`))
     const controller = machineAt(next, multiblockCenter.x, multiblockCenter.y)
-    const returned = [controller?.process.input, controller?.process.secondaryInput, controller?.process.fuel, controller?.process.output].filter(
+    const returned = [
+      controller?.process.input,
+      controller?.process.secondaryInput,
+      controller?.process.extraInput1,
+      controller?.process.extraInput2,
+      controller?.process.extraInput3,
+      controller?.process.extraInput4,
+      controller?.process.fuel,
+      controller?.process.output,
+    ].filter(
       (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
     )
     next.machineInstances = next.machineInstances.filter((candidate) => !positionKeys.has(`${candidate.x},${candidate.y}`))
@@ -2519,7 +2559,16 @@ export function removeMachineInstance(state: GameState, uid: string) {
   }
 
   let next = cloneState(state)
-  const returned = [instance.process.input, instance.process.secondaryInput, instance.process.fuel, instance.process.output].filter(
+  const returned = [
+    instance.process.input,
+    instance.process.secondaryInput,
+    instance.process.extraInput1,
+    instance.process.extraInput2,
+    instance.process.extraInput3,
+    instance.process.extraInput4,
+    instance.process.fuel,
+    instance.process.output,
+  ].filter(
     (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
   )
   next.machineInstances = next.machineInstances.filter((candidate) => candidate.uid !== uid)
@@ -2541,6 +2590,13 @@ export function crowbarRemoveMachineInstance(state: GameState, uid: string) {
 export function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
   if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
+  const extraSlotIndex = assemblerExtraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
+  if (extraSlotIndex >= 0) {
+    return (
+      machineId === 'lvAssembler' &&
+      processRecipes.some((recipe) => recipe.machineId === machineId && recipe.extraInputs?.[extraSlotIndex]?.id === resourceId)
+    )
+  }
   if (slotId === 'input') {
     return processRecipes.some(
       (recipe) =>
@@ -2597,7 +2653,7 @@ export function removeProcessSlot(state: GameState, uid: string, slotId: Process
   const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
   if (!nextInstance) return state
   nextInstance.process[slotId] = null
-  if (slotId === 'input' || slotId === 'secondaryInput') {
+  if (slotId === 'input' || slotId === 'secondaryInput' || assemblerExtraInputSlotIds.includes(slotId as typeof assemblerExtraInputSlotIds[number])) {
     nextInstance.process.activeRecipeId = null
     nextInstance.process.progressMs = 0
     nextInstance.process.durationMs = 0
@@ -2717,7 +2773,7 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
-    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput)
+    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process))
     const recipe = match?.recipe
     if (!recipe || !canOutputAccept(process.output, recipe.output)) {
       process.activeRecipeId = null
@@ -2750,6 +2806,10 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
 
     process.input = decrementProcessSlot(process.input, match.inputCost.amount)
     if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
+    match.extraInputCosts?.forEach((cost, index) => {
+      const slotId = assemblerExtraInputSlotIds[index]
+      if (slotId) process[slotId] = decrementProcessSlot(process[slotId], cost.amount)
+    })
     process.output = addToProcessOutput(process.output, recipe.output)
     process.progressMs = 0
     process.activeRecipeId = null
@@ -2854,7 +2914,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
-    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput)
+    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process))
     const recipe = match?.recipe
     if (!recipe || !canOutputAccept(process.output, recipe.output)) {
       process.activeRecipeId = null
@@ -2909,6 +2969,10 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
 
     process.input = decrementProcessSlot(process.input, match.inputCost.amount)
     if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
+    match.extraInputCosts?.forEach((cost, index) => {
+      const slotId = assemblerExtraInputSlotIds[index]
+      if (slotId) process[slotId] = decrementProcessSlot(process[slotId], cost.amount)
+    })
     process.output = addToProcessOutput(process.output, recipe.output)
     process.progressMs = 0
     process.activeRecipeId = null
@@ -3166,6 +3230,8 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     if (isEuPoweredMachine(instance.machineId)) {
       instance.process.euCapacity = machineEuCapacity(instance.machineId)
       instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
+      instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+      enforceSingleFluidStore(instance.process)
     }
     if (instance.machineId === 'cokeOven') tickCokeOven(next, instance, elapsedMs)
     if (isLiquidSteamBoilerMachine(instance.machineId)) tickLiquidSteamBoiler(next, instance, elapsedMs)
@@ -3572,7 +3638,16 @@ function normalizeFactoryFoundationLevel(parsed: Partial<GameState>) {
 }
 
 function addReturnedProcessSlots(resources: Record<ResourceId, number>, instance: MachineInstance) {
-  for (const slot of [instance.process.input, instance.process.secondaryInput, instance.process.fuel, instance.process.output]) {
+  for (const slot of [
+    instance.process.input,
+    instance.process.secondaryInput,
+    instance.process.extraInput1,
+    instance.process.extraInput2,
+    instance.process.extraInput3,
+    instance.process.extraInput4,
+    instance.process.fuel,
+    instance.process.output,
+  ]) {
     if (!slot) continue
     resources[slot.id] += slot.amount
   }

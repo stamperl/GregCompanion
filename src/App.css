@@ -4930,6 +4930,45 @@ button.craft-output:disabled {
   justify-items: center;
 }
 
+.lvAssembler-process-interface {
+  align-items: center;
+  grid-template-areas:
+    "items fluid output"
+    "items energy output"
+    "progress progress progress";
+  grid-template-columns: max-content minmax(84px, 1fr) 58px;
+  justify-items: center;
+}
+
+.assembler-item-grid {
+  display: grid;
+  gap: 5px;
+  grid-area: items;
+  grid-template-columns: repeat(3, 48px);
+}
+
+.assembler-item-grid .process-slot {
+  height: 48px;
+  width: 48px;
+}
+
+.assembler-fluid-lot {
+  grid-area: fluid;
+}
+
+.lvAssembler-process-interface > .energy-tank {
+  grid-area: energy;
+}
+
+.lvAssembler-process-interface > .process-slot {
+  grid-area: output;
+}
+
+.assembler-progress {
+  grid-area: progress;
+  width: min(100%, 260px);
+}
+
 .steam-tank {
   align-items: center;
   background: var(--bevel-well);
@@ -5110,8 +5149,15 @@ button.craft-output:disabled {
   border-right-color: var(--bevel-light);
   display: grid;
   gap: 6px;
+  left: 50%;
+  max-width: min(370px, calc(100vw - 24px));
   min-width: 0;
   padding: 6px;
+  position: fixed;
+  top: calc(var(--top-safe-clearance, 0px) + 12px);
+  transform: translateX(-50%);
+  width: calc(100vw - 24px);
+  z-index: 1100;
 }
 
 .process-quantity-head {
@@ -9853,6 +9899,29 @@ button.button-primary:disabled,
   display: grid;
   gap: 6px;
   min-width: 0;
+}
+
+.buffer-cell-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, 34px);
+  justify-content: center;
+}
+
+.buffer-cell-slot {
+  height: 34px;
+  min-height: 34px;
+  min-width: 34px;
+  width: 34px;
+}
+
+.buffer-cell-slot.empty {
+  opacity: 0.7;
+}
+
+.buffer-cell-slot .process-slot-label {
+  color: #4f4f4f;
+  font-size: 0.5rem;
 }
 
 .buffer-cell-buttons {

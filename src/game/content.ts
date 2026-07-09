@@ -727,6 +727,7 @@ export const machineRegistry = {
     placeable: true,
     processKind: 'euProcess',
     euCapacity: 128,
+    fluidCapacityLitres: 128,
   },
   lvCentrifuge: {
     id: 'lvCentrifuge',
@@ -2593,6 +2594,20 @@ export const recipes: Recipe[] = [
     outputs: [{ id: 'primitiveCircuit', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },
+  {
+    id: 'craft_empty_battery_cell',
+    name: 'Empty Battery Cell',
+    description: 'Fold battery alloy plates around a tin cable contact to make an empty LV battery cell.',
+    tier: 'lv',
+    durationMs: 4200,
+    inputs: [
+      { id: 'batteryAlloyPlate', amount: 4 },
+      { id: 'tinCable', amount: 1 },
+    ],
+    pattern: [null, 'tinCable', null, 'batteryAlloyPlate', null, 'batteryAlloyPlate', 'batteryAlloyPlate', null, 'batteryAlloyPlate'],
+    outputs: [{ id: 'emptyBatteryCell', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
 ]
 
 export const fuelDefinitions: Record<string, FuelDefinition> = {
@@ -3989,20 +4004,14 @@ export const processRecipes: ProcessRecipe[] = [
     durationMs: 6000,
     euCost: 72,
     input: { id: 'woodenBoardBlank', amount: 1 },
-    secondaryInput: { id: 'copperWire', amount: 6 },
+    secondaryInput: { id: 'copperWire', amount: 2 },
+    extraInputs: [
+      { id: 'copperWire', amount: 1 },
+      { id: 'copperWire', amount: 1 },
+      { id: 'copperWire', amount: 1 },
+      { id: 'copperWire', amount: 1 },
+    ],
     output: { id: 'basicBoard', amount: 1 },
-  },
-  {
-    id: 'lv_assembler_empty_battery_cell',
-    name: 'LV Assemble Empty Battery Cell',
-    description: 'Seal battery alloy plates around tin cable contacts to make an empty cell.',
-    tier: 'lv',
-    machineId: 'lvAssembler',
-    durationMs: 6500,
-    euCost: 96,
-    input: { id: 'batteryAlloyPlate', amount: 2 },
-    secondaryInput: { id: 'tinCable', amount: 1 },
-    output: { id: 'emptyBatteryCell', amount: 1 },
   },
   {
     id: 'lv_canner_sodium_battery',

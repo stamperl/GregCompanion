@@ -382,6 +382,7 @@ export type ProcessRecipe = {
   input: ResourceAmount
   secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
+  extraInputs?: ResourceAmount[]
   fluidInput?: {
     id: FluidId
     amount: number
@@ -535,7 +536,7 @@ export type OfflineProgressResult = {
   questCompletions: QuestId[]
 }
 
-export type ProcessSlotId = 'input' | 'secondaryInput' | 'fuel' | 'output'
+export type ProcessSlotId = 'input' | 'secondaryInput' | 'extraInput1' | 'extraInput2' | 'extraInput3' | 'extraInput4' | 'fuel' | 'output'
 export type PipeDirection = 'north' | 'east' | 'south' | 'west'
 export type PipeSideMode = 'both' | 'input' | 'output' | 'blocked'
 
@@ -547,6 +548,10 @@ export type BucketFluidState = {
 export type MachineProcessState = {
   input: ProcessSlot
   secondaryInput: ProcessSlot
+  extraInput1: ProcessSlot
+  extraInput2: ProcessSlot
+  extraInput3: ProcessSlot
+  extraInput4: ProcessSlot
   fuel: ProcessSlot
   output: ProcessSlot
   activeRecipeId: string | null
