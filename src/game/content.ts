@@ -4779,6 +4779,7 @@ export function createInitialState(now = Date.now()): GameState {
     resources: { ...initialResources },
     machines: { ...initialMachines },
     machineInstances: [],
+    bucketFluid: null,
     factoryFoundationLevel: 0,
     scrip: 0,
     shopCooldowns: {},

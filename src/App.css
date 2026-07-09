@@ -3676,6 +3676,52 @@ button.craft-output:disabled {
   color: #333;
 }
 
+.manual-fluid-transfer {
+  align-items: stretch;
+  background: #9f9f9f;
+  border: 2px solid #efefef;
+  border-bottom-color: #616161;
+  border-radius: 0;
+  border-right-color: #616161;
+  color: #202020;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.45fr);
+  min-height: 52px;
+  padding: 6px;
+}
+
+.manual-fluid-transfer > div {
+  align-content: center;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.manual-fluid-transfer span {
+  color: #555;
+  font: 950 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+}
+
+.manual-fluid-transfer strong {
+  color: #fff8ea;
+  font: 950 0.78rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  overflow: hidden;
+  text-shadow: 1px 1px 0 #333;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-action-button {
+  align-self: stretch;
+  font-size: 0.78rem;
+  min-height: 36px;
+  padding: 4px 6px;
+}
+
 .machine-meter-bar {
   align-self: end;
   background: #707070;

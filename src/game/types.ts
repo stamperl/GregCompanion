@@ -467,6 +467,7 @@ export type GameState = {
   resources: Record<ResourceId, number>
   machines: Record<MachineId, number>
   machineInstances: MachineInstance[]
+  bucketFluid: BucketFluidState | null
   factoryFoundationLevel: number
   scrip: number
   shopCooldowns: Partial<Record<ResourceId, number>>
@@ -500,6 +501,11 @@ export type OfflineProgressResult = {
 export type ProcessSlotId = 'input' | 'secondaryInput' | 'fuel' | 'output'
 export type PipeDirection = 'north' | 'east' | 'south' | 'west'
 export type PipeSideMode = 'both' | 'input' | 'output' | 'blocked'
+
+export type BucketFluidState = {
+  id: FluidId
+  amount: number
+}
 
 export type MachineProcessState = {
   input: ProcessSlot

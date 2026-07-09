@@ -48,6 +48,7 @@ import {
 } from './recipeGraph'
 import type {
   CraftSlot,
+  BucketFluidState,
   EquipmentSlotId,
   EquipmentState,
   FluidId,
@@ -137,6 +138,7 @@ export const liquidSteamBoilerCapacityMs = machineSteamCapacityLitres('liquidSte
 export const liquidSteamBoilerFluidCapacityLitres = machineFluidCapacityLitres('liquidSteamBoiler')
 export const liquidSteamBoilerSteamProductionLitresPerSecond = 36
 export const liquidSteamBoilerCreosoteUseLitresPerSecond = 1
+export const bucketFluidTransferLitres = 16
 export const steamAutoMinerActionDamage = 10
 export const steamAutoMinerActionMs = 5000
 export const steamAutoMinerSteamUseLitres = 16
@@ -345,6 +347,12 @@ function normalizePipeSideModes(parsed?: Partial<Record<PipeDirection, PipeSideM
   return normalized
 }
 
+function normalizeBucketFluid(parsed?: Partial<BucketFluidState> | null): BucketFluidState | null {
+  if (!parsed || !parsed.id || !fluidIds.includes(parsed.id)) return null
+  const amount = Math.max(0, Math.floor(parsed.amount ?? 0))
+  return amount > 0 ? { id: parsed.id, amount } : null
+}
+
 const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
   helmet: [],
   chestplate: [],
@@ -388,17 +396,24 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
     if (occupied.has(key)) continue
     occupied.add(key)
     const pipeDisabledSides = normalizePipeDisabledSides(instance.pipeDisabledSides)
+    const machineId = instance.machineId as MachineId
+    let pipeSideModes = normalizePipeSideModes(instance.pipeSideModes, pipeDisabledSides)
+    let normalizedPipeDisabledSides = pipeDisabledSides
+    if (isFluidOutletConfigurableMachine(machineId) && Object.keys(pipeSideModes).length < 1 && Object.keys(pipeDisabledSides).length < 1) {
+      pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
+      normalizedPipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
+    }
     normalized.push({
       uid: String(instance.uid),
-      machineId: instance.machineId as MachineId,
+      machineId,
       x,
       y,
       level:
         instance.machineId === 'steamTank'
           ? Math.max(0, Math.floor(instance.level ?? 1))
           : Math.max(1, Math.floor(instance.level ?? 1)),
-      pipeDisabledSides,
-      pipeSideModes: normalizePipeSideModes(instance.pipeSideModes, pipeDisabledSides),
+      pipeDisabledSides: normalizedPipeDisabledSides,
+      pipeSideModes,
       process: normalizeProcessState(instance.process),
     })
   }
@@ -410,6 +425,7 @@ export function cloneState(state: GameState): GameState {
     ...state,
     resources: { ...state.resources },
     machines: { ...state.machines },
+    bucketFluid: state.bucketFluid ? { ...state.bucketFluid } : null,
     machineInstances: state.machineInstances.map((instance) => ({
       ...instance,
       pipeDisabledSides: { ...instance.pipeDisabledSides },
@@ -1210,8 +1226,12 @@ function machineAt(state: GameState, x: number, y: number) {
   return state.machineInstances.find((instance) => instance.x === x && instance.y === y)
 }
 
+export function isFluidOutletConfigurableMachine(machineId: MachineId) {
+  return machineId === 'cokeOven'
+}
+
 function isConfigurableConnector(machineId: MachineId) {
-  return isSteamPipeMachine(machineId) || isEuCableMachine(machineId) || isItemHopperMachine(machineId)
+  return isSteamPipeMachine(machineId) || isEuCableMachine(machineId) || isItemHopperMachine(machineId) || isFluidOutletConfigurableMachine(machineId)
 }
 
 function connectorsCanAutoConnect(first: MachineId, second: MachineId) {
@@ -1245,6 +1265,7 @@ export function pipeSideMode(instance: MachineInstance, direction: PipeDirection
   if (!isConfigurableConnector(instance.machineId)) return 'both'
   if (instance.pipeSideModes?.[direction]) return instance.pipeSideModes[direction]
   if (instance.pipeDisabledSides?.[direction]) return 'blocked'
+  if (isFluidOutletConfigurableMachine(instance.machineId)) return 'blocked'
   return 'both'
 }
 
@@ -1832,6 +1853,56 @@ function freeFluidCapacity(state: GameState, instance: MachineInstance, fluidId:
   return Math.max(0, capacity - (instance.process.fluids[fluidId] ?? 0))
 }
 
+function manualBucketTargetForInstance(state: GameState, instance: MachineInstance) {
+  if (instance.machineId === 'steamTank') return steamTankStorageForInstance(state, instance)
+  if (isLiquidSteamBoilerMachine(instance.machineId)) return instance
+  return null
+}
+
+export function fillBucketFromMachine(state: GameState, uid: string, fluidId?: FluidId) {
+  if (availableResourceAmount(state, 'bucket') < 1 || state.bucketFluid) return state
+  const source = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!source) return state
+  const availableFluids = storedFluidTypes(source.process)
+  const selectedFluid = fluidId && availableFluids.includes(fluidId) ? fluidId : availableFluids[0]
+  if (!selectedFluid) return state
+  const stored = source.process.fluids[selectedFluid] ?? 0
+  const amount = Math.min(bucketFluidTransferLitres, stored)
+  if (amount < 1) return state
+
+  const next = cloneState(state)
+  const nextSource = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextSource) return state
+  nextSource.process.fluids[selectedFluid] = Math.max(0, (nextSource.process.fluids[selectedFluid] ?? 0) - amount)
+  next.bucketFluid = { id: selectedFluid, amount }
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function emptyBucketIntoMachine(state: GameState, uid: string) {
+  if (!state.bucketFluid) return state
+  const target = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!target) return state
+
+  const next = cloneState(state)
+  const nextTarget = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextTarget || !next.bucketFluid) return state
+  if (isLiquidSteamBoilerMachine(nextTarget.machineId) && next.bucketFluid.id !== 'creosote') return state
+  const storage = manualBucketTargetForInstance(next, nextTarget)
+  if (!storage || !canStoreFluid(next, storage, next.bucketFluid.id)) return state
+
+  storage.process.fluidCapacityLitres = machineFluidCapacityForInstance(next, storage)
+  const free = freeFluidCapacity(next, storage, next.bucketFluid.id)
+  const transfer = Math.min(next.bucketFluid.amount, free)
+  if (transfer < 1) return state
+
+  storage.process.fluids[next.bucketFluid.id] = (storage.process.fluids[next.bucketFluid.id] ?? 0) + transfer
+  const remaining = next.bucketFluid.amount - transfer
+  next.bucketFluid = remaining > 0 ? { ...next.bucketFluid, amount: remaining } : null
+  next.lastSavedAt = Date.now()
+  return next
+}
+
 export type CurrentFluidOutputFlow = {
   fluidId: FluidId
   litresPerSecond: number
@@ -2224,6 +2295,7 @@ export function setPipeSideDisabled(state: GameState, uid: string, direction: Pi
 export function setPipeSideMode(state: GameState, uid: string, direction: PipeDirection, mode: PipeSideMode) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isConfigurableConnector(instance.machineId) || !pipeSideModes.includes(mode)) return state
+  if (isFluidOutletConfigurableMachine(instance.machineId) && mode !== 'output' && mode !== 'blocked') return state
 
   const next = cloneState(state)
   const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
@@ -2236,6 +2308,23 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   else delete disabledSides[direction]
   nextInstance.pipeSideModes = modes
   nextInstance.pipeDisabledSides = disabledSides
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function setFluidOutputDirection(state: GameState, uid: string, direction: PipeDirection) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isFluidOutletConfigurableMachine(instance.machineId)) return state
+
+  const nextMode: PipeSideMode = pipeSideMode(instance, direction) === 'output' ? 'blocked' : 'output'
+  const next = cloneState(state)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextInstance) return state
+
+  nextInstance.pipeSideModes = Object.fromEntries(pipeDirections.map((candidate) => [candidate, candidate === direction ? nextMode : 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
+  nextInstance.pipeDisabledSides = Object.fromEntries(
+    pipeDirections.filter((candidate) => candidate !== direction || nextMode === 'blocked').map((candidate) => [candidate, true]),
+  ) as Partial<Record<PipeDirection, boolean>>
   next.lastSavedAt = Date.now()
   return next
 }
@@ -2266,6 +2355,7 @@ export function togglePipeSideDisabled(state: GameState, uid: string, direction:
 export function cyclePipeSideMode(state: GameState, uid: string, direction: PipeDirection) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isConfigurableConnector(instance.machineId)) return state
+  if (isFluidOutletConfigurableMachine(instance.machineId)) return setFluidOutputDirection(state, uid, direction)
   const currentMode = pipeSideMode(instance, direction)
   const currentIndex = pipeSideModes.indexOf(currentMode)
   const nextMode = pipeSideModes[(currentIndex + 1) % pipeSideModes.length]
@@ -3449,6 +3539,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       resources: migratedResources,
       machines: machinesState,
       machineInstances,
+      bucketFluid: normalizeBucketFluid(parsed.bucketFluid),
       factoryFoundationLevel,
       scrip: Math.max(0, Math.floor(parsed.scrip ?? 0)),
       shopCooldowns: normalizeShopCooldowns(parsed, now),

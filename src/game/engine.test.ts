@@ -12,6 +12,7 @@ import {
   buyShopItem,
   boilerHasWater,
   boilerSteamCapacityMs,
+  bucketFluidTransferLitres,
   canBuyShopItem,
   canCrowbarRemoveMachine,
   canExpandFactoryFloor,
@@ -32,6 +33,7 @@ import {
   equippedResourceCounts,
   expandFactoryFloor,
   factoryFoundationCost,
+  fillBucketFromMachine,
   factoryGridForState,
   findGridRecipe,
   getBestToolForTarget,
@@ -41,6 +43,7 @@ import {
   isAutoMinerPowered,
   loadGame,
   loadGameWithOfflineProgress,
+  emptyBucketIntoMachine,
   liquidSteamBoilerCapacityMs,
   liquidSteamBoilerFluidCapacityLitres,
   makeGridForRecipe,
@@ -60,6 +63,7 @@ import {
   removeProcessSlot,
   searchTerminalRecipes,
   sellShopItem,
+  setFluidOutputDirection,
   setHopperOutputDirection,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
@@ -2523,7 +2527,7 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(56000)
   })
 
-  it('cokes logs into charcoal and creosote, then transfers creosote into an adjacent tank', () => {
+  it('cokes logs into charcoal and holds creosote until an output side is configured', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1
     state.machines.steamTank = 1
@@ -2537,10 +2541,18 @@ describe('game engine', () => {
     state = tickGame(state, 30000).state
     state = tickGame(state, 1000).state
 
-    const ovenProcess = state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process
-    const tankProcess = state.machineInstances.find((instance) => instance.uid === tank.uid)!.process
+    let ovenProcess = state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process
+    let tankProcess = state.machineInstances.find((instance) => instance.uid === tank.uid)!.process
     expect(ovenProcess.output).toEqual({ id: 'charcoal', amount: 1 })
-    expect(ovenProcess.fluids.creosote ?? 0).toBe(0)
+    expect(ovenProcess.fluids.creosote).toBe(8)
+    expect(tankProcess.fluids.creosote ?? 0).toBe(0)
+
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state = tickGame(state, 1000).state
+
+    ovenProcess = state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process
+    tankProcess = state.machineInstances.find((instance) => instance.uid === tank.uid)!.process
+    expect(ovenProcess.fluids.creosote).toBe(0)
     expect(tankProcess.fluids.creosote).toBe(8)
   })
 
@@ -2556,14 +2568,15 @@ describe('game engine', () => {
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
-    cokeOven.process.fluids.creosote = 80
-    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
-    tank.process.steamStoredMs = steamTankCapacityMs
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote = 80
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs = steamTankCapacityMs
 
-    expect(currentFluidOutputFlows(state, cokeOven)).toEqual([
+    expect(currentFluidOutputFlows(state, state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!)).toEqual([
       { fluidId: 'creosote', litresPerSecond: 24, storedLitres: 80, freeLitres: ironTankFluidCapacityLitres },
     ])
-    expect(currentFluidOutputFlows(state, pipe)).toEqual([
+    expect(currentFluidOutputFlows(state, state.machineInstances.find((instance) => instance.uid === pipe.uid)!)).toEqual([
       { fluidId: 'creosote', litresPerSecond: 24, storedLitres: 80, freeLitres: ironTankFluidCapacityLitres },
     ])
 
@@ -2585,9 +2598,10 @@ describe('game engine', () => {
     state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
-    cokeOven.process.fluids.creosote = 80
-    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
-    tank.process.steamStoredMs = steamTankCapacityMs
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote = 80
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.steamStoredMs = steamTankCapacityMs
 
     state = tickGame(state, 1000).state
 
@@ -2616,6 +2630,10 @@ describe('game engine', () => {
     state = setPipeSideMode(state, bottomPipe.uid, 'north', 'output')
 
     for (const oven of state.machineInstances.filter((instance) => instance.machineId === 'cokeOven')) {
+      state = setFluidOutputDirection(state, oven.uid, 'east')
+    }
+
+    for (const oven of state.machineInstances.filter((instance) => instance.machineId === 'cokeOven')) {
       oven.process.fluids.creosote = 80
       oven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
     }
@@ -2640,8 +2658,9 @@ describe('game engine', () => {
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
-    cokeOven.process.fluids.creosote = 80
-    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote = 80
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
 
     state = setPipeSideMode(state, pipe.uid, 'west', 'input')
     state = setPipeSideMode(state, pipe.uid, 'east', 'input')
@@ -2668,10 +2687,11 @@ describe('game engine', () => {
     state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
-    cokeOven.process.fluids.creosote = 80
-    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
-    tank.process.fluids.water = 32
-    tank.process.fluidCapacityLitres = ironTankFluidCapacityLitres
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote = 80
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+    state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.water = 32
+    state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluidCapacityLitres = ironTankFluidCapacityLitres
 
     state = tickGame(state, 1000).state
 
@@ -2680,6 +2700,50 @@ describe('game engine', () => {
     expect(nextOven.process.fluids.creosote).toBe(80)
     expect(nextTank.process.fluids.water).toBe(32)
     expect(nextTank.process.fluids.creosote).toBe(0)
+  })
+
+  it('moves coke oven creosote manually with a bucket', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.steamTank = 1
+    state.resources.bucket = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'steamTank', 1, 0)
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    cokeOven.process.fluids.creosote = 20
+    cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+
+    state = fillBucketFromMachine(state, cokeOven.uid, 'creosote')
+
+    expect(state.bucketFluid).toEqual({ id: 'creosote', amount: bucketFluidTransferLitres })
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(4)
+
+    state = emptyBucketIntoMachine(state, tank.uid)
+
+    expect(state.bucketFluid).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote).toBe(bucketFluidTransferLitres)
+  })
+
+  it('does not empty a bucket into a tank holding another liquid', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOven = 1
+    state.machines.steamTank = 1
+    state.resources.bucket = 1
+    state = placeMachineInstance(state, 'cokeOven', 0, 0)
+    state = placeMachineInstance(state, 'steamTank', 1, 0)
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    cokeOven.process.fluids.creosote = 20
+    tank.process.fluids.water = 20
+    tank.process.fluidCapacityLitres = ironTankFluidCapacityLitres
+
+    state = fillBucketFromMachine(state, cokeOven.uid, 'creosote')
+    state = emptyBucketIntoMachine(state, tank.uid)
+
+    expect(state.bucketFluid).toEqual({ id: 'creosote', amount: bucketFluidTransferLitres })
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.water).toBe(20)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote ?? 0).toBe(0)
   })
 
   it('normalizes mixed liquid tank save state to one liquid type', () => {
@@ -3108,7 +3172,9 @@ describe('game engine', () => {
     state.machines.liquidSteamBoiler = 1
     state = placeMachineInstance(state, 'cokeOven', 0, 0)
     state = placeMachineInstance(state, 'liquidSteamBoiler', 1, 0)
-    state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!.process.fluids.creosote = 20
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote = 20
 
     state = tickGame(state, 5000).state
 
@@ -3127,7 +3193,9 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'cokeOven', 0, 0)
     state = placeMachineInstance(state, 'well', 1, 1)
     state = placeMachineInstance(state, 'liquidSteamBoiler', 1, 0)
-    state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!.process.fluids.creosote = 20
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote = 20
 
     state = tickGame(state, 5000).state
 
@@ -3152,7 +3220,9 @@ describe('game engine', () => {
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
     state = setPipeSideMode(state, pipe.uid, 'west', 'input')
     state = setPipeSideMode(state, pipe.uid, 'east', 'output')
-    state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!.process.fluids.creosote = 200
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote = 200
 
     state = tickGame(state, 1000).state
 

@@ -68,6 +68,7 @@ import {
   boilerSteamProductionLitresPerSecond,
   boilerHasWater,
   boilerSteamCapacityMs,
+  bucketFluidTransferLitres,
   canBuyShopItem,
   canSellShopItem,
   cokeOvenFluidCapacityLitres,
@@ -84,10 +85,12 @@ import {
   craftableQuantity,
   craftRecipeInstant,
   equipResource,
+  emptyBucketIntoMachine,
   equipmentSlots,
   equipmentSlotAccepts,
   expandFactoryFloor,
   findGridRecipe,
+  fillBucketFromMachine,
   factoryFoundationCost,
   factoryFoundationSizes,
   factoryGridForState,
@@ -96,6 +99,7 @@ import {
   hasFactoryFloor,
   hitGatherTarget,
   isAutoMinerPowered,
+  isFluidOutletConfigurableMachine,
   isRecipeVisible,
   isResourceDiscovered,
   insertProcessSlot,
@@ -123,6 +127,7 @@ import {
   removeProcessSlot,
   searchTerminalRecipes,
   sellShopItem,
+  setFluidOutputDirection,
   setHopperOutputDirection,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
@@ -1910,6 +1915,16 @@ function App() {
         ? formatDuration(selectedMachineRecipe.durationMs)
         : ''
     : ''
+  const selectedMachineStoredFluids = selectedMachine ? storedFluids(selectedMachine.process) : []
+  const selectedMachineCanManualFluidTransfer = Boolean(
+    selectedMachine && (selectedMachine.machineId === 'cokeOven' || selectedMachine.machineId === 'steamTank' || isLiquidSteamBoilerMachine(selectedMachine.machineId)),
+  )
+  const canFillBucketFromSelectedMachine = selectedMachineCanManualFluidTransfer && availableResourceAmount(state, 'bucket') > 0 && !state.bucketFluid && selectedMachineStoredFluids.length > 0
+  const canEmptyBucketIntoSelectedMachine = Boolean(
+    selectedMachine &&
+      state.bucketFluid &&
+      (selectedMachine.machineId === 'steamTank' || (isLiquidSteamBoilerMachine(selectedMachine.machineId) && state.bucketFluid.id === 'creosote')),
+  )
 
   useEffect(() => {
     if (terminalMode === 'uses' && !selectedResourceForRecipes) {
@@ -2286,12 +2301,12 @@ function App() {
         return
       }
       if (isFactoryPipeConfigMode) {
-        if (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId) || isItemHopperMachine(instance.machineId)) {
+        if (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId) || isItemHopperMachine(instance.machineId) || isFluidOutletConfigurableMachine(instance.machineId)) {
           setSelectedMachineUid(null)
           setSelectedPipeConfigUid(instance.uid)
           return
         }
-        setFactoryNotice('Wrench configures pipes, cables, and hoppers.')
+        setFactoryNotice('Wrench configures pipes, cables, hoppers, and fluid outputs.')
         return
       }
       const structureController = controllerForFactoryStructure(instance)
@@ -2330,7 +2345,19 @@ function App() {
       setState((current) => setHopperOutputDirection(current, uid, direction))
       return
     }
+    if (instance && isFluidOutletConfigurableMachine(instance.machineId)) {
+      setState((current) => setFluidOutputDirection(current, uid, direction))
+      return
+    }
     setState((current) => cyclePipeSideMode(current, uid, direction))
+  }
+
+  const handleFillBucketFromMachine = (uid: string, fluidId?: FluidId) => {
+    setState((current) => fillBucketFromMachine(current, uid, fluidId))
+  }
+
+  const handleEmptyBucketIntoMachine = (uid: string) => {
+    setState((current) => emptyBucketIntoMachine(current, uid))
   }
 
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
@@ -4325,7 +4352,7 @@ function App() {
             </div>
           )}
 
-          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId)) && (
+          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"
@@ -4336,19 +4363,25 @@ function App() {
               >
                 <div className="modal-head">
                   <div>
-                    <p className="eyebrow">{isItemHopperMachine(selectedPipeConfig.machineId) ? 'Hopper Output' : 'Pipe Routing'}</p>
+                    <p className="eyebrow">
+                      {isItemHopperMachine(selectedPipeConfig.machineId)
+                        ? 'Hopper Output'
+                        : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
+                          ? 'Fluid Output'
+                          : 'Pipe Routing'}
+                    </p>
                     <h2>{machines[selectedPipeConfig.machineId].name}</h2>
                   </div>
                   <button
                     type="button"
                     className="icon-button"
-                    aria-label={isItemHopperMachine(selectedPipeConfig.machineId) ? 'Close hopper output' : 'Close pipe routing'}
+                    aria-label={isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? 'Close output routing' : 'Close pipe routing'}
                     onClick={() => setSelectedPipeConfigUid(null)}
                   >
                     <X size={18} />
                   </button>
                 </div>
-                <div className="pipe-config-grid" aria-label={isItemHopperMachine(selectedPipeConfig.machineId) ? 'Hopper output directions' : 'Pipe routing directions'}>
+                <div className="pipe-config-grid" aria-label={isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? 'Output directions' : 'Pipe routing directions'}>
                   {[-1, 0, 1].flatMap((dy) =>
                     [-1, 0, 1].map((dx) => {
                       const neighbour = machineAtFactoryCell(selectedPipeConfig.x + dx, selectedPipeConfig.y + dy)
@@ -4360,7 +4393,16 @@ function App() {
                       const mode = direction ? pipeSideMode(selectedPipeConfig, direction) : null
                       const disabled = mode === 'blocked'
                       const isHopperConfig = isItemHopperMachine(selectedPipeConfig.machineId)
-                      const connected = Boolean(direction && neighbour && (isHopperConfig ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId) : machinesCanConnect(selectedPipeConfig, neighbour)))
+                      const isFluidOutputConfig = isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
+                      const connected = Boolean(
+                        direction &&
+                          neighbour &&
+                          (isHopperConfig
+                            ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId)
+                            : isFluidOutputConfig
+                              ? mode === 'output' && machinesCanConnect(selectedPipeConfig, neighbour)
+                              : machinesCanConnect(selectedPipeConfig, neighbour)),
+                      )
                       const className = [
                         'pipe-config-cell',
                         isCenter ? 'center' : '',
@@ -4387,7 +4429,7 @@ function App() {
                         <button
                           type="button"
                           className={className}
-                          aria-label={`${pipeDirectionOffsets[direction].label} ${isHopperConfig ? 'hopper output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
+                          aria-label={`${pipeDirectionOffsets[direction].label} ${isHopperConfig || isFluidOutputConfig ? 'output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
                           onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
                           key={`${dx},${dy}`}
                         >
@@ -4401,7 +4443,11 @@ function App() {
                   )}
                 </div>
                 <p className="pipe-config-note">
-                  {isItemHopperMachine(selectedPipeConfig.machineId) ? 'Tap one side to choose where this hopper pushes items.' : 'Tap a side to cycle flow: Closed, Out, In, Both.'}
+                  {isItemHopperMachine(selectedPipeConfig.machineId)
+                    ? 'Tap one side to choose where this hopper pushes items.'
+                    : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
+                      ? 'Tap one side to choose where this machine drains fluid.'
+                      : 'Tap a side to cycle flow: Closed, Out, In, Both.'}
                 </p>
               </section>
             </div>
@@ -4482,6 +4528,30 @@ function App() {
                     </div>
                   )}
                 </div>
+                {(canFillBucketFromSelectedMachine || canEmptyBucketIntoSelectedMachine || (state.bucketFluid && selectedMachineCanManualFluidTransfer)) && selectedMachine && (
+                  <div className="manual-fluid-transfer" aria-label="Manual fluid transfer">
+                    <div>
+                      <span>Bucket</span>
+                      <strong>
+                        {state.bucketFluid
+                          ? `${formatLitres(state.bucketFluid.amount)}L ${fluidLabel(state.bucketFluid.id)}`
+                          : availableResourceAmount(state, 'bucket') > 0
+                            ? `Empty | ${bucketFluidTransferLitres}L`
+                            : 'Need bucket'}
+                      </strong>
+                    </div>
+                    {canFillBucketFromSelectedMachine && (
+                      <button type="button" className="load-recipe-button compact-action-button" onClick={() => handleFillBucketFromMachine(selectedMachine.uid, selectedMachineStoredFluids[0]?.id)}>
+                        Fill bucket
+                      </button>
+                    )}
+                    {canEmptyBucketIntoSelectedMachine && (
+                      <button type="button" className="load-recipe-button compact-action-button" onClick={() => handleEmptyBucketIntoMachine(selectedMachine.uid)}>
+                        Empty bucket
+                      </button>
+                    )}
+                  </div>
+                )}
                 {isItemAutomationMachine(selectedMachine.machineId) ? (
                   <div className={`furnace-interface ${selectedMachine.machineId}-process-interface item-automation-interface`}>
                     <div className="furnace-inputs">
