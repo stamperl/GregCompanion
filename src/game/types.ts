@@ -11,6 +11,8 @@ export type ResourceId =
   | 'stoneShovel'
   | 'ironAxe'
   | 'ironPickaxe'
+  | 'diamond'
+  | 'diamondPickaxe'
   | 'ironShovel'
   | 'stoneHammer'
   | 'ironHammer'
@@ -110,11 +112,12 @@ export type ResourceId =
   | 'leadPlate'
   | 'sodiumSalt'
   | 'sodiumDust'
-  | 'lithiumOre'
   | 'lithiumDust'
   | 'batteryAlloyIngot'
   | 'batteryAlloyPlate'
   | 'emptyBatteryCell'
+  | 'sodiumBattery'
+  | 'lithiumBattery'
   | 'lvBattery'
 
 export type MachineId =
@@ -297,6 +300,7 @@ export type ToolId =
   | 'stoneShovel'
   | 'ironAxe'
   | 'ironPickaxe'
+  | 'diamondPickaxe'
   | 'ironShovel'
   | 'treeTap'
 
@@ -314,9 +318,9 @@ export type GatherTargetId =
   | 'bauxiteVein'
   | 'redstoneVein'
   | 'coalSeam'
+  | 'diamondVein'
   | 'leadVein'
   | 'saltDeposit'
-  | 'lithiumVein'
 
 export type FluidId = 'water' | 'creosote'
 

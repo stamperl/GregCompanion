@@ -148,8 +148,10 @@ import {
   steamTankStructureForInstance,
   lvBatteryBufferEuCapacity,
   lvBatteryBufferOutputEuPerSecond,
+  batteryBufferInstalledBatteryId,
   batteryBufferInstalledBatteries,
   batteryBufferSlots,
+  batteryEuCapacity,
   liquidSteamBoilerCapacityMs,
   liquidSteamBoilerCreosoteUseLitresPerSecond,
   liquidSteamBoilerFluidCapacityLitres,
@@ -370,7 +372,7 @@ const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTarge
   {
     id: 'mine',
     label: 'Mine',
-    targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam', 'leadVein', 'saltDeposit', 'lithiumVein'],
+    targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam', 'diamondVein', 'leadVein', 'saltDeposit'],
   },
 ]
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
@@ -387,9 +389,9 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   bauxiteVein: 'bauxiteOre',
   redstoneVein: 'redstoneDust',
   coalSeam: 'coal',
+  diamondVein: 'diamond',
   leadVein: 'leadOre',
   saltDeposit: 'sodiumSalt',
-  lithiumVein: 'lithiumOre',
 }
 const craftSlotHitboxScale = 0.64
 
@@ -1040,8 +1042,9 @@ function hasResourceUnlocked(state: GameState, resourceId: ResourceId) {
 function hasToolTierUnlocked(state: GameState, resourceId: ResourceId) {
   if (resourceId === 'woodenShovel') return (['woodenShovel', 'stoneShovel', 'ironShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   if (resourceId === 'stoneShovel') return (['stoneShovel', 'ironShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
-  if (resourceId === 'woodenPickaxe') return (['woodenPickaxe', 'stonePickaxe', 'ironPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
-  if (resourceId === 'stonePickaxe') return (['stonePickaxe', 'ironPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'woodenPickaxe') return (['woodenPickaxe', 'stonePickaxe', 'ironPickaxe', 'diamondPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'stonePickaxe') return (['stonePickaxe', 'ironPickaxe', 'diamondPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'ironPickaxe') return (['ironPickaxe', 'diamondPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   if (resourceId === 'woodenAxe') return (['woodenAxe', 'stoneAxe', 'ironAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   if (resourceId === 'stoneAxe') return (['stoneAxe', 'ironAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   return hasResourceUnlocked(state, resourceId)
@@ -1059,6 +1062,7 @@ function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
   if (targetId === 'ironVein') {
     return hasToolTierUnlocked(state, 'stonePickaxe') || hasToolTierUnlocked(state, 'ironPickaxe')
   }
+  if (targetId === 'leadVein' || targetId === 'saltDeposit') return hasToolTierUnlocked(state, 'diamondPickaxe')
   return hasToolTierUnlocked(state, 'ironPickaxe')
 }
 
@@ -2299,8 +2303,8 @@ function App() {
     })
   }
 
-  const handleInstallBufferBattery = (uid: string) => {
-    setState((current) => installLvBatteryInBuffer(current, uid))
+  const handleInstallBufferBattery = (uid: string, batteryId: 'sodiumBattery' | 'lithiumBattery') => {
+    setState((current) => installLvBatteryInBuffer(current, uid, batteryId))
   }
 
   const handleRemoveBufferBattery = (uid: string) => {
@@ -4803,25 +4807,47 @@ function App() {
                     />
                     <MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.euStored > 0} />
                     <div className="buffer-cell-controls">
+                      {(() => {
+                        const installedBatteryId = batteryBufferInstalledBatteryId(selectedMachine)
+                        const installedLabel = installedBatteryId ? resourceLabels[installedBatteryId] : 'Empty'
+                        const cellCapacity = installedBatteryId ? batteryEuCapacity(installedBatteryId) : 0
+                        const blocksOtherBattery = (batteryId: 'sodiumBattery' | 'lithiumBattery') => Boolean(installedBatteryId && installedBatteryId !== batteryId)
+                        return (
+                          <>
                       <span>
-                        Cells {batteryBufferInstalledBatteries(selectedMachine)}/{batteryBufferSlots(selectedMachine.machineId)} | Output{' '}
-                        {batteryBufferInstalledBatteries(selectedMachine) * lvBatteryBufferOutputEuPerSecond} EU/s
+                        Cells {batteryBufferInstalledBatteries(selectedMachine)}/{batteryBufferSlots(selectedMachine.machineId)} | {installedLabel}
+                        {cellCapacity > 0 ? ` | ${formatAmount(cellCapacity)} EU/cell` : ''} | Output {batteryBufferInstalledBatteries(selectedMachine) * lvBatteryBufferOutputEuPerSecond} EU/s
                       </span>
                       <div className="buffer-cell-buttons">
                         <button
                           type="button"
                           disabled={
-                            availableResourceAmount(state, 'lvBattery') < 1 ||
+                            availableResourceAmount(state, 'sodiumBattery') < 1 ||
+                            blocksOtherBattery('sodiumBattery') ||
                             batteryBufferInstalledBatteries(selectedMachine) >= batteryBufferSlots(selectedMachine.machineId)
                           }
-                          onClick={() => handleInstallBufferBattery(selectedMachine.uid)}
+                          onClick={() => handleInstallBufferBattery(selectedMachine.uid, 'sodiumBattery')}
                         >
-                          Install
+                          Sodium
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            availableResourceAmount(state, 'lithiumBattery') < 1 ||
+                            blocksOtherBattery('lithiumBattery') ||
+                            batteryBufferInstalledBatteries(selectedMachine) >= batteryBufferSlots(selectedMachine.machineId)
+                          }
+                          onClick={() => handleInstallBufferBattery(selectedMachine.uid, 'lithiumBattery')}
+                        >
+                          Lithium
                         </button>
                         <button type="button" disabled={batteryBufferInstalledBatteries(selectedMachine) < 1} onClick={() => handleRemoveBufferBattery(selectedMachine.uid)}>
                           Remove
                         </button>
                       </div>
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
                 ) : isEuProducerMachine(selectedMachine.machineId) ? (

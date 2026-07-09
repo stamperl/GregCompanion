@@ -9766,6 +9766,8 @@ button.button-primary:disabled,
 .pixel-leadDust,
 .pixel-leadIngot,
 .pixel-leadPlate,
+.pixel-diamond,
+.pixel-diamondPickaxe,
 .pixel-sodiumSalt,
 .pixel-sodiumDust,
 .pixel-lithiumOre,
@@ -9773,6 +9775,8 @@ button.button-primary:disabled,
 .pixel-batteryAlloyIngot,
 .pixel-batteryAlloyPlate,
 .pixel-emptyBatteryCell,
+.pixel-sodiumBattery,
+.pixel-lithiumBattery,
 .pixel-lvBattery {
   --p1: #a6abb0;
   --p2: #596066;

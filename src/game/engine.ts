@@ -133,7 +133,9 @@ export const steamTurbineSteamUseLitresPerSecond = 16
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
 export const lvEuPerAmpSecond = 32
-export const lvBatteryEuCapacity = 2048
+export const sodiumBatteryEuCapacity = 2048
+export const lithiumBatteryEuCapacity = 4096
+export const lvBatteryEuCapacity = sodiumBatteryEuCapacity
 export const lvBatteryBufferEuCapacity = machineEuCapacity('lvBatteryBuffer')
 export const lvBatteryBufferOutputEuPerSecond = lvEuPerAmpSecond
 export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
@@ -199,6 +201,7 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   stonePickaxe: 64,
   ironAxe: 128,
   ironPickaxe: 128,
+  diamondPickaxe: 384,
   ironShovel: 128,
   stoneShovel: 64,
   stoneHammer: 48,
@@ -363,7 +366,7 @@ const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
   boots: [],
   axe: ['woodenAxe', 'stoneAxe', 'ironAxe', 'treeTap'],
   shovel: ['woodenShovel', 'stoneShovel', 'ironShovel'],
-  pickaxe: ['woodenPickaxe', 'stonePickaxe', 'ironPickaxe'],
+  pickaxe: ['woodenPickaxe', 'stonePickaxe', 'ironPickaxe', 'diamondPickaxe'],
   weapon: [],
 }
 
@@ -766,11 +769,13 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
   }
   if (targetId === 'rubberTree' && state.equipment.axe === 'treeTap') return tools.treeTap
   if (targetId === 'stone') {
+    if (state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
     if (state.equipment.pickaxe === 'ironPickaxe') return tools.ironPickaxe
     if (state.equipment.pickaxe === 'stonePickaxe') return tools.stonePickaxe
     if (state.equipment.pickaxe === 'woodenPickaxe') return tools.woodenPickaxe
   }
   if (targetId === 'ironVein') {
+    if (state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
     if (state.equipment.pickaxe === 'ironPickaxe') return tools.ironPickaxe
     if (state.equipment.pickaxe === 'stonePickaxe') return tools.stonePickaxe
   }
@@ -785,10 +790,15 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
       targetId === 'redstoneVein' ||
       targetId === 'coalSeam' ||
       targetId === 'nickelVein' ||
-      targetId === 'bauxiteVein') &&
-    state.equipment.pickaxe === 'ironPickaxe'
+      targetId === 'bauxiteVein' ||
+      targetId === 'diamondVein') &&
+    (state.equipment.pickaxe === 'ironPickaxe' || state.equipment.pickaxe === 'diamondPickaxe')
   ) {
+    if (state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
     return tools.ironPickaxe
+  }
+  if ((targetId === 'leadVein' || targetId === 'saltDeposit') && state.equipment.pickaxe === 'diamondPickaxe') {
+    return tools.diamondPickaxe
   }
   return tools.bareHand
 }
@@ -1736,13 +1746,31 @@ export function batteryBufferSlots(machineId: MachineId) {
   return isEuStorageMachine(machineId) ? Math.max(1, machineEuAmps(machineId)) : 0
 }
 
+const bufferBatteryIds = ['sodiumBattery', 'lithiumBattery', 'lvBattery'] as const
+type BufferBatteryId = (typeof bufferBatteryIds)[number]
+
+function isBufferBatteryId(resourceId: ResourceId): resourceId is BufferBatteryId {
+  return bufferBatteryIds.includes(resourceId as BufferBatteryId)
+}
+
+export function batteryEuCapacity(resourceId: ResourceId) {
+  if (resourceId === 'lithiumBattery') return lithiumBatteryEuCapacity
+  if (resourceId === 'sodiumBattery' || resourceId === 'lvBattery') return sodiumBatteryEuCapacity
+  return 0
+}
+
 export function batteryBufferInstalledBatteries(instance: MachineInstance) {
   if (!isEuStorageMachine(instance.machineId)) return 0
-  return instance.process.input?.id === 'lvBattery' ? Math.min(batteryBufferSlots(instance.machineId), instance.process.input.amount) : 0
+  return instance.process.input && isBufferBatteryId(instance.process.input.id) ? Math.min(batteryBufferSlots(instance.machineId), instance.process.input.amount) : 0
+}
+
+export function batteryBufferInstalledBatteryId(instance: MachineInstance) {
+  return instance.process.input && isBufferBatteryId(instance.process.input.id) ? instance.process.input.id : null
 }
 
 function batteryBufferEuCapacity(instance: MachineInstance) {
-  return batteryBufferInstalledBatteries(instance) * lvBatteryEuCapacity
+  const batteryId = batteryBufferInstalledBatteryId(instance)
+  return batteryId ? batteryBufferInstalledBatteries(instance) * batteryEuCapacity(batteryId) : 0
 }
 
 function euSourceOutputAmps(instance: MachineInstance) {
@@ -2270,17 +2298,19 @@ export function availableUnplacedMachineCount(state: GameState, machineId: Machi
   return Math.max(0, state.machines[machineId] - placed)
 }
 
-export function installLvBatteryInBuffer(state: GameState, uid: string) {
+export function installLvBatteryInBuffer(state: GameState, uid: string, batteryId: BufferBatteryId = 'sodiumBattery') {
   const instance = state.machineInstances.find((machine) => machine.uid === uid)
-  if (!instance || !isEuStorageMachine(instance.machineId) || availableResourceAmount(state, 'lvBattery') < 1) return state
+  if (!instance || !isEuStorageMachine(instance.machineId) || availableResourceAmount(state, batteryId) < 1) return state
+  const installedBatteryId = batteryBufferInstalledBatteryId(instance)
+  if (installedBatteryId && installedBatteryId !== batteryId) return state
   const installed = batteryBufferInstalledBatteries(instance)
   if (installed >= batteryBufferSlots(instance.machineId)) return state
 
   const next = cloneState(state)
   const target = next.machineInstances.find((machine) => machine.uid === uid)
   if (!target) return state
-  next.resources.lvBattery -= 1
-  target.process.input = { id: 'lvBattery', amount: installed + 1 }
+  next.resources[batteryId] -= 1
+  target.process.input = { id: batteryId, amount: installed + 1 }
   target.process.euCapacity = batteryBufferEuCapacity(target)
   target.process.euStored = Math.min(target.process.euStored, target.process.euCapacity)
   next.lastSavedAt = Date.now()
@@ -2295,10 +2325,11 @@ export function removeLvBatteryFromBuffer(state: GameState, uid: string) {
   const target = next.machineInstances.find((machine) => machine.uid === uid)
   if (!target) return state
   const installed = batteryBufferInstalledBatteries(target)
-  target.process.input = installed > 1 ? { id: 'lvBattery', amount: installed - 1 } : null
+  const batteryId = batteryBufferInstalledBatteryId(target) ?? 'sodiumBattery'
+  target.process.input = installed > 1 ? { id: batteryId, amount: installed - 1 } : null
   target.process.euCapacity = batteryBufferEuCapacity(target)
   target.process.euStored = Math.min(target.process.euStored, target.process.euCapacity)
-  next.resources.lvBattery += 1
+  next.resources[batteryId] += 1
   next.lastSavedAt = Date.now()
   return next
 }
@@ -3453,10 +3484,18 @@ export function nextQuest(state: GameState) {
   return quests.find((quest) => questStatus(state, quest) !== 'completed') ?? quests.at(-1)
 }
 
-function migrateResources(resources: Record<ResourceId, number>) {
+function migrateResources(resources: Record<ResourceId, number> & Partial<Record<string, number>>) {
   if (resources.stone > 0) {
     resources.cobblestone += resources.stone
     resources.stone = 0
+  }
+  if ((resources.lithiumOre ?? 0) > 0) {
+    resources.lithiumDust += Math.max(0, Math.floor(resources.lithiumOre ?? 0))
+    resources.lithiumOre = 0
+  }
+  if (resources.lvBattery > 0) {
+    resources.sodiumBattery += resources.lvBattery
+    resources.lvBattery = 0
   }
   return resources
 }
@@ -3487,7 +3526,7 @@ function normalizeCraftedResources(parsed: Partial<GameState>) {
     if (id in resourceLabels) crafted.add(id)
   }
 
-  for (const id of ['woodenPickaxe', 'stonePickaxe', 'ironPickaxe'] as ResourceId[]) {
+  for (const id of ['woodenPickaxe', 'stonePickaxe', 'ironPickaxe', 'diamondPickaxe'] as ResourceId[]) {
     if ((parsed.resources?.[id] ?? 0) > 0 || Object.values(parsed.equipment ?? {}).includes(id)) {
       crafted.add(id)
     }
@@ -3549,6 +3588,13 @@ function migrateMachineInstances(
   parsedInstances?: Partial<MachineInstance>[],
 ) {
   const instances = normalizeMachineInstances(parsedInstances, foundationLevel)
+  for (const instance of instances) {
+    if (isEuStorageMachine(instance.machineId) && instance.process.input?.id === 'lvBattery') {
+      instance.process.input = { id: 'sodiumBattery', amount: instance.process.input.amount }
+      instance.process.euCapacity = batteryBufferEuCapacity(instance)
+      instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
+    }
+  }
   if (legacyCokeOvenSave) {
     const placedLegacyCokeOvens = instances.filter((instance) => instance.machineId === 'cokeOven')
     const legacyCokeOvenCount = Math.max(machinesState.cokeOven, placedLegacyCokeOvens.length)
@@ -3565,13 +3611,13 @@ function migrateMachineInstances(
     let filledPlacedBuffers = 0
     for (const instance of placedBuffers) {
       if (batteryBufferInstalledBatteries(instance) > 0) continue
-      instance.process.input = { id: 'lvBattery', amount: 1 }
+      instance.process.input = { id: 'sodiumBattery', amount: 1 }
       instance.process.euCapacity = batteryBufferEuCapacity(instance)
       instance.process.euStored = Math.min(instance.process.euStored || instance.process.euCapacity, instance.process.euCapacity)
       filledPlacedBuffers += 1
     }
     const unplacedOldBuffers = Math.max(0, machinesState.lvBatteryBuffer - placedBuffers.filter((instance) => instance.machineId === 'lvBatteryBuffer').length)
-    if (unplacedOldBuffers > 0) resourcesState.lvBattery += unplacedOldBuffers
+    if (unplacedOldBuffers > 0) resourcesState.sodiumBattery += unplacedOldBuffers
     if (filledPlacedBuffers > 0 || unplacedOldBuffers > 0) migrationNotices.push('lv-buffer-batteries')
   }
   if (parsedInstances) {

@@ -1013,6 +1013,28 @@ describe('game engine', () => {
     expect(result.state.gatherProgress.coalSeam).toBe(6)
   })
 
+  it('requires a diamond pickaxe for lead and salt after diamonds are mined with iron', () => {
+    let state = createFactoryState(1000)
+    state.resources.ironPickaxe = 1
+    state = equipResource(state, 'pickaxe', 'ironPickaxe')
+
+    let result = hitGatherTarget(state, 'diamondVein')
+    expect(result.state.gatherProgress.diamondVein).toBe(3)
+
+    result = hitGatherTarget(state, 'leadVein')
+    expect(result.state.gatherProgress.leadVein).toBeUndefined()
+    result = hitGatherTarget(state, 'saltDeposit')
+    expect(result.state.gatherProgress.saltDeposit).toBeUndefined()
+
+    state.resources.diamondPickaxe = 1
+    state = equipResource(state, 'pickaxe', 'diamondPickaxe')
+    result = hitGatherTarget(state, 'leadVein')
+    expect(result.tool.id).toBe('diamondPickaxe')
+    expect(result.state.gatherProgress.leadVein).toBe(7)
+    result = hitGatherTarget(state, 'saltDeposit')
+    expect(result.state.gatherProgress.saltDeposit).toBe(8)
+  })
+
   it('requires wooden or better shovels for gravel and wears tools only on successful damage', () => {
     let state = createFactoryState(1000)
     state.resources.woodenAxe = 1
@@ -3147,7 +3169,7 @@ describe('game engine', () => {
     state.machines.lvBatteryBuffer = 1
     state.machines.lvWiremill = 1
     state.resources.tinIngot = 1
-    state.resources.lvBattery = 1
+    state.resources.sodiumBattery = 1
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
     state = placeMachineInstance(state, 'tinCable', 1, 0)
     state = placeMachineInstance(state, 'lvBatteryBuffer', 2, 0)
@@ -3171,6 +3193,28 @@ describe('game engine', () => {
     const nextWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
     expect(nextWiremill.process.output).toEqual({ id: 'tinWire', amount: 2 })
     expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(190)
+  })
+
+  it('gives lithium batteries more buffer capacity than sodium batteries', () => {
+    let sodiumState = createFactoryState(1000)
+    sodiumState.machines.lvBatteryBuffer = 1
+    sodiumState.resources.sodiumBattery = 1
+    sodiumState = placeMachineInstance(sodiumState, 'lvBatteryBuffer', 0, 0)
+    const sodiumBuffer = sodiumState.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
+    sodiumState = installLvBatteryInBuffer(sodiumState, sodiumBuffer.uid, 'sodiumBattery')
+    const chargedSodiumBuffer = sodiumState.machineInstances.find((instance) => instance.uid === sodiumBuffer.uid)!
+
+    let lithiumState = createFactoryState(1000)
+    lithiumState.machines.lvBatteryBuffer = 1
+    lithiumState.resources.lithiumBattery = 1
+    lithiumState = placeMachineInstance(lithiumState, 'lvBatteryBuffer', 0, 0)
+    const lithiumBuffer = lithiumState.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
+    lithiumState = installLvBatteryInBuffer(lithiumState, lithiumBuffer.uid, 'lithiumBattery')
+    const chargedLithiumBuffer = lithiumState.machineInstances.find((instance) => instance.uid === lithiumBuffer.uid)!
+
+    expect(chargedLithiumBuffer.process.euCapacity).toBeGreaterThan(chargedSodiumBuffer.process.euCapacity)
+    expect(chargedSodiumBuffer.process.euCapacity).toBe(2048)
+    expect(chargedLithiumBuffer.process.euCapacity).toBe(4096)
   })
 
   it('treats LV cables as automatic non-directional networks', () => {
@@ -3197,7 +3241,7 @@ describe('game engine', () => {
     state.machines.lvBatteryBuffer4A = 1
     state.machines.tinCable4A = 1
     state.machines.lvWiremill = 1
-    state.resources.lvBattery = 4
+    state.resources.sodiumBattery = 4
     state.resources.tinIngot = 1
     state = placeMachineInstance(state, 'lvBatteryBuffer4A', 0, 0)
     state = placeMachineInstance(state, 'tinCable4A', 1, 0)
@@ -3284,7 +3328,7 @@ describe('game engine', () => {
     state.machines.tinCable4A = 1
     state.machines.lvBatteryBuffer4A = 1
     state.resources.aluminiumDust = 1
-    state.resources.lvBattery = 4
+    state.resources.sodiumBattery = 4
     for (let y = 0; y < 2; y += 1) {
       for (let x = 0; x < 2; x += 1) {
         state = placeMachineInstance(state, 'arcBlastFurnacePart', x, y)
