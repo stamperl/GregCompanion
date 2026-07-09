@@ -2381,17 +2381,12 @@ function App() {
       }
       if (isFactoryPipeConfigMode) {
         const configTarget = controllerForFactoryStructure(instance) ?? instance
-        if (
-          isSteamPipeMachine(configTarget.machineId) ||
-          isEuCableMachine(configTarget.machineId) ||
-          isItemHopperMachine(configTarget.machineId) ||
-          isFluidOutletConfigurableMachine(configTarget.machineId)
-        ) {
+        if (isSteamPipeMachine(configTarget.machineId) || isItemHopperMachine(configTarget.machineId) || isFluidOutletConfigurableMachine(configTarget.machineId)) {
           setSelectedMachineUid(null)
           setSelectedPipeConfigUid(configTarget.uid)
           return
         }
-        setFactoryNotice('Wrench configures pipes, cables, hoppers, and fluid outputs.')
+        setFactoryNotice('Wrench configures pipes, hoppers, and fluid outputs.')
         return
       }
       const structureController = controllerForFactoryStructure(instance)
@@ -2768,12 +2763,11 @@ function App() {
 
   const pipePolarityForInstance = (instance: MachineInstance): Array<{ direction: PipeDirection; state: PipeSideState; mode: PipeSideMode; label: string }> | null => {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
-    const isEuCable = isEuCableMachine(instance.machineId)
     const isHopper = isItemHopperMachine(instance.machineId)
     const fluidFaces = isFluidOutletConfigurableMachine(instance.machineId)
       ? fluidOutputFacesForInstance(instance).filter((face) => face.cell.uid === instance.uid)
       : []
-    if (!isSteamPipe && !isEuCable && !isHopper && fluidFaces.length < 1) return null
+    if (!isSteamPipe && !isHopper && fluidFaces.length < 1) return null
 
     if (fluidFaces.length > 0) {
       const sides = fluidFaces.flatMap<{ direction: PipeDirection; state: PipeSideState; mode: PipeSideMode; label: string }>((face) => {
@@ -2804,7 +2798,7 @@ function App() {
           neighbour &&
           (isHopper
             ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId)
-            : machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))),
+            : machinesCanConnect(instance, neighbour) && isSteamPipeNeighbour(neighbour.machineId)),
       )
       return {
         direction,
@@ -4283,7 +4277,7 @@ function App() {
                             title={
                               id === 'ironCrowbar'
                                 ? `${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`
-                                : `${resourceLabels[id]} - configure pipe, cable, and hopper connections`
+                                : `${resourceLabels[id]} - configure pipe, hopper, and fluid output connections`
                             }
                             onClick={() => {
                               setPlacingMachineId(null)
@@ -4458,7 +4452,7 @@ function App() {
             </div>
           )}
 
-          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
+          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"

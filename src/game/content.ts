@@ -4900,7 +4900,7 @@ export const quests: Quest[] = [
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
     title: 'Route LV power',
-    description: 'Place the steam turbine and tin cable on the factory floor. The wrench sets cable direction just like pipes: turbines output EU, cables carry it, and machines consume it.',
+    description: 'Place the steam turbine and tin cable on the factory floor. Cables auto-link nearby LV machines and carry EU up to their amp rating; the closest machine draws first when supply is tight.',
     position: { x: 1690, y: 140 },
     icon: { type: 'machine', id: 'tinCable' },
     prerequisites: ['makeTinCableQuest'],

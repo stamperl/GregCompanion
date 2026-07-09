@@ -1234,7 +1234,7 @@ export function isFluidOutletConfigurableMachine(machineId: MachineId) {
 }
 
 function isConfigurableConnector(machineId: MachineId) {
-  return isSteamPipeMachine(machineId) || isEuCableMachine(machineId) || isItemHopperMachine(machineId) || isFluidOutletConfigurableMachine(machineId)
+  return isSteamPipeMachine(machineId) || isItemHopperMachine(machineId) || isFluidOutletConfigurableMachine(machineId)
 }
 
 function connectorsCanAutoConnect(first: MachineId, second: MachineId) {
@@ -1265,6 +1265,7 @@ function connectorAllowsDirection(instance: MachineInstance, direction: PipeDire
 }
 
 export function pipeSideMode(instance: MachineInstance, direction: PipeDirection): PipeSideMode {
+  if (isEuCableMachine(instance.machineId)) return 'both'
   if (!isConfigurableConnector(instance.machineId)) return 'both'
   if (instance.pipeSideModes?.[direction]) return instance.pipeSideModes[direction]
   if (instance.pipeDisabledSides?.[direction]) return 'blocked'
@@ -1669,38 +1670,8 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
   return network
 }
 
-function connectedEuFlowNetwork(state: GameState, start: MachineInstance) {
-  if (!isEuNetworkMachine(start.machineId)) return [] as MachineInstance[]
-  const visited = new Set<string>()
-  const queue = [start]
-  const network: MachineInstance[] = []
-
-  const isEuMultiblockBridge = (instance: MachineInstance) => {
-    const controller = multiblockCenterForInstance(state, instance)
-    return Boolean(controller && isEuNetworkMachine(controller.spec.controller))
-  }
-
-  while (queue.length > 0) {
-    const instance = queue.shift()!
-    if (visited.has(instance.uid)) continue
-    visited.add(instance.uid)
-    network.push(instance)
-
-    if (instance.uid !== start.uid && !isEuCableMachine(instance.machineId) && !isEuMultiblockBridge(instance)) continue
-
-    for (const position of adjacentPositions(state, instance.x, instance.y)) {
-      const next = machineAt(state, position.x, position.y)
-      if (!next || (!isEuNetworkMachine(next.machineId) && !isEuMultiblockBridge(next))) continue
-      if (!machinesCanFlow(instance, next) || visited.has(next.uid)) continue
-      queue.push(next)
-    }
-  }
-
-  return network
-}
-
 function canEuFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
-  return connectedEuFlowNetwork(state, source).some((instance) => instance.uid === target.uid)
+  return connectedEuNetworkWithDistance(state, source).some((entry) => entry.instance.uid === target.uid)
 }
 
 function flowCellsForInstance(state: GameState, instance: MachineInstance) {
@@ -1748,7 +1719,7 @@ function connectedEuSources(state: GameState, start: MachineInstance) {
 }
 
 function euNetworkKey(state: GameState, start: MachineInstance) {
-  return uniqueMachineInstances(connectedEuFlowNetwork(state, start))
+  return uniqueMachineInstances(connectedEuNetworkWithDistance(state, start).map((entry) => entry.instance))
     .filter((instance) => isEuCableMachine(instance.machineId))
     .map((instance) => instance.uid)
     .sort()
@@ -1756,7 +1727,7 @@ function euNetworkKey(state: GameState, start: MachineInstance) {
 }
 
 function euNetworkCableAmps(state: GameState, start: MachineInstance) {
-  const cables = uniqueMachineInstances(connectedEuFlowNetwork(state, start)).filter((instance) => isEuCableMachine(instance.machineId))
+  const cables = uniqueMachineInstances(connectedEuNetworkWithDistance(state, start).map((entry) => entry.instance)).filter((instance) => isEuCableMachine(instance.machineId))
   if (cables.length < 1) return Number.POSITIVE_INFINITY
   return Math.min(...cables.map((instance) => Math.max(1, machineEuAmps(instance.machineId))))
 }
@@ -1837,6 +1808,10 @@ export function availableConnectedEuStorage(state: GameState, instance: MachineI
     .filter((entry) => entry.instance.uid !== instance.uid && isEuStorageMachine(entry.instance.machineId))
     .filter((entry) => canEuFlowBetween(state, entry.instance, instance))
     .reduce((sum, storage) => sum + storage.instance.process.euStored, 0)
+}
+
+function nearestConnectedEuSourceDistance(state: GameState, instance: MachineInstance) {
+  return connectedEuSources(state, instance)[0]?.cableDistance ?? Number.POSITIVE_INFINITY
 }
 
 export function isAutoMinerPowered(state: GameState, instance: MachineInstance) {
@@ -2054,7 +2029,7 @@ export function currentEuCableFlowEuPerSecond(state: GameState, instance: Machin
   if (availableEu <= 0) return 0
 
   const sourceUids = new Set(connectedEuSources(state, instance).map((source) => source.instance.uid))
-  const demandEu = uniqueMachineInstances(connectedEuFlowNetwork(state, instance))
+  const demandEu = uniqueMachineInstances(connectedEuNetworkWithDistance(state, instance).map((entry) => entry.instance))
     .filter((target) => target.uid !== instance.uid && !sourceUids.has(target.uid))
     .reduce((sum, target) => {
       if (isEuStorageMachine(target.machineId) || isEuPoweredMachine(target.machineId)) {
@@ -2185,7 +2160,7 @@ function recipeEuCost(recipe: ProcessRecipe) {
   return recipe.euCost ?? Math.ceil(recipe.durationMs / 1000) * 8
 }
 
-function consumeConnectedEuFromProducers(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
+function consumeConnectedEuFromProducers(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number, maxRouteAmps = Number.POSITIVE_INFINITY) {
   let remaining = amount
   let deliveredTotal = 0
   const networkKey = euNetworkKey(state, instance)
@@ -2195,7 +2170,7 @@ function consumeConnectedEuFromProducers(state: GameState, instance: MachineInst
 
   for (const producer of connectedEuProducers(state, instance)) {
     if (remaining <= 0) break
-    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), networkAmps)
+    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), networkAmps, maxRouteAmps)
     if (routeAmps <= 0) continue
     const outputPerSecond = Math.min(euSourceOutputPerSecond(producer.instance), routeAmps * lvEuPerAmpSecond)
     const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile * Math.max(1, routeAmps)
@@ -2225,7 +2200,7 @@ function consumeConnectedEuFromProducers(state: GameState, instance: MachineInst
   return deliveredTotal
 }
 
-function consumeConnectedEu(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number) {
+function consumeConnectedEu(state: GameState, instance: MachineInstance, amount: number, elapsedMs: number, maxRouteAmps = Number.POSITIVE_INFINITY) {
   let remaining = amount
   let deliveredTotal = 0
   const networkKey = euNetworkKey(state, instance)
@@ -2235,7 +2210,7 @@ function consumeConnectedEu(state: GameState, instance: MachineInstance, amount:
 
   for (const producer of connectedEuSources(state, instance)) {
     if (remaining <= 0) break
-    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), networkAmps)
+    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), networkAmps, maxRouteAmps)
     if (routeAmps <= 0) continue
     const outputPerSecond = Math.min(euSourceOutputPerSecond(producer.instance), routeAmps * lvEuPerAmpSecond)
     const lossPerSecond = producer.cableDistance * tinCableLossEuPerTile * Math.max(1, routeAmps)
@@ -2273,7 +2248,8 @@ function fillInternalEuFromConnectedStorage(state: GameState, instance: MachineI
   if (availableConnectedEuAmps(state, instance) < requiredAmps) return 0
   const needed = capacity - instance.process.euStored
   if (needed <= 0) return 0
-  const moved = consumeConnectedEu(state, instance, needed, elapsedMs)
+  const consumerLimit = (Math.max(1, requiredAmps) * lvEuPerAmpSecond * elapsedMs) / 1000
+  const moved = consumeConnectedEu(state, instance, Math.min(needed, consumerLimit), elapsedMs, requiredAmps)
   instance.process.euStored += moved
   return moved
 }
@@ -2791,7 +2767,9 @@ function tickEuStorage(state: GameState, instance: MachineInstance, elapsedMs: n
     return
   }
 
-  const moved = consumeConnectedEuFromProducers(state, instance, needed, elapsedMs)
+  const consumerLimit = (Math.max(1, batteryBufferInstalledBatteries(instance)) * lvEuPerAmpSecond * elapsedMs) / 1000
+  const installedBatteries = batteryBufferInstalledBatteries(instance)
+  const moved = consumeConnectedEuFromProducers(state, instance, Math.min(needed, consumerLimit), elapsedMs, installedBatteries)
   process.euStored += moved
   process.activeRecipeId = moved > 0 ? 'store_lv_eu' : null
   process.progressMs = 0
@@ -3171,13 +3149,14 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
   for (const instance of next.machineInstances) {
     if (isEuProducerMachine(instance.machineId)) tickSteamTurbine(next, instance, elapsedMs)
   }
-  for (const instance of next.machineInstances) {
+  const euConsumersByDistance = [...next.machineInstances].sort((a, b) => nearestConnectedEuSourceDistance(next, a) - nearestConnectedEuSourceDistance(next, b) || a.uid.localeCompare(b.uid))
+  for (const instance of euConsumersByDistance) {
     if (isEuStorageMachine(instance.machineId)) tickEuStorage(next, instance, elapsedMs)
   }
-  for (const instance of next.machineInstances) {
+  for (const instance of euConsumersByDistance) {
     if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
   }
-  for (const instance of next.machineInstances) {
+  for (const instance of euConsumersByDistance) {
     if (isAutoMinerMachine(instance.machineId)) tickAutoMiner(next, instance, elapsedMs)
   }
   activeSteamTransferBudgets = null

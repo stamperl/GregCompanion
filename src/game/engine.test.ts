@@ -3173,6 +3173,47 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(190)
   })
 
+  it('treats LV cables as automatic non-directional networks', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state.machines.tinCable = 1
+    state.machines.lvWiremill = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    state = placeMachineInstance(state, 'lvWiremill', 2, 0)
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!
+    state = setPipeSideMode(state, cable.uid, 'west', 'blocked')
+    state = setPipeSideMode(state, cable.uid, 'east', 'blocked')
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
+    state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 100
+
+    expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === cable.uid)!, 'west')).toBe('both')
+    expect(availableConnectedEu(state, wiremill)).toBe(100)
+  })
+
+  it('caps ordinary LV machine EU input to one amp on higher amp cable', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvBatteryBuffer4A = 1
+    state.machines.tinCable4A = 1
+    state.machines.lvWiremill = 1
+    state.resources.lvBattery = 4
+    state.resources.tinIngot = 1
+    state = placeMachineInstance(state, 'lvBatteryBuffer4A', 0, 0)
+    state = placeMachineInstance(state, 'tinCable4A', 1, 0)
+    state = placeMachineInstance(state, 'lvWiremill', 2, 0)
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer4A')!
+    const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
+    for (let index = 0; index < 4; index += 1) state = installLvBatteryInBuffer(state, buffer.uid)
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)
+
+    state = tickGame(state, 1000).state
+
+    const nextBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
+    expect(8192 - nextBuffer.process.euStored).toBeLessThanOrEqual(33)
+  })
+
   it('stores connected creosote but does not burn it in a dry liquid steam boiler', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1

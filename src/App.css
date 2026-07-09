@@ -4779,7 +4779,10 @@ button.craft-output:disabled {
 .factory-cell.occupied.machine-copperPipe-cell .machine-glyph,
 .factory-cell.occupied.machine-bronzePipe-cell .machine-glyph,
 .factory-cell.occupied.machine-ironPipe-cell .machine-glyph,
-.factory-cell.occupied.machine-tinCable-cell .machine-glyph {
+.factory-cell.occupied.machine-tinCable-cell .machine-glyph,
+.factory-cell.occupied.machine-tinCable2A-cell .machine-glyph,
+.factory-cell.occupied.machine-tinCable4A-cell .machine-glyph,
+.factory-cell.occupied.machine-tinCable8A-cell .machine-glyph {
   filter: none;
   height: 52px;
   inset: -4px;
@@ -4790,7 +4793,10 @@ button.craft-output:disabled {
 .factory-cell.occupied.machine-copperPipe-cell .pipe-svg,
 .factory-cell.occupied.machine-bronzePipe-cell .pipe-svg,
 .factory-cell.occupied.machine-ironPipe-cell .pipe-svg,
-.factory-cell.occupied.machine-tinCable-cell .pipe-svg {
+.factory-cell.occupied.machine-tinCable-cell .pipe-svg,
+.factory-cell.occupied.machine-tinCable2A-cell .pipe-svg,
+.factory-cell.occupied.machine-tinCable4A-cell .pipe-svg,
+.factory-cell.occupied.machine-tinCable8A-cell .pipe-svg {
   height: 100%;
   width: 100%;
 }
@@ -9704,6 +9710,17 @@ button.button-primary:disabled,
   stroke: #07090b;
 }
 
+.machine-tinCable.machine-connector-glyph .pipe-coupling,
+.machine-tinCable.machine-connector-glyph .pipe-cap,
+.machine-tinCable2A.machine-connector-glyph .pipe-coupling,
+.machine-tinCable2A.machine-connector-glyph .pipe-cap,
+.machine-tinCable4A.machine-connector-glyph .pipe-coupling,
+.machine-tinCable4A.machine-connector-glyph .pipe-cap,
+.machine-tinCable8A.machine-connector-glyph .pipe-coupling,
+.machine-tinCable8A.machine-connector-glyph .pipe-cap {
+  display: none;
+}
+
 .machine-connector-glyph.active .pipe-body {
   filter: drop-shadow(0 0 3px rgba(255, 217, 106, 0.55));
 }
@@ -9781,6 +9798,36 @@ button.button-primary:disabled,
   --connector-mid: #242b2f;
   --connector-light: #ffe58a;
   --connector-core: #f4c950;
+}
+
+.machine-tinCable2A.machine-connector-glyph .pipe-core {
+  stroke-width: 3.2;
+  stroke-dasharray: 7 4;
+}
+
+.machine-tinCable4A.machine-connector-glyph .pipe-core {
+  stroke-width: 4.4;
+  stroke-dasharray: 4 3;
+}
+
+.machine-tinCable8A.machine-connector-glyph .pipe-core {
+  stroke-width: 5.6;
+  stroke-dasharray: 2 3;
+}
+
+.machine-tinCable2A.machine-connector-glyph .pipe-highlight,
+.machine-tinCable4A.machine-connector-glyph .pipe-highlight,
+.machine-tinCable8A.machine-connector-glyph .pipe-highlight {
+  stroke: #fff3b0;
+}
+
+.machine-tinCable4A.machine-connector-glyph .pipe-body,
+.machine-tinCable8A.machine-connector-glyph .pipe-body {
+  stroke-width: 8;
+}
+
+.machine-tinCable8A.machine-connector-glyph .pipe-outline {
+  stroke-width: 11;
 }
 
 .factory-cell.occupied.machine-tinCable2A-cell,
