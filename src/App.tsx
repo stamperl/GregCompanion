@@ -2301,9 +2301,15 @@ function App() {
         return
       }
       if (isFactoryPipeConfigMode) {
-        if (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId) || isItemHopperMachine(instance.machineId) || isFluidOutletConfigurableMachine(instance.machineId)) {
+        const configTarget = controllerForFactoryStructure(instance) ?? instance
+        if (
+          isSteamPipeMachine(configTarget.machineId) ||
+          isEuCableMachine(configTarget.machineId) ||
+          isItemHopperMachine(configTarget.machineId) ||
+          isFluidOutletConfigurableMachine(configTarget.machineId)
+        ) {
           setSelectedMachineUid(null)
-          setSelectedPipeConfigUid(instance.uid)
+          setSelectedPipeConfigUid(configTarget.uid)
           return
         }
         setFactoryNotice('Wrench configures pipes, cables, hoppers, and fluid outputs.')
