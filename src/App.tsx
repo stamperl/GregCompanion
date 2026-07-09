@@ -4478,7 +4478,7 @@ function App() {
                             >
                               <PipeFlowArrows direction={face.direction} mode={mode} />
                               <span className="fluid-face-label">{offset.label.slice(0, 1)}</span>
-                              <span className="pipe-side-mode">{pipeSideModeLabels[mode]}</span>
+                              <span className="pipe-side-mode">{mode === 'output' ? 'Out' : 'Off'}</span>
                             </button>
                           )
                         })}
