@@ -5154,8 +5154,8 @@ button.craft-output:disabled {
   min-width: 0;
   padding: 6px;
   position: fixed;
-  top: calc(var(--top-safe-clearance, 0px) + 12px);
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   width: calc(100vw - 24px);
   z-index: 1100;
 }

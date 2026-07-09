@@ -3421,6 +3421,29 @@ describe('game engine', () => {
     expect(terminalRecipe?.outputs).toEqual([{ id: 'emptyBatteryCell', amount: 1 }])
   })
 
+  it('keeps LV battery buffer recipes identical except for cable tier', () => {
+    const expectations = [
+      ['build_lv_battery_buffer', 'tinCable', 'lvBatteryBuffer'],
+      ['build_lv_battery_buffer_2a', 'tinCable2A', 'lvBatteryBuffer2A'],
+      ['build_lv_battery_buffer_4a', 'tinCable4A', 'lvBatteryBuffer4A'],
+      ['build_lv_battery_buffer_8a', 'tinCable8A', 'lvBatteryBuffer8A'],
+    ] as const
+
+    for (const [recipeId, cableId, outputId] of expectations) {
+      const recipe = recipes.find((candidate) => candidate.id === recipeId)
+      expect(recipe?.inputs, recipeId).toEqual([
+        { id: 'lvMachineHull', amount: 1 },
+        { id: 'tinRod', amount: 4 },
+        { id: cableId, amount: 3 },
+        { id: 'primitiveCircuit', amount: 1 },
+      ])
+      expect(recipe?.machineInputs, recipeId).toBeUndefined()
+      expect(recipe?.pattern, recipeId).toEqual(['tinRod', cableId, 'tinRod', cableId, 'lvMachineHull', cableId, 'tinRod', 'primitiveCircuit', 'tinRod'])
+      expect(recipe?.machineOutputs, recipeId).toEqual([{ id: outputId, amount: 1 }])
+      expect(recipe && recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
+    }
+  })
+
   it('loses internal EU buffers when a machine is removed and placed again', () => {
     let state = createFactoryState(1000)
     state.machines.steamTurbine = 1
