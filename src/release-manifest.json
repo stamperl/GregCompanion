@@ -1,10 +1,10 @@
 {
-  "revision": "0.1.2",
-  "date": "2026-07-08",
-  "title": "Coke Oven multiblock",
+  "revision": "0.2.0",
+  "date": "2026-07-10",
+  "title": "LV Power and Automation",
   "notes": [
-    "Reworked the Coke Oven into a multiblock built from Coke Oven Blocks.",
-    "Existing placed Coke Ovens now prompt players to replace them and grant the new blocks needed for the rebuild.",
-    "Updated machine artwork so steam, LV, and multiblock machines are easier to tell apart on the factory floor."
+    "Coke Oven multiblocks now use wrench-selected liquid output, clearer creosote handling, and better tank and pipe displays.",
+    "LV power now has amp-rated cables, battery buffers, sodium and lithium batteries, and a 4A Arc Furnace milestone.",
+    "Quest lines now teach the refreshed Steam, Coke and Steel, LV mechanics, battery, and aluminium progression paths."
   ]
 }
