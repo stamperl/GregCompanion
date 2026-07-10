@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Aluminium Icon Approval V1</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      body {
+        background: #111;
+        color: #f4f0dc;
+        margin: 0;
+        padding: 12px;
+      }
+
+      main {
+        display: grid;
+        gap: 12px;
+        margin: 0 auto;
+        max-width: 980px;
+      }
+
+      header,
+      .card,
+      .summary {
+        background: #2c2a22;
+        border: 2px solid #dfd0a2;
+        border-bottom-color: #13110c;
+        border-right-color: #13110c;
+        box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.15), inset -2px -2px 0 rgba(0, 0, 0, 0.28);
+      }
+
+      header,
+      .summary {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        color: #fff6d0;
+        font-size: 1.05rem;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      p {
+        color: #cfc5a6;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+
+      .grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+      }
+
+      .card {
+        display: grid;
+        gap: 8px;
+        padding: 8px;
+      }
+
+      .card h2 {
+        color: #fff6d0;
+        font-size: 0.8rem;
+        line-height: 1.1;
+        text-transform: uppercase;
+      }
+
+      .preview-row {
+        align-items: end;
+        display: grid;
+        gap: 7px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .slot {
+        align-items: center;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+          #4a504f;
+        border: 2px solid #d7d0a2;
+        border-bottom-color: #262a29;
+        border-right-color: #262a29;
+        display: grid;
+        justify-items: center;
+        min-height: 54px;
+        padding: 4px;
+      }
+
+      .slot span {
+        color: #cfc5a6;
+        display: block;
+        font-size: 0.56rem;
+        font-weight: 900;
+        line-height: 1;
+        margin-bottom: 3px;
+        text-transform: uppercase;
+      }
+
+      .slot img {
+        display: block;
+        image-rendering: pixelated;
+        object-fit: contain;
+      }
+
+      .s22 img {
+        height: 22px;
+        width: 22px;
+      }
+
+      .s32 img {
+        height: 32px;
+        width: 32px;
+      }
+
+      .s48 img {
+        height: 48px;
+        width: 48px;
+      }
+
+      .s64 img {
+        height: 64px;
+        width: 64px;
+      }
+
+      .compare {
+        display: grid;
+        gap: 6px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .compare-box {
+        background: #1b1b1b;
+        border: 1px solid #4b4b4b;
+        display: grid;
+        gap: 4px;
+        justify-items: center;
+        min-height: 84px;
+        padding: 6px;
+      }
+
+      .compare-box span {
+        color: #cfc5a6;
+        font-size: 0.58rem;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .compare-box img {
+        height: 64px;
+        image-rendering: pixelated;
+        object-fit: contain;
+        width: 64px;
+      }
+
+      .actions {
+        display: grid;
+        gap: 6px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      button {
+        background: #49402b;
+        border: 2px solid #e8dcc0;
+        border-bottom-color: #18140e;
+        border-radius: 0;
+        border-right-color: #18140e;
+        color: #fff;
+        cursor: pointer;
+        font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+        min-height: 34px;
+        padding: 6px;
+        text-transform: uppercase;
+      }
+
+      button.approved {
+        background: #53733f;
+      }
+
+      button.rejected {
+        background: #7a3b2c;
+      }
+
+      .state-approved {
+        border-color: #bff0a8;
+      }
+
+      .state-rejected {
+        border-color: #ffac96;
+      }
+
+      textarea {
+        background: #151515;
+        border: 1px solid #4b4b4b;
+        color: #f4f0dc;
+        font: 800 0.72rem ui-monospace, SFMono-Regular, Consolas, monospace;
+        min-height: 126px;
+        padding: 8px;
+        resize: vertical;
+        width: 100%;
+      }
+
+      a {
+        color: #fff0a8;
+        font-weight: 900;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 8px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Aluminium Icon Approval V1</h1>
+        <p>Generated with the image pipeline. Approve or reject each replacement candidate. These are not live game assets until approved.</p>
+        <p><a href="./index.html">Back to review board</a></p>
+      </header>
+
+      <section class="grid" id="cards" aria-label="Aluminium icon candidates"></section>
+
+      <section class="summary">
+        <h2>Summary</h2>
+        <p id="counts">No review decisions yet.</p>
+        <textarea id="summary" readonly></textarea>
+        <button type="button" id="copy">Copy Summary</button>
+      </section>
+    </main>
+
+    <script>
+      const storageKey = 'click-foundry-aluminium-icons-v1'
+      const items = [
+        ['aluminiumDust', 'Aluminium Dust'],
+        ['aluminiumIngot', 'Aluminium Ingot'],
+        ['aluminiumPlate', 'Aluminium Plate'],
+        ['aluminiumRod', 'Aluminium Rod'],
+        ['aluminiumRing', 'Aluminium Ring'],
+        ['aluminiumScrew', 'Aluminium Screw'],
+        ['aluminiumGear', 'Aluminium Gear'],
+      ]
+
+      const readDecisions = () => {
+        try {
+          return JSON.parse(localStorage.getItem(storageKey) || '{}')
+        } catch {
+          return {}
+        }
+      }
+
+      const writeDecisions = (decisions) => {
+        localStorage.setItem(storageKey, JSON.stringify(decisions))
+      }
+
+      const cards = document.getElementById('cards')
+      const counts = document.getElementById('counts')
+      const summary = document.getElementById('summary')
+      let decisions = readDecisions()
+
+      function candidateSrc(id) {
+        return `./aluminium-items-v1/${id}.png`
+      }
+
+      function currentSrc(id) {
+        return `../game-icons/resources/${id}.png`
+      }
+
+      function renderCards() {
+        cards.innerHTML = ''
+        for (const [id, label] of items) {
+          const state = decisions[id] || 'waiting'
+          const card = document.createElement('article')
+          card.className = `card state-${state}`
+          card.innerHTML = `
+            <h2>${label}</h2>
+            <div class="compare">
+              <div class="compare-box"><span>Current</span><img src="${currentSrc(id)}" alt="${label} current icon" /></div>
+              <div class="compare-box"><span>Candidate</span><img src="${candidateSrc(id)}" alt="${label} candidate icon" /></div>
+            </div>
+            <div class="preview-row" aria-label="${label} candidate sizes">
+              <div class="slot s22"><span>22</span><img src="${candidateSrc(id)}" alt="" /></div>
+              <div class="slot s32"><span>32</span><img src="${candidateSrc(id)}" alt="" /></div>
+              <div class="slot s48"><span>48</span><img src="${candidateSrc(id)}" alt="" /></div>
+              <div class="slot s64"><span>64</span><img src="${candidateSrc(id)}" alt="" /></div>
+            </div>
+            <div class="actions">
+              <button type="button" data-action="approved" class="${state === 'approved' ? 'approved' : ''}">Approve</button>
+              <button type="button" data-action="rejected" class="${state === 'rejected' ? 'rejected' : ''}">Reject</button>
+              <button type="button" data-action="waiting">Clear</button>
+            </div>
+          `
+          card.querySelectorAll('button').forEach((button) => {
+            button.addEventListener('click', () => {
+              const action = button.dataset.action
+              if (action === 'waiting') delete decisions[id]
+              else decisions[id] = action
+              writeDecisions(decisions)
+              render()
+            })
+          })
+          cards.appendChild(card)
+        }
+      }
+
+      function renderSummary() {
+        const approved = items.filter(([id]) => decisions[id] === 'approved')
+        const rejected = items.filter(([id]) => decisions[id] === 'rejected')
+        const waiting = items.filter(([id]) => !decisions[id])
+        counts.textContent = `Approved: ${approved.length} | Rejected: ${rejected.length} | Waiting: ${waiting.length}`
+        summary.value = [
+          'Aluminium Icon Approval V1',
+          `Approved: ${approved.length}`,
+          `Rejected: ${rejected.length}`,
+          `Waiting: ${waiting.length}`,
+          '',
+          'Approved items:',
+          ...(approved.length ? approved.map(([id, label]) => `${label} (${id})`) : ['None']),
+          '',
+          'Rejected items:',
+          ...(rejected.length ? rejected.map(([id, label]) => `${label} (${id})`) : ['None']),
+        ].join('\n')
+      }
+
+      function render() {
+        renderCards()
+        renderSummary()
+      }
+
+      document.getElementById('copy').addEventListener('click', async () => {
+        await navigator.clipboard.writeText(summary.value)
+      })
+
+      render()
+    </script>
+  </body>
+</html>
