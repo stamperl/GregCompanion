@@ -1356,6 +1356,34 @@ describe('game engine', () => {
     expect(nextFurnace.process.input).toEqual({ id: 'ironOre', amount: 2 })
   })
 
+  it('hoppers feed formed coke ovens through adjacent multiblock parts', () => {
+    let state = createFactoryState(1000)
+    state.machines.cokeOvenPart = 4
+    state.machines.hopper = 1
+    state.resources.coal = 2
+
+    for (const [x, y] of [
+      [1, 1],
+      [2, 1],
+      [1, 2],
+      [2, 2],
+    ] as const) {
+      state = placeMachineInstance(state, 'cokeOvenPart', x, y)
+    }
+    state = placeMachineInstance(state, 'hopper', 3, 2)
+
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    expect(state.machineInstances.find((instance) => instance.x === 2 && instance.y === 2)?.machineId).toBe('cokeOvenPart')
+
+    state = insertProcessSlot(state, hopper.uid, 'input', 'coal', 2)
+    state = setHopperOutputDirection(state, hopper.uid, 'west')
+    state = tickGame(state, 1200, 2200).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toEqual({ id: 'coal', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.input).toEqual({ id: 'coal', amount: 1 })
+  })
+
   it('requires pestle and mortar as a non-consumed catalyst for dust grinding', () => {
     let state = createFactoryState(1000)
     state.resources.copperIngot = 2

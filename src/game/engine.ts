@@ -3144,6 +3144,12 @@ function hopperOutputDirection(instance: MachineInstance): PipeDirection | null 
   return pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'output') ?? null
 }
 
+function hopperFeedTarget(state: GameState, target: MachineInstance) {
+  const multiblock = multiblockCenterForInstance(state, target)
+  if (!multiblock) return target
+  return machineAt(state, multiblock.x, multiblock.y) ?? target
+}
+
 function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const direction = hopperOutputDirection(instance)
   if (!hopperStorageSlotIds.some((slotId) => instance.process[slotId]) || !direction) {
@@ -3154,7 +3160,8 @@ function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: 
   }
 
   const offset = pipeDirectionOffsets[direction]
-  const target = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+  const adjacentTarget = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+  const target = adjacentTarget ? hopperFeedTarget(state, adjacentTarget) : null
   if (!target || isItemAutomationMachine(target.machineId)) {
     instance.process.activeRecipeId = null
     instance.process.progressMs = 0
