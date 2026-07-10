@@ -1374,6 +1374,10 @@ button.craft-output:disabled {
 .pixel-steelIngot span,
 .pixel-steelPlate span,
 .pixel-steelRod span,
+.pixel-aluminiumRod span,
+.pixel-aluminiumRing span,
+.pixel-aluminiumScrew span,
+.pixel-aluminiumGear span,
 .pixel-nickelOre span,
 .pixel-bauxiteOre span,
 .pixel-crushedBauxiteOre span,
@@ -2207,7 +2211,8 @@ button.craft-output:disabled {
 .pixel-copperRod,
 .pixel-tinRod,
 .pixel-bronzeRod,
-.pixel-steelRod {
+.pixel-steelRod,
+.pixel-aluminiumRod {
   background: transparent;
   box-shadow: none;
 }
@@ -2216,7 +2221,8 @@ button.craft-output:disabled {
 .pixel-copperRod::before,
 .pixel-tinRod::before,
 .pixel-bronzeRod::before,
-.pixel-steelRod::before {
+.pixel-steelRod::before,
+.pixel-aluminiumRod::before {
   background: linear-gradient(90deg, var(--p3), var(--p1) 50%, var(--p2));
   height: 5px;
   left: 3px;
@@ -2253,6 +2259,12 @@ button.craft-output:disabled {
   --p1: #6f7b81;
   --p2: #31383d;
   --p3: #c5d0d5;
+}
+
+.pixel-aluminiumRod {
+  --p1: #b9c8ce;
+  --p2: #6d7d84;
+  --p3: #eef5f4;
 }
 
 .pixel-redAlloyWire {
@@ -2858,6 +2870,14 @@ button.craft-output:disabled {
   box-shadow: inset 0 0 0 3px #2a3034;
 }
 
+.pixel-aluminiumGear {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 22%, #56636a 23% 34%, transparent 35%),
+    conic-gradient(from 10deg, #eef5f4 0 8%, #9eafb6 8% 14%, #eef5f4 14% 22%, #9eafb6 22% 28%, #eef5f4 28% 36%, #9eafb6 36% 42%, #eef5f4 42% 50%, #9eafb6 50% 56%, #eef5f4 56% 64%, #9eafb6 64% 70%, #eef5f4 70% 78%, #9eafb6 78% 84%, #eef5f4 84% 92%, #9eafb6 92% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 3px #56636a;
+}
+
 .pixel-steelRing {
   background:
     radial-gradient(circle at 50% 50%, transparent 0 38%, #2e3438 39% 48%, #d7dfe1 49% 68%, #68727a 69% 100%);
@@ -2865,15 +2885,24 @@ button.craft-output:disabled {
   box-shadow: inset 0 0 0 2px #2a3034;
 }
 
-.pixel-steelScrew {
+.pixel-aluminiumRing {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 38%, #56636a 39% 48%, #eef5f4 49% 68%, #9eafb6 69% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #56636a;
+}
+
+.pixel-steelScrew,
+.pixel-aluminiumScrew {
   background: transparent;
   box-shadow: none;
 }
 
-.pixel-steelScrew::before {
+.pixel-steelScrew::before,
+.pixel-aluminiumScrew::before {
   background:
-    repeating-linear-gradient(90deg, #d7dfe1 0 4px, #68727a 4px 7px),
-    linear-gradient(180deg, #eef4f5, #6a747a);
+    repeating-linear-gradient(90deg, var(--screw-light, #d7dfe1) 0 4px, var(--screw-mid, #68727a) 4px 7px),
+    linear-gradient(180deg, var(--screw-bright, #eef4f5), var(--screw-mid, #6a747a));
   height: 8px;
   left: 3px;
   top: 10px;
@@ -2881,15 +2910,23 @@ button.craft-output:disabled {
   width: 20px;
 }
 
-.pixel-steelScrew::after {
-  background: #d7dfe1;
+.pixel-steelScrew::after,
+.pixel-aluminiumScrew::after {
+  background: var(--screw-light, #d7dfe1);
   border-radius: 50%;
-  box-shadow: inset -3px -2px 0 #68727a, inset 0 0 0 2px #2e3438;
+  box-shadow: inset -3px -2px 0 var(--screw-mid, #68727a), inset 0 0 0 2px var(--screw-dark, #2e3438);
   height: 10px;
   left: 3px;
   top: 6px;
   transform: rotate(-24deg);
   width: 10px;
+}
+
+.pixel-aluminiumScrew {
+  --screw-bright: #f7ffff;
+  --screw-dark: #56636a;
+  --screw-light: #eef5f4;
+  --screw-mid: #9eafb6;
 }
 
 .pixel-lvMotor {

@@ -311,6 +311,10 @@ Recolor-Material (Icon-Path 'resources' 'tinIngot') (Icon-Path 'resources' 'nick
 Recolor-Material (Icon-Path 'resources' 'bronzeIngot') (Icon-Path 'resources' 'cupronickelIngot') '#73402e' '#c28455' '#f3c282'
 Recolor-Material (Icon-Path 'resources' 'ironIngot') (Icon-Path 'resources' 'aluminiumIngot') '#6f7c84' '#c7d4d8' '#f7ffff'
 Recolor-Material (Icon-Path 'resources' 'ironPlate') (Icon-Path 'resources' 'aluminiumPlate') '#64737b' '#bdcbd0' '#f6ffff'
+Recolor-Material (Icon-Path 'resources' 'steelRod') (Icon-Path 'resources' 'aluminiumRod') '#64737b' '#bdcbd0' '#f6ffff'
+Recolor-Material (Icon-Path 'resources' 'steelRing') (Icon-Path 'resources' 'aluminiumRing') '#64737b' '#bdcbd0' '#f6ffff'
+Recolor-Material (Icon-Path 'resources' 'steelScrew') (Icon-Path 'resources' 'aluminiumScrew') '#64737b' '#bdcbd0' '#f6ffff'
+Recolor-Material (Icon-Path 'resources' 'steelGear') (Icon-Path 'resources' 'aluminiumGear') '#64737b' '#bdcbd0' '#f6ffff'
 Recolor-Material (Icon-Path 'resources' 'redAlloyWire') (Icon-Path 'resources' 'heatingCoil') '#5d1f19' '#c94d30' '#ffb15f'
 Recolor-Material (Icon-Path 'resources' 'bbfCasing') (Icon-Path 'resources' 'heatProofCasing') '#35251e' '#8e6145' '#d6b384'
 
