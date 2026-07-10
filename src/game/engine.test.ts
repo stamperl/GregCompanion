@@ -606,7 +606,10 @@ describe('game engine', () => {
     const electrolyzer = quests.find((quest) => quest.id === 'buildLvElectrolyzerQuest')!
     const bauxite = quests.find((quest) => quest.id === 'findBauxiteQuest')!
     const aluminiumDust = quests.find((quest) => quest.id === 'makeAluminiumDustQuest')!
+    const diamondPick = quests.find((quest) => quest.id === 'makeDiamondPickQuest')!
+    const batteryMinerals = quests.find((quest) => quest.id === 'gatherBatteryMineralsQuest')!
     const emptyCell = quests.find((quest) => quest.id === 'makeEmptyBatteryCellQuest')!
+    const canner = quests.find((quest) => quest.id === 'buildLvCannerQuest')!
     const filledBattery = quests.find((quest) => quest.id === 'fillLvBatteryQuest')!
     const fourAmpCable = quests.find((quest) => quest.id === 'buildFourAmpCableQuest')!
     const fourAmpBuffer = quests.find((quest) => quest.id === 'buildFourAmpBufferQuest')!
@@ -622,8 +625,11 @@ describe('game engine', () => {
     expect(electrolyzer.prerequisites).toEqual(['runLvBenderQuest', 'runLvLatheQuest'])
     expect(bauxite.prerequisites).toEqual(['buildLvElectrolyzerQuest'])
     expect(aluminiumDust.prerequisites).toEqual(['findBauxiteQuest'])
-    expect(emptyCell.prerequisites).toEqual(['bufferLvPowerQuest'])
-    expect(filledBattery.prerequisites).toEqual(['makeEmptyBatteryCellQuest'])
+    expect(diamondPick.prerequisites).toEqual(['bufferLvPowerQuest'])
+    expect(batteryMinerals.prerequisites).toEqual(['makeDiamondPickQuest'])
+    expect(emptyCell.prerequisites).toEqual(['gatherBatteryMineralsQuest'])
+    expect(canner.prerequisites).toEqual(['makeEmptyBatteryCellQuest'])
+    expect(filledBattery.prerequisites).toEqual(['buildLvCannerQuest'])
     expect(fourAmpCable.prerequisites).toEqual(['buildTwoAmpCableQuest'])
     expect(fourAmpBuffer.prerequisites).toEqual(['buildFourAmpCableQuest'])
     expect(arcFurnace.prerequisites).toEqual(['makeHeatingCoilsQuest'])
