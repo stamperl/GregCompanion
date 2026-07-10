@@ -1800,10 +1800,6 @@ function App() {
   }, [isCreativeMode, page])
 
   useEffect(() => {
-    if (isUpdateAvailable && page === 'home') reloadLatestDeployment()
-  }, [isUpdateAvailable, page])
-
-  useEffect(() => {
     const selectedSlot = saveSlotSummaries.find((slot) => slot.id === selectedSaveSlotId)
     setSaveNameDraft(selectedSlot?.label ?? saveSlotsFallbackLabel(selectedSaveSlotId))
   }, [selectedSaveSlotId, saveSlotSummaries])
@@ -3505,6 +3501,18 @@ function App() {
               </ul>
             )}
           </section>
+          {isUpdateAvailable && (
+            <section className="home-update-card" aria-label="Factory update available">
+              <div>
+                <span>Factory update</span>
+                <strong>New build ready</strong>
+              </div>
+              <p>Reload to install the latest Click Foundry build before entering a save.</p>
+              <button type="button" className="home-action primary" onClick={reloadLatestDeployment}>
+                Update now
+              </button>
+            </section>
+          )}
           <div className="home-save-slots" aria-label="Save slots">
             {(saveSlotSummaries.length > 0 ? saveSlotSummaries : [{ id: 'slot-1' as const, label: 'Save 1', updatedAt: null, exists: false }, { id: 'slot-2' as const, label: 'Save 2', updatedAt: null, exists: false }, { id: 'slot-3' as const, label: 'Save 3', updatedAt: null, exists: false }]).map((slot) => (
               <button
@@ -3537,10 +3545,10 @@ function App() {
             <button type="submit">Rename</button>
           </form>
           <div className="home-actions">
-            <button type="button" className="home-action primary" disabled={!hasLoadedSave || isEnteringGame} onClick={handleContinueFromHome}>
-              {isEnteringGame ? 'Loading save...' : `Continue ${selectedSaveLabel}`}
+            <button type="button" className="home-action primary" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleContinueFromHome}>
+              {isUpdateAvailable ? 'Update Required' : isEnteringGame ? 'Loading save...' : `Continue ${selectedSaveLabel}`}
             </button>
-            <button type="button" className="home-action danger" disabled={!hasLoadedSave || isEnteringGame} onClick={handleReset}>
+            <button type="button" className="home-action danger" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleReset}>
               New Game In {selectedSaveLabel}
             </button>
           </div>
