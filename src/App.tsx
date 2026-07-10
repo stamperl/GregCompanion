@@ -52,6 +52,7 @@ import {
   processRecipes,
   questChapters,
   quests as questDefinitions,
+  recipes,
   resourceLabels,
   sellItems,
   shopItems,
@@ -101,7 +102,6 @@ import {
   hitGatherTarget,
   isAutoMinerPowered,
   isFluidOutletConfigurableMachine,
-  isRecipeVisible,
   isResourceDiscovered,
   insertProcessSlot,
   installLvBatteryInBuffer,
@@ -840,6 +840,12 @@ function missingLine(state: GameState, recipe: Recipe) {
     ...(missing.missingDurability ?? []).map((amount) => `${amount.amount} ${resourceLabels[amount.id]} uses`),
     ...missing.missingMachines.map((amount) => machines[amount.id].name),
   ].join(', ')
+}
+
+function lockedLine(state: GameState, recipe: Recipe) {
+  if (recipe.unlockedBy && !state.completedQuests.includes(recipe.unlockedBy)) return 'Complete earlier quest'
+  if (recipe.recipeType === 'processing' && recipe.requiredMachine && state.machines[recipe.requiredMachine] < 1) return `Place ${machines[recipe.requiredMachine].name}`
+  return ''
 }
 
 function missingResourceLine(state: GameState, costs: ResourceAmount[]) {
@@ -1921,15 +1927,7 @@ function App() {
       ),
     [],
   )
-  const visibleProcessRecipeCards = useMemo(
-    () =>
-      processRecipeCards.filter((recipe) => {
-        if (recipe.requiredMachine && state.machines[recipe.requiredMachine] > 0) return true
-        return isRecipeVisible(state, recipe)
-      }),
-    [processRecipeCards, state],
-  )
-  const recipeCatalog = useMemo(() => [...unlockedRecipes, ...visibleProcessRecipeCards], [unlockedRecipes, visibleProcessRecipeCards])
+  const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
   const unplacedMachineCounts = Object.fromEntries(machineOrder.map((id) => [id, availableUnplacedMachineCount(state, id)])) as Record<MachineId, number>
   const autoMinerInstances = state.machineInstances.filter((instance) => isAutoMinerMachine(instance.machineId))
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
@@ -3170,6 +3168,7 @@ function App() {
   const terminalOutput = terminalMatch ? recipePrimaryOutput(terminalMatch) : undefined
   const selectedRecipeMissing = selectedRecipe ? missingForRecipe(state, selectedRecipe) : undefined
   const selectedRecipeMissingLine = selectedRecipe ? missingLine(state, selectedRecipe) : ''
+  const selectedRecipeLockedLine = selectedRecipe ? lockedLine(state, selectedRecipe) : ''
   const selectedRecipeOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
   const renderEquipmentSlot = (slotId: EquipmentSlotId) => {
     const equipped = state.equipment[slotId]
@@ -4039,14 +4038,15 @@ function App() {
                   <div className="recipe-icon-grid" aria-label="Recipe results">
                   {listedRecipeGroups.map((group) => {
                     const output = recipeGroupDisplayOutput(group)
-                    const missing = group.recipes.every((recipe) => missingLine(state, recipe))
+                    const locked = group.recipes.every((recipe) => lockedLine(state, recipe))
+                    const missing = !locked && group.recipes.every((recipe) => missingLine(state, recipe))
                     return (
                       <button
                         type="button"
                         className={[
                           'recipe-icon-button',
                           group.key === selectedRecipeGroup?.key ? 'selected' : '',
-                          missing ? 'missing' : 'ready',
+                          locked ? 'locked' : missing ? 'missing' : 'ready',
                         ].join(' ')}
                         aria-label={output.label}
                         title={recipeGroupDisplayOutput(group).label}
@@ -4088,7 +4088,7 @@ function App() {
                               </button>
                             </div>
                           )}
-                          <span className={selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
+                          <span className={selectedRecipeLockedLine || selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
                             {selectedRecipeOutput.kind === 'resource' ? (
                               <PixelIcon id={selectedRecipeOutput.id} />
                             ) : (
@@ -4099,7 +4099,8 @@ function App() {
                         </div>
                       </div>
 
-                      {selectedRecipeMissingLine && <p className="missing-line recipe-detail-warning">Missing {selectedRecipeMissingLine}</p>}
+                      {selectedRecipeLockedLine && <p className="missing-line recipe-detail-warning">Locked: {selectedRecipeLockedLine}</p>}
+                      {!selectedRecipeLockedLine && selectedRecipeMissingLine && <p className="missing-line recipe-detail-warning">Missing {selectedRecipeMissingLine}</p>}
 
                       {selectedRecipe.recipeType === 'processing' && (
                         <div className="recipe-meta-row">

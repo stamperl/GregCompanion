@@ -8704,6 +8704,14 @@ button.craft-output:disabled {
   opacity: 0.5;
 }
 
+.recipe-icon-button.locked {
+  border-color: #806c62;
+  border-bottom-color: #2b2420;
+  border-right-color: #2b2420;
+  filter: grayscale(0.55);
+  opacity: 0.36;
+}
+
 .recipe-icon-button.selected {
   border-color: #fff8aa;
   border-bottom-color: #806c22;
