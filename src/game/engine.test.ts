@@ -3444,6 +3444,52 @@ describe('game engine', () => {
     }
   })
 
+  it('crafts LV backbone components from shaped terminal recipes', () => {
+    const expectations = [
+      ['craft_lv_motor', 'lvMotor', ['steelRod', 'conductiveWire', 'tinWire', 'primitiveCircuit']],
+      ['craft_lv_piston', 'lvPiston', ['lvMotor', 'steelPlate', 'steelRod', 'tinWire']],
+      ['craft_lv_pump', 'lvPump', ['lvMotor', 'rubber', 'pipeSealant', 'copperRod', 'tinWire', 'bucket']],
+      ['craft_lv_conveyor', 'lvConveyor', ['lvMotor', 'rubber', 'tinWire', 'steelPlate']],
+    ] as const
+
+    for (const [recipeId, outputId, requiredInputs] of expectations) {
+      const recipe = recipes.find((candidate) => candidate.id === recipeId)
+      expect(recipe?.outputs, recipeId).toEqual([{ id: outputId, amount: 1 }])
+      expect(recipe?.pattern, recipeId).toHaveLength(9)
+      expect(recipe && recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
+      expect(findGridRecipe(makeGridForRecipe(recipe!), recipes)?.id, recipeId).toBe(recipeId)
+      const inputIds = new Set(recipe?.inputs.map((input) => input.id))
+      for (const inputId of requiredInputs) expect(inputIds.has(inputId), `${recipeId} should use ${inputId}`).toBe(true)
+    }
+  })
+
+  it('uses LV backbone components in LV machine recipes', () => {
+    const expectations = [
+      ['build_lv_macerator', ['lvMotor']],
+      ['build_lv_forge_hammer', ['lvPiston']],
+      ['build_lv_compressor', ['lvPiston']],
+      ['build_lv_extractor', ['lvPump']],
+      ['build_lv_alloy_smelter', ['lvConveyor']],
+      ['build_lv_furnace', ['lvConveyor']],
+      ['build_lv_wiremill', ['lvMotor']],
+      ['build_lv_bender', ['lvPiston']],
+      ['build_lv_lathe', ['lvMotor']],
+      ['build_lv_electrolyzer', ['lvPump']],
+      ['build_lv_assembler', ['lvMotor', 'lvPiston', 'lvConveyor']],
+      ['build_lv_canner', ['lvPump']],
+      ['build_lv_centrifuge', ['lvMotor']],
+      ['build_lv_auto_miner', ['lvMotor', 'lvPiston']],
+    ] as const
+
+    for (const [recipeId, requiredInputs] of expectations) {
+      const recipe = recipes.find((candidate) => candidate.id === recipeId)
+      const inputIds = new Set(recipe?.inputs.map((input) => input.id))
+      for (const inputId of requiredInputs) expect(inputIds.has(inputId), `${recipeId} should use ${inputId}`).toBe(true)
+      expect(recipe && recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
+      expect(findGridRecipe(makeGridForRecipe(recipe!), recipes)?.id, recipeId).toBe(recipeId)
+    }
+  })
+
   it('loses internal EU buffers when a machine is removed and placed again', () => {
     let state = createFactoryState(1000)
     state.machines.steamTurbine = 1
