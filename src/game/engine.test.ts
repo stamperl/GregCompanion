@@ -1728,6 +1728,19 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
   })
 
+  it('smelts cobblestone back into stone in furnace and steam furnace', () => {
+    expect(processRecipes.find((recipe) => recipe.id === 'smelt_stone')).toMatchObject({
+      machineId: 'furnace',
+      input: { id: 'cobblestone', amount: 1 },
+      output: { id: 'stone', amount: 1 },
+    })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_furnace_stone')).toMatchObject({
+      machineId: 'steamFurnace',
+      input: { id: 'cobblestone', amount: 1 },
+      output: { id: 'stone', amount: 1 },
+    })
+  })
+
   it('continues furnace processing during offline progress and respects full outputs', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1
