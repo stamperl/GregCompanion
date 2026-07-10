@@ -13,19 +13,34 @@ npm run test
 npm run build
 npm run lint
 npm run check
+npm run check:changed
+npm run check:fast
 npm run dev:bump
+npm run icons:check
+npm run icons:extract
+npm run icons:lv
 npm run release:home-dev
 npm run release:remote-dev
 npm run release:full -- --revision 0.2.0 --title "Patch title" --note "Patch note"
+npm run release:notes -- --revision 0.2.0 --title "Patch title" --note "Patch note"
+npm run test:engine
+npm run test:content
+npm run test:save
 ```
 
 `npm run dev` starts the normal hot Vite server. `npm run dev:host` exposes that hot server on the local network for phone testing. `npm run dev:bump` increments the dev-only home-screen revision in `src/dev-manifest.json`; it does not change the public release revision.
 
 `npm run release:home-dev` builds the app as a home-dev production preview and hosts it locally on port 4173. It prints both localhost and LAN URLs, and the local save API is available in this preview server.
 
-`npm run release:remote-dev` is the remote test lane. Run it from a clean committed worktree; it runs lint, tests, and build, then pushes the current commit to `origin/remote-dev`. GitHub Pages publishes that build under `/GregCompanion/remote-dev/` without changing the public release.
+`npm run check:changed` prints recommended targeted checks for the current changed files. `npm run check:fast` runs lint and the current game test suite without a production build. `npm run test:engine`, `npm run test:content`, and `npm run test:save` are narrow Vitest entrypoints for agent iteration; `npm run check` remains the final gate.
 
-`npm run release:full` is the guarded public GitHub Pages release path. Run it from a clean `main` branch after committing game changes. Pass a revision, title, and one or more patch notes; it stamps `src/release-manifest.json`, runs lint/tests/build, commits the release manifest, pushes `main`, then watches the Pages workflow when the GitHub CLI is available.
+`npm run icons:check` validates committed PNG assets against content IDs. `npm run icons:extract` and `npm run icons:lv` run the existing PowerShell extraction/recolor pipelines after icon candidates are approved.
+
+`npm run release:remote-dev` is the remote test lane. Run it from a clean committed worktree; it runs lint, tests, and build, then pushes the current commit to `origin/remote-dev` and watches the Pages workflow when the GitHub CLI is available. GitHub Pages publishes that build under `/GregCompanion/remote-dev/` without changing the public release.
+
+`npm run release:notes` generates the in-game release manifest, branded HTML release notes, and a PDF/public PDF copy when Chrome or Edge is available.
+
+`npm run release:full` is the guarded public GitHub Pages release path. Run it from a clean `main` branch after committing game changes. Pass a revision, title, and one or more patch notes; it generates release note artifacts, runs lint/tests/build, commits the release manifest and release note files, pushes `main`, then watches the Pages workflow when the GitHub CLI is available.
 
 The older `npm run deploy:test` and `npm run deploy:release` commands remain as aliases for the home-dev and full-release lanes.
 

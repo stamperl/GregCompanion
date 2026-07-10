@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 server/saves/
+ClickFoundry-WhatsApp-group-logo*.png
 
 # Editor directories and files
 .vscode/*

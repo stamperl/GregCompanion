@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import os from 'node:os'
 
 const isWindows = process.platform === 'win32'
@@ -109,28 +109,26 @@ function readDevManifest() {
   return JSON.parse(readFileSync(devManifestPath, 'utf8'))
 }
 
-function writeManifest(options) {
-  const current = readManifest()
-  const next = {
-    revision: options.revision ?? current.revision,
-    date: new Date().toISOString().slice(0, 10),
-    title: options.title ?? current.title,
-    notes: options.notes.length > 0 ? options.notes : current.notes,
-  }
-  writeFileSync(releaseManifestPath, `${JSON.stringify(next, null, 2)}\n`)
-  return next
-}
-
 function releaseCommitIfNeeded(manifest) {
-  const status = capture('git', ['status', '--porcelain', 'src/release-manifest.json'])
+  const releasePaths = ['src/release-manifest.json', 'docs/releases', 'public/release-notes']
+  const status = capture('git', ['status', '--porcelain', ...releasePaths])
   if (!status) return
-  run('git', ['add', 'src/release-manifest.json'])
+  run('git', ['add', ...releasePaths])
   run('git', ['commit', '-m', `Release r${manifest.revision}: ${manifest.title}`])
 }
 
-function pushAndWatch(branch) {
+function generateReleaseArtifacts(options) {
+  const commandArgs = ['scripts/generate-release-notes.mjs']
+  if (options.revision) commandArgs.push('--revision', options.revision)
+  if (options.title) commandArgs.push('--title', options.title)
+  for (const note of options.notes) commandArgs.push('--note', note)
+  run('node', commandArgs)
+  return readManifest()
+}
+
+function pushAndWatch(branch, refspec = branch) {
   const headSha = capture('git', ['rev-parse', 'HEAD'])
-  run('git', ['push', 'origin', branch])
+  run('git', ['push', 'origin', refspec])
 
   const ghVersion = spawnSync('gh', ['--version'], { stdio: 'ignore' })
   if (ghVersion.error || ghVersion.status !== 0) {
@@ -194,7 +192,7 @@ async function main() {
     assertCleanTree()
     runNpm(['run', 'check'])
     assertCleanTree()
-    run('git', ['push', 'origin', 'HEAD:remote-dev'])
+    pushAndWatch('remote-dev', 'HEAD:remote-dev')
     const baseUrl = pagesBaseUrl()
     console.log('')
     console.log('Remote dev will publish at:')
@@ -205,7 +203,7 @@ async function main() {
   if (lane === 'full') {
     assertBranch('main')
     assertCleanTree('Full release expects committed game changes before release notes are stamped.')
-    const manifest = writeManifest(options)
+    const manifest = generateReleaseArtifacts(options)
     runNpm(['run', 'check'])
     releaseCommitIfNeeded(manifest)
     assertCleanTree()
