@@ -2590,6 +2590,25 @@ export const recipes: Recipe[] = [
     unlockedBy: 'steelPlateQuest',
   },
   {
+    id: 'file_aluminium_gear',
+    name: 'Shape Aluminium Gear',
+    description: 'Hammer and file four aluminium plates into a light toothed drive gear.',
+    tier: 'lv',
+    durationMs: 4800,
+    inputs: [{ id: 'aluminiumPlate', amount: 4 }],
+    catalysts: [
+      { id: 'ironFile', amount: 1 },
+      { id: 'stoneHammer', amount: 1 },
+    ],
+    durabilityCosts: [
+      { id: 'ironFile', amount: 1 },
+      { id: 'stoneHammer', amount: 1 },
+    ],
+    pattern: [null, 'aluminiumPlate', null, 'aluminiumPlate', 'ironFile', 'aluminiumPlate', null, 'aluminiumPlate', 'stoneHammer'],
+    outputs: [{ id: 'aluminiumGear', amount: 1 }],
+    unlockedBy: 'firstAluminiumQuest',
+  },
+  {
     id: 'cut_copper_wire',
     name: 'Cut Copper Wire',
     description: 'Cut a copper plate into short lengths of bare wire.',
@@ -3625,17 +3644,6 @@ export const processRecipes: ProcessRecipe[] = [
     euCost: 48,
     input: { id: 'aluminiumIngot', amount: 1 },
     output: { id: 'aluminiumPlate', amount: 1 },
-  },
-  {
-    id: 'lv_hammer_aluminium_gear',
-    name: 'LV Shape Aluminium Gear',
-    description: 'Shape four aluminium plates into a light drive gear for later LV assemblies.',
-    tier: 'lv',
-    machineId: 'lvForgeHammer',
-    durationMs: 6500,
-    euCost: 72,
-    input: { id: 'aluminiumPlate', amount: 4 },
-    output: { id: 'aluminiumGear', amount: 1 },
   },
   {
     id: 'lv_compress_firebrick',
