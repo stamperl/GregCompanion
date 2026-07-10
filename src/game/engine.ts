@@ -78,15 +78,16 @@ import type {
 
 export const saveKey = 'block-tech-idle-save'
 export const currentSaveVersion = 3
-export const factoryGrid = { width: 8, height: 6 }
-export const maxFactoryFoundationLevel = 5
+export const factoryGrid = { width: 10, height: 8 }
+export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
   { width: 0, height: 0 },
-  { width: 5, height: 5 },
-  { width: 8, height: 6 },
+  { width: 7, height: 7 },
   { width: 10, height: 8 },
   { width: 12, height: 10 },
   { width: 14, height: 12 },
+  { width: 16, height: 14 },
+  { width: 18, height: 16 },
 ] as const
 export const factoryFoundationCosts: Record<number, ResourceAmount[]> = {
   1: [
@@ -113,6 +114,12 @@ export const factoryFoundationCosts: Record<number, ResourceAmount[]> = {
     { id: 'brick', amount: 128 },
     { id: 'ironPlate', amount: 32 },
     { id: 'steelPlate', amount: 8 },
+  ],
+  6: [
+    { id: 'cobblestone', amount: 384 },
+    { id: 'brick', amount: 192 },
+    { id: 'steelPlate', amount: 16 },
+    { id: 'aluminiumPlate', amount: 8 },
   ],
 }
 export const processStackLimit = 64

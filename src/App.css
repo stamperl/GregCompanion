@@ -3363,14 +3363,15 @@ button.craft-output:disabled {
 .processing-head {
   align-items: center;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 30px;
 }
 
 .processing-head h2 {
   color: var(--ink-strong);
   font-family: var(--display-font);
-  font-size: 1rem;
+  font-size: 0.92rem;
   line-height: 1;
   margin: 0;
 }
@@ -3383,19 +3384,19 @@ button.craft-output:disabled {
   border-right-color: var(--bevel-light);
   color: var(--ink-strong);
   display: grid;
-  gap: 2px 7px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 38px;
+  gap: 4px;
+  grid-template-columns: auto auto auto;
+  min-height: 30px;
   min-width: 116px;
-  padding: 3px 5px;
+  padding: 2px 4px;
 }
 
 .factory-head-status span {
   color: var(--muted-strong);
   font: 950 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
-  grid-column: 1 / -1;
   line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .factory-head-status strong {
@@ -3406,8 +3407,44 @@ button.craft-output:disabled {
 }
 
 .factory-head-status .factory-expand-button {
+  height: 22px;
   min-height: 22px;
-  padding: 1px 6px;
+  padding: 0 6px;
+}
+
+.factory-view-fit {
+  align-items: center;
+  background: var(--chip-face);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--chip-edge);
+  border-radius: 0;
+  border-right-color: var(--chip-edge);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font: 950 0.68rem "Courier New", ui-monospace, monospace;
+  gap: 4px;
+  height: 26px;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.factory-view-fit .factory-view-percent {
+  color: #fff;
+  font: inherit;
+  line-height: 1;
+  min-width: 34px;
+  text-align: right;
+  text-transform: none;
+}
+
+.factory-floor-fit {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.42);
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 24;
 }
 
 .place-machine-button {
@@ -3501,7 +3538,7 @@ button.craft-output:disabled {
 
 .factory-inventory-panel {
   display: grid;
-  gap: 6px;
+  gap: 0;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
 }
@@ -3509,10 +3546,11 @@ button.craft-output:disabled {
 .machine-placement-storage {
   align-content: start;
   display: grid;
-  gap: 4px;
+  gap: 3px;
   grid-template-rows: auto auto;
-  min-height: 96px;
+  min-height: 0;
   overflow: hidden;
+  padding: 3px;
 }
 
 .machine-placement-storage {
@@ -3521,17 +3559,19 @@ button.craft-output:disabled {
 
 .factory-tray-label {
   color: #333;
-  font: 950 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  font: 950 0.55rem Inter, ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0;
   line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .factory-tray-head {
   align-items: center;
   display: grid;
   gap: 4px;
-  grid-template-columns: auto minmax(72px, 132px) 34px;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 128px) 30px;
+  min-height: 28px;
   min-width: 0;
 }
 
@@ -3545,9 +3585,9 @@ button.craft-output:disabled {
   color: #f7f7f7;
   cursor: pointer;
   display: grid;
-  height: 30px;
+  height: 26px;
   justify-items: center;
-  min-width: 34px;
+  min-width: 30px;
   padding: 2px;
   position: relative;
 }
@@ -3582,9 +3622,9 @@ button.craft-output:disabled {
   border-right-color: var(--bevel-light);
   color: #202020;
   font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
-  min-height: 22px;
+  min-height: 24px;
   min-width: 0;
-  padding: 2px 5px;
+  padding: 2px 4px;
   width: 100%;
   -webkit-text-fill-color: #202020;
 }
@@ -3604,23 +3644,31 @@ button.craft-output:disabled {
 }
 
 .factory-tool-slot .pixel-icon {
-  height: 26px;
-  width: 26px;
+  height: 23px;
+  width: 23px;
 }
 
 .machine-placement-slots {
   align-content: start;
   display: grid;
   gap: 2px;
-  grid-auto-rows: 44px;
+  grid-auto-rows: 36px;
   grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-  height: 90px;
+  height: 78px;
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 3px;
+  padding: 2px;
   scrollbar-color: var(--bevel-dark) var(--bevel-well);
   scrollbar-width: thin;
+}
+
+.machine-placement-slots .item-slot {
+  aspect-ratio: auto;
+  height: 36px;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .machine-placement-slots::-webkit-scrollbar {
@@ -3647,11 +3695,10 @@ button.craft-output:disabled {
   border-right-color: var(--bevel-light);
   color: #343434;
   display: grid;
-  gap: 3px;
-  grid-column: 1 / -1;
-  grid-template-columns: auto minmax(0, 1fr);
-  min-height: 28px;
-  padding: 4px 6px;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 26px;
+  min-width: 0;
+  padding: 2px 5px;
 }
 
 .factory-selection-name span {
@@ -3662,7 +3709,7 @@ button.craft-output:disabled {
 
 .factory-selection-name strong {
   color: var(--ink-strong);
-  font: 950 0.72rem "Courier New", ui-monospace, monospace;
+  font: 950 0.68rem "Courier New", ui-monospace, monospace;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3677,8 +3724,8 @@ button.craft-output:disabled {
 }
 
 .machine-inventory-slot .machine-glyph {
-  height: 26px;
-  width: 26px;
+  height: 23px;
+  width: 23px;
 }
 
 .factory-foundation-panel,
@@ -3808,6 +3855,22 @@ button.craft-output:disabled {
   text-align: center;
 }
 
+.machine-terminal .machine-status-pill {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent),
+    var(--machine-panel-dark);
+  border-color: rgba(255, 255, 255, 0.35);
+  border-bottom-color: rgba(0, 0, 0, 0.58);
+  border-right-color: rgba(0, 0, 0, 0.58);
+  color: #fff4cd;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+.lv-machine-terminal .machine-status-pill {
+  color: #f9e978;
+  box-shadow: inset 0 0 12px rgba(255, 224, 74, 0.08);
+}
+
 .machine-meter-grid {
   display: grid;
   gap: 5px;
@@ -3828,6 +3891,15 @@ button.craft-output:disabled {
   min-width: 0;
   overflow: hidden;
   padding: 4px;
+}
+
+.machine-terminal .machine-meter {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 42%),
+    var(--machine-panel-dark);
+  border-color: rgba(255, 255, 255, 0.34);
+  border-bottom-color: rgba(0, 0, 0, 0.6);
+  border-right-color: rgba(0, 0, 0, 0.6);
 }
 
 .machine-meter > span,
@@ -3851,6 +3923,14 @@ button.craft-output:disabled {
 
 .machine-meter small {
   color: #333;
+}
+
+.machine-terminal .machine-meter small {
+  color: rgba(255, 246, 218, 0.72);
+}
+
+.lv-machine-terminal .machine-meter small {
+  color: #aebbb3;
 }
 
 .manual-fluid-transfer {
@@ -3907,6 +3987,13 @@ button.craft-output:disabled {
   border-right-color: #d8d8d8;
   height: 7px;
   overflow: hidden;
+}
+
+.machine-terminal .machine-meter-bar {
+  background: rgba(0, 0, 0, 0.44);
+  border-color: rgba(0, 0, 0, 0.58);
+  border-bottom-color: rgba(255, 255, 255, 0.36);
+  border-right-color: rgba(255, 255, 255, 0.36);
 }
 
 .machine-meter-bar span {
@@ -4027,9 +4114,10 @@ button.craft-output:disabled {
 }
 
 .factory-pan-content {
-  left: 6px;
+  left: 0;
   position: absolute;
-  top: 6px;
+  top: 0;
+  transform-origin: top left;
   width: max-content;
   will-change: transform;
 }
@@ -4995,6 +5083,637 @@ button.craft-output:disabled {
   width: 100%;
 }
 
+.furnace-modal.machine-terminal {
+  --machine-panel-face: #b6b0a0;
+  --machine-panel-well: #8e8d85;
+  --machine-panel-dark: #343838;
+  --machine-accent: #c79642;
+  --machine-glow: rgba(255, 216, 116, 0.34);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 42%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.035) 0 2px, transparent 2px 14px),
+    var(--machine-panel-face);
+  border-color: #f2ead1;
+  border-bottom-color: #4c4739;
+  border-right-color: #4c4739;
+}
+
+.machine-terminal .modal-head {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent),
+    var(--machine-panel-well);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-bottom-color: rgba(0, 0, 0, 0.42);
+  border-right-color: rgba(0, 0, 0, 0.42);
+  padding: 5px;
+}
+
+.machine-terminal .modal-head h2 {
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.steam-machine-terminal {
+  --machine-panel-face: #b8a77d;
+  --machine-panel-well: #8f7750;
+  --machine-panel-dark: #3d3322;
+  --machine-accent: #d5a24f;
+  --machine-glow: rgba(220, 163, 66, 0.38);
+}
+
+.lv-machine-terminal {
+  --machine-panel-face: #4d5653;
+  --machine-panel-well: #2f3938;
+  --machine-panel-dark: #17201f;
+  --machine-accent: #d7bd49;
+  --machine-glow: rgba(255, 220, 87, 0.32);
+  color: #f3edd0;
+}
+
+.lv-machine-terminal .modal-head h2,
+.lv-machine-terminal .eyebrow {
+  color: #f6e7a4;
+  text-shadow: 1px 1px 0 #101615;
+}
+
+.forge-hammer-terminal {
+  --forge-edge: #211b13;
+  --forge-face: #312a20;
+  --forge-panel: #191b1b;
+  --forge-panel-soft: #2d2f2d;
+  --forge-trim: #c99948;
+  --forge-trim-dark: #775227;
+  --forge-glow: #f0a23d;
+  --forge-hot: #ffbf4d;
+  --forge-ok: #6ee05c;
+  --forge-text: #f4e7bf;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 224, 126, 0.12), transparent 28%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 15px),
+    linear-gradient(180deg, #4a412f, #1d1c19);
+  color: var(--forge-text);
+  gap: 6px;
+  max-width: min(390px, calc(100vw - 14px));
+  padding: 7px;
+}
+
+.forge-hammer-terminal.lv-machine-terminal {
+  --forge-edge: #101515;
+  --forge-face: #242c2b;
+  --forge-panel: #101515;
+  --forge-panel-soft: #1c2828;
+  --forge-trim: #e2c34a;
+  --forge-trim-dark: #816b22;
+  --forge-glow: #f7d643;
+  --forge-hot: #ffb543;
+  --forge-ok: #67f0d4;
+  --forge-text: #f2edcf;
+  background:
+    linear-gradient(90deg, rgba(98, 218, 255, 0.07) 0 1px, transparent 1px 18px),
+    radial-gradient(circle at 88% 8%, rgba(255, 220, 70, 0.1), transparent 30%),
+    linear-gradient(180deg, #303b3a, #111615);
+}
+
+.forge-hammer-terminal .modal-head {
+  background:
+    linear-gradient(90deg, transparent 0 5%, rgba(255, 255, 255, 0.08) 5% 6%, transparent 6% 94%, rgba(255, 255, 255, 0.08) 94% 95%, transparent 95%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), transparent 48%),
+    var(--forge-panel);
+  border-color: rgba(255, 232, 169, 0.42);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 2px 0 rgba(0, 0, 0, 0.4);
+  min-height: 52px;
+}
+
+.forge-hammer-terminal .modal-head h2 {
+  color: var(--forge-text);
+  font-size: clamp(1rem, 5.4vw, 1.45rem);
+  line-height: 0.95;
+  text-shadow:
+    1px 1px 0 #000,
+    0 0 10px rgba(255, 190, 71, 0.16);
+}
+
+.forge-hammer-terminal .processing-storage {
+  gap: 5px;
+  grid-auto-columns: 38px;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  max-height: 84px;
+  padding: 5px;
+}
+
+.forge-hammer-terminal .processing-storage .item-slot {
+  height: 38px;
+  width: 38px;
+}
+
+.forge-hammer-terminal .machine-selected-item {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 4px 7px;
+}
+
+.forge-hammer-interface {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 176, 64, 0.1), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 34%),
+    var(--forge-face);
+  border: 2px solid rgba(255, 232, 169, 0.42);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 -10px 0 rgba(0, 0, 0, 0.18);
+  display: grid;
+  gap: 6px;
+  grid-template-areas:
+    "status status buffer"
+    "chamber chamber buffer"
+    "input readouts output"
+    "action action action";
+  grid-template-columns: 76px minmax(0, 1fr) 76px;
+  grid-template-rows: 32px minmax(154px, 28svh) auto 44px;
+  overflow: hidden;
+  padding: 6px;
+  position: relative;
+}
+
+.forge-hammer-interface::before,
+.forge-hammer-interface::after {
+  background:
+    radial-gradient(circle, rgba(255, 231, 157, 0.72) 0 2px, #3a2a17 3px 5px, transparent 6px);
+  content: "";
+  inset: 5px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.forge-hammer-interface::before {
+  background-position: 0 0, 100% 0;
+}
+
+.forge-hammer-interface::after {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 14%, transparent 86%, rgba(0, 0, 0, 0.34)),
+    repeating-linear-gradient(0deg, transparent 0 18px, rgba(255, 255, 255, 0.025) 18px 19px);
+}
+
+.lv-forge-hmi {
+  background:
+    linear-gradient(90deg, rgba(92, 210, 255, 0.06) 0 1px, transparent 1px 18px),
+    radial-gradient(circle at 50% 16%, rgba(73, 191, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, #283432, #141a1a);
+}
+
+.forge-hmi-status,
+.forge-hammer-chamber,
+.forge-buffer-panel,
+.forge-io-slot,
+.forge-readout-stack,
+.forge-action-rail {
+  position: relative;
+  z-index: 1;
+}
+
+.forge-hmi-status {
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    #121514;
+  border: 2px solid #59442a;
+  border-bottom-color: #050605;
+  border-right-color: #050605;
+  display: grid;
+  grid-area: status;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 3px 8px;
+  text-transform: uppercase;
+}
+
+.lv-forge-hmi .forge-hmi-status {
+  border-color: #43524f;
+}
+
+.forge-hmi-status span {
+  color: #b8a77e;
+  font: 900 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.forge-hmi-status strong {
+  color: var(--forge-ok);
+  font: 950 0.8rem "Courier New", ui-monospace, monospace;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(111, 224, 92, 0.42);
+  white-space: nowrap;
+}
+
+.forge-hammer-chamber {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
+    url("/game-ui/steam-forge-hammer-chamber.png") center / cover no-repeat,
+    #151716;
+  border: 3px solid #6b4f2e;
+  border-bottom-color: #070807;
+  border-right-color: #070807;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 222, 159, 0.12),
+    inset 0 0 26px rgba(0, 0, 0, 0.82);
+  grid-area: chamber;
+  overflow: hidden;
+}
+
+.lv-forge-hmi .forge-hammer-chamber {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
+    url("/game-ui/lv-forge-hammer-chamber.png") center / cover no-repeat,
+    #111718;
+  border-color: #465754;
+}
+
+.steamMacerator .forge-hammer-chamber {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
+    url("/game-ui/steam-macerator-chamber.png") center / cover no-repeat,
+    #151716;
+}
+
+.lvMacerator .forge-hammer-chamber {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
+    url("/game-ui/lv-macerator-chamber.png") center / cover no-repeat,
+    #111718;
+}
+
+.forge-hammer-chamber::before {
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 28%, rgba(255, 255, 255, 0.06) 29%, transparent 42%),
+    radial-gradient(circle at 50% 72%, rgba(255, 178, 68, 0.16), transparent 28%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.34), transparent 16%, transparent 84%, rgba(0, 0, 0, 0.34));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.forge-hammer-chamber::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 78%, rgba(0, 0, 0, 0.22)),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 20px);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.forge-chamber-light {
+  background:
+    radial-gradient(circle, #ffdd85 0 8%, #e87825 9% 18%, transparent 19%);
+  bottom: 28px;
+  filter: blur(1px);
+  height: 92px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 150px;
+}
+
+.forge-hammer-rail {
+  background:
+    linear-gradient(90deg, #111 0 22%, #886339 23% 36%, #222 37% 64%, #c0924c 65% 78%, #111 79%);
+  border: 1px solid rgba(255, 229, 168, 0.16);
+  bottom: 32px;
+  position: absolute;
+  top: 18px;
+  width: 14px;
+}
+
+.forge-hammer-rail.left {
+  left: 24%;
+}
+
+.forge-hammer-rail.right {
+  right: 24%;
+}
+
+.lv-forge-hmi .forge-hammer-rail {
+  background:
+    linear-gradient(90deg, #080c0c 0 22%, #c07730 23% 36%, #202928 37% 64%, #f0c14d 65% 78%, #080c0c 79%);
+  box-shadow: 0 0 12px rgba(76, 203, 255, 0.14);
+}
+
+.forge-hammer-ram {
+  background:
+    linear-gradient(180deg, #665437 0 20%, #1a1b19 20% 32%, #5a4630 32% 72%, #101211 72%),
+    linear-gradient(90deg, transparent 0 28%, rgba(255, 231, 167, 0.14) 29% 42%, transparent 43%);
+  border: 2px solid #8c6534;
+  border-bottom-color: #090a09;
+  border-right-color: #090a09;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 176, 0.12),
+    0 12px 18px rgba(0, 0, 0, 0.45);
+  height: 82px;
+  left: 50%;
+  position: absolute;
+  top: 22px;
+  transform: translateX(-50%);
+  width: 66px;
+}
+
+.machine-terminal-active .forge-hammer-ram {
+  animation: forge-hammer-strike 0.78s steps(3, end) infinite;
+}
+
+.lv-forge-hmi .forge-hammer-ram {
+  background:
+    linear-gradient(180deg, #3c4948 0 20%, #101414 20% 32%, #2c3736 32% 72%, #0a0d0d 72%),
+    linear-gradient(90deg, transparent 0 26%, rgba(245, 203, 72, 0.22) 27% 44%, transparent 45%);
+  border-color: #63706d;
+}
+
+.forge-hammer-ingot {
+  background: linear-gradient(180deg, #ffe285, #fa7d21 58%, #8a2f12);
+  border: 2px solid #ffd27b;
+  bottom: 38px;
+  box-shadow:
+    0 0 18px rgba(255, 133, 36, 0.9),
+    0 0 34px rgba(255, 187, 56, 0.34);
+  height: 15px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%) skewX(-12deg);
+  width: 72px;
+}
+
+.forge-hammer-anvil {
+  background:
+    linear-gradient(90deg, transparent 0 13%, #2c2c28 14% 86%, transparent 87%),
+    linear-gradient(180deg, #5a4b36, #171817);
+  border-top: 2px solid rgba(255, 218, 149, 0.18);
+  bottom: 16px;
+  height: 26px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 118px;
+}
+
+.forge-hammer-particles {
+  animation: forge-spark-flicker 0.46s steps(2, end) infinite;
+  background:
+    radial-gradient(circle at 28% 64%, #ffd46d 0 2px, transparent 3px),
+    radial-gradient(circle at 70% 58%, #ff7d2a 0 2px, transparent 3px),
+    radial-gradient(circle at 46% 46%, #ffe28b 0 1px, transparent 2px),
+    radial-gradient(circle at 60% 72%, #ff9d35 0 1px, transparent 2px);
+  bottom: 28px;
+  height: 72px;
+  left: 18%;
+  position: absolute;
+  right: 18%;
+}
+
+.steam-forge-hmi .forge-hammer-chamber::before,
+.steam-forge-hmi .forge-hammer-chamber::after {
+  animation: none;
+}
+
+.lv-forge-hmi .forge-hammer-chamber::before,
+.lv-forge-hmi .forge-hammer-chamber::after {
+  animation: none;
+}
+
+.forge-chamber-light,
+.forge-hammer-rail,
+.forge-hammer-ram,
+.forge-hammer-ingot,
+.forge-hammer-anvil,
+.forge-hammer-particles,
+.forge-hammer-chamber .machine-glyph {
+  display: none;
+}
+
+.forge-buffer-panel {
+  align-content: start;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent),
+    var(--forge-panel);
+  border: 2px solid #705434;
+  border-bottom-color: #070807;
+  border-right-color: #070807;
+  display: grid;
+  gap: 5px;
+  grid-area: buffer;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 7px 5px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.lv-forge-hmi .forge-buffer-panel {
+  border-color: #455653;
+}
+
+.forge-buffer-panel > span,
+.forge-io-slot > span,
+.forge-readout span {
+  color: #c8b78d;
+  font: 950 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.lv-forge-hmi .forge-buffer-panel > span,
+.lv-forge-hmi .forge-io-slot > span,
+.lv-forge-hmi .forge-readout span {
+  color: #d9cc84;
+}
+
+.forge-buffer-panel > strong {
+  color: var(--forge-text);
+  font: 950 1rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.forge-buffer-panel > strong small {
+  color: var(--forge-trim);
+  font-size: 0.56rem;
+  margin-left: 1px;
+}
+
+.forge-buffer-meter {
+  align-items: end;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent 34%),
+    repeating-linear-gradient(0deg, transparent 0 18px, rgba(255, 235, 169, 0.22) 18px 19px),
+    #161918;
+  border: 2px solid #0a0b0a;
+  border-bottom-color: #a9894b;
+  border-right-color: #a9894b;
+  display: grid;
+  min-height: 142px;
+  overflow: hidden;
+  padding-top: 2px;
+}
+
+.forge-buffer-meter span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.3), transparent 32%),
+    linear-gradient(180deg, #f8fff5, #82d289 45%, #448e48);
+  box-shadow: 0 0 12px rgba(108, 236, 98, 0.32);
+  transition: height 180ms linear;
+}
+
+.lv-forge-hmi .forge-buffer-meter span {
+  animation: lv-energy-scan 0.72s linear infinite;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 32%),
+    repeating-linear-gradient(0deg, #fbe15a 0 9px, #c69225 9px 13px);
+  box-shadow: 0 0 14px rgba(255, 218, 57, 0.34);
+}
+
+.forge-buffer-panel em {
+  color: #9f9277;
+  font: 900 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+  font-style: normal;
+}
+
+.forge-io-slot {
+  align-content: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
+    var(--forge-panel);
+  border: 2px solid #6a4e31;
+  border-bottom-color: #070807;
+  border-right-color: #070807;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  min-width: 0;
+  padding: 5px 3px;
+}
+
+.lv-forge-hmi .forge-io-slot {
+  border-color: #465654;
+}
+
+.forge-input-slot {
+  grid-area: input;
+}
+
+.forge-output-slot {
+  grid-area: output;
+}
+
+.forge-io-slot .process-slot {
+  height: 58px;
+  width: 58px;
+}
+
+.forge-readout-stack {
+  display: grid;
+  gap: 4px;
+  grid-area: readouts;
+  min-width: 0;
+}
+
+.forge-readout {
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
+    #111514;
+  border: 2px solid #51402b;
+  border-bottom-color: #070807;
+  border-right-color: #070807;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 3px 5px;
+}
+
+.lv-forge-hmi .forge-readout {
+  border-color: #354441;
+}
+
+.forge-readout strong {
+  color: var(--forge-ok);
+  font: 950 0.72rem "Courier New", ui-monospace, monospace;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(111, 224, 92, 0.2);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lv-forge-hmi .forge-readout strong {
+  color: #7de9ff;
+  text-shadow: 0 0 8px rgba(85, 207, 255, 0.26);
+}
+
+.forge-action-rail {
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    #171511;
+  border: 3px solid var(--forge-trim-dark);
+  border-bottom-color: #070807;
+  border-right-color: #070807;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 228, 158, 0.08),
+    0 2px 0 rgba(0, 0, 0, 0.35);
+  display: grid;
+  grid-area: action;
+  grid-template-columns: 1fr auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 10px;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.forge-action-rail > span {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.28) 0 8px, transparent 8px 14px),
+    linear-gradient(90deg, #9b521e, var(--forge-glow), var(--forge-hot));
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transition: width 180ms linear;
+}
+
+.lv-forge-hmi .forge-action-rail > span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.32), transparent 16%),
+    repeating-linear-gradient(90deg, #f8d840 0 12px, #b97825 12px 16px, #27312f 16px 20px);
+}
+
+.machine-terminal-active .forge-action-rail > span {
+  animation: forge-action-crawl 0.56s linear infinite;
+}
+
+.forge-action-rail strong,
+.forge-action-rail em {
+  color: #ffe7a0;
+  font: 950 0.92rem "Courier New", ui-monospace, monospace;
+  font-style: normal;
+  position: relative;
+  text-shadow: 1px 1px 0 #000;
+  z-index: 1;
+}
+
+.forge-action-rail em {
+  font-size: 0.7rem;
+  justify-self: end;
+}
+
 .furnace-interface {
   align-items: center;
   background: var(--bevel-well);
@@ -5006,6 +5725,39 @@ button.craft-output:disabled {
   grid-template-columns: 72px 1fr 72px;
   justify-items: center;
   padding: 12px;
+}
+
+.machine-terminal .furnace-interface,
+.machine-terminal .well-interface,
+.machine-terminal .machine-status-row,
+.machine-terminal .processing-storage,
+.machine-terminal .machine-selected-item,
+.machine-terminal .manual-fluid-transfer {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 40%),
+    var(--machine-panel-well);
+  border-color: rgba(255, 255, 255, 0.46);
+  border-bottom-color: rgba(0, 0, 0, 0.46);
+  border-right-color: rgba(0, 0, 0, 0.46);
+}
+
+.steam-machine-terminal .furnace-interface,
+.steam-machine-terminal .well-interface {
+  box-shadow:
+    inset 0 0 0 1px rgba(90, 53, 22, 0.4),
+    inset 0 -8px 0 rgba(62, 37, 16, 0.14);
+}
+
+.lv-machine-terminal .furnace-interface,
+.lv-machine-terminal .well-interface {
+  background:
+    linear-gradient(90deg, rgba(255, 226, 94, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 45%),
+    var(--machine-panel-well);
+  background-size: 12px 12px, auto, auto;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 230, 91, 0.12),
+    inset 0 -8px 0 rgba(0, 0, 0, 0.22);
 }
 
 .steamBoiler-process-interface {
@@ -5162,6 +5914,16 @@ button.craft-output:disabled {
   width: max-content;
 }
 
+.machine-terminal .steam-tank {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 38%),
+    var(--machine-panel-dark);
+  border-color: rgba(255, 255, 255, 0.4);
+  border-bottom-color: rgba(0, 0, 0, 0.62);
+  border-right-color: rgba(0, 0, 0, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
 .steam-tank-gauge {
   align-items: end;
   background:
@@ -5173,7 +5935,29 @@ button.craft-output:disabled {
   display: grid;
   height: 58px;
   overflow: hidden;
+  position: relative;
   width: 18px;
+}
+
+.steam-machine-terminal .steam-tank-gauge {
+  background:
+    radial-gradient(circle at 50% 18%, #f6ebcf 0 13%, #6e5b36 14% 20%, transparent 21%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.18), transparent 35%),
+    #4f3e2a;
+  border-color: #2c2116;
+  border-bottom-color: #d8b96b;
+  border-right-color: #d8b96b;
+}
+
+.steam-machine-terminal .steam-tank-gauge::after {
+  background:
+    linear-gradient(90deg, transparent 0 35%, rgba(255, 248, 213, 0.9) 36% 42%, transparent 43%),
+    repeating-linear-gradient(0deg, transparent 0 7px, rgba(255, 235, 168, 0.35) 7px 8px);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
 }
 
 .steam-tank-gauge span {
@@ -5187,6 +5971,15 @@ button.craft-output:disabled {
   width: 100%;
 }
 
+.steam-machine-terminal .steam-tank-gauge span {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.22) 0 2px, transparent 2px 8px),
+    linear-gradient(180deg, #f2fbff, #b9dfe9 48%, #6d9eaa);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.36),
+    0 0 10px rgba(218, 246, 255, 0.24);
+}
+
 .fluid-tank-gauge span {
   background:
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.16) 0 2px, transparent 2px 8px),
@@ -5197,6 +5990,32 @@ button.craft-output:disabled {
   background:
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 8px),
     linear-gradient(180deg, #fff2a8, #d5ad36 58%, #7b651e);
+}
+
+.lv-machine-terminal .energy-tank {
+  background:
+    linear-gradient(135deg, rgba(255, 236, 120, 0.08), transparent 36%),
+    #1d2827;
+  border-color: #52605b;
+  border-bottom-color: #101615;
+  border-right-color: #101615;
+}
+
+.lv-machine-terminal .energy-tank-gauge {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 223, 80, 0.08) 0 4px, transparent 4px 8px),
+    #121918;
+  border-color: #0d1211;
+  border-bottom-color: #798276;
+  border-right-color: #798276;
+}
+
+.lv-machine-terminal .energy-tank-gauge span {
+  animation: lv-energy-scan 0.7s linear infinite;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), transparent 16%),
+    repeating-linear-gradient(0deg, #ffe866 0 4px, #d7ac2e 4px 8px);
+  box-shadow: 0 0 10px rgba(255, 225, 76, 0.44);
 }
 
 .steam-tank-readout {
@@ -5242,6 +6061,30 @@ button.craft-output:disabled {
   padding: 3px;
   position: relative;
   width: 54px;
+}
+
+.machine-terminal .process-slot {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+    var(--machine-panel-dark);
+  border-color: rgba(255, 255, 255, 0.32);
+  border-bottom-color: rgba(0, 0, 0, 0.62);
+  border-right-color: rgba(0, 0, 0, 0.62);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.18);
+}
+
+.steam-machine-terminal .process-slot.filled {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 172, 0.16),
+    0 0 8px rgba(207, 146, 57, 0.22);
+}
+
+.lv-machine-terminal .process-slot.filled {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 229, 87, 0.18),
+    0 0 10px rgba(255, 224, 74, 0.2);
 }
 
 .process-slot-label {
@@ -5300,10 +6143,59 @@ button.craft-output:disabled {
   width: 100%;
 }
 
+.machine-terminal .furnace-progress {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.26), transparent),
+    var(--machine-panel-dark);
+  border-color: rgba(0, 0, 0, 0.62);
+  border-bottom-color: rgba(255, 255, 255, 0.5);
+  border-right-color: rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.38);
+  height: 16px;
+}
+
 .furnace-progress span {
   background: linear-gradient(90deg, #6da448, #d0c46a);
   display: block;
   height: 100%;
+}
+
+.steam-machine-terminal .furnace-progress span {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0 5px, transparent 5px 10px),
+    linear-gradient(90deg, #8d6230, #d9a94e 52%, #f3d27a);
+}
+
+.steam-machine-terminal.machine-terminal-active .furnace-progress span {
+  animation: steam-process-chug 0.55s steps(4, end) infinite;
+  box-shadow: 0 0 10px rgba(232, 177, 78, 0.28);
+}
+
+.lv-machine-terminal .furnace-progress span,
+.lv-machine-terminal .auto-miner-action-progress span,
+.lv-machine-terminal .assembler-progress span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.75), transparent 18%),
+    repeating-linear-gradient(90deg, #ffe35d 0 7px, #86d6a1 7px 11px, #335c50 11px 15px);
+}
+
+.lv-machine-terminal.machine-terminal-active .furnace-progress span,
+.lv-machine-terminal.machine-terminal-active .auto-miner-action-progress span,
+.lv-machine-terminal.machine-terminal-active .assembler-progress span {
+  animation: lv-process-scan 0.5s linear infinite;
+  box-shadow: 0 0 12px rgba(255, 226, 81, 0.42);
+}
+
+.lv-machine-terminal .steam-tank-readout span,
+.lv-machine-terminal .steam-tank-readout small {
+  color: #b7c4b9;
+}
+
+.lv-machine-terminal .steam-tank-readout strong {
+  color: #ffe66b;
+  text-shadow:
+    1px 1px 0 #151a14,
+    0 0 8px rgba(255, 225, 76, 0.28);
 }
 
 .furnace-progress strong {
@@ -5622,7 +6514,11 @@ button.craft-output:disabled {
   justify-content: center;
   padding: 14px;
   position: fixed;
-  z-index: 10;
+  z-index: 100;
+}
+
+.recipe-backdrop {
+  z-index: 55;
 }
 
 .recipe-modal {
@@ -5632,6 +6528,7 @@ button.craft-output:disabled {
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
   display: grid;
   gap: 10px;
+  grid-template-rows: max-content max-content max-content minmax(0, 1fr);
   max-height: min(760px, 92svh);
   max-width: 680px;
   overflow: hidden;
@@ -8373,6 +9270,101 @@ button.craft-output:disabled {
   }
 }
 
+@keyframes steam-process-chug {
+  0% {
+    background-position: 0 0, 0 0;
+    filter: brightness(1);
+  }
+
+  100% {
+    background-position: 20px 0, 0 0;
+    filter: brightness(1.12);
+  }
+}
+
+@keyframes lv-process-scan {
+  0% {
+    background-position: -18px 0, 0 0;
+    filter: brightness(1);
+  }
+
+  100% {
+    background-position: 18px 0, 15px 0;
+    filter: brightness(1.18);
+  }
+}
+
+@keyframes lv-energy-scan {
+  0% {
+    background-position: 0 -12px, 0 0;
+  }
+
+  100% {
+    background-position: 0 12px, 0 8px;
+  }
+}
+
+@keyframes forge-hammer-strike {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  62% {
+    transform: translateX(-50%) translateY(28px);
+  }
+}
+
+@keyframes forge-spark-flicker {
+  0% {
+    opacity: 0.55;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes forge-steam-puff {
+  0% {
+    opacity: 0.16;
+    transform: translateY(8px) scale(0.86);
+  }
+
+  70% {
+    opacity: 0.44;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-18px) scale(1.18);
+  }
+}
+
+@keyframes forge-electric-arc {
+  0% {
+    opacity: 0.2;
+    filter: brightness(0.9);
+  }
+
+  100% {
+    opacity: 0.86;
+    filter: brightness(1.35);
+  }
+}
+
+@keyframes forge-action-crawl {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+
+  100% {
+    background-position: 22px 0, 20px 0;
+  }
+}
+
 @keyframes factory-furnace-thrum {
   0% {
     box-shadow: inset 0 0 0 rgba(255, 176, 69, 0);
@@ -8736,6 +9728,7 @@ button.craft-output:disabled {
 }
 
 .recipe-detail {
+  align-content: start;
   background: var(--bevel-well);
   border: 2px solid var(--bevel-dark);
   border-bottom-color: var(--bevel-light);
@@ -8906,11 +9899,254 @@ button.craft-output:disabled {
   margin: 0;
 }
 
-.recipe-slot-section > span {
+.recipe-slot-section > span,
+.recipe-slot-heading > span {
   color: #4d4d4d;
   font-size: 0.62rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.recipe-slot-heading {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.recipe-process-flow {
+  align-items: stretch;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr) 18px minmax(0, 1fr);
+}
+
+.recipe-crafting-flow {
+  display: grid;
+  gap: 5px;
+}
+
+.recipe-crafting-row {
+  align-items: stretch;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: max-content 18px minmax(0, 1fr);
+}
+
+.recipe-flow-step {
+  align-content: start;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  display: grid;
+  gap: 5px;
+  grid-template-rows: auto 1fr;
+  min-height: 110px;
+  min-width: 0;
+  padding: 5px;
+}
+
+.recipe-flow-step.pattern,
+.recipe-flow-step.output {
+  justify-items: center;
+}
+
+.recipe-flow-step.output {
+  align-content: center;
+}
+
+.recipe-flow-step.output .recipe-flow-items {
+  align-content: center;
+  justify-content: center;
+}
+
+.recipe-flow-step > span {
+  color: #4d4d4d;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.recipe-flow-items {
+  align-content: start;
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  min-width: 0;
+}
+
+.recipe-flow-entry,
+.recipe-process-flow .recipe-station-entry {
+  align-items: center;
+  display: grid;
+  gap: 3px;
+  grid-template-rows: 34px minmax(34px, auto);
+  justify-items: center;
+  min-height: 72px;
+  min-width: 0;
+  text-align: center;
+}
+
+.recipe-flow-label,
+.recipe-process-flow .recipe-station-entry > span:last-child {
+  color: var(--ink-strong);
+  display: grid;
+  gap: 2px;
+  font: 900 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.05;
+  max-width: 100%;
+  min-height: 34px;
+  overflow-wrap: anywhere;
+}
+
+.recipe-flow-label strong,
+.recipe-name-chip strong {
+  color: #4d4d4d;
+  font: 950 0.56rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.recipe-flow-label em,
+.recipe-name-chip em {
+  background: #8b3f2f;
+  border: 1px solid #3e1c16;
+  color: #fff2df;
+  font: 950 0.52rem "Courier New", ui-monospace, monospace;
+  font-style: normal;
+  line-height: 1;
+  padding: 2px 3px;
+  text-transform: uppercase;
+}
+
+.recipe-flow-entry.missing .recipe-flow-label {
+  color: #5b2118;
+}
+
+.recipe-flow-arrow {
+  align-items: center;
+  color: #4d4d4d;
+  display: grid;
+  justify-items: center;
+}
+
+.recipe-flow-arrow svg {
+  stroke-width: 3;
+}
+
+.recipe-crafting-names {
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  display: grid;
+  gap: 5px;
+  padding: 5px;
+}
+
+.recipe-crafting-names > span {
+  color: #4d4d4d;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.recipe-crafting-names > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.recipe-name-chip {
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
+  cursor: pointer;
+  display: inline-grid;
+  gap: 2px;
+  font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.05;
+  min-height: 26px;
+  padding: 3px 6px;
+  text-align: left;
+}
+
+.recipe-name-chip.missing {
+  background: #d8ad94;
+  border-color: #f5d5ba;
+  border-bottom-color: #6c3325;
+  border-right-color: #6c3325;
+  color: #5b2118;
+}
+
+.recipe-process-summary {
+  align-items: center;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  display: flex;
+  gap: 7px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 5px;
+}
+
+.recipe-process-summary > span {
+  color: #4d4d4d;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.recipe-process-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.recipe-process-pill {
+  align-items: center;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
+  display: inline-flex;
+  font: 950 0.7rem "Courier New", ui-monospace, monospace;
+  gap: 4px;
+  line-height: 1;
+  min-height: 28px;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.recipe-process-pill svg {
+  flex: 0 0 auto;
+  stroke-width: 3;
+}
+
+.recipe-process-pill.time {
+  background: #c4b68c;
+}
+
+.recipe-process-pill.steam {
+  background: #a8c0bd;
+  color: #203837;
+}
+
+.recipe-process-pill.eu {
+  background: #d0b96b;
+  color: #3f2e08;
 }
 
 .recipe-slot-row {
@@ -9017,6 +10253,11 @@ button.recipe-jump-slot {
   margin: 0;
 }
 
+.recipe-primary-action {
+  justify-self: stretch;
+  width: 100%;
+}
+
 .mine-face p,
 .guide-card p,
 .machine-card p,
@@ -9037,23 +10278,25 @@ button.recipe-jump-slot {
 
 :root {
   --bottom-nav-height: 48px;
-  --bottom-nav-gap: 8px;
-  --bottom-nav-clearance: calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + max(8px, env(safe-area-inset-bottom)));
-  --top-safe-clearance: max(44px, calc(env(safe-area-inset-top, 0px) + 10px));
+  --bottom-nav-gap: 2px;
+  --bottom-nav-safe-padding: 4px;
+  --bottom-nav-clearance: calc(var(--bottom-nav-height) + var(--bottom-nav-gap) + var(--bottom-nav-safe-padding));
+  --top-safe-clearance: max(38px, env(safe-area-inset-top, 0px));
 }
 
 .game-shell {
   align-content: start;
-  padding-bottom: calc(var(--bottom-nav-clearance) + 12px);
+  padding-bottom: calc(var(--bottom-nav-clearance) + 4px);
   padding-top: var(--top-safe-clearance);
 }
 
 .game-shell.processing-shell {
   align-content: stretch;
-  gap: 8px;
+  gap: 6px;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   overscroll-behavior: none;
+  padding-bottom: var(--bottom-nav-clearance);
 }
 
 .processing-shell .processing-panel {
@@ -9063,6 +10306,7 @@ button.recipe-jump-slot {
   max-height: 100%;
   min-height: 0;
   overflow: hidden;
+  padding-top: 4px;
 }
 
 .processing-shell .factory-inventory-panel {
@@ -9089,7 +10333,7 @@ button.recipe-jump-slot {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   isolation: isolate;
   left: 50%;
-  padding: 3px 3px max(3px, env(safe-area-inset-bottom));
+  padding: 3px 3px var(--bottom-nav-safe-padding);
   position: fixed;
   transform: translateX(-50%);
   width: min(calc(100% - 8px), 760px);
@@ -9181,7 +10425,7 @@ button.recipe-jump-slot {
 
 @media (min-width: 760px) {
   .game-shell {
-    padding: 14px 14px calc(var(--bottom-nav-clearance) + 16px);
+    padding: 14px 14px calc(var(--bottom-nav-clearance) + 8px);
   }
 
   .game-header h1 {
@@ -9191,7 +10435,7 @@ button.recipe-jump-slot {
 
 @media (max-width: 430px) {
   .game-shell {
-    padding: var(--top-safe-clearance) 4px calc(var(--bottom-nav-clearance) + 10px);
+    padding: var(--top-safe-clearance) 4px calc(var(--bottom-nav-clearance) + 4px);
     --sticky-header-height: 62px;
     --sticky-header-gap: 8px;
   }
@@ -9283,6 +10527,10 @@ button.recipe-jump-slot {
     padding: 6px;
   }
 
+  .processing-shell .processing-panel {
+    padding-top: 3px;
+  }
+
   .factory-expansion-row {
     grid-template-columns: minmax(0, 1fr) auto;
   }
@@ -9340,26 +10588,36 @@ button.recipe-jump-slot {
   .recipe-modal-body {
     gap: 6px;
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .recipe-backdrop {
+    align-items: flex-start;
+    inset: calc(var(--top-safe-clearance) + var(--sticky-header-height) + var(--sticky-header-gap)) 0 0;
+    padding: 0 4px max(8px, env(safe-area-inset-bottom));
   }
 
   .recipe-modal {
     gap: 6px;
-    max-height: calc(100svh - 18px);
+    height: calc(100svh - var(--top-safe-clearance) - var(--sticky-header-height) - var(--sticky-header-gap) - 18px);
+    max-height: calc(100svh - var(--top-safe-clearance) - var(--sticky-header-height) - var(--sticky-header-gap) - 18px);
     padding: 8px;
   }
 
   .recipe-search,
   .mode-tabs {
+    height: 30px;
     min-height: 30px;
   }
 
   .mode-tabs button {
+    height: 26px;
     min-height: 26px;
   }
 
   .recipe-icon-grid {
     grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-    max-height: 128px;
+    max-height: 168px;
   }
 
   .recipe-icon-button {
@@ -9374,7 +10632,7 @@ button.recipe-jump-slot {
 
   .recipe-detail {
     gap: 5px;
-    max-height: min(42svh, 310px);
+    max-height: none;
     padding: 6px;
   }
 
@@ -9385,6 +10643,11 @@ button.recipe-jump-slot {
   .recipe-detail h3 {
     font-size: 0.82rem;
     line-height: 1.05;
+  }
+
+  .recipe-flow-entry,
+  .recipe-process-flow .recipe-station-entry {
+    grid-template-rows: 34px minmax(34px, auto);
   }
 
   .recipe-pattern-grid {
@@ -9427,6 +10690,7 @@ button.recipe-jump-slot {
 .factory-machine-search,
 .factory-expansion-row,
 .factory-expand-button,
+.factory-view-fit,
 .machine-status-row,
 .machine-drawer,
 .place-machine-button,
@@ -9636,8 +10900,8 @@ button.button-primary:disabled,
 }
 
 .factory-pan-content {
-  left: 12px;
-  top: 12px;
+  left: 0;
+  top: 0;
 }
 
 .factory-grid {
@@ -10171,6 +11435,10 @@ button.button-primary:disabled,
 .buffer-cell-buttons button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.forge-hammer-chamber > .machine-glyph {
+  display: none !important;
 }
 
 @media (max-width: 430px) {

@@ -121,7 +121,7 @@ describe('game engine', () => {
     expect(placeMachineInstance(state, 'furnace', 0, 0)).toBe(state)
   })
 
-  it('builds the first 5x5 factory foundation from basic materials', () => {
+  it('builds the first 7x7 factory foundation from basic materials', () => {
     let state = createInitialState(1000)
     state.resources.plank = 16
     state.resources.cobblestone = 24
@@ -135,28 +135,26 @@ describe('game engine', () => {
     state = expandFactoryFloor(state)
 
     expect(state.factoryFoundationLevel).toBe(1)
-    expect(factoryGridForState(state)).toEqual({ width: 5, height: 5 })
+    expect(factoryGridForState(state)).toEqual({ width: 7, height: 7 })
     expect(state.resources.plank).toBe(0)
     expect(state.resources.cobblestone).toBe(0)
 
     state.machines.furnace = 1
-    state = placeMachineInstance(state, 'furnace', 4, 4)
+    state = placeMachineInstance(state, 'furnace', 6, 6)
     expect(state.machineInstances).toHaveLength(1)
-    expect(placeMachineInstance(state, 'furnace', 5, 0)).toBe(state)
+    expect(placeMachineInstance(state, 'furnace', 7, 0)).toBe(state)
   })
 
   it('expands the factory floor through capped progression sizes', () => {
     let state = createFactoryState(1000, 1)
-    state.resources.cobblestone = 640
-    state.resources.brick = 320
+    state.resources.cobblestone = 1100
+    state.resources.brick = 540
     state.resources.ironPlate = 72
-    state.resources.steelPlate = 8
+    state.resources.steelPlate = 24
+    state.resources.aluminiumPlate = 8
 
     state = expandFactoryFloor(state)
     expect(state.factoryFoundationLevel).toBe(2)
-    expect(factoryGridForState(state)).toEqual({ width: 8, height: 6 })
-
-    state = expandFactoryFloor(state)
     expect(factoryGridForState(state)).toEqual({ width: 10, height: 8 })
 
     state = expandFactoryFloor(state)
@@ -164,6 +162,20 @@ describe('game engine', () => {
 
     state = expandFactoryFloor(state)
     expect(factoryGridForState(state)).toEqual({ width: 14, height: 12 })
+
+    state = expandFactoryFloor(state)
+    expect(factoryGridForState(state)).toEqual({ width: 16, height: 14 })
+
+    expect(factoryFoundationCost(state)).toEqual([
+      { id: 'cobblestone', amount: 384 },
+      { id: 'brick', amount: 192 },
+      { id: 'steelPlate', amount: 16 },
+      { id: 'aluminiumPlate', amount: 8 },
+    ])
+
+    state = expandFactoryFloor(state)
+    expect(state.factoryFoundationLevel).toBe(6)
+    expect(factoryGridForState(state)).toEqual({ width: 18, height: 16 })
     expect(factoryFoundationCost(state)).toEqual([])
     expect(expandFactoryFloor(state)).toBe(state)
   })
@@ -753,7 +765,7 @@ describe('game engine', () => {
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.brickedBlastFurnace).toBe(0)
     expect(state.factoryFoundationLevel).toBe(2)
-    expect(factoryGridForState(state)).toEqual({ width: 8, height: 6 })
+    expect(factoryGridForState(state)).toEqual({ width: 10, height: 8 })
     expect(state.machineInstances).toHaveLength(2)
     expect(state.machineInstances[0]).toMatchObject({ machineId: 'furnace', x: 0, y: 0, level: 1 })
     expect(state.machineInstances[1]).toMatchObject({ machineId: 'steamBoiler', x: 1, y: 0, level: 1 })
@@ -844,7 +856,7 @@ describe('game engine', () => {
   it('migrates old empty saves to locked factory and clamps saved factory foundation levels', () => {
     expect(loadGame(JSON.stringify({ resources: { log: 1 } }), 1000).factoryFoundationLevel).toBe(0)
     expect(loadGame(JSON.stringify({ factoryFoundationLevel: -4 }), 1000).factoryFoundationLevel).toBe(0)
-    expect(loadGame(JSON.stringify({ factoryFoundationLevel: 99 }), 1000).factoryFoundationLevel).toBe(5)
+    expect(loadGame(JSON.stringify({ factoryFoundationLevel: 99 }), 1000).factoryFoundationLevel).toBe(6)
   })
 
   it('creates a temporary creative state with 32 of every resource and placeable machine', () => {
@@ -862,7 +874,7 @@ describe('game engine', () => {
     expect(state.machines.brickedBlastFurnacePart).toBe(32)
     expect(state.machines.arcBlastFurnace).toBe(0)
     expect(state.machines.arcBlastFurnacePart).toBe(32)
-    expect(state.factoryFoundationLevel).toBe(5)
+    expect(state.factoryFoundationLevel).toBe(6)
     expect(state.craftedResources).toEqual(Object.keys(state.resources))
     expect(state.lastSavedAt).toBe(2000)
   })

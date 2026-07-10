@@ -373,6 +373,8 @@ export type Recipe = {
   recipeType?: RecipeType
   pattern?: (ResourceId | null)[]
   durationMs: number
+  steamCostLitres?: number
+  euCost?: number
   inputs: ResourceAmount[]
   outputs: ResourceAmount[]
   catalysts?: ResourceAmount[]
