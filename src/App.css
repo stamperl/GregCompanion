@@ -2850,6 +2850,48 @@ button.craft-output:disabled {
   box-shadow: inset 0 0 0 3px #172d23;
 }
 
+.pixel-steelGear {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 22%, #2e3438 23% 34%, transparent 35%),
+    conic-gradient(from 10deg, #d7dfe1 0 8%, #68727a 8% 14%, #d7dfe1 14% 22%, #68727a 22% 28%, #d7dfe1 28% 36%, #68727a 36% 42%, #d7dfe1 42% 50%, #68727a 50% 56%, #d7dfe1 56% 64%, #68727a 64% 70%, #d7dfe1 70% 78%, #68727a 78% 84%, #d7dfe1 84% 92%, #68727a 92% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 3px #2a3034;
+}
+
+.pixel-steelRing {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 38%, #2e3438 39% 48%, #d7dfe1 49% 68%, #68727a 69% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #2a3034;
+}
+
+.pixel-steelScrew {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-steelScrew::before {
+  background:
+    repeating-linear-gradient(90deg, #d7dfe1 0 4px, #68727a 4px 7px),
+    linear-gradient(180deg, #eef4f5, #6a747a);
+  height: 8px;
+  left: 3px;
+  top: 10px;
+  transform: rotate(-24deg);
+  width: 20px;
+}
+
+.pixel-steelScrew::after {
+  background: #d7dfe1;
+  border-radius: 50%;
+  box-shadow: inset -3px -2px 0 #68727a, inset 0 0 0 2px #2e3438;
+  height: 10px;
+  left: 3px;
+  top: 6px;
+  transform: rotate(-24deg);
+  width: 10px;
+}
+
 .pixel-lvMotor {
   background:
     radial-gradient(circle at 50% 50%, #384148 0 20%, transparent 21%),

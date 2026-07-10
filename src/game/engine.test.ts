@@ -3446,21 +3446,28 @@ describe('game engine', () => {
 
   it('crafts LV backbone components from shaped terminal recipes', () => {
     const expectations = [
-      ['craft_lv_motor', 'lvMotor', ['steelRod', 'conductiveWire', 'tinWire', 'primitiveCircuit']],
-      ['craft_lv_piston', 'lvPiston', ['lvMotor', 'steelPlate', 'steelRod', 'tinWire']],
-      ['craft_lv_pump', 'lvPump', ['lvMotor', 'rubber', 'pipeSealant', 'copperRod', 'tinWire', 'bucket']],
-      ['craft_lv_conveyor', 'lvConveyor', ['lvMotor', 'rubber', 'tinWire', 'steelPlate']],
+      ['file_steel_ring', 'steelRing', ['steelRod'], ['ironFile']],
+      ['cut_steel_screws', 'steelScrew', ['steelRod'], ['ironWireCutters']],
+      ['file_steel_gear', 'steelGear', ['steelPlate'], ['ironFile', 'stoneHammer']],
+      ['craft_lv_motor', 'lvMotor', ['steelRod', 'copperWire', 'tinWire', 'steelGear'], ['ironWireCutters']],
+      ['craft_lv_piston', 'lvPiston', ['lvMotor', 'steelPlate', 'steelRod', 'steelGear'], ['bronzeWrench']],
+      ['craft_lv_pump', 'lvPump', ['lvMotor', 'steelRing', 'pipeSealant', 'steelScrew', 'bucket'], ['bronzeWrench']],
+      ['craft_lv_conveyor', 'lvConveyor', ['lvMotor', 'rubber', 'tinWire'], ['ironWireCutters']],
     ] as const
 
-    for (const [recipeId, outputId, requiredInputs] of expectations) {
+    for (const [recipeId, outputId, requiredInputs, requiredCatalysts] of expectations) {
       const recipe = recipes.find((candidate) => candidate.id === recipeId)
-      expect(recipe?.outputs, recipeId).toEqual([{ id: outputId, amount: 1 }])
+      expect(recipe?.outputs.some((output) => output.id === outputId), recipeId).toBe(true)
       expect(recipe?.pattern, recipeId).toHaveLength(9)
       expect(recipe && recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
       expect(findGridRecipe(makeGridForRecipe(recipe!), recipes)?.id, recipeId).toBe(recipeId)
       const inputIds = new Set(recipe?.inputs.map((input) => input.id))
       for (const inputId of requiredInputs) expect(inputIds.has(inputId), `${recipeId} should use ${inputId}`).toBe(true)
+      const catalystIds = new Set(recipe?.catalysts?.map((input) => input.id) ?? [])
+      for (const catalystId of requiredCatalysts) expect(catalystIds.has(catalystId), `${recipeId} should use ${catalystId}`).toBe(true)
     }
+
+    expect(recipes.find((candidate) => candidate.id === 'craft_lv_motor')?.inputs.some((input) => input.id === 'primitiveCircuit')).toBe(false)
   })
 
   it('uses LV backbone components in LV machine recipes', () => {
