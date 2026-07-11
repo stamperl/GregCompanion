@@ -58,6 +58,10 @@ const machineUiPanelFiles: Partial<Record<MachineId, string>> = {
   arcBlastFurnace: 'arc-blast-furnace-panel.webp',
 }
 
+const machineUiStageFiles: Partial<Record<MachineId, string>> = {
+  lvAssembler: 'lv-assembler-stage.png',
+}
+
 export function machineUiChamberSrc(id: MachineId) {
   const fileName = machineUiChamberFiles[id]
   return fileName ? `${import.meta.env.BASE_URL}game-ui/${fileName}?v=${machineUiAssetVersion}` : ''
@@ -65,6 +69,11 @@ export function machineUiChamberSrc(id: MachineId) {
 
 export function machineUiPanelSrc(id: MachineId) {
   const fileName = machineUiPanelFiles[id] ?? machineUiChamberFiles[id]
+  return fileName ? `${import.meta.env.BASE_URL}game-ui/${fileName}?v=${machineUiAssetVersion}` : ''
+}
+
+export function machineUiStageSrc(id: MachineId) {
+  const fileName = machineUiStageFiles[id]
   return fileName ? `${import.meta.env.BASE_URL}game-ui/${fileName}?v=${machineUiAssetVersion}` : ''
 }
 
@@ -76,8 +85,12 @@ function machineUiPanelUrls() {
   return (Object.keys(machineUiPanelFiles) as MachineId[]).map(machineUiPanelSrc).filter(Boolean)
 }
 
+function machineUiStageUrls() {
+  return (Object.keys(machineUiStageFiles) as MachineId[]).map(machineUiStageSrc).filter(Boolean)
+}
+
 function machineUiUrls() {
-  return [...new Set([...machineUiChamberUrls(), ...machineUiPanelUrls()])]
+  return [...new Set([...machineUiChamberUrls(), ...machineUiPanelUrls(), ...machineUiStageUrls()])]
 }
 
 function preloadImage(src: string) {

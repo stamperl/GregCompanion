@@ -575,6 +575,8 @@ export type MachineProcessState = {
   extraInput4: ProcessSlot
   fuel: ProcessSlot
   output: ProcessSlot
+  storageSlots: ProcessSlot[]
+  batterySlots: Array<ResourceId | null>
   activeRecipeId: string | null
   progressMs: number
   durationMs: number

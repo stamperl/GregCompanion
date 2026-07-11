@@ -409,6 +409,7 @@ export const machineRegistry = {
     tier: 'steam',
     placeable: true,
     processKind: 'waterSource',
+    fluidCapacityLitres: 128,
   },
   steamBoiler: {
     id: 'steamBoiler',

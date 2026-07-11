@@ -136,6 +136,8 @@ export const ironTankFluidCapacityLitres = machineFluidCapacityLitres('steamTank
 export const steamMachineInternalCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
 export const euPerSteamLitre = 2
 export const boilerSteamProductionLitresPerSecond = 12
+export const wellWaterCapacityLitres = machineFluidCapacityLitres('well')
+export const wellWaterProductionLitresPerSecond = 12
 export const steamTurbineSteamUseLitresPerSecond = 16
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
@@ -262,6 +264,8 @@ function emptyProcessState(): MachineProcessState {
     extraInput4: null,
     fuel: null,
     output: null,
+    storageSlots: [],
+    batterySlots: [],
     activeRecipeId: null,
     progressMs: 0,
     durationMs: 0,
@@ -290,6 +294,8 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     extraInput4: cloneProcessSlot(process.extraInput4),
     fuel: cloneProcessSlot(process.fuel),
     output: cloneProcessSlot(process.output),
+    storageSlots: process.storageSlots.map(cloneProcessSlot),
+    batterySlots: [...process.batterySlots],
     activeRecipeId: process.activeRecipeId,
     progressMs: process.progressMs,
     durationMs: process.durationMs,
@@ -336,6 +342,10 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     extraInput4: normalizeProcessSlot(process.extraInput4),
     fuel: normalizeProcessSlot(process.fuel),
     output: normalizeProcessSlot(process.output),
+    storageSlots: Array.isArray(process.storageSlots) ? process.storageSlots.map(normalizeProcessSlot).slice(0, 12) : [],
+    batterySlots: Array.isArray(process.batterySlots)
+      ? process.batterySlots.map((id) => (id && isBufferBatteryId(id) ? id : null)).slice(0, 8)
+      : [],
     activeRecipeId: process.activeRecipeId ?? null,
     progressMs: Math.max(0, Math.floor(process.progressMs ?? 0)),
     durationMs: Math.max(0, Math.floor(process.durationMs ?? 0)),
@@ -428,6 +438,23 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
       pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
       normalizedPipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
     }
+    const process = normalizeProcessState(instance.process)
+    if (machineId === 'standardChest' && process.storageSlots.length < 1) {
+      process.storageSlots = [process.input, process.secondaryInput, process.fuel].map(cloneProcessSlot)
+      process.input = null
+      process.secondaryInput = null
+      process.fuel = null
+    }
+    if (machineId === 'standardChest') {
+      process.storageSlots = Array.from({ length: 12 }, (_, index) => cloneProcessSlot(process.storageSlots[index] ?? null))
+    }
+    if (isEuStorageMachine(machineId) && process.batterySlots.length < 1 && process.input && isBufferBatteryId(process.input.id)) {
+      process.batterySlots = Array.from({ length: Math.min(batteryBufferSlots(machineId), process.input.amount) }, () => process.input!.id)
+      process.input = null
+    }
+    if (isEuStorageMachine(machineId)) {
+      process.batterySlots = Array.from({ length: batteryBufferSlots(machineId) }, (_, index) => process.batterySlots[index] ?? null)
+    }
     normalized.push({
       uid: String(instance.uid),
       machineId,
@@ -439,7 +466,7 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
           : Math.max(1, Math.floor(instance.level ?? 1)),
       pipeDisabledSides: normalizedPipeDisabledSides,
       pipeSideModes,
-      process: normalizeProcessState(instance.process),
+      process,
     })
   }
   return normalized
@@ -1641,6 +1668,10 @@ export function boilerHasWater(state: GameState, boiler: MachineInstance) {
   return hasAdjacentWaterSource(state, boiler) || hasConnectedWaterSource(state, boiler)
 }
 
+function connectedWellForBoiler(state: GameState, boiler: MachineInstance) {
+  return connectedFluidNetwork(state, boiler).find((instance) => instance.machineId === 'well' && (instance.process.fluids.water ?? 0) > 0) ?? null
+}
+
 function machineFluidCapacity(machineId: MachineId) {
   return machineFluidCapacityLitres(machineId)
 }
@@ -1828,16 +1859,15 @@ export function batteryEuCapacity(resourceId: ResourceId) {
 
 export function batteryBufferInstalledBatteries(instance: MachineInstance) {
   if (!isEuStorageMachine(instance.machineId)) return 0
-  return instance.process.input && isBufferBatteryId(instance.process.input.id) ? Math.min(batteryBufferSlots(instance.machineId), instance.process.input.amount) : 0
+  return instance.process.batterySlots.filter((id): id is BufferBatteryId => Boolean(id && isBufferBatteryId(id))).length
 }
 
 export function batteryBufferInstalledBatteryId(instance: MachineInstance) {
-  return instance.process.input && isBufferBatteryId(instance.process.input.id) ? instance.process.input.id : null
+  return instance.process.batterySlots.find((id): id is BufferBatteryId => Boolean(id && isBufferBatteryId(id))) ?? null
 }
 
 function batteryBufferEuCapacity(instance: MachineInstance) {
-  const batteryId = batteryBufferInstalledBatteryId(instance)
-  return batteryId ? batteryBufferInstalledBatteries(instance) * batteryEuCapacity(batteryId) : 0
+  return instance.process.batterySlots.reduce((total, batteryId) => total + (batteryId ? batteryEuCapacity(batteryId) : 0), 0)
 }
 
 function euSourceOutputAmps(instance: MachineInstance) {
@@ -2369,35 +2399,61 @@ export function availableUnplacedMachineCount(state: GameState, machineId: Machi
 export function installLvBatteryInBuffer(state: GameState, uid: string, batteryId: BufferBatteryId = 'sodiumBattery') {
   const instance = state.machineInstances.find((machine) => machine.uid === uid)
   if (!instance || !isEuStorageMachine(instance.machineId) || availableResourceAmount(state, batteryId) < 1) return state
-  const installedBatteryId = batteryBufferInstalledBatteryId(instance)
-  if (installedBatteryId && installedBatteryId !== batteryId) return state
-  const installed = batteryBufferInstalledBatteries(instance)
-  if (installed >= batteryBufferSlots(instance.machineId)) return state
+  const emptySlot = instance.process.batterySlots.findIndex((id) => !id)
+  if (emptySlot < 0) return state
 
   const next = cloneState(state)
   const target = next.machineInstances.find((machine) => machine.uid === uid)
   if (!target) return state
   next.resources[batteryId] -= 1
-  target.process.input = { id: batteryId, amount: installed + 1 }
+  target.process.batterySlots[emptySlot] = batteryId
   target.process.euCapacity = batteryBufferEuCapacity(target)
   target.process.euStored = Math.min(target.process.euStored, target.process.euCapacity)
   next.lastSavedAt = Date.now()
   return next
 }
 
-export function removeLvBatteryFromBuffer(state: GameState, uid: string) {
+export function removeLvBatteryFromBuffer(state: GameState, uid: string, slotIndex?: number) {
   const instance = state.machineInstances.find((machine) => machine.uid === uid)
   if (!instance || !isEuStorageMachine(instance.machineId) || batteryBufferInstalledBatteries(instance) < 1) return state
 
   const next = cloneState(state)
   const target = next.machineInstances.find((machine) => machine.uid === uid)
   if (!target) return state
-  const installed = batteryBufferInstalledBatteries(target)
-  const batteryId = batteryBufferInstalledBatteryId(target) ?? 'sodiumBattery'
-  target.process.input = installed > 1 ? { id: batteryId, amount: installed - 1 } : null
+  const resolvedIndex = slotIndex ?? target.process.batterySlots.findLastIndex((id) => Boolean(id))
+  const batteryId = target.process.batterySlots[resolvedIndex]
+  if (!batteryId || !isBufferBatteryId(batteryId)) return state
+  target.process.batterySlots[resolvedIndex] = null
   target.process.euCapacity = batteryBufferEuCapacity(target)
   target.process.euStored = Math.min(target.process.euStored, target.process.euCapacity)
   next.resources[batteryId] += 1
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function insertMachineStorageSlot(state: GameState, uid: string, slotIndex: number, resourceId: ResourceId, amount = processStackLimit) {
+  const instance = state.machineInstances.find((machine) => machine.uid === uid)
+  if (!instance || instance.machineId !== 'standardChest' || slotIndex < 0 || slotIndex >= 12) return state
+  const existing = instance.process.storageSlots[slotIndex]
+  if ((existing && existing.id !== resourceId) || availableResourceAmount(state, resourceId) < 1) return state
+  const moved = Math.min(amount, processStackLimit - (existing?.amount ?? 0), availableResourceAmount(state, resourceId))
+  if (moved < 1) return state
+  const next = cloneState(state)
+  const target = next.machineInstances.find((machine) => machine.uid === uid)!
+  target.process.storageSlots[slotIndex] = { id: resourceId, amount: (existing?.amount ?? 0) + moved }
+  next.resources[resourceId] -= moved
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function removeMachineStorageSlot(state: GameState, uid: string, slotIndex: number) {
+  const instance = state.machineInstances.find((machine) => machine.uid === uid)
+  const stored = instance?.process.storageSlots[slotIndex]
+  if (!instance || instance.machineId !== 'standardChest' || !stored) return state
+  const next = cloneState(state)
+  const target = next.machineInstances.find((machine) => machine.uid === uid)!
+  target.process.storageSlots[slotIndex] = null
+  next.resources[stored.id] += stored.amount
   next.lastSavedAt = Date.now()
   return next
 }
@@ -2416,6 +2472,8 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
     level: 1,
     process: emptyProcessState(),
   }
+  if (machineId === 'standardChest') placed.process.storageSlots = Array.from({ length: 12 }, () => null)
+  if (isEuStorageMachine(machineId)) placed.process.batterySlots = Array.from({ length: batteryBufferSlots(machineId) }, () => null)
   if (isConfigurableConnector(machineId)) {
     placed.pipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
     placed.pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
@@ -2605,6 +2663,8 @@ export function removeMachineInstance(state: GameState, uid: string) {
     instance.process.extraInput4,
     instance.process.fuel,
     instance.process.output,
+    ...instance.process.storageSlots,
+    ...instance.process.batterySlots.map((id) => (id ? { id, amount: 1 } : null)),
   ].filter(
     (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
   )
@@ -2783,7 +2843,8 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
   process.steamCapacityMs = boilerSteamCapacityMs
   process.steamStoredMs = Math.min(process.steamStoredMs, boilerSteamCapacityMs)
 
-  if (!boilerHasWater(state, instance)) {
+  const well = connectedWellForBoiler(state, instance)
+  if (!well) {
     process.activeRecipeId = null
     return
   }
@@ -2798,13 +2859,15 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
     return
   }
 
-  const burnMs = Math.min(elapsedMs, process.fuelRemainingMs, (boilerSteamCapacityMs - process.steamStoredMs) / boilerSteamProductionLitresPerSecond)
+  const maxBurnByWater = ((well.process.fluids.water ?? 0) / wellWaterProductionLitresPerSecond) * 1000
+  const burnMs = Math.min(elapsedMs, process.fuelRemainingMs, (boilerSteamCapacityMs - process.steamStoredMs) / boilerSteamProductionLitresPerSecond, maxBurnByWater)
   const produced = burnMs * boilerSteamProductionLitresPerSecond
   if (produced < 1) return
   process.activeRecipeId = 'make_steam'
   process.progressMs = 0
   process.durationMs = 0
   burnProcessFuel(process, burnMs)
+  well.process.fluids.water = Math.max(0, (well.process.fluids.water ?? 0) - (burnMs / 1000) * wellWaterProductionLitresPerSecond)
   process.steamStoredMs += produced
 }
 
@@ -3258,6 +3321,10 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     if (isItemHopperMachine(instance.machineId)) tickItemHopper(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
+    if (instance.machineId === 'well') {
+      instance.process.fluidCapacityLitres = wellWaterCapacityLitres
+      instance.process.fluids.water = Math.min(wellWaterCapacityLitres, (instance.process.fluids.water ?? 0) + wellWaterProductionLitresPerSecond * (elapsedMs / 1000))
+    }
     if (instance.machineId === 'furnace') tickFurnaceProcess(instance, elapsedMs)
     if (instance.machineId === 'steamBoiler') tickSteamBoiler(next, instance, elapsedMs)
     if (instance.machineId === 'steamTank') {
@@ -3707,6 +3774,8 @@ function addReturnedProcessSlots(resources: Record<ResourceId, number>, instance
     instance.process.extraInput4,
     instance.process.fuel,
     instance.process.output,
+    ...instance.process.storageSlots,
+    ...instance.process.batterySlots.map((id) => (id ? { id, amount: 1 } : null)),
   ]) {
     if (!slot) continue
     resources[slot.id] += slot.amount
@@ -3746,7 +3815,7 @@ function migrateMachineInstances(
     let filledPlacedBuffers = 0
     for (const instance of placedBuffers) {
       if (batteryBufferInstalledBatteries(instance) > 0) continue
-      instance.process.input = { id: 'sodiumBattery', amount: 1 }
+      instance.process.batterySlots = Array.from({ length: batteryBufferSlots(instance.machineId) }, (_, index) => index === 0 ? 'sodiumBattery' : null)
       instance.process.euCapacity = batteryBufferEuCapacity(instance)
       instance.process.euStored = Math.min(instance.process.euStored || instance.process.euCapacity, instance.process.euCapacity)
       filledPlacedBuffers += 1

@@ -1180,6 +1180,158 @@ button.craft-output:disabled {
   font: 700 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Factory terminal V2: shared utility and infrastructure HMI language. */
+.machine-terminal .utility-hmi {
+  background-color: rgba(5, 9, 9, 0.94);
+  border: 2px solid rgba(218, 194, 125, 0.72);
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px;
+}
+
+.machine-terminal .utility-vessel {
+  background: linear-gradient(180deg, rgba(7, 15, 16, 0.84), rgba(5, 7, 7, 0.98));
+  border: 2px solid #b99b58;
+  height: 180px;
+  overflow: hidden;
+  position: relative;
+}
+
+.machine-terminal .utility-vessel > span {
+  background: linear-gradient(180deg, rgba(121, 220, 244, 0.74), rgba(24, 108, 154, 0.94));
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  transition: height 420ms ease-out;
+  width: 100%;
+}
+
+.machine-terminal .utility-vessel .machine-glyph {
+  bottom: 12px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%) scale(1.45);
+  z-index: 1;
+}
+
+.machine-terminal .utility-readout-grid,
+.machine-terminal .auto-miner-readout-grid {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.machine-terminal .utility-readout-grid > span,
+.machine-terminal .auto-miner-readout-grid > span {
+  background: rgba(8, 13, 13, 0.92);
+  border: 1px solid #665b3b;
+  display: grid;
+  min-height: 58px;
+  padding: 6px;
+}
+
+.machine-terminal .utility-readout-grid small,
+.machine-terminal .auto-miner-readout-grid small {
+  color: #d7c37d;
+  font-size: 0.5rem;
+  text-transform: uppercase;
+}
+
+.machine-terminal .utility-readout-grid strong,
+.machine-terminal .auto-miner-readout-grid strong {
+  color: #f4edcf;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.machine-terminal .utility-readout-grid em {
+  color: #8cb6b8;
+  font-size: 0.48rem;
+  font-style: normal;
+}
+
+.machine-terminal .pipe-terminal-interface,
+.machine-terminal .cable-terminal-interface {
+  overflow: hidden;
+  position: relative;
+}
+
+.machine-terminal .pipe-terminal-interface::after,
+.machine-terminal .cable-terminal-interface::after {
+  background: linear-gradient(90deg, transparent 0 8%, rgba(112, 217, 244, 0.78) 46% 54%, transparent 92%);
+  content: '';
+  height: 4px;
+  left: -45%;
+  opacity: 0;
+  position: absolute;
+  top: 58%;
+  width: 45%;
+}
+
+.machine-terminal .pipe-terminal-interface.is-flowing::after,
+.machine-terminal .cable-terminal-interface.is-flowing::after {
+  animation: terminal-live-flow 1.35s linear infinite;
+  opacity: 1;
+}
+
+.machine-terminal .cable-terminal-interface::after {
+  background: linear-gradient(90deg, transparent, #7ce9ff 42% 58%, transparent);
+  box-shadow: 0 0 8px #38c9ef;
+  height: 2px;
+}
+
+@keyframes terminal-live-flow {
+  to { transform: translateX(330%); }
+}
+
+.machine-terminal .indexed-storage-grid {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.machine-terminal .indexed-storage-grid .process-slot {
+  aspect-ratio: 1;
+  height: auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.machine-terminal .item-automation-interface > .machine-glyph {
+  justify-self: center;
+  margin-top: 5px;
+}
+
+.machine-terminal .buffer-cell-grid {
+  grid-template-columns: repeat(4, minmax(42px, 1fr));
+}
+
+.machine-terminal .buffer-cell-slot {
+  min-height: 50px;
+}
+
+.machine-terminal .auto-miner-assign {
+  margin: 0;
+  width: 100%;
+}
+
+.machine-terminal .assembler-load-rail,
+.machine-terminal .furnace-progress {
+  min-height: 34px;
+}
+
+@media (max-width: 620px) {
+  .furnace-modal.machine-terminal {
+    max-height: calc(100dvh - var(--app-safe-top, 0px) - var(--app-safe-bottom, 0px) - 104px);
+    overflow: hidden;
+  }
+
+  .machine-terminal .utility-vessel { height: 154px; }
+  .machine-terminal .utility-readout-grid > span,
+  .machine-terminal .auto-miner-readout-grid > span { min-height: 52px; }
+}
+
 .empty-tank {
   border: 2px solid var(--bevel-dark);
   border-bottom-color: var(--bevel-light);
@@ -3999,7 +4151,7 @@ button.craft-output:disabled {
 .machine-meter-bar span {
   display: block;
   height: 100%;
-  transition: width 180ms linear;
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .machine-meter.steam .machine-meter-bar span {
@@ -5532,7 +5684,6 @@ button.craft-output:disabled {
 }
 
 .forge-buffer-meter {
-  align-items: end;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.12), transparent 34%),
     repeating-linear-gradient(0deg, transparent 0 18px, rgba(255, 235, 169, 0.22) 18px 19px),
@@ -5544,18 +5695,22 @@ button.craft-output:disabled {
   min-height: 142px;
   overflow: hidden;
   padding-top: 2px;
+  position: relative;
 }
 
 .forge-buffer-meter span {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.3), transparent 32%),
     linear-gradient(180deg, #f8fff5, #82d289 45%, #448e48);
+  bottom: 0;
   box-shadow: 0 0 12px rgba(108, 236, 98, 0.32);
-  transition: height 180ms linear;
+  left: 0;
+  position: absolute;
+  transition: height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  width: 100%;
 }
 
 .lv-forge-hmi .forge-buffer-meter span {
-  animation: lv-energy-scan 0.72s linear infinite;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 32%),
     repeating-linear-gradient(0deg, #fbe15a 0 9px, #c69225 9px 13px);
@@ -5682,7 +5837,7 @@ button.craft-output:disabled {
   left: 0;
   position: absolute;
   top: 0;
-  transition: width 180ms linear;
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lv-forge-hmi .forge-action-rail > span {
@@ -5692,7 +5847,7 @@ button.craft-output:disabled {
 }
 
 .machine-terminal-active .forge-action-rail > span {
-  animation: forge-action-crawl 0.56s linear infinite;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--forge-glow) 45%, transparent);
 }
 
 .forge-action-rail strong,
@@ -5921,7 +6076,6 @@ button.craft-output:disabled {
 }
 
 .steam-tank-gauge {
-  align-items: end;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 35%),
     #5f6b72;
@@ -5957,13 +6111,15 @@ button.craft-output:disabled {
 }
 
 .steam-tank-gauge span {
-  animation: steam-tank-wobble 1.1s steps(2, end) infinite;
   background:
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.22) 0 2px, transparent 2px 8px),
     linear-gradient(180deg, #eafaff, #8fc6d8 55%, #639caf);
+  bottom: 0;
   box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.36);
   display: block;
-  transition: height 220ms linear;
+  left: 0;
+  position: absolute;
+  transition: height 420ms cubic-bezier(0.22, 1, 0.36, 1);
   width: 100%;
 }
 
@@ -6007,7 +6163,6 @@ button.craft-output:disabled {
 }
 
 .lv-machine-terminal .energy-tank-gauge span {
-  animation: lv-energy-scan 0.7s linear infinite;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.78), transparent 16%),
     repeating-linear-gradient(0deg, #ffe866 0 4px, #d7ac2e 4px 8px);
@@ -6154,6 +6309,7 @@ button.craft-output:disabled {
   background: linear-gradient(90deg, #6da448, #d0c46a);
   display: block;
   height: 100%;
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .steam-machine-terminal .furnace-progress span {
@@ -6163,7 +6319,6 @@ button.craft-output:disabled {
 }
 
 .steam-machine-terminal.machine-terminal-active .furnace-progress span {
-  animation: steam-process-chug 0.55s steps(4, end) infinite;
   box-shadow: 0 0 10px rgba(232, 177, 78, 0.28);
 }
 
@@ -6178,7 +6333,6 @@ button.craft-output:disabled {
 .lv-machine-terminal.machine-terminal-active .furnace-progress span,
 .lv-machine-terminal.machine-terminal-active .auto-miner-action-progress span,
 .lv-machine-terminal.machine-terminal-active .assembler-progress span {
-  animation: lv-process-scan 0.5s linear infinite;
   box-shadow: 0 0 12px rgba(255, 226, 81, 0.42);
 }
 
@@ -12631,12 +12785,14 @@ button.button-primary:disabled,
 }
 
 .assembler-buffer-meter span {
-  align-self: end;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.6), transparent 16%),
     linear-gradient(180deg, #7bf3ff, #35bfe4 58%, #17526a);
+  bottom: 0;
   box-shadow: 0 0 12px rgba(72, 219, 255, 0.46);
   display: block;
+  left: 0;
+  position: absolute;
   transition: height 420ms cubic-bezier(0.22, 1, 0.36, 1);
   width: 100%;
 }
@@ -13320,6 +13476,120 @@ button.button-primary:disabled,
   padding: 7px;
 }
 
+.machine-terminal .lvAssembler-process-interface {
+  grid-template-areas:
+    "inputs energy"
+    "stage energy"
+    "readouts output"
+    "load load";
+  grid-template-columns: minmax(0, 1fr) 82px;
+  grid-template-rows: auto minmax(174px, 27svh) auto 38px;
+}
+
+.machine-terminal .assembler-item-grid {
+  grid-template-columns: repeat(4, 54px);
+  grid-template-rows: repeat(2, 54px);
+}
+
+.machine-terminal .assembler-item-grid > .assembler-fluid-lot {
+  align-content: center;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(89, 228, 255, 0.14), transparent 58%),
+    linear-gradient(180deg, #222c2b, #0d1111);
+  border: 2px solid #566461;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  box-shadow:
+    inset 0 0 0 1px rgba(143, 245, 255, 0.08),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.2);
+  display: grid;
+  gap: 1px;
+  grid-area: auto;
+  height: 54px;
+  justify-items: center;
+  left: auto;
+  min-height: 54px;
+  overflow: hidden;
+  padding: 3px;
+  position: relative;
+  text-align: center;
+  top: auto;
+  width: 54px;
+}
+
+.machine-terminal .assembler-item-grid > .assembler-fluid-lot::before {
+  bottom: 0;
+  height: var(--assembler-fluid-fill, 0%);
+  left: 0;
+  opacity: 0.58;
+  width: 100%;
+}
+
+.machine-terminal .assembler-item-grid > .assembler-fluid-lot > span {
+  align-self: end;
+  color: #d9fbff;
+  font: 950 0.43rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.machine-terminal .assembler-item-grid > .assembler-fluid-lot strong {
+  color: #dffbff;
+  font: 950 0.76rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.machine-terminal .assembler-item-grid > .assembler-fluid-lot small {
+  align-self: start;
+  color: #a7dce5;
+  font: 900 0.38rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-terminal .assembler-stage-lot {
+  align-items: end;
+  background:
+    linear-gradient(180deg, rgba(5, 9, 10, 0.08), rgba(5, 9, 10, 0.26)),
+    var(--assembler-stage-image) center / cover no-repeat,
+    #0a0f10;
+  min-height: 174px;
+  padding: 0 8px 12px;
+}
+
+.machine-terminal .assembler-stage-lot::before,
+.machine-terminal .assembler-stage-lot::after,
+.machine-terminal .assembler-stage-press,
+.machine-terminal .assembler-stage-table {
+  display: none;
+}
+
+.machine-terminal .assembler-stage-state {
+  background: rgba(4, 9, 10, 0.84);
+  margin-bottom: 6px;
+  max-width: 84%;
+}
+
+.machine-terminal .assembler-energy-lot {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.machine-terminal .assembler-buffer-meter {
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.machine-terminal .assembler-buffer-meter span {
+  flex: 0 0 auto;
+  margin-top: auto;
+  min-height: 0;
+  width: 100%;
+}
+
 @media (max-width: 430px) {
   .machine-meter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -13472,4 +13742,358 @@ button.button-primary:disabled,
     height: 22px;
     width: 22px;
   }
+}
+
+/* Final terminal overrides live after legacy responsive rules. */
+.furnace-modal.machine-terminal .water-source-interface.utility-hmi {
+  align-items: stretch;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(112px, 0.72fr) minmax(0, 1.28fr);
+  padding: 9px;
+}
+
+.furnace-modal.machine-terminal .iron-tank-hmi {
+  align-items: stretch;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(132px, 0.86fr) minmax(0, 1.14fr);
+  padding: 9px;
+}
+
+.furnace-modal.machine-terminal .iron-tank-vessel > strong {
+  background: rgba(5, 8, 8, 0.78);
+  bottom: 7px;
+  color: #f2e9c8;
+  font-size: 0.66rem;
+  left: 7px;
+  padding: 4px 6px;
+  position: absolute;
+  z-index: 2;
+}
+
+.furnace-modal.machine-terminal .iron-tank-vessel.steam-contents > span {
+  background: linear-gradient(180deg, rgba(222, 246, 238, 0.78), rgba(86, 175, 190, 0.9));
+}
+
+.furnace-modal.machine-terminal .utility-vessel {
+  display: block;
+  height: 188px;
+  min-height: 188px;
+  position: relative;
+  width: 100%;
+}
+
+.furnace-modal.machine-terminal .utility-readout-grid {
+  align-content: stretch;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.furnace-modal.machine-terminal .utility-readout-grid > span {
+  min-height: 0;
+}
+
+.furnace-modal.machine-terminal .indexed-storage-grid.chest-storage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+}
+
+.furnace-modal.machine-terminal .indexed-storage-grid.chest-storage-grid .process-slot {
+  height: auto;
+  min-height: 64px;
+  width: 100%;
+}
+
+.furnace-modal.machine-terminal .battery-buffer-interface .buffer-cell-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(30px, 1fr));
+}
+
+.furnace-modal.machine-terminal .battery-buffer-interface {
+  grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.furnace-modal.machine-terminal .battery-buffer-interface .buffer-cell-slot {
+  min-height: 48px;
+  min-width: 0;
+  padding: 2px;
+}
+
+.furnace-modal.machine-terminal .auto-miner-readout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.furnace-modal.machine-terminal .boiler-hmi {
+  background: rgba(7, 8, 7, 0.95);
+  border: 2px solid #8f6e35;
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+}
+
+.furnace-modal.machine-terminal .boiler-system-strip {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.furnace-modal.machine-terminal .boiler-system-strip > span {
+  background: #101413;
+  border: 1px solid #5e5535;
+  display: grid;
+  min-height: 52px;
+  padding: 6px;
+}
+
+.furnace-modal.machine-terminal .boiler-system-strip small {
+  color: #d3b761;
+  font-size: 0.48rem;
+  text-transform: uppercase;
+}
+
+.furnace-modal.machine-terminal .boiler-system-strip strong {
+  color: #ecf5d7;
+  font-size: 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.furnace-modal.machine-terminal .boiler-stage {
+  align-items: end;
+  background: linear-gradient(rgba(10, 10, 8, 0.3), rgba(5, 6, 5, 0.74)), var(--machine-panel-image);
+  background-position: center;
+  background-size: cover;
+  border: 1px solid #71613a;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(70px, 0.7fr) 62px;
+  min-height: 218px;
+  padding: 10px;
+}
+
+.furnace-modal.machine-terminal .boiler-firebox {
+  align-items: end;
+  display: grid;
+  height: 100%;
+  justify-items: center;
+  position: relative;
+}
+
+.furnace-modal.machine-terminal .boiler-firebox.active::after {
+  animation: boiler-fire-pulse 1.2s ease-in-out infinite alternate;
+  background: rgba(255, 113, 28, 0.55);
+  bottom: 12px;
+  box-shadow: 0 0 22px #ff6e19;
+  content: '';
+  height: 12px;
+  position: absolute;
+  width: 54px;
+}
+
+.furnace-modal.machine-terminal .boiler-stage .steam-tank {
+  height: 190px;
+  min-height: 190px;
+}
+
+.furnace-modal.machine-terminal .boiler-load-rail {
+  background: #10110e;
+  border: 1px solid #786438;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  min-height: 35px;
+  overflow: hidden;
+  padding: 7px 10px;
+  position: relative;
+}
+
+.furnace-modal.machine-terminal .boiler-load-rail > span {
+  background: linear-gradient(90deg, #80501f, #e9a847);
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transition: width 420ms ease-out;
+}
+
+.furnace-modal.machine-terminal .boiler-load-rail strong,
+.furnace-modal.machine-terminal .boiler-load-rail em {
+  position: relative;
+  z-index: 1;
+}
+
+.furnace-modal.machine-terminal .boiler-load-rail em {
+  font-size: 0.56rem;
+  font-style: normal;
+  text-align: right;
+}
+
+@keyframes boiler-fire-pulse { to { opacity: 0.55; transform: scaleX(0.82); } }
+
+.furnace-modal.machine-terminal .dual-boiler-vessels,
+.furnace-modal.machine-terminal .turbine-generator-stage {
+  align-items: end;
+  background: linear-gradient(rgba(5, 9, 9, 0.28), rgba(4, 6, 6, 0.76)), var(--machine-panel-image) center / cover;
+  border: 1px solid #625c40;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: minmax(72px, 0.7fr) minmax(0, 1.25fr) minmax(72px, 0.7fr);
+  min-height: 220px;
+  padding: 10px;
+}
+
+.furnace-modal.machine-terminal .dual-boiler-vessels .fluid-tank,
+.furnace-modal.machine-terminal .dual-boiler-vessels .steam-tank {
+  height: 190px;
+  min-height: 190px;
+}
+
+.furnace-modal.machine-terminal .liquid-boiler-core,
+.furnace-modal.machine-terminal .turbine-generator-stage > .machine-glyph {
+  align-items: end;
+  display: grid;
+  height: 100%;
+  justify-items: center;
+}
+
+.furnace-modal.machine-terminal .turbine-generator-stage {
+  grid-template-columns: minmax(0, 1.4fr) minmax(86px, 0.6fr);
+}
+
+.furnace-modal.machine-terminal .turbine-generator-stage .energy-tank {
+  height: 190px;
+  min-height: 190px;
+}
+
+.furnace-modal.machine-terminal .turbine-generator-stage > .machine-glyph.active {
+  animation: turbine-working 1.6s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 10px rgba(76, 220, 244, 0.75));
+}
+
+@keyframes turbine-working { to { filter: drop-shadow(0 0 18px rgba(76, 220, 244, 0.95)); } }
+
+.furnace-modal.machine-terminal .boiler-hmi.turbine-interface,
+.furnace-modal.machine-terminal .boiler-hmi.liquid-boiler-interface {
+  display: grid;
+  grid-template-columns: 1fr !important;
+}
+
+.furnace-modal.machine-terminal .boiler-hmi.turbine-interface > *,
+.furnace-modal.machine-terminal .boiler-hmi.liquid-boiler-interface > * {
+  grid-column: 1 !important;
+}
+
+.furnace-modal.machine-terminal .battery-buffer-interface .buffer-cell-controls > span {
+  color: #d7eef0;
+  display: block;
+  font-size: 0.56rem;
+  line-height: 1.35;
+  margin-top: 5px;
+}
+
+@media (max-width: 420px) {
+  .furnace-modal.machine-terminal .arcBlastFurnace-process-interface {
+    min-height: 225px;
+    padding: 6px;
+  }
+
+  .furnace-modal.machine-terminal:has(.arcBlastFurnace-process-interface) .machine-status-row {
+    gap: 3px;
+    padding: 4px;
+  }
+
+  .furnace-modal.machine-terminal:has(.arcBlastFurnace-process-interface) .machine-meter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .furnace-modal.machine-terminal:has(.arcBlastFurnace-process-interface) .machine-selected-item {
+    min-height: 25px;
+    padding: 3px 6px;
+  }
+
+  .furnace-modal.machine-terminal:has(.arcBlastFurnace-process-interface) .furnace-help {
+    display: none;
+  }
+}
+
+.furnace-modal.machine-terminal .assembler-stage-readouts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.furnace-modal.machine-terminal .assembler-output-lot {
+  align-items: center;
+  display: grid;
+  justify-items: center;
+}
+
+.furnace-modal.machine-terminal .assembler-load-rail {
+  min-height: 35px;
+}
+
+.furnace-modal.machine-terminal .auto-miner-interface {
+  background: linear-gradient(rgba(4, 7, 7, 0.18), rgba(4, 6, 6, 0.72)), var(--machine-panel-image) center / cover;
+  border: 2px solid #72613d;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: minmax(82px, 0.55fr) minmax(0, 1.45fr);
+  padding: 9px;
+}
+
+.furnace-modal.machine-terminal .auto-miner-interface > .machine-glyph {
+  align-self: stretch;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.75));
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  height: 178px;
+  justify-self: center;
+  width: 150px;
+}
+
+.furnace-modal.machine-terminal .auto-miner-interface > .steam-tank,
+.furnace-modal.machine-terminal .auto-miner-interface > .energy-tank {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  height: 178px;
+  min-height: 178px;
+}
+
+.furnace-modal.machine-terminal .auto-miner-interface > .auto-miner-action-progress,
+.furnace-modal.machine-terminal .auto-miner-interface > span,
+.furnace-modal.machine-terminal .auto-miner-readout-grid,
+.furnace-modal.machine-terminal .auto-miner-output,
+.furnace-modal.machine-terminal .auto-miner-assign {
+  grid-column: 1 / -1;
+}
+
+.furnace-modal.machine-terminal .auto-miner-output {
+  align-items: center;
+  background: rgba(7, 11, 11, 0.9);
+  border: 1px solid #675c38;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto 48px 1fr;
+  min-height: 54px;
+  padding: 5px 8px;
+}
+
+.furnace-modal.machine-terminal .cokeOven-process-interface,
+.furnace-modal.machine-terminal .brickedBlastFurnace-process-interface,
+.furnace-modal.machine-terminal .arcBlastFurnace-process-interface {
+  background: linear-gradient(rgba(6, 7, 6, 0.18), rgba(4, 5, 5, 0.62)), var(--machine-panel-image) center / cover;
+  border: 2px solid #7b6437;
+  box-shadow: inset 0 0 32px rgba(0, 0, 0, 0.76);
+  min-height: 300px;
+  padding: 12px;
+}
+
+.furnace-modal.machine-terminal .arcBlastFurnace-process-interface {
+  border-color: #4b8290;
+  box-shadow: inset 0 0 34px rgba(13, 73, 88, 0.46);
+}
+
+.furnace-modal.machine-terminal .cokeOven-process-interface .furnace-progress,
+.furnace-modal.machine-terminal .brickedBlastFurnace-process-interface .furnace-progress,
+.furnace-modal.machine-terminal .arcBlastFurnace-process-interface .furnace-progress {
+  margin-top: auto;
 }

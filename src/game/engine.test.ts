@@ -41,6 +41,7 @@ import {
   hitGatherTarget,
   ironTankFluidCapacityLitres,
   insertProcessSlot,
+  insertMachineStorageSlot,
   installLvBatteryInBuffer,
   isAutoMinerPowered,
   loadGame,
@@ -63,6 +64,8 @@ import {
   recipesUsingInput,
   removeMachineInstance,
   removeProcessSlot,
+  removeMachineStorageSlot,
+  removeLvBatteryFromBuffer,
   searchTerminalRecipes,
   sellShopItem,
   setFluidOutputDirection,
@@ -2177,12 +2180,8 @@ describe('game engine', () => {
     }
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').map((instance) => instance.process.steamStoredMs)).toEqual([
-      12000,
-      12000,
-      12000,
-      12000,
-    ])
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').reduce((sum, instance) => sum + instance.process.steamStoredMs, 0)).toBe(12000)
+    expect(state.machineInstances.find((instance) => instance.machineId === 'well')?.process.fluids.water).toBe(0)
   })
 
   it('uses a 128L steam boiler buffer', () => {
@@ -3310,6 +3309,45 @@ describe('game engine', () => {
     expect(chargedLithiumBuffer.process.euCapacity).toBeGreaterThan(chargedSodiumBuffer.process.euCapacity)
     expect(chargedSodiumBuffer.process.euCapacity).toBe(2048)
     expect(chargedLithiumBuffer.process.euCapacity).toBe(4096)
+  })
+
+  it('supports mixed battery chemistries in indexed buffer slots', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvBatteryBuffer2A = 1
+    state.resources.sodiumBattery = 1
+    state.resources.lithiumBattery = 1
+    state = placeMachineInstance(state, 'lvBatteryBuffer2A', 0, 0)
+    const buffer = state.machineInstances[0]
+
+    state = installLvBatteryInBuffer(state, buffer.uid, 'sodiumBattery')
+    state = installLvBatteryInBuffer(state, buffer.uid, 'lithiumBattery')
+    const filled = state.machineInstances[0]
+    expect(filled.process.batterySlots).toEqual(['sodiumBattery', 'lithiumBattery'])
+    expect(filled.process.euCapacity).toBe(6144)
+
+    state = removeLvBatteryFromBuffer(state, buffer.uid, 0)
+    expect(state.machineInstances[0].process.batterySlots).toEqual([null, 'lithiumBattery'])
+    expect(state.machineInstances[0].process.euCapacity).toBe(4096)
+    expect(state.resources.sodiumBattery).toBe(1)
+  })
+
+  it('stores twelve independent mixed stacks in a standard chest', () => {
+    let state = createFactoryState(1000)
+    state.machines.standardChest = 1
+    state.resources.log = 3
+    state.resources.ironOre = 2
+    state = placeMachineInstance(state, 'standardChest', 0, 0)
+    const chest = state.machineInstances[0]
+
+    state = insertMachineStorageSlot(state, chest.uid, 0, 'log', 3)
+    state = insertMachineStorageSlot(state, chest.uid, 11, 'ironOre', 2)
+    expect(state.machineInstances[0].process.storageSlots).toHaveLength(12)
+    expect(state.machineInstances[0].process.storageSlots[0]).toEqual({ id: 'log', amount: 3 })
+    expect(state.machineInstances[0].process.storageSlots[11]).toEqual({ id: 'ironOre', amount: 2 })
+
+    state = removeMachineStorageSlot(state, chest.uid, 0)
+    expect(state.machineInstances[0].process.storageSlots[0]).toBeNull()
+    expect(state.resources.log).toBe(3)
   })
 
   it('treats LV cables as automatic non-directional networks', () => {
