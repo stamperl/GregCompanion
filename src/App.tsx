@@ -5443,6 +5443,8 @@ function App() {
                 ) : selectedMachine.machineId === 'lvAssembler' ? (
                   <div className="furnace-interface lvAssembler-process-interface">
                     <div className="assembler-stage-lot" aria-label={`Assembler stage ${selectedMachineStatusLabel}`}>
+                      <span className="assembler-stage-press" aria-hidden="true" />
+                      <span className="assembler-stage-table" aria-hidden="true" />
                       <span className={selectedMachine.process.activeRecipeId ? 'assembler-stage-indicator active' : 'assembler-stage-indicator'} aria-hidden="true" />
                       <span className="assembler-stage-state">{assemblerStageLabel}</span>
                     </div>

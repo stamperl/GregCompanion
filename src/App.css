@@ -12843,6 +12843,483 @@ button.button-primary:disabled,
   display: none;
 }
 
+.machine-terminal .lvAssembler-process-interface {
+  aspect-ratio: auto;
+  background:
+    linear-gradient(90deg, rgba(83, 229, 255, 0.05) 0 1px, transparent 1px 14px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 34%),
+    #111817;
+  border: 2px solid #425451;
+  border-bottom-color: #070909;
+  border-right-color: #070909;
+  box-shadow:
+    inset 0 0 0 1px rgba(128, 244, 255, 0.08),
+    inset 0 -10px 0 rgba(0, 0, 0, 0.22),
+    0 3px 0 rgba(0, 0, 0, 0.45);
+  display: grid;
+  gap: 6px;
+  grid-template-areas:
+    "inputs energy"
+    "stage energy"
+    "fluid output"
+    "readouts readouts"
+    "load load";
+  grid-template-columns: minmax(0, 1fr) 82px;
+  grid-template-rows: auto minmax(148px, 23svh) 72px auto 38px;
+  margin-inline: auto;
+  overflow: hidden;
+  padding: 7px;
+  position: relative;
+  width: min(100%, 360px);
+}
+
+.machine-terminal .lvAssembler-process-interface::before {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.36), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.36)),
+    repeating-linear-gradient(0deg, transparent 0 16px, rgba(255, 255, 255, 0.025) 16px 17px);
+  content: "";
+  display: block;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.machine-terminal .lvAssembler-process-interface > * {
+  position: relative;
+  z-index: 1;
+}
+
+.machine-terminal .lvAssembler-process-interface .process-slot {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(123, 238, 255, 0.07), transparent 42%),
+    linear-gradient(180deg, #222c2b, #0d1111);
+  border: 2px solid #566461;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  box-shadow:
+    inset 0 0 0 1px rgba(143, 245, 255, 0.08),
+    inset 0 -6px 0 rgba(0, 0, 0, 0.2);
+  height: 54px;
+  min-height: 54px;
+  padding: 3px;
+  width: 54px;
+}
+
+.machine-terminal .lvAssembler-process-interface .process-slot.filled {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(117, 236, 255, 0.16), rgba(6, 10, 10, 0.82) 58%),
+    #111817;
+  box-shadow:
+    inset 0 0 0 2px rgba(138, 238, 255, 0.28),
+    0 0 12px rgba(117, 236, 255, 0.18);
+}
+
+.machine-terminal .lvAssembler-process-interface .process-slot-label {
+  color: #d6fbff;
+  font: 950 0.5rem "Courier New", ui-monospace, monospace;
+  opacity: 0.95;
+  text-shadow: 1px 1px 0 #050606;
+}
+
+.machine-terminal .lvAssembler-process-interface .pixel-icon {
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.7));
+  transform: none;
+}
+
+.machine-terminal .lvAssembler-process-interface .item-count {
+  bottom: 2px;
+  color: #f6f0d2;
+  right: 3px;
+}
+
+.machine-terminal .assembler-item-grid {
+  align-content: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    #0a0e0e;
+  border: 2px solid #3d4c49;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  box-shadow: inset 0 0 0 1px rgba(129, 242, 255, 0.05);
+  display: grid;
+  gap: 5px;
+  grid-area: inputs;
+  grid-template-columns: repeat(3, 54px);
+  grid-template-rows: repeat(2, 54px);
+  height: auto;
+  justify-content: center;
+  left: auto;
+  padding: 7px;
+  position: relative;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-stage-lot {
+  align-items: end;
+  background:
+    radial-gradient(circle at 50% 82%, rgba(82, 225, 255, 0.2), transparent 28%),
+    linear-gradient(180deg, rgba(22, 43, 45, 0.7), rgba(5, 8, 9, 0.95)),
+    #0a0f10;
+  border: 2px solid #3d4c49;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  box-shadow:
+    inset 0 0 0 1px rgba(129, 242, 255, 0.06),
+    inset 0 0 28px rgba(0, 0, 0, 0.62);
+  display: grid;
+  grid-area: stage;
+  height: auto;
+  justify-items: center;
+  left: auto;
+  min-height: 148px;
+  overflow: hidden;
+  padding: 0 8px 12px;
+  position: relative;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-stage-lot::before,
+.machine-terminal .assembler-stage-lot::after {
+  background:
+    linear-gradient(90deg, #050707 0 18%, #40514f 19% 35%, #090d0e 36% 64%, #40514f 65% 81%, #050707 82%);
+  bottom: 18px;
+  content: "";
+  display: block;
+  position: absolute;
+  top: 16px;
+  width: 12px;
+}
+
+.machine-terminal .assembler-stage-lot::before {
+  left: 18px;
+}
+
+.machine-terminal .assembler-stage-lot::after {
+  right: 18px;
+}
+
+.machine-terminal .assembler-stage-light {
+  display: none;
+}
+
+.machine-terminal .assembler-stage-press {
+  background:
+    linear-gradient(180deg, #34403f 0 28%, #151b1b 28% 38%, #2b3433 38% 78%, #080b0b 78%);
+  border: 2px solid #60706e;
+  border-bottom-color: #070909;
+  border-right-color: #070909;
+  display: block;
+  height: 54px;
+  left: 50%;
+  position: absolute;
+  top: 18px;
+  transform: translateX(-50%);
+  width: 62px;
+}
+
+.machine-terminal .assembler-stage-table {
+  background:
+    linear-gradient(90deg, transparent 0 12%, #273130 12% 88%, transparent 88%),
+    linear-gradient(180deg, #4a5a56, #101515);
+  bottom: 26px;
+  display: block;
+  height: 22px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 104px;
+}
+
+.machine-terminal .assembler-stage-indicator {
+  align-self: end;
+  background: #6ee9d1;
+  border: 1px solid #d8fff8;
+  border-radius: 50%;
+  box-shadow: 0 0 7px rgba(90, 242, 215, 0.78);
+  display: block;
+  height: 8px;
+  margin-bottom: 2px;
+  width: 8px;
+  z-index: 1;
+}
+
+.machine-terminal .assembler-stage-state {
+  background: rgba(4, 9, 10, 0.78);
+  border: 1px solid rgba(116, 229, 245, 0.3);
+  color: #dffcff;
+  font: 950 0.62rem "Courier New", ui-monospace, monospace;
+  max-width: 74%;
+  overflow: hidden;
+  padding: 3px 7px;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(83, 229, 255, 0.48), 1px 1px 0 #050606;
+  text-transform: uppercase;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.machine-terminal .assembler-stage-readouts {
+  display: grid;
+  gap: 5px;
+  grid-area: readouts;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  height: auto;
+  left: auto;
+  position: relative;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-stage-readouts > span {
+  align-content: center;
+  background:
+    linear-gradient(180deg, rgba(29, 67, 75, 0.52), rgba(2, 10, 12, 0.86)),
+    repeating-linear-gradient(90deg, rgba(121, 237, 255, 0.04) 0 1px, transparent 1px 6px);
+  border: 2px solid #3d4c49;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-height: 44px;
+  padding: 4px;
+  text-align: center;
+}
+
+.machine-terminal .assembler-stage-readouts small,
+.machine-terminal .assembler-stage-readouts em {
+  color: #98cdd5;
+  font: 900 0.48rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.machine-terminal .assembler-stage-readouts strong {
+  color: #dffcff;
+  font: 950 0.78rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  text-shadow: 0 0 8px rgba(83, 229, 255, 0.32), 1px 1px 0 #050606;
+  white-space: nowrap;
+}
+
+.machine-terminal .assembler-fluid-lot {
+  align-content: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    #0a0e0e;
+  border: 2px solid #3d4c49;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  box-shadow: inset 0 0 0 1px rgba(129, 242, 255, 0.05);
+  display: grid;
+  gap: 2px;
+  grid-area: fluid;
+  height: auto;
+  justify-items: center;
+  left: auto;
+  overflow: hidden;
+  padding: 6px;
+  position: relative;
+  text-align: center;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-fluid-lot::before {
+  bottom: 0;
+  height: var(--assembler-fluid-fill, 0%);
+  left: 0;
+  opacity: 0.72;
+  width: 100%;
+}
+
+.machine-terminal .assembler-fluid-lot > span {
+  color: #d9fbff;
+  font: 950 0.5rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.machine-terminal .assembler-fluid-lot strong {
+  color: #dffbff;
+  font: 950 1rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.machine-terminal .assembler-fluid-lot small {
+  color: #a7dce5;
+  font: 900 0.48rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.machine-terminal .assembler-energy-lot {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    #0a0e0e;
+  border: 2px solid #3d4c49;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  box-shadow: inset 0 0 0 1px rgba(129, 242, 255, 0.05);
+  display: grid;
+  gap: 5px;
+  grid-area: energy;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: auto;
+  left: auto;
+  min-width: 0;
+  padding: 6px;
+  position: relative;
+  text-align: center;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-energy-lot > div:last-child {
+  align-content: center;
+  display: grid;
+  gap: 2px;
+  height: auto;
+  left: auto;
+  order: -1;
+  position: relative;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-energy-lot > div:last-child span,
+.machine-terminal .assembler-energy-lot > div:last-child strong,
+.machine-terminal .assembler-energy-lot > div:last-child small {
+  bottom: auto;
+  left: auto;
+  position: static;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-energy-lot > div:last-child span {
+  color: #98cdd5;
+  font: 950 0.48rem "Courier New", ui-monospace, monospace;
+}
+
+.machine-terminal .assembler-energy-lot > div:last-child strong {
+  color: #dffcff;
+  font: 950 0.78rem "Courier New", ui-monospace, monospace;
+}
+
+.machine-terminal .assembler-energy-lot > div:last-child small {
+  color: #98cdd5;
+  font: 900 0.46rem "Courier New", ui-monospace, monospace;
+}
+
+.machine-terminal .assembler-buffer-meter {
+  align-items: end;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1), transparent 34%),
+    repeating-linear-gradient(0deg, transparent 0 16px, rgba(121, 237, 255, 0.12) 16px 17px),
+    #111918;
+  border: 2px solid #050707;
+  border-bottom-color: #4d615d;
+  border-right-color: #4d615d;
+  bottom: auto;
+  display: grid;
+  left: auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  top: auto;
+  width: 100%;
+}
+
+.machine-terminal .assembler-output-lot {
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    #0a0e0e;
+  border: 2px solid #3d4c49;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  display: grid;
+  grid-area: output;
+  height: auto;
+  justify-items: center;
+  left: auto;
+  padding: 6px;
+  position: relative;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-output-lot .process-slot {
+  height: 54px;
+  width: 54px;
+}
+
+.machine-terminal .assembler-load-rail {
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
+    #090d0d;
+  border: 2px solid #4b5a56;
+  border-bottom-color: #050707;
+  border-right-color: #050707;
+  box-shadow: inset 0 0 0 1px rgba(129, 242, 255, 0.04);
+  display: grid;
+  grid-area: load;
+  grid-template-columns: minmax(0, 1fr) auto;
+  height: auto;
+  left: auto;
+  overflow: hidden;
+  padding: 0 8px;
+  position: relative;
+  top: auto;
+  width: auto;
+}
+
+.machine-terminal .assembler-load-rail > span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22), transparent 20%),
+    linear-gradient(90deg, #133b42, #3dbbd2 62%, #aaf5ff);
+  bottom: 0;
+  height: auto;
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+.machine-terminal .assembler-load-rail strong,
+.machine-terminal .assembler-load-rail em {
+  color: #dffcff;
+  font: 950 0.68rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  position: relative;
+  text-shadow: 1px 1px 0 #050606;
+  text-transform: uppercase;
+  top: auto;
+  z-index: 1;
+}
+
+.machine-terminal .assembler-load-rail strong {
+  left: auto;
+}
+
+.machine-terminal .assembler-load-rail em {
+  justify-self: end;
+  left: auto;
+  right: auto;
+}
+
+.lv-assembler-terminal {
+  gap: 6px;
+  overflow: auto;
+  padding: 7px;
+}
+
 @media (max-width: 430px) {
   .machine-meter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
