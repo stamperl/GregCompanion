@@ -201,6 +201,7 @@ import {
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
 import { preloadGeneratedIconImages, preloadGeneratedIconLinks } from './components/gameIconAssets'
+import { machineUiChamberSrc, machineUiPanelSrc, preloadMachineUiAssetLinks, preloadMachineUiImages } from './components/machineUiAssets'
 import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
 import type {
   CraftSlot,
@@ -251,6 +252,7 @@ type FactoryGesture =
   | { mode: 'pinch'; startDistance: number; originZoom: number; contentX: number; contentY: number; dragged: boolean }
 type PipeSideState = 'connected' | 'open' | 'blocked'
 const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3', 'extraInput4'] as const
+const assemblerInputSlotIds = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds] as const
 type NavigationSnapshot = {
   page: Page
   gatherArea: GatherAreaId
@@ -275,6 +277,12 @@ type PendingProcessInsert = {
 type RecipeDisplayOutput =
   | { kind: 'resource'; id: ResourceId; amount: number; label: string }
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
+
+type MachineHmiConfig = {
+  kind: string
+  runningLabel: string
+  secondaryInput?: boolean
+}
 
 const autoSaveIntervalMs = 5000
 const machineOrder: MachineId[] = [
@@ -325,6 +333,27 @@ const machineOrder: MachineId[] = [
   'arcBlastFurnacePart',
   'arcBlastFurnace',
 ]
+
+const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
+  steamForgeHammer: { kind: 'forgeHammer', runningLabel: 'Forging' },
+  steamMacerator: { kind: 'macerator', runningLabel: 'Crushing' },
+  steamCompressor: { kind: 'compressor', runningLabel: 'Compressing' },
+  steamExtractor: { kind: 'extractor', runningLabel: 'Extracting' },
+  steamAlloySmelter: { kind: 'alloySmelter', runningLabel: 'Smelting', secondaryInput: true },
+  steamFurnace: { kind: 'furnace', runningLabel: 'Smelting' },
+  lvForgeHammer: { kind: 'forgeHammer', runningLabel: 'Forging' },
+  lvMacerator: { kind: 'macerator', runningLabel: 'Crushing' },
+  lvCompressor: { kind: 'compressor', runningLabel: 'Compressing' },
+  lvExtractor: { kind: 'extractor', runningLabel: 'Extracting' },
+  lvAlloySmelter: { kind: 'alloySmelter', runningLabel: 'Smelting', secondaryInput: true },
+  lvFurnace: { kind: 'furnace', runningLabel: 'Smelting' },
+  lvWiremill: { kind: 'wiremill', runningLabel: 'Drawing' },
+  lvBender: { kind: 'bender', runningLabel: 'Bending' },
+  lvLathe: { kind: 'lathe', runningLabel: 'Turning' },
+  lvElectrolyzer: { kind: 'electrolyzer', runningLabel: 'Splitting' },
+  lvCentrifuge: { kind: 'centrifuge', runningLabel: 'Spinning', secondaryInput: true },
+  lvCanner: { kind: 'canner', runningLabel: 'Canning', secondaryInput: true },
+}
 
 const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks'])
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
@@ -870,6 +899,13 @@ function missingResourceLine(state: GameState, costs: ResourceAmount[]) {
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
   if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
+  if (machineId === 'lvAssembler' && assemblerInputSlotIds.includes(slotId as typeof assemblerInputSlotIds[number])) {
+    return processRecipes.some(
+      (recipe) =>
+        recipe.machineId === machineId &&
+        [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])].some((cost) => cost.id === resourceId),
+    )
+  }
   const extraSlotIndex = assemblerExtraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
   if (extraSlotIndex >= 0) {
     return (
@@ -920,6 +956,21 @@ function suggestedProcessInsertQuantity(
 ) {
   const currentAmount = instance.process[slotId]?.id === resourceId ? instance.process[slotId]?.amount ?? 0 : 0
   const candidates = processRecipes.filter((recipe) => recipe.machineId === instance.machineId)
+  if (instance.machineId === 'lvAssembler' && assemblerInputSlotIds.includes(slotId as typeof assemblerInputSlotIds[number])) {
+    const recipe = candidates.find((candidate) =>
+      [candidate.input, ...(candidate.secondaryInput ? [candidate.secondaryInput] : []), ...(candidate.extraInputs ?? [])].some((cost) => cost.id === resourceId),
+    )
+    const required = recipe
+      ? [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])]
+          .filter((cost) => cost.id === resourceId)
+          .reduce((total, cost) => total + cost.amount, 0)
+      : 1
+    const stored = assemblerInputSlotIds.reduce(
+      (total, candidateSlotId) => total + (instance.process[candidateSlotId]?.id === resourceId ? instance.process[candidateSlotId]?.amount ?? 0 : 0),
+      0,
+    )
+    return Math.max(1, Math.min(Math.max(1, required - stored), available, processStackLimit - currentAmount))
+  }
   const recipe =
     slotId === 'output'
       ? undefined
@@ -934,9 +985,20 @@ function processSlotCanPay(slot: ProcessSlot, amount: ResourceAmount) {
 }
 
 function findSelectedProcessRecipe(instance: MachineInstance | null) {
-  if (!instance?.process.input) return undefined
+  if (!instance) return undefined
   return processRecipes.find((recipe) => {
     if (recipe.machineId !== instance.machineId) return false
+    if (instance.machineId === 'lvAssembler') {
+      const slots = assemblerInputSlotIds.map((slotId) => instance.process[slotId])
+      if (!slots.some(Boolean)) return false
+      const costs = [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])]
+      const requiredByResource = new Map<ResourceId, number>()
+      for (const cost of costs) requiredByResource.set(cost.id, (requiredByResource.get(cost.id) ?? 0) + cost.amount)
+      if (slots.some((slot) => slot && !requiredByResource.has(slot.id))) return false
+      return [...requiredByResource].every(
+        ([resourceId, required]) => slots.reduce((total, slot) => total + (slot?.id === resourceId ? slot.amount : 0), 0) >= required,
+      )
+    }
     const extraInputs = assemblerExtraInputSlotIds.map((slotId) => instance.process[slotId])
     if (recipe.extraInputs?.length) {
       if (!processSlotCanPay(instance.process.input, recipe.input)) return false
@@ -1743,7 +1805,9 @@ function App() {
 
   useEffect(() => {
     preloadGeneratedIconLinks()
+    preloadMachineUiAssetLinks()
     void preloadGeneratedIconImages()
+    void preloadMachineUiImages()
   }, [])
 
   useEffect(() => {
@@ -2181,17 +2245,44 @@ function App() {
     ? resourceOrder.filter((id) => availableResourceAmount(state, id) > 0 && canResourceEnterMachine(selectedMachine.machineId, id))
     : []
   const selectedMachineStorageResource = selectedResource && furnaceStorageResources.includes(selectedResource) ? selectedResource : null
-  const selectedMachineHmiKind =
-    selectedMachine?.machineId === 'steamForgeHammer' || selectedMachine?.machineId === 'lvForgeHammer'
-      ? 'forgeHammer'
-      : selectedMachine?.machineId === 'steamMacerator' || selectedMachine?.machineId === 'lvMacerator'
-        ? 'macerator'
-        : null
-  const selectedMachineIsHmiTerminal = selectedMachineHmiKind !== null
+  const selectedMachineHmiConfig = selectedMachine ? machineHmiConfigs[selectedMachine.machineId] ?? null : null
+  const selectedMachineHmiKind = selectedMachineHmiConfig?.kind ?? null
+  const selectedMachineIsHmiTerminal = selectedMachineHmiConfig !== null
+  const selectedMachineUsesIntegratedStatus = selectedMachine?.machineId === 'lvAssembler'
+  const selectedMachineStatusLabel = selectedMachine ? machineStatus(state, selectedMachine) : ''
+  const assemblerStageLabel = selectedMachineUsesIntegratedStatus && selectedMachineStatusLabel === 'No input' ? 'Ready for input' : selectedMachineStatusLabel
+  const selectedMachineProgressPercent =
+    selectedMachine && selectedMachine.process.durationMs > 0
+      ? Math.min(100, Math.max(0, (selectedMachine.process.progressMs / selectedMachine.process.durationMs) * 100))
+      : 0
+  const assemblerSupplyMetric = selectedMachineUsesIntegratedStatus
+    ? selectedMachineMetrics.find((metric) => metric.label === 'Supply')
+    : undefined
+  const assemblerDrawMetric = selectedMachineUsesIntegratedStatus
+    ? selectedMachineMetrics.find((metric) => metric.label === 'Uses')
+    : undefined
+  const assemblerFluid = selectedMachineUsesIntegratedStatus ? selectedMachineStoredFluids[0] : undefined
+  const assemblerFluidCapacityLitres = selectedMachineUsesIntegratedStatus ? selectedMachine?.process.fluidCapacityLitres || 128 : 0
+  const assemblerEuCapacity = selectedMachineUsesIntegratedStatus ? selectedMachine?.process.euCapacity || 0 : 0
+  const assemblerEuFillPercent =
+    selectedMachineUsesIntegratedStatus && selectedMachine ? metricFill(selectedMachine.process.euStored, assemblerEuCapacity) : 0
+  const selectedMachinePanelSrc = selectedMachine ? machineUiPanelSrc(selectedMachine.machineId) : ''
+  const selectedMachinePanelStyle = selectedMachinePanelSrc
+    ? ({
+        '--machine-panel-image': `url("${selectedMachinePanelSrc}")`,
+      } as CSSProperties)
+    : undefined
+  const selectedPipeConfigPanelSrc = selectedPipeConfig ? machineUiPanelSrc(selectedPipeConfig.machineId) : ''
+  const selectedPipeConfigPanelStyle = selectedPipeConfigPanelSrc
+    ? ({
+        '--machine-panel-image': `url("${selectedPipeConfigPanelSrc}")`,
+      } as CSSProperties)
+    : undefined
   const selectedMachineTerminalClassName = selectedMachine
     ? [
         'furnace-modal',
         'machine-terminal',
+        selectedMachine.machineId === 'lvAssembler' ? 'lv-assembler-terminal' : '',
         selectedMachineIsHmiTerminal ? 'forge-hammer-terminal' : '',
         selectedMachineHmiKind === 'macerator' ? 'macerator-terminal' : '',
         (isSteamPoweredMachine(selectedMachine.machineId) ||
@@ -2199,14 +2290,16 @@ function App() {
           selectedMachine.machineId === 'steamBoiler' ||
           selectedMachine.machineId === 'steamTank' ||
           selectedMachine.machineId === 'steamAutoMiner' ||
-          isLiquidSteamBoilerMachine(selectedMachine.machineId))
+          isLiquidSteamBoilerMachine(selectedMachine.machineId) ||
+          machines[selectedMachine.machineId].tier === 'steam')
           ? 'steam-machine-terminal'
           : '',
         (isEuPoweredMachine(selectedMachine.machineId) ||
           isEuCableMachine(selectedMachine.machineId) ||
           isEuProducerMachine(selectedMachine.machineId) ||
           isEuStorageMachine(selectedMachine.machineId) ||
-          selectedMachine.machineId === 'lvAutoMiner')
+          selectedMachine.machineId === 'lvAutoMiner' ||
+          machines[selectedMachine.machineId].tier === 'lv')
           ? 'lv-machine-terminal'
           : '',
         selectedMachine.process.activeRecipeId ||
@@ -2621,7 +2714,7 @@ function App() {
         setSelectedMachineUid(structureController.uid)
         return
       }
-      if (machines[instance.machineId].multiblock || machines[instance.machineId].processKind === 'none') {
+      if (machines[instance.machineId].multiblock) {
         if (structureController) {
           setSelectedMachineUid(structureController.uid)
           return
@@ -2629,6 +2722,10 @@ function App() {
         if (instance.machineId === 'cokeOvenPart') setFactoryNotice('Place Coke Oven Blocks in a full 2x2 to form the oven.')
         if (instance.machineId === 'brickedBlastFurnacePart') setFactoryNotice('Place BBF casings in a full 2x2 to form the furnace.')
         if (instance.machineId === 'arcBlastFurnacePart') setFactoryNotice('Place arc casings in a full 2x2 to form the furnace.')
+        return
+      }
+      if (machines[instance.machineId].processKind === 'none') {
+        setSelectedMachineUid(instance.uid)
         return
       }
       setSelectedMachineUid(instance.uid)
@@ -3219,7 +3316,7 @@ function App() {
       await clearSavedGame(selectedSaveSlotId)
       setIsCreativeMode(false)
       await refreshSaveSlots()
-      await preloadGeneratedIconImages()
+      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       const freshState = loadGame(null)
       setState(freshState)
       knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
@@ -3279,7 +3376,7 @@ function App() {
     const minimumLoading = waitForEntryLoadingMinimum()
     try {
       const savedState = await loadSlotIntoGame(selectedSaveSlotId)
-      await preloadGeneratedIconImages()
+      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       setState(savedState)
       knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
       setIsCreativeMode(false)
@@ -4905,6 +5002,7 @@ function App() {
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"
+                style={selectedPipeConfigPanelStyle}
                 role="dialog"
                 aria-modal="true"
                 aria-label={`Configure ${machines[selectedPipeConfig.machineId].name}`}
@@ -5059,6 +5157,7 @@ function App() {
             >
               <section
                 className={selectedMachineTerminalClassName}
+                style={selectedMachinePanelStyle}
                 role="dialog"
                 aria-modal="true"
                 aria-label={`${machines[selectedMachine.machineId].name} terminal`}
@@ -5113,7 +5212,7 @@ function App() {
                   </div>
                 </>
                 )}
-                {!selectedMachineIsHmiTerminal && (
+                {!selectedMachineIsHmiTerminal && !selectedMachineUsesIntegratedStatus && (
                   <div className={selectedMachineMetrics.length > 0 ? 'machine-status-row has-metrics' : 'machine-status-row'}>
                     <span className="machine-status-pill">{machineStatus(state, selectedMachine)}</span>
                     {selectedMachineMetrics.length > 0 && (
@@ -5149,7 +5248,23 @@ function App() {
                     )}
                   </div>
                 )}
-                {isItemAutomationMachine(selectedMachine.machineId) ? (
+                {machines[selectedMachine.machineId].processKind === 'none' ? (
+                  <div className="well-interface passive-structure-interface">
+                    <MachineGlyph id={selectedMachine.machineId} active />
+                    <div className="structure-readout">
+                      <span>Casing block</span>
+                      <strong>
+                        {selectedMachine.machineId === 'cokeOvenPart'
+                          ? 'Form a 2x2 Coke Oven'
+                          : selectedMachine.machineId === 'brickedBlastFurnacePart'
+                            ? 'Form a 2x2 Bricked Blast Furnace'
+                            : selectedMachine.machineId === 'arcBlastFurnacePart'
+                              ? 'Form a 2x2 Arc Blast Furnace'
+                              : 'Factory structure block'}
+                      </strong>
+                    </div>
+                  </div>
+                ) : isItemAutomationMachine(selectedMachine.machineId) ? (
                   <div className={`furnace-interface ${selectedMachine.machineId}-process-interface item-automation-interface`}>
                     <div className="furnace-inputs">
                       <ProcessItemSlot
@@ -5189,12 +5304,12 @@ function App() {
                     )}
                   </div>
                 ) : selectedMachine.machineId === 'well' ? (
-                  <div className="well-interface">
+                  <div className="well-interface water-source-interface">
                     <MachineGlyph id="well" active />
                     <span>Supplies adjacent boilers</span>
                   </div>
                 ) : selectedMachine.machineId === 'steamTank' ? (
-                  <div className="well-interface dual-tank-interface">
+                  <div className="well-interface dual-tank-interface tank-terminal-interface">
                     {selectedMachine.process.steamStoredMs > 0 && (
                       <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={selectedSteamTankCapacityMs} />
                     )}
@@ -5207,7 +5322,7 @@ function App() {
                     <span>Stores one contents type from connected pipes</span>
                   </div>
                 ) : isSteamPipeMachine(selectedMachine.machineId) ? (
-                  <div className="well-interface dual-tank-interface">
+                  <div className="well-interface dual-tank-interface pipe-terminal-interface">
                     {selectedMachine.process.steamStoredMs > 0 && (
                       <SteamTank
                         storedMs={selectedMachine.process.steamStoredMs}
@@ -5230,7 +5345,7 @@ function App() {
                     </span>
                   </div>
                 ) : isEuCableMachine(selectedMachine.machineId) ? (
-                  <div className="well-interface">
+                  <div className="well-interface cable-terminal-interface">
                     <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || euCableBufferCapacity(selectedMachine.machineId)} />
                     <span>
                       Flow {formatAmount(currentEuCableFlowEuPerSecond(state, selectedMachine))} EU/s | Loses {tinCableLossEuPerTile} EU per cable tile
@@ -5247,7 +5362,7 @@ function App() {
                     </span>
                   </div>
                 ) : isEuStorageMachine(selectedMachine.machineId) ? (
-                  <div className="well-interface">
+                  <div className="well-interface battery-buffer-interface">
                     <EnergyTank
                       storedEu={selectedMachine.process.euStored}
                       capacityEu={selectedMachine.process.euCapacity || batteryBufferSlots(selectedMachine.machineId) * lvBatteryBufferEuCapacity}
@@ -5318,7 +5433,7 @@ function App() {
                     </div>
                   </div>
                 ) : isEuProducerMachine(selectedMachine.machineId) ? (
-                  <div className="well-interface">
+                  <div className="well-interface turbine-interface">
                     <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={steamTurbineEuCapacity} />
                     <MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.activeRecipeId === 'generate_lv_eu'} />
                     <span>
@@ -5327,6 +5442,10 @@ function App() {
                   </div>
                 ) : selectedMachine.machineId === 'lvAssembler' ? (
                   <div className="furnace-interface lvAssembler-process-interface">
+                    <div className="assembler-stage-lot" aria-label={`Assembler stage ${selectedMachineStatusLabel}`}>
+                      <span className={selectedMachine.process.activeRecipeId ? 'assembler-stage-indicator active' : 'assembler-stage-indicator'} aria-hidden="true" />
+                      <span className="assembler-stage-state">{assemblerStageLabel}</span>
+                    </div>
                     <div className="assembler-item-grid" aria-label="Assembler item inputs">
                       <ProcessItemSlot slot={selectedMachine.process.input} label="Input 1" onClick={() => handleProcessSlotPress('input')} />
                       <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
@@ -5335,31 +5454,56 @@ function App() {
                       <ProcessItemSlot slot={selectedMachine.process.extraInput3} label="Input 5" onClick={() => handleProcessSlotPress('extraInput3')} />
                       <ProcessItemSlot slot={selectedMachine.process.extraInput4} label="Input 6" onClick={() => handleProcessSlotPress('extraInput4')} />
                     </div>
-                    <div className="assembler-fluid-lot" aria-label="Assembler fluid lot">
-                      {selectedMachineStoredFluids[0] ? (
-                        <FluidTank
-                          label={fluidLabel(selectedMachineStoredFluids[0].id)}
-                          storedLitres={selectedMachineStoredFluids[0].amount}
-                          capacityLitres={selectedMachine.process.fluidCapacityLitres || 128}
-                        />
-                      ) : (
-                        <EmptyTank label="Fluid lot" capacityLitres={selectedMachine.process.fluidCapacityLitres || 128} />
-                      )}
+                    <div className="assembler-stage-readouts" aria-label="Assembler power route and draw">
+                      <span>
+                        <small>Route</small>
+                        <strong>{assemblerSupplyMetric?.detail ?? '0A route'}</strong>
+                        <em>{assemblerSupplyMetric?.value ?? '0'} EU available</em>
+                      </span>
+                      <span>
+                        <small>Draw</small>
+                        <strong>{assemblerDrawMetric?.value ?? '0 EU/s'}</strong>
+                        <em>{selectedMachine.process.activeRecipeId ? 'Active recipe' : 'Machine idle'}</em>
+                      </span>
                     </div>
-                    <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || 0} />
-                    <div className="furnace-progress assembler-progress">
+                    <div
+                      className="assembler-fluid-lot"
+                      aria-label="Assembler fluid lot"
+                      style={
+                        {
+                          '--assembler-fluid-fill': `${Math.min(
+                            100,
+                            ((assemblerFluid?.amount ?? 0) / assemblerFluidCapacityLitres) * 100,
+                          )}%`,
+                        } as CSSProperties
+                      }
+                    >
+                      <span>Fluid</span>
+                      <strong>{formatLitres(assemblerFluid?.amount ?? 0)}L</strong>
+                      <small>{assemblerFluid ? fluidLabel(assemblerFluid.id) : `${assemblerFluidCapacityLitres}L capacity`}</small>
+                    </div>
+                    <div className="assembler-energy-lot" aria-label={`Assembler EU buffer ${Math.floor(selectedMachine.process.euStored)} of ${Math.floor(assemblerEuCapacity)}`}>
+                      <div className="assembler-buffer-meter" aria-hidden="true">
+                        <span style={{ height: `${assemblerEuFillPercent}%` }} />
+                      </div>
+                      <div>
+                        <span>EU Buffer</span>
+                        <strong>{Math.floor(selectedMachine.process.euStored)} EU</strong>
+                        <small>Max {Math.floor(assemblerEuCapacity)}</small>
+                      </div>
+                    </div>
+                    <div className="assembler-load-rail" aria-label={`Assembler load ${Math.floor(selectedMachineProgressPercent)} percent`}>
                       <span
                         style={{
-                          width: `${
-                            selectedMachine.process.durationMs > 0
-                              ? Math.min(100, (selectedMachine.process.progressMs / selectedMachine.process.durationMs) * 100)
-                              : 0
-                          }%`,
+                          width: `${selectedMachineProgressPercent}%`,
                         }}
                       />
-                      {selectedMachineProcessTimeLabel && <strong>{selectedMachineProcessTimeLabel}</strong>}
+                      <strong>Load</strong>
+                      <em>{Math.floor(selectedMachineProgressPercent)}%</em>
                     </div>
-                    <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                    <div className="assembler-output-lot" aria-label="Assembler output">
+                      <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                    </div>
                   </div>
                 ) : isAutoMinerMachine(selectedMachine.machineId) ? (
                   <div className="well-interface auto-miner-interface">
@@ -5392,7 +5536,8 @@ function App() {
                   (() => {
                     const isSteamHmi = isSteamPoweredMachine(selectedMachine.machineId)
                     const process = selectedMachine.process
-                    const hmiRunningLabel = selectedMachineHmiKind === 'macerator' ? 'Crushing' : 'Forging'
+                    const hmiRunningLabel = selectedMachineHmiConfig?.runningLabel ?? 'Running'
+                    const hmiUsesSecondaryInput = Boolean(selectedMachineHmiConfig?.secondaryInput)
                     const hmiSystemLabel = isSteamHmi ? 'Pressure' : 'Power'
                     const progressPercent =
                       process.durationMs > 0 ? Math.min(100, Math.max(0, (process.progressMs / process.durationMs) * 100)) : 0
@@ -5408,14 +5553,18 @@ function App() {
                       : `${formatAmount(selectedMachineEuUsagePerSecond)} EU/s`
                     const timeValue = selectedMachineProcessTimeLabel || (selectedMachineRecipe ? formatDuration(selectedMachineRecipe.durationMs) : '--')
                     const statusLabel = machineStatus(state, selectedMachine)
+                    const chamberStyle = {
+                      '--machine-hmi-chamber-image': `url("${machineUiChamberSrc(selectedMachine.machineId)}")`,
+                    } as CSSProperties
                     return (
                       <div
                         className={[
                           'forge-hammer-interface',
-                          selectedMachineHmiKind === 'macerator' ? 'macerator-hmi' : 'forge-hammer-hmi',
+                          `${selectedMachineHmiKind ?? 'machine'}-hmi`,
                           isSteamHmi ? 'steam-forge-hmi' : 'lv-forge-hmi',
                           selectedMachine.machineId,
                         ].join(' ')}
+                        style={chamberStyle}
                       >
                         <div className="forge-hmi-status">
                           <span>{hmiSystemLabel}</span>
@@ -5442,9 +5591,12 @@ function App() {
                           </div>
                           <em>{bufferCapacity}{isSteamHmi ? 'L max' : 'EU max'}</em>
                         </div>
-                        <div className="forge-io-slot forge-input-slot">
+                        <div className={['forge-io-slot', 'forge-input-slot', hmiUsesSecondaryInput ? 'dual-inputs' : ''].join(' ')}>
                           <span>Input</span>
                           <ProcessItemSlot slot={process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                          {hmiUsesSecondaryInput && (
+                            <ProcessItemSlot slot={process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
+                          )}
                         </div>
                         <div className="forge-readout-stack">
                           <div className="forge-readout">

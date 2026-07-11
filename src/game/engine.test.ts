@@ -3254,6 +3254,42 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(190)
   })
 
+  it('fills an idle LV machine internal buffer before a valid recipe is loaded', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state.machines.lvWiremill = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'lvWiremill', 1, 0)
+    state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.process.euStored = 100
+
+    state = tickGame(state, 1000).state
+
+    const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
+    expect(wiremill.process.euStored).toBe(32)
+    expect(wiremill.process.activeRecipeId).toBeNull()
+  })
+
+  it('accepts and consumes assembler ingredients from any of its six input bays', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state.machines.lvAssembler = 1
+    state.resources.woodenBoardBlank = 1
+    state.resources.copperWire = 6
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'lvAssembler', 1, 0)
+    const assembler = state.machineInstances.find((instance) => instance.machineId === 'lvAssembler')!
+    state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.process.euStored = 200
+    state = insertProcessSlot(state, assembler.uid, 'extraInput4', 'woodenBoardBlank', 1)
+    state = insertProcessSlot(state, assembler.uid, 'extraInput3', 'copperWire', 6)
+
+    state = tickGame(state, 6000).state
+
+    const nextAssembler = state.machineInstances.find((instance) => instance.uid === assembler.uid)!
+    expect(nextAssembler.process.output).toEqual({ id: 'basicBoard', amount: 1 })
+    expect(nextAssembler.process.extraInput3).toBeNull()
+    expect(nextAssembler.process.extraInput4).toBeNull()
+  })
+
   it('gives lithium batteries more buffer capacity than sodium batteries', () => {
     let sodiumState = createFactoryState(1000)
     sodiumState.machines.lvBatteryBuffer = 1

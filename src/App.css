@@ -5084,9 +5084,9 @@ button.craft-output:disabled {
 }
 
 .furnace-modal.machine-terminal {
-  --machine-panel-face: #b6b0a0;
-  --machine-panel-well: #8e8d85;
-  --machine-panel-dark: #343838;
+  --machine-panel-face: #6e6045;
+  --machine-panel-well: #2f281d;
+  --machine-panel-dark: #121514;
   --machine-accent: #c79642;
   --machine-glow: rgba(255, 216, 116, 0.34);
   background:
@@ -5315,7 +5315,7 @@ button.craft-output:disabled {
 .forge-hammer-chamber {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
-    url("/game-ui/steam-forge-hammer-chamber.png") center / cover no-repeat,
+    var(--machine-hmi-chamber-image) center / cover no-repeat,
     #151716;
   border: 3px solid #6b4f2e;
   border-bottom-color: #070807;
@@ -5330,23 +5330,9 @@ button.craft-output:disabled {
 .lv-forge-hmi .forge-hammer-chamber {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
-    url("/game-ui/lv-forge-hammer-chamber.png") center / cover no-repeat,
+    var(--machine-hmi-chamber-image) center / cover no-repeat,
     #111718;
   border-color: #465754;
-}
-
-.steamMacerator .forge-hammer-chamber {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
-    url("/game-ui/steam-macerator-chamber.png") center / cover no-repeat,
-    #151716;
-}
-
-.lvMacerator .forge-hammer-chamber {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 18%),
-    url("/game-ui/lv-macerator-chamber.png") center / cover no-repeat,
-    #111718;
 }
 
 .forge-hammer-chamber::before {
@@ -5612,6 +5598,16 @@ button.craft-output:disabled {
 .forge-io-slot .process-slot {
   height: 58px;
   width: 58px;
+}
+
+.forge-io-slot.dual-inputs {
+  gap: 3px;
+  padding-block: 4px;
+}
+
+.forge-io-slot.dual-inputs .process-slot {
+  height: 42px;
+  width: 42px;
 }
 
 .forge-readout-stack {
@@ -11435,6 +11431,1479 @@ button.button-primary:disabled,
 .buffer-cell-buttons button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.machine-terminal {
+  --hmi-rivet: rgba(255, 228, 166, 0.62);
+}
+
+.furnace-modal.machine-terminal {
+  background:
+    radial-gradient(circle at 8px 8px, var(--hmi-rivet) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 8px) 8px, var(--hmi-rivet) 0 2px, transparent 3px),
+    radial-gradient(circle at 8px calc(100% - 8px), rgba(0, 0, 0, 0.42) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 8px) calc(100% - 8px), rgba(0, 0, 0, 0.42) 0 2px, transparent 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent 36%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.06) 0 1px, transparent 1px 13px),
+    var(--machine-panel-face);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 245, 205, 0.14),
+    inset 0 -9px 0 rgba(0, 0, 0, 0.18),
+    0 8px 0 rgba(0, 0, 0, 0.38);
+}
+
+.machine-terminal .modal-head {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.18)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    #121514;
+  border-color: rgba(255, 233, 171, 0.42);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.machine-terminal .modal-head h2 {
+  color: #fff1b9;
+  text-shadow: 1px 1px 0 #050605;
+}
+
+.machine-terminal .furnace-interface,
+.machine-terminal .well-interface,
+.machine-terminal .machine-status-row,
+.machine-terminal .processing-storage,
+.machine-terminal .machine-selected-item,
+.machine-terminal .manual-fluid-transfer {
+  background:
+    radial-gradient(circle at 50% 0, var(--machine-glow), transparent 40%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.24)),
+    var(--machine-panel-well);
+  border-color: rgba(255, 235, 176, 0.34);
+  border-bottom-color: rgba(0, 0, 0, 0.68);
+  border-right-color: rgba(0, 0, 0, 0.68);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 -8px 0 rgba(0, 0, 0, 0.18);
+}
+
+.machine-terminal .furnace-interface,
+.machine-terminal .well-interface {
+  overflow: hidden;
+  position: relative;
+}
+
+.machine-terminal .furnace-interface::before,
+.machine-terminal .well-interface::before {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.28), transparent 14%, transparent 86%, rgba(0, 0, 0, 0.28)),
+    repeating-linear-gradient(0deg, transparent 0 17px, rgba(255, 255, 255, 0.026) 17px 18px);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.machine-terminal .furnace-interface > *,
+.machine-terminal .well-interface > * {
+  position: relative;
+  z-index: 1;
+}
+
+.steam-machine-terminal {
+  --machine-panel-face: #8e7650;
+  --machine-panel-well: #342a1d;
+  --machine-panel-dark: #141614;
+  --machine-accent: #d5a24f;
+  --machine-glow: rgba(220, 163, 66, 0.22);
+}
+
+.lv-machine-terminal {
+  --machine-panel-face: #3d4846;
+  --machine-panel-well: #17201f;
+  --machine-panel-dark: #0e1414;
+  --machine-accent: #d7bd49;
+  --machine-glow: rgba(76, 203, 255, 0.13);
+}
+
+.machine-status-row {
+  min-height: 64px;
+}
+
+.machine-terminal .machine-status-pill,
+.machine-terminal .machine-meter {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
+    var(--machine-panel-dark);
+  border-color: rgba(255, 235, 176, 0.26);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+}
+
+.machine-meter-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.machine-terminal .machine-meter strong {
+  color: #ffe7a0;
+  text-shadow: 0 0 8px rgba(255, 210, 99, 0.2), 1px 1px 0 #050605;
+}
+
+.lv-machine-terminal .machine-meter strong {
+  color: #85eaff;
+  text-shadow: 0 0 8px rgba(76, 203, 255, 0.28), 1px 1px 0 #050605;
+}
+
+.machine-meter-bar,
+.machine-terminal .furnace-progress {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    #090b0b;
+  border-color: rgba(0, 0, 0, 0.72);
+  border-bottom-color: rgba(255, 235, 176, 0.24);
+  border-right-color: rgba(255, 235, 176, 0.24);
+}
+
+.machine-meter-bar span,
+.furnace-progress span,
+.forge-action-rail > span {
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1), height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.furnace-progress span,
+.steam-machine-terminal .furnace-progress span,
+.lv-machine-terminal .furnace-progress span,
+.lv-machine-terminal .auto-miner-action-progress span,
+.lv-machine-terminal .assembler-progress span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.26), transparent 20%),
+    linear-gradient(90deg, #6f4b23, #d4a04b 58%, #f1d483);
+  box-shadow: 0 0 10px rgba(224, 168, 74, 0.2);
+}
+
+.lv-machine-terminal .furnace-progress span,
+.lv-machine-terminal .auto-miner-action-progress span,
+.lv-machine-terminal .assembler-progress span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.3), transparent 18%),
+    linear-gradient(90deg, #294f52, #d7bd49 58%, #fff07d);
+  box-shadow: 0 0 10px rgba(255, 226, 81, 0.22);
+}
+
+.steam-machine-terminal.machine-terminal-active .furnace-progress span,
+.lv-machine-terminal.machine-terminal-active .furnace-progress span,
+.lv-machine-terminal.machine-terminal-active .auto-miner-action-progress span,
+.lv-machine-terminal.machine-terminal-active .assembler-progress span,
+.machine-terminal-active .forge-action-rail > span {
+  animation: none;
+}
+
+.forge-action-rail > span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.24), transparent 18%),
+    linear-gradient(90deg, #7a451e, #d9963f 56%, #ffcc66);
+}
+
+.lv-forge-hmi .forge-action-rail > span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.28), transparent 18%),
+    linear-gradient(90deg, #25494d, #c7aa36 58%, #ffe770);
+}
+
+.machine-terminal .process-slot,
+.machine-terminal .mini-slot {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+    #252b2a;
+  border-color: rgba(255, 255, 255, 0.26);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+}
+
+.steam-machine-terminal .process-slot,
+.steam-machine-terminal .mini-slot {
+  background:
+    linear-gradient(135deg, rgba(255, 235, 174, 0.08), transparent 40%),
+    #231c13;
+}
+
+.machine-terminal .process-slot-label {
+  color: #f3ead0;
+  text-shadow: 1px 1px 0 #050605;
+}
+
+.furnace-flame {
+  background:
+    radial-gradient(circle at 50% 82%, rgba(255, 148, 52, 0.2), transparent 42%),
+    #111313;
+  border-color: rgba(255, 231, 157, 0.28);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+  height: 54px;
+  width: 34px;
+}
+
+.furnace-flame span {
+  background: linear-gradient(180deg, #fff2a4, #e18432 58%, #7b2d16);
+}
+
+.furnace-flame.active span {
+  animation: none;
+  box-shadow: 0 0 14px rgba(255, 132, 44, 0.36);
+}
+
+.well-interface {
+  grid-template-columns: max-content minmax(0, 1fr);
+  min-height: 104px;
+}
+
+.well-interface .machine-glyph {
+  filter: drop-shadow(0 0 10px var(--machine-glow)) drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.34));
+  height: 58px;
+  width: 58px;
+}
+
+.well-interface > span,
+.hopper-direction-line,
+.structure-readout {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
+    var(--machine-panel-dark);
+  border: 2px solid rgba(255, 235, 176, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  color: #f4e7c6;
+  display: block;
+  padding: 8px;
+  text-shadow: 1px 1px 0 #050605;
+}
+
+.structure-readout {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.structure-readout span {
+  color: var(--machine-accent);
+  font: 950 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.structure-readout strong {
+  color: #fff0b9;
+  font: 950 0.82rem "Courier New", ui-monospace, monospace;
+  line-height: 1.08;
+}
+
+.passive-structure-interface {
+  min-height: 128px;
+}
+
+.water-source-interface {
+  background:
+    radial-gradient(circle at 24% 52%, rgba(136, 220, 255, 0.2), transparent 24%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 36%),
+    var(--machine-panel-well);
+}
+
+.item-automation-interface {
+  grid-template-columns: 1fr;
+  justify-items: stretch;
+}
+
+.item-automation-interface .furnace-inputs {
+  align-items: center;
+  grid-template-columns: repeat(4, 54px);
+  justify-content: center;
+}
+
+.item-automation-interface .machine-glyph {
+  background:
+    radial-gradient(circle, var(--machine-glow), transparent 58%),
+    var(--machine-panel-dark);
+  border: 2px solid rgba(255, 235, 176, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  grid-column: 1 / -1;
+  height: 64px;
+  justify-self: center;
+  padding: 6px;
+  width: 88px;
+}
+
+.hopper-direction-line {
+  color: #ffe9a8;
+  font: 950 0.7rem "Courier New", ui-monospace, monospace;
+  text-align: center;
+}
+
+.tank-terminal-interface,
+.pipe-terminal-interface,
+.liquid-boiler-interface {
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+}
+
+.cable-terminal-interface,
+.turbine-interface,
+.battery-buffer-interface,
+.auto-miner-interface {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.battery-buffer-interface {
+  grid-template-columns: max-content 64px minmax(0, 1fr);
+}
+
+.battery-buffer-interface .machine-glyph,
+.turbine-interface .machine-glyph,
+.auto-miner-interface .machine-glyph {
+  background:
+    radial-gradient(circle, var(--machine-glow), transparent 58%),
+    #101514;
+  border: 2px solid rgba(255, 235, 176, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  padding: 6px;
+}
+
+.buffer-cell-controls {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    var(--machine-panel-dark);
+  border: 2px solid rgba(255, 235, 176, 0.2);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  padding: 7px;
+}
+
+.buffer-cell-grid {
+  grid-template-columns: repeat(auto-fit, minmax(30px, 34px));
+}
+
+.buffer-cell-slot.empty {
+  opacity: 1;
+}
+
+.buffer-cell-slot .process-slot-label {
+  color: #d7caa9;
+}
+
+.buffer-cell-buttons button {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    #211a12;
+  border-color: rgba(255, 235, 176, 0.3);
+  border-bottom-color: rgba(0, 0, 0, 0.78);
+  border-right-color: rgba(0, 0, 0, 0.78);
+  color: #ffe7a0;
+}
+
+.lv-machine-terminal .buffer-cell-buttons button {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    #101817;
+  color: #f3df75;
+}
+
+.lvAssembler-process-interface {
+  align-items: stretch;
+  background:
+    linear-gradient(180deg, rgba(4, 5, 5, 0.34), rgba(4, 5, 5, 0.62)),
+    var(--machine-panel-image) center / cover no-repeat,
+    var(--machine-panel-well);
+  gap: 8px;
+  grid-template-areas:
+    "inputs stage buffer"
+    "inputs stage buffer"
+    "fluid stage output"
+    "load load load";
+  grid-template-columns: minmax(112px, 0.9fr) minmax(96px, 0.76fr) minmax(70px, 0.52fr);
+  grid-template-rows: minmax(102px, auto) minmax(102px, auto) minmax(64px, auto) 30px;
+  justify-items: stretch;
+  min-height: 410px;
+  padding: 10px;
+}
+
+.assembler-item-grid {
+  align-content: center;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 9, 0.82), rgba(5, 7, 7, 0.72)),
+    var(--machine-panel-dark);
+  border: 2px solid rgba(255, 235, 176, 0.2);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 176, 0.05),
+    0 0 12px rgba(0, 0, 0, 0.16);
+  gap: 5px;
+  grid-area: inputs;
+  grid-template-columns: repeat(2, minmax(42px, 1fr));
+  padding: 7px;
+}
+
+.assembler-item-grid .process-slot {
+  height: 46px;
+  min-height: 46px;
+  width: 100%;
+}
+
+.assembler-stage-lot {
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 9, 0.08), rgba(5, 7, 7, 0.28));
+  border: 2px solid rgba(255, 235, 176, 0.1);
+  border-bottom-color: rgba(0, 0, 0, 0.6);
+  border-right-color: rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 176, 0.04),
+    inset 0 0 18px rgba(0, 0, 0, 0.14);
+  display: grid;
+  grid-area: stage;
+  grid-template-rows: auto auto 1fr 42px 22px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px;
+  position: relative;
+}
+
+.assembler-stage-state {
+  align-self: start;
+  background:
+    linear-gradient(180deg, rgba(7, 11, 11, 0.86), rgba(4, 6, 6, 0.72)),
+    rgba(7, 10, 10, 0.82);
+  border: 2px solid rgba(255, 235, 176, 0.14);
+  border-bottom-color: rgba(0, 0, 0, 0.68);
+  border-right-color: rgba(0, 0, 0, 0.68);
+  color: #fff1a8;
+  font: 950 0.64rem "Courier New", ui-monospace, monospace;
+  justify-self: stretch;
+  line-height: 1;
+  padding: 5px 6px;
+  text-align: center;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.assembler-stage-readouts {
+  align-self: start;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 5px;
+  min-width: 0;
+  z-index: 1;
+}
+
+.assembler-stage-readouts > span {
+  background:
+    linear-gradient(180deg, rgba(7, 11, 11, 0.84), rgba(4, 6, 6, 0.74)),
+    rgba(7, 10, 10, 0.82);
+  border: 2px solid rgba(255, 235, 176, 0.12);
+  border-bottom-color: rgba(0, 0, 0, 0.68);
+  border-right-color: rgba(0, 0, 0, 0.68);
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px;
+  text-transform: uppercase;
+}
+
+.assembler-stage-readouts small {
+  color: #c6d9d6;
+  font: 950 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+}
+
+.assembler-stage-readouts strong {
+  color: #f3f1bd;
+  font: 950 0.58rem "Courier New", ui-monospace, monospace;
+  line-height: 1.04;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assembler-stage-lot::before,
+.assembler-stage-lot::after {
+  background: linear-gradient(180deg, transparent, rgba(255, 235, 176, 0.12), transparent);
+  content: "";
+  height: 76%;
+  position: absolute;
+  top: 12%;
+  width: 2px;
+}
+
+.assembler-stage-lot::before {
+  left: 9px;
+}
+
+.assembler-stage-lot::after {
+  right: 9px;
+}
+
+.assembler-stage-light {
+  align-self: end;
+  background: radial-gradient(circle, rgba(255, 216, 104, 0.46) 0 13%, rgba(255, 216, 104, 0.16) 18% 32%, transparent 58%);
+  height: 34px;
+  justify-self: center;
+  margin-top: 8px;
+  width: 34px;
+}
+
+.assembler-stage-press {
+  align-self: stretch;
+  background:
+    linear-gradient(180deg, #394342, #161b1b 62%, #0b0d0d);
+  border: 2px solid rgba(255, 235, 176, 0.16);
+  border-bottom-color: rgba(0, 0, 0, 0.7);
+  border-right-color: rgba(0, 0, 0, 0.7);
+  justify-self: center;
+  width: min(48px, 82%);
+}
+
+.assembler-stage-table {
+  align-self: end;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent),
+    #161c1c;
+  border: 2px solid rgba(255, 235, 176, 0.14);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+  height: 18px;
+  justify-self: stretch;
+}
+
+.assembler-fluid-lot {
+  align-content: center;
+  align-self: stretch;
+  background:
+    linear-gradient(180deg, rgba(20, 68, 84, 0.92), rgba(8, 31, 44, 0.96)),
+    #0b2730;
+  border: 2px solid rgba(122, 194, 212, 0.5);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+  box-shadow: inset 0 -10px 18px rgba(0, 0, 0, 0.18);
+  color: #ddfbff;
+  display: grid;
+  gap: 2px;
+  grid-area: fluid;
+  justify-items: center;
+  min-width: 0;
+  padding: 7px 5px;
+  text-align: center;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.assembler-fluid-lot > span {
+  color: #9fd7e5;
+  font: 950 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+}
+
+.assembler-fluid-lot strong {
+  color: #f1fdff;
+  font: 950 1.04rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.assembler-fluid-lot small {
+  color: #8fd9e8;
+  font: 950 0.55rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+}
+
+.assembler-energy-lot {
+  align-items: stretch;
+  align-self: stretch;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 9, 0.78), rgba(5, 7, 7, 0.86)),
+    var(--machine-panel-dark);
+  border: 2px solid rgba(255, 231, 119, 0.2);
+  border-bottom-color: rgba(0, 0, 0, 0.76);
+  border-right-color: rgba(0, 0, 0, 0.76);
+  display: grid;
+  gap: 5px;
+  grid-area: buffer;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: stretch;
+  min-width: 0;
+  padding: 6px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.assembler-buffer-meter {
+  align-self: stretch;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 223, 80, 0.08) 0 6px, transparent 6px 12px),
+    #111716;
+  border: 2px solid rgba(255, 235, 176, 0.18);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  display: grid;
+  min-height: 126px;
+  overflow: hidden;
+}
+
+.assembler-buffer-meter span {
+  align-self: end;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6), transparent 16%),
+    linear-gradient(180deg, #fff07b, #d0a42d 58%, #705b1d);
+  box-shadow: 0 0 9px rgba(255, 225, 76, 0.28);
+  display: block;
+  width: 100%;
+}
+
+.assembler-energy-lot > div:last-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.assembler-energy-lot span {
+  color: #d8ce8c;
+  font: 950 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+}
+
+.assembler-energy-lot strong {
+  color: #ffe86f;
+  font: 950 0.76rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+}
+
+.assembler-energy-lot small {
+  color: #d6cea7;
+  font: 950 0.48rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.05;
+}
+
+.assembler-output-lot {
+  align-items: center;
+  align-self: end;
+  background:
+    linear-gradient(180deg, rgba(5, 8, 9, 0.74), rgba(5, 7, 7, 0.88)),
+    var(--machine-panel-dark);
+  border: 2px solid rgba(255, 235, 176, 0.2);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+  display: grid;
+  grid-area: output;
+  justify-items: center;
+  min-width: 0;
+  padding: 6px;
+}
+
+.assembler-output-lot .process-slot {
+  height: 58px;
+  width: 58px;
+}
+
+.auto-miner-interface {
+  min-height: 150px;
+}
+
+.assembler-load-rail {
+  align-items: center;
+  align-self: end;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    #0a0c0c;
+  border: 2px solid rgba(255, 235, 176, 0.2);
+  border-bottom-color: rgba(0, 0, 0, 0.8);
+  border-right-color: rgba(0, 0, 0, 0.8);
+  color: #fff0b9;
+  display: grid;
+  grid-area: load;
+  grid-template-columns: 1fr max-content;
+  height: 28px;
+  overflow: hidden;
+  padding: 0 9px;
+  position: relative;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.assembler-load-rail > span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.16), transparent 22%),
+    linear-gradient(90deg, #263333, #9a7a2d 62%, #d6b24f);
+  box-shadow: 0 0 6px rgba(255, 225, 76, 0.16);
+  display: block;
+  inset: 0 auto 0 0;
+  position: absolute;
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 0;
+}
+
+.assembler-load-rail strong,
+.assembler-load-rail em {
+  position: relative;
+  text-shadow: 1px 1px 0 #050605;
+  z-index: 1;
+}
+
+.assembler-load-rail strong {
+  font: 950 0.84rem "Courier New", ui-monospace, monospace;
+}
+
+.assembler-load-rail em {
+  font: 950 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  font-style: normal;
+  justify-self: end;
+}
+
+.auto-miner-action-progress {
+  align-self: end;
+  height: 20px;
+  width: 100%;
+}
+
+.manual-fluid-transfer strong {
+  color: #ffe7a0;
+}
+
+.machine-terminal .machine-selected-item span {
+  color: var(--machine-accent);
+  text-shadow: 1px 1px 0 #050605;
+}
+
+.machine-terminal .machine-selected-item strong {
+  color: #f6e9c4;
+  text-shadow: 1px 1px 0 #050605;
+}
+
+.machine-terminal .processing-storage {
+  scrollbar-color: var(--machine-accent) rgba(0, 0, 0, 0.32);
+}
+
+.pipe-config-modal {
+  --machine-panel-face: #3d3322;
+  --machine-panel-well: #171614;
+  --machine-panel-dark: #0d0f0f;
+  --machine-accent: #d5a24f;
+  background:
+    radial-gradient(circle at 8px 8px, rgba(255, 228, 166, 0.58) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 8px) 8px, rgba(255, 228, 166, 0.58) 0 2px, transparent 3px),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.07) 0 1px, transparent 1px 13px),
+    var(--machine-panel-face);
+  border-color: rgba(255, 235, 176, 0.42);
+  border-bottom-color: rgba(0, 0, 0, 0.78);
+  border-right-color: rgba(0, 0, 0, 0.78);
+}
+
+.pipe-config-modal .modal-head,
+.pipe-config-grid,
+.fluid-output-config-grid,
+.pipe-config-note {
+  background:
+    radial-gradient(circle at 50% 0, rgba(213, 162, 79, 0.13), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent),
+    var(--machine-panel-well);
+  border-color: rgba(255, 235, 176, 0.3);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+  color: #f3e4bf;
+}
+
+.pipe-config-cell,
+.fluid-output-block,
+.pipe-config-cell.fluid-output-face {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
+    var(--machine-panel-dark);
+  border-color: rgba(255, 235, 176, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+  color: #f3e4bf;
+}
+
+.pipe-config-cell.center {
+  background:
+    radial-gradient(circle, rgba(213, 162, 79, 0.22), transparent 62%),
+    var(--machine-panel-dark);
+  border-color: rgba(255, 235, 176, 0.42);
+  border-bottom-color: rgba(0, 0, 0, 0.74);
+  border-right-color: rgba(0, 0, 0, 0.74);
+}
+
+.pipe-config-cell.connected-side,
+.pipe-config-cell.fluid-output-face.connected-side,
+.pipe-config-cell.fluid-output-face.mode-output,
+.fluid-output-face.connected-side,
+.fluid-output-face.mode-output {
+  background:
+    radial-gradient(circle, rgba(111, 224, 92, 0.2), transparent 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent),
+    #182515;
+  border-color: rgba(187, 241, 131, 0.54);
+  box-shadow: 0 0 10px rgba(111, 224, 92, 0.18);
+}
+
+.pipe-config-cell.disabled-side,
+.pipe-config-cell.fluid-output-face.disabled-side,
+.fluid-output-face.disabled-side {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 5px, transparent 5px 10px),
+    #171717;
+  color: #8f8878;
+}
+
+.pipe-side-mode,
+.fluid-face-label {
+  background: #111514;
+  border-color: rgba(255, 235, 176, 0.22);
+  color: #ffe7a0;
+}
+
+.empty-pipe-neighbour {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 22%, transparent 24%),
+    #1c2020;
+  border: 1px solid rgba(255, 235, 176, 0.12);
+  opacity: 1;
+}
+
+.machine-terminal,
+.pipe-config-modal {
+  --machine-panel-image: linear-gradient(180deg, transparent, transparent);
+}
+
+.furnace-modal.machine-terminal {
+  background:
+    radial-gradient(circle at 8px 8px, var(--hmi-rivet) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 8px) 8px, var(--hmi-rivet) 0 2px, transparent 3px),
+    radial-gradient(circle at 8px calc(100% - 8px), rgba(0, 0, 0, 0.48) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 8px) calc(100% - 8px), rgba(0, 0, 0, 0.48) 0 2px, transparent 3px),
+    linear-gradient(180deg, rgba(12, 13, 12, 0.2), rgba(8, 8, 7, 0.56)),
+    var(--machine-panel-image) center / cover no-repeat,
+    repeating-linear-gradient(90deg, rgba(255, 245, 205, 0.025) 0 1px, transparent 1px 13px),
+    var(--machine-panel-face);
+}
+
+.machine-terminal .furnace-interface,
+.machine-terminal .well-interface {
+  background:
+    linear-gradient(180deg, rgba(7, 8, 7, 0.48), rgba(7, 8, 7, 0.72)),
+    radial-gradient(circle at 50% 8%, var(--machine-glow), transparent 42%),
+    var(--machine-panel-image) center / cover no-repeat,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 36%),
+    var(--machine-panel-well);
+}
+
+.machine-terminal .machine-status-row,
+.machine-terminal .processing-storage,
+.machine-terminal .machine-selected-item,
+.machine-terminal .manual-fluid-transfer {
+  background:
+    linear-gradient(180deg, rgba(8, 9, 8, 0.76), rgba(7, 8, 7, 0.88)),
+    radial-gradient(circle at 50% 0, var(--machine-glow), transparent 46%),
+    var(--machine-panel-well);
+}
+
+.pipe-config-modal {
+  background:
+    radial-gradient(circle at 8px 8px, rgba(255, 228, 166, 0.58) 0 2px, transparent 3px),
+    radial-gradient(circle at calc(100% - 8px) 8px, rgba(255, 228, 166, 0.58) 0 2px, transparent 3px),
+    linear-gradient(180deg, rgba(10, 10, 9, 0.26), rgba(8, 8, 7, 0.62)),
+    var(--machine-panel-image) center / cover no-repeat,
+    repeating-linear-gradient(90deg, rgba(255, 245, 205, 0.025) 0 1px, transparent 1px 13px),
+    var(--machine-panel-face);
+}
+
+.pipe-config-modal .modal-head,
+.pipe-config-grid,
+.fluid-output-config-grid,
+.pipe-config-note {
+  background:
+    linear-gradient(180deg, rgba(10, 11, 10, 0.78), rgba(8, 9, 8, 0.9)),
+    radial-gradient(circle at 50% 0, rgba(213, 162, 79, 0.13), transparent 42%),
+    var(--machine-panel-well);
+}
+
+.lvAssembler-process-interface {
+  aspect-ratio: 2 / 3;
+  border: 0;
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.56),
+    0 0 18px rgba(0, 0, 0, 0.34);
+  display: block;
+  margin-inline: auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  width: min(100%, 360px);
+}
+
+.machine-terminal .lvAssembler-process-interface {
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.08)),
+    url("/game-ui/lv-assembler-skin-v2.jpg") center / 100% 100% no-repeat,
+    #070909;
+}
+
+.machine-terminal .lvAssembler-process-interface::before {
+  display: none;
+}
+
+.machine-terminal .lvAssembler-process-interface > * {
+  position: absolute;
+  z-index: 1;
+}
+
+.lvAssembler-process-interface .process-slot {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.lvAssembler-process-interface .process-slot:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(117, 236, 255, 0.82),
+    0 0 16px rgba(117, 236, 255, 0.38);
+  outline: 0;
+}
+
+.lvAssembler-process-interface .process-slot.filled {
+  background: radial-gradient(circle at 50% 50%, rgba(6, 10, 10, 0.76), rgba(4, 6, 6, 0.42));
+  box-shadow:
+    inset 0 0 0 2px rgba(138, 238, 255, 0.28),
+    0 0 12px rgba(117, 236, 255, 0.16);
+}
+
+.lvAssembler-process-interface .process-slot-label {
+  color: #bcecf4;
+  font: 950 clamp(0.42rem, 1.55vw, 0.58rem) "Courier New", ui-monospace, monospace;
+  line-height: 1.05;
+  opacity: 1;
+  text-align: center;
+  text-shadow: 0 0 7px rgba(83, 229, 255, 0.7), 1px 1px 0 #050606;
+  text-transform: uppercase;
+  width: 90%;
+}
+
+.lvAssembler-process-interface .process-slot.filled .process-slot-label {
+  opacity: 0;
+}
+
+.lvAssembler-process-interface .pixel-icon {
+  filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.72));
+  transform: scale(1.12);
+}
+
+.lvAssembler-process-interface .item-count {
+  bottom: 5%;
+  color: #f6f0d2;
+  right: 8%;
+  text-shadow: 1px 1px 0 #050606, 0 0 8px rgba(0, 0, 0, 0.68);
+}
+
+.assembler-item-grid {
+  align-content: stretch;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: grid;
+  gap: 5.5% 4.2%;
+  grid-area: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  height: 22.5%;
+  left: 5.7%;
+  padding: 0;
+  top: 4.2%;
+  width: 49.5%;
+}
+
+.assembler-stage-lot {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: flex;
+  gap: 5px;
+  height: 3.6%;
+  justify-content: center;
+  left: 24%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 3px;
+  top: 62.2%;
+  width: 48%;
+}
+
+.assembler-stage-indicator {
+  background: #6ee9d1;
+  border: 1px solid #d8fff8;
+  border-radius: 50%;
+  box-shadow: 0 0 7px rgba(90, 242, 215, 0.78);
+  flex: 0 0 6px;
+  height: 6px;
+  width: 6px;
+}
+
+.assembler-stage-indicator.active {
+  animation: assembler-status-breathe 1.8s ease-in-out infinite;
+}
+
+.assembler-stage-state {
+  background: transparent;
+  border: 0;
+  color: #dffcff;
+  font: 950 clamp(0.5rem, 1.8vw, 0.68rem) "Courier New", ui-monospace, monospace;
+  overflow: hidden;
+  padding: 0;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(83, 229, 255, 0.62), 1px 1px 0 #050606;
+  white-space: nowrap;
+}
+
+.assembler-stage-lot::before,
+.assembler-stage-lot::after,
+.assembler-stage-light,
+.assembler-stage-press,
+.assembler-stage-table {
+  display: none;
+}
+
+.assembler-stage-readouts {
+  display: grid;
+  gap: 4%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 1fr;
+  height: 9.4%;
+  left: 20.5%;
+  margin: 0;
+  top: 31.2%;
+  width: 55%;
+}
+
+.assembler-stage-readouts > span {
+  align-content: center;
+  background:
+    linear-gradient(180deg, rgba(29, 67, 75, 0.52), rgba(2, 10, 12, 0.82)),
+    repeating-linear-gradient(90deg, rgba(121, 237, 255, 0.04) 0 1px, transparent 1px 6px);
+  border: 1px solid rgba(116, 229, 245, 0.42);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.72),
+    inset 0 0 12px rgba(79, 217, 239, 0.08),
+    0 0 8px rgba(46, 183, 211, 0.12);
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+  min-width: 0;
+  padding: 3px 2px;
+  text-align: center;
+}
+
+.assembler-stage-readouts small {
+  color: #8cbec7;
+  display: block;
+  font: 900 clamp(0.5rem, 1.75vw, 0.66rem) "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.assembler-stage-readouts strong {
+  color: #bff5ff;
+  font: 950 clamp(0.64rem, 2.25vw, 0.88rem) "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(83, 229, 255, 0.44), 1px 1px 0 #050606;
+}
+
+.assembler-stage-readouts em {
+  color: #7eb8c2;
+  font: 900 clamp(0.4rem, 1.42vw, 0.54rem) "Courier New", ui-monospace, monospace;
+  font-style: normal;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.assembler-fluid-lot {
+  align-content: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #e8fbff;
+  display: grid;
+  gap: 0;
+  height: 16.8%;
+  justify-items: center;
+  left: 10.2%;
+  overflow: hidden;
+  padding: 0;
+  text-align: center;
+  top: 71.6%;
+  width: 42.4%;
+}
+
+.assembler-fluid-lot::before {
+  animation: assembler-fluid-surface 4.8s ease-in-out infinite;
+  background:
+    linear-gradient(180deg, rgba(213, 255, 255, 0.52), rgba(105, 233, 255, 0.26) 12%, rgba(24, 147, 188, 0.62) 48%, rgba(7, 57, 82, 0.84)),
+    repeating-linear-gradient(90deg, rgba(218, 255, 255, 0.12) 0 2px, transparent 2px 18px);
+  bottom: 3%;
+  box-shadow: 0 -2px 15px rgba(93, 234, 255, 0.38), inset 0 1px 0 rgba(238, 255, 255, 0.68);
+  content: "";
+  height: var(--assembler-fluid-fill, 0%);
+  left: 3%;
+  opacity: 0.88;
+  position: absolute;
+  transition: height 560ms cubic-bezier(0.22, 1, 0.36, 1);
+  width: 94%;
+}
+
+.assembler-fluid-lot > span,
+.assembler-fluid-lot small,
+.assembler-fluid-lot strong {
+  position: relative;
+  z-index: 1;
+}
+
+.assembler-fluid-lot > span {
+  align-self: end;
+  color: #d9fbff;
+  display: block;
+  font: 950 clamp(0.46rem, 1.6vw, 0.62rem) "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.assembler-fluid-lot small {
+  align-self: start;
+  color: #a7dce5;
+  display: block;
+  font: 900 clamp(0.4rem, 1.45vw, 0.54rem) "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  max-width: 92%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assembler-fluid-lot strong {
+  color: #dffbff;
+  font: 950 clamp(1rem, 4.6vw, 1.45rem) "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(53, 216, 255, 0.72), 1px 2px 0 #06333c;
+}
+
+.assembler-energy-lot {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: block;
+  height: 57.8%;
+  left: 80.5%;
+  padding: 0;
+  text-align: center;
+  top: 12.8%;
+  width: 15.6%;
+}
+
+.assembler-buffer-meter {
+  background: transparent;
+  border: 0;
+  bottom: 9%;
+  display: grid;
+  left: 28%;
+  min-height: 0;
+  overflow: hidden;
+  position: absolute;
+  top: 22%;
+  width: 44%;
+}
+
+.assembler-buffer-meter span {
+  align-self: end;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6), transparent 16%),
+    linear-gradient(180deg, #7bf3ff, #35bfe4 58%, #17526a);
+  box-shadow: 0 0 12px rgba(72, 219, 255, 0.46);
+  display: block;
+  transition: height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  width: 100%;
+}
+
+.assembler-energy-lot > div:last-child {
+  display: contents;
+}
+
+.assembler-energy-lot span {
+  color: #83cedb;
+  display: block;
+  font: 950 clamp(0.38rem, 1.32vw, 0.5rem) "Courier New", ui-monospace, monospace;
+  left: 0;
+  line-height: 1;
+  position: absolute;
+  text-shadow: 0 0 7px rgba(83, 229, 255, 0.48), 1px 1px 0 #050606;
+  text-transform: uppercase;
+  top: 1.5%;
+  width: 100%;
+}
+
+.assembler-energy-lot strong,
+.assembler-energy-lot small {
+  color: #c9f8ff;
+  display: block;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-weight: 950;
+  left: 0;
+  line-height: 1;
+  position: absolute;
+  text-shadow: 0 0 8px rgba(83, 229, 255, 0.5), 1px 1px 0 #050606;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.assembler-energy-lot strong {
+  font-size: clamp(0.6rem, 2.1vw, 0.8rem);
+  top: 8.5%;
+  white-space: nowrap;
+}
+
+.assembler-energy-lot small {
+  bottom: 1.5%;
+  font-size: clamp(0.4rem, 1.42vw, 0.54rem);
+  white-space: nowrap;
+}
+
+.assembler-energy-lot > div:last-child {
+  align-content: center;
+  display: grid;
+  gap: 2px;
+  height: 21%;
+  justify-items: center;
+  left: -141%;
+  position: absolute;
+  top: -6.2%;
+  width: 127%;
+}
+
+.assembler-energy-lot > div:last-child span,
+.assembler-energy-lot > div:last-child strong,
+.assembler-energy-lot > div:last-child small {
+  bottom: auto;
+  left: auto;
+  position: static;
+  top: auto;
+  width: auto;
+}
+
+.assembler-energy-lot > div:last-child span {
+  font-size: clamp(0.42rem, 1.5vw, 0.56rem);
+}
+
+.assembler-energy-lot > div:last-child strong {
+  font-size: clamp(0.66rem, 2.35vw, 0.9rem);
+}
+
+.assembler-energy-lot > div:last-child small {
+  font-size: clamp(0.4rem, 1.4vw, 0.52rem);
+}
+
+.assembler-output-lot {
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: grid;
+  height: 16.6%;
+  justify-items: stretch;
+  left: 68.4%;
+  padding: 0;
+  top: 72.2%;
+  width: 27%;
+}
+
+.assembler-output-lot .process-slot {
+  height: 100%;
+  justify-self: center;
+  place-items: center;
+  width: 100%;
+}
+
+.assembler-output-lot .pixel-icon {
+  margin: 0;
+  transform: scale(1.24);
+  transform-origin: center;
+}
+
+.assembler-load-rail {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #f7f2dd;
+  display: block;
+  height: 3.8%;
+  left: 5.2%;
+  overflow: visible;
+  padding: 0;
+  top: 93.1%;
+  width: 89.6%;
+}
+
+.assembler-load-rail > span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22), transparent 20%),
+    linear-gradient(90deg, #133b42, #3dbbd2 62%, #aaf5ff);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(72, 219, 255, 0.34);
+  display: block;
+  height: 100%;
+  min-width: 0;
+  position: static;
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.assembler-load-rail strong {
+  color: #bff4ff;
+  display: block;
+  font: 950 clamp(0.46rem, 1.6vw, 0.62rem) "Courier New", ui-monospace, monospace;
+  left: 3%;
+  line-height: 1;
+  position: absolute;
+  text-shadow: 1px 1px 0 #050606;
+  top: 31%;
+  text-transform: uppercase;
+}
+
+.assembler-load-rail em {
+  color: #f7f2dd;
+  font: 950 clamp(0.68rem, 2.4vw, 0.9rem) "Courier New", ui-monospace, monospace;
+  font-style: normal;
+  left: auto;
+  line-height: 1;
+  position: absolute;
+  text-shadow: 1px 1px 0 #050606;
+  right: 3%;
+  top: 31%;
+}
+
+@keyframes assembler-fluid-surface {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes assembler-status-breathe {
+  0%,
+  100% {
+    filter: brightness(0.8);
+    opacity: 0.7;
+  }
+
+  50% {
+    filter: brightness(1.25);
+    opacity: 1;
+  }
+}
+
+.lv-assembler-terminal {
+  gap: 5px;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.lv-assembler-terminal .modal-head {
+  padding: 3px 5px;
+}
+
+.lv-assembler-terminal .processing-storage,
+.lv-assembler-terminal .machine-selected-item {
+  padding: 4px;
+}
+
+.lv-assembler-terminal .processing-storage {
+  justify-content: safe center;
+}
+
+.lv-assembler-terminal .furnace-help {
+  display: none;
+}
+
+@media (max-width: 430px) {
+  .machine-meter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .item-automation-interface .furnace-inputs {
+    grid-template-columns: repeat(3, 54px);
+  }
+
+  .battery-buffer-interface,
+  .cable-terminal-interface,
+  .turbine-interface,
+  .auto-miner-interface {
+    grid-template-columns: 1fr;
+  }
+
+  .battery-buffer-interface .machine-glyph,
+  .turbine-interface .machine-glyph,
+  .auto-miner-interface .machine-glyph {
+    justify-self: center;
+  }
+
+  .lvAssembler-process-interface {
+    min-height: 0;
+    width: min(100%, 350px);
+  }
+
+  .assembler-item-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .assembler-item-grid .process-slot {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .assembler-stage-lot {
+    min-height: 0;
+  }
+
+  .assembler-stage-state {
+    padding: 0;
+  }
+
+  .assembler-stage-readouts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .assembler-stage-readouts > span {
+    padding: 0;
+  }
+
+  .assembler-buffer-meter {
+    min-height: 0;
+  }
+
+  .assembler-output-lot .process-slot {
+    height: 100%;
+    width: 100%;
+  }
 }
 
 .forge-hammer-chamber > .machine-glyph {

@@ -1176,9 +1176,11 @@ type MatchedProcessRecipe = {
   inputCost: ResourceAmount
   secondaryInputCost?: ResourceAmount
   extraInputCosts?: ResourceAmount[]
+  assemblerInputAmounts?: number[]
 }
 
 const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3', 'extraInput4'] as const
+const assemblerInputSlotIds = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds] as const
 
 function extraProcessInputSlots(process: MachineProcessState): ProcessSlot[] {
   return assemblerExtraInputSlotIds.map((slotId) => process[slotId])
@@ -1197,6 +1199,34 @@ function processSlotCanPay(slot: ProcessSlot, cost: ResourceAmount) {
 }
 
 function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot, extraInputs: ProcessSlot[] = []): MatchedProcessRecipe | undefined {
+  if (recipe.machineId === 'lvAssembler') {
+    const slots = [input, secondaryInput, ...extraInputs]
+    const costs = [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])]
+    const requiredByResource = new Map<ResourceId, number>()
+    for (const cost of costs) requiredByResource.set(cost.id, (requiredByResource.get(cost.id) ?? 0) + cost.amount)
+    if (slots.some((slot) => slot && !requiredByResource.has(slot.id))) return undefined
+    for (const [resourceId, required] of requiredByResource) {
+      const stored = slots.reduce((total, slot) => total + (slot?.id === resourceId ? slot.amount : 0), 0)
+      if (stored < required) return undefined
+    }
+
+    const remainingByResource = new Map(requiredByResource)
+    const assemblerInputAmounts = slots.map((slot) => {
+      if (!slot) return 0
+      const remaining = remainingByResource.get(slot.id) ?? 0
+      const consumed = Math.min(slot.amount, remaining)
+      remainingByResource.set(slot.id, remaining - consumed)
+      return consumed
+    })
+    return {
+      recipe,
+      inputCost: recipe.input,
+      secondaryInputCost: recipe.secondaryInput,
+      extraInputCosts: recipe.extraInputs,
+      assemblerInputAmounts,
+    }
+  }
+
   const extraCosts = recipe.extraInputs ?? []
   if (extraCosts.length > 0) {
     if (!processSlotCanPay(input, recipe.input)) return undefined
@@ -2597,6 +2627,13 @@ export function crowbarRemoveMachineInstance(state: GameState, uid: string) {
 export function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
   if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
+  if (machineId === 'lvAssembler' && assemblerInputSlotIds.includes(slotId as typeof assemblerInputSlotIds[number])) {
+    return processRecipes.some(
+      (recipe) =>
+        recipe.machineId === machineId &&
+        [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])].some((cost) => cost.id === resourceId),
+    )
+  }
   const extraSlotIndex = assemblerExtraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
   if (extraSlotIndex >= 0) {
     return (
@@ -2918,6 +2955,8 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   const process = instance.process
   process.euCapacity = machineEuCapacity(instance.machineId)
   process.euStored = Math.min(process.euStored, process.euCapacity)
+  const initialMatch = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process))
+  if (!initialMatch) fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
@@ -2974,12 +3013,19 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
 
     if (process.progressMs < recipe.durationMs) continue
 
-    process.input = decrementProcessSlot(process.input, match.inputCost.amount)
-    if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
-    match.extraInputCosts?.forEach((cost, index) => {
-      const slotId = assemblerExtraInputSlotIds[index]
-      if (slotId) process[slotId] = decrementProcessSlot(process[slotId], cost.amount)
-    })
+    if (match.assemblerInputAmounts) {
+      match.assemblerInputAmounts.forEach((amount, index) => {
+        const slotId = assemblerInputSlotIds[index]
+        if (slotId && amount > 0) process[slotId] = decrementProcessSlot(process[slotId], amount)
+      })
+    } else {
+      process.input = decrementProcessSlot(process.input, match.inputCost.amount)
+      if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
+      match.extraInputCosts?.forEach((cost, index) => {
+        const slotId = assemblerExtraInputSlotIds[index]
+        if (slotId) process[slotId] = decrementProcessSlot(process[slotId], cost.amount)
+      })
+    }
     process.output = addToProcessOutput(process.output, recipe.output)
     process.progressMs = 0
     process.activeRecipeId = null
