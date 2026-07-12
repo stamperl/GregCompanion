@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Click Foundry Recipe Workbench</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101311; color: #ece5c8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #101311; }
+    button, input, select, textarea { font: inherit; }
+    button { min-height: 42px; border: 1px solid #827652; background: #302d24; color: #fff5cf; padding: 8px 12px; cursor: pointer; }
+    button.primary { background: #8b5a1f; border-color: #d99a43; }
+    button.danger { color: #ffb0a2; }
+    header { position: sticky; top: 0; z-index: 5; padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: #171a18; border-bottom: 2px solid #766842; }
+    header h1 { margin: 0 0 8px; font-size: 20px; letter-spacing: 0; }
+    .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+    .toolbar input, .toolbar select { min-width: 0; height: 42px; border: 1px solid #68675e; background: #f0eee7; color: #171817; padding: 8px; }
+    .status { margin-top: 8px; font-size: 12px; color: #aaa58e; }
+    main { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: calc(100vh - 110px); }
+    aside { border-right: 1px solid #554f3a; overflow: auto; max-height: calc(100vh - 110px); position: sticky; top: 110px; }
+    .recipe-row { width: 100%; text-align: left; border: 0; border-bottom: 1px solid #37382f; background: #191c1a; padding: 11px 12px; }
+    .recipe-row.active { background: #403925; box-shadow: inset 4px 0 #d99a43; }
+    .recipe-row.changed::after { content: "EDITED"; float: right; color: #f2b75e; font-size: 10px; }
+    .recipe-row small { display: block; color: #999b91; margin-top: 3px; }
+    #editor { padding: 16px; max-width: 980px; width: 100%; }
+    .empty { color: #9d9b91; padding: 40px 10px; text-align: center; }
+    .heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .heading h2 { margin: 0; font-size: 24px; }
+    .badge { border: 1px solid #79705b; padding: 4px 7px; color: #d0c59d; font-size: 12px; white-space: nowrap; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    label { display: grid; gap: 5px; color: #c5bea2; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    label.wide { grid-column: 1 / -1; }
+    input, select, textarea { width: 100%; border: 1px solid #656357; background: #e9e7df; color: #171817; padding: 9px; border-radius: 0; }
+    textarea { min-height: 72px; resize: vertical; text-transform: none; }
+    section { margin-top: 16px; border-top: 1px solid #514b37; padding-top: 12px; }
+    section h3 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; color: #e8c27c; }
+    .amount-list { display: grid; gap: 7px; }
+    .amount-row { display: grid; grid-template-columns: minmax(0, 1fr) 86px 42px; gap: 7px; }
+    .pattern { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; max-width: 560px; }
+    .pattern select { min-width: 0; height: 48px; }
+    .actions { position: sticky; bottom: 0; display: flex; gap: 8px; padding: 12px 0 max(12px, env(safe-area-inset-bottom)); background: linear-gradient(transparent, #101311 18%); justify-content: flex-end; }
+    .issues { margin: 12px 0; padding: 10px; border: 1px solid #974f3f; color: #ffb6a7; background: #2b1714; }
+    .issues.ok { border-color: #497a50; color: #a8e8ae; background: #142318; }
+    @media (max-width: 760px) {
+      header { position: static; }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .toolbar input { grid-column: 1 / -1; }
+      main { display: block; }
+      aside { position: static; max-height: 34vh; border-right: 0; border-bottom: 2px solid #554f3a; }
+      #editor { padding: 12px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .wide { grid-column: auto; }
+      .amount-row { grid-template-columns: minmax(0, 1fr) 72px 42px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Recipe Workbench</h1>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Find recipe, input, output or machine" />
+      <select id="kind"><option value="all">All recipes</option><option value="crafting">Crafting</option><option value="process">Machine process</option></select>
+      <button id="export" class="primary">Export edits</button>
+    </div>
+    <div class="status" id="status">Loading live recipe catalogue...</div>
+  </header>
+  <main><aside id="list"></aside><div id="editor"><div class="empty">Select a recipe to edit.</div></div></main>
+  <script>
+    const storageKey = 'click-foundry-recipe-workbench-v1'
+    const app = { data: null, originals: new Map(), drafts: new Map(), selected: null }
+    const $ = (id) => document.getElementById(id)
+    const clone = (value) => JSON.parse(JSON.stringify(value))
+    const keyOf = (recipe) => `${recipe.kind}:${recipe.id}`
+    const esc = (value = '') => String(value).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+    const resourceLabel = (id) => app.data.resources.find((item) => item.id === id)?.label || id
+    const machineLabel = (id) => app.data.machines.find((item) => item.id === id)?.label || id
+    const allRecipes = () => [...app.data.recipes, ...app.data.processRecipes]
+    const current = () => app.drafts.get(app.selected) || app.originals.get(app.selected)
+    const resourceOptions = (selected, blank = false) => `${blank ? '<option value="">Empty</option>' : ''}${app.data.resources.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${esc(item.label)} (${item.id})</option>`).join('')}`
+    const machineOptions = (selected, blank = true) => `${blank ? '<option value="">None</option>' : ''}${app.data.machines.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}`
+    const questOptions = (selected) => `<option value="">Always / discovered</option>${app.data.quests.map((item) => `<option value="${item.id}" ${item.id === selected ? 'selected' : ''}>${esc(item.label)} (${item.chapter})</option>`).join('')}`
+    function saveDrafts() { localStorage.setItem(storageKey, JSON.stringify(Object.fromEntries(app.drafts))) }
+    function isChanged(key) { return app.drafts.has(key) && JSON.stringify(app.drafts.get(key)) !== JSON.stringify(app.originals.get(key)) }
+    function filtered() {
+      const query = $('search').value.trim().toLowerCase(), kind = $('kind').value
+      return allRecipes().filter((base) => {
+        const recipe = app.drafts.get(keyOf(base)) || base
+        if (kind !== 'all' && recipe.kind !== kind) return false
+        return !query || JSON.stringify(recipe).toLowerCase().includes(query) || resourceLabel(recipe.input?.id || '').toLowerCase().includes(query)
+      })
+    }
+    function renderList() {
+      $('list').innerHTML = filtered().map((base) => {
+        const key = keyOf(base), recipe = app.drafts.get(key) || base
+        const detail = recipe.kind === 'process' ? machineLabel(recipe.machineId) : `${recipe.tier} / ${recipe.stationType || 'hand'}`
+        return `<button class="recipe-row ${key === app.selected ? 'active' : ''} ${isChanged(key) ? 'changed' : ''}" data-key="${key}"><strong>${esc(recipe.name)}</strong><small>${esc(detail)} · ${esc(recipe.id)}</small></button>`
+      }).join('') || '<div class="empty">No recipes match.</div>'
+      $('list').querySelectorAll('[data-key]').forEach((button) => button.onclick = () => { app.selected = button.dataset.key; render() })
+      updateStatus()
+    }
+    function amountSection(title, field, amounts) {
+      return `<section><h3>${title}</h3><div class="amount-list" data-amounts="${field}">${(amounts || []).map((amount, index) => `<div class="amount-row"><select data-id="${index}">${resourceOptions(amount.id)}</select><input data-amount="${index}" type="number" min="1" value="${amount.amount}"><button class="danger" data-remove="${index}" title="Remove">×</button></div>`).join('')}</div><button data-add="${field}">Add item</button></section>`
+    }
+    function validate(recipe) {
+      const issues = []
+      if (!recipe.name.trim()) issues.push('Name is required.')
+      if (!(recipe.durationMs > 0)) issues.push('Duration must be greater than zero.')
+      const amounts = recipe.kind === 'process' ? [recipe.input, recipe.secondaryInput, recipe.fuelInput, ...(recipe.extraInputs || []), recipe.output].filter(Boolean) : [...recipe.inputs, ...recipe.outputs, ...(recipe.catalysts || []), ...(recipe.machineInputs || []), ...(recipe.machineOutputs || [])]
+      if (amounts.some((item) => !(item.amount > 0))) issues.push('Every item amount must be greater than zero.')
+      if (recipe.kind === 'crafting' && recipe.pattern && recipe.pattern.length !== 9) issues.push('Crafting patterns must contain nine slots.')
+      return issues
+    }
+    function renderEditor() {
+      const recipe = current()
+      if (!recipe) return
+      const issues = validate(recipe)
+      let body = `<div class="heading"><div><h2>${esc(recipe.name)}</h2><div class="status">${esc(recipe.id)}</div></div><span class="badge">${recipe.kind === 'process' ? 'MACHINE PROCESS' : 'CRAFTING'}</span></div>
+      <div class="${issues.length ? 'issues' : 'issues ok'}">${issues.length ? issues.map(esc).join('<br>') : 'Recipe is structurally valid.'}</div>
+      <div class="form-grid"><label>Name<input data-field="name" value="${esc(recipe.name)}"></label><label>Tier<select data-field="tier">${['manual','bronze','steam','lv'].map((v) => `<option ${v === recipe.tier ? 'selected' : ''}>${v}</option>`).join('')}</select></label><label class="wide">Description<textarea data-field="description">${esc(recipe.description)}</textarea></label><label>Duration (ms)<input data-field="durationMs" type="number" min="1" value="${recipe.durationMs}"></label>`
+      if (recipe.kind === 'crafting') {
+        body += `<label>Unlock quest<select data-field="unlockedBy">${questOptions(recipe.unlockedBy)}</select></label><label>Steam cost (L)<input data-field="steamCostLitres" type="number" min="0" value="${recipe.steamCostLitres || 0}"></label><label>EU cost<input data-field="euCost" type="number" min="0" value="${recipe.euCost || 0}"></label></div>`
+        body += amountSection('Inputs', 'inputs', recipe.inputs) + amountSection('Outputs', 'outputs', recipe.outputs) + amountSection('Catalysts / reusable tools', 'catalysts', recipe.catalysts)
+        body += `<section><h3>3 × 3 pattern</h3><div class="pattern">${Array.from({length:9}, (_, i) => `<select data-pattern="${i}">${resourceOptions(recipe.pattern?.[i] || '', true)}</select>`).join('')}</div></section>`
+      } else {
+        body += `<label>Machine<select data-field="machineId">${machineOptions(recipe.machineId, false)}</select></label><label>Steam cost (L)<input data-field="steamCostLitres" type="number" min="0" value="${recipe.steamCostLitres || 0}"></label><label>EU cost<input data-field="euCost" type="number" min="0" value="${recipe.euCost || 0}"></label><label>Required amps<input data-field="requiredEuAmps" type="number" min="0" value="${recipe.requiredEuAmps || 0}"></label></div>`
+        body += amountSection('Primary input', 'input', [recipe.input]) + amountSection('Secondary input', 'secondaryInput', recipe.secondaryInput ? [recipe.secondaryInput] : []) + amountSection('Fuel input', 'fuelInput', recipe.fuelInput ? [recipe.fuelInput] : []) + amountSection('Additional inputs', 'extraInputs', recipe.extraInputs || []) + amountSection('Output', 'output', [recipe.output])
+      }
+      body += `<div class="actions"><button id="reset" class="danger">Reset recipe</button><button id="save" class="primary">Save draft</button></div>`
+      $('editor').innerHTML = body
+      wireEditor(recipe)
+    }
+    function normalizeField(field, value) { return ['durationMs','steamCostLitres','euCost','requiredEuAmps'].includes(field) ? Number(value) : value }
+    function wireEditor(recipe) {
+      const draft = clone(recipe)
+      $('editor').querySelectorAll('[data-field]').forEach((input) => input.oninput = () => { const value = normalizeField(input.dataset.field, input.value); if (value === '' || (typeof value === 'number' && value === 0 && input.dataset.field !== 'durationMs')) delete draft[input.dataset.field]; else draft[input.dataset.field] = value })
+      $('editor').querySelectorAll('[data-pattern]').forEach((input) => input.onchange = () => { draft.pattern = draft.pattern || Array(9).fill(null); draft.pattern[Number(input.dataset.pattern)] = input.value || null })
+      const readAmounts = (field) => Array.from($('editor').querySelector(`[data-amounts="${field}"]`)?.children || []).map((row) => ({ id: row.querySelector('[data-id]').value, amount: Number(row.querySelector('[data-amount]').value) }))
+      $('editor').querySelectorAll('[data-remove]').forEach((button) => button.onclick = () => { button.parentElement.remove() })
+      $('editor').querySelectorAll('[data-add]').forEach((button) => button.onclick = () => { const field = button.dataset.add; const host = $('editor').querySelector(`[data-amounts="${field}"]`); host.insertAdjacentHTML('beforeend', `<div class="amount-row"><select data-id>${resourceOptions(app.data.resources[0].id)}</select><input data-amount type="number" min="1" value="1"><button class="danger" title="Remove">×</button></div>`); host.lastElementChild.lastElementChild.onclick = () => host.lastElementChild.remove() })
+      $('save').onclick = () => {
+        $('editor').querySelectorAll('[data-amounts]').forEach((host) => {
+          const field = host.dataset.amounts, values = readAmounts(field)
+          if (draft.kind === 'process' && ['input', 'secondaryInput', 'fuelInput', 'output'].includes(field)) {
+            if (values[0]) draft[field] = values[0]
+            else delete draft[field]
+          } else draft[field] = values
+        })
+        app.drafts.set(app.selected, draft); saveDrafts(); render()
+      }
+      $('reset').onclick = () => { app.drafts.delete(app.selected); saveDrafts(); render() }
+    }
+    function updateStatus() { const changed = [...app.originals.keys()].filter(isChanged).length; $('status').textContent = `${allRecipes().length} recipes · ${changed} edited · drafts stay on this device until exported` }
+    function render() { renderList(); renderEditor() }
+    $('search').oninput = renderList
+    $('kind').onchange = renderList
+    $('export').onclick = () => {
+      const changes = [...app.drafts.entries()].filter(([key]) => isChanged(key)).map(([key, recipe]) => ({ key, kind: recipe.kind, id: recipe.id, before: app.originals.get(key), after: recipe, issues: validate(recipe) }))
+      if (!changes.length) return alert('No recipe edits to export yet.')
+      if (changes.some((change) => change.issues.length) && !confirm('Some edited recipes have validation issues. Export anyway?')) return
+      const blob = new Blob([JSON.stringify({ schemaVersion: 1, type: 'click-foundry-recipe-patch', exportedAt: new Date().toISOString(), changes }, null, 2)], { type: 'application/json' })
+      const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'click-foundry-recipe-patch.json' }); link.click(); URL.revokeObjectURL(link.href)
+    }
+    fetch('./recipes.json').then((response) => response.json()).then((data) => {
+      app.data = data
+      allRecipes().forEach((recipe) => app.originals.set(keyOf(recipe), recipe))
+      try { const stored = JSON.parse(localStorage.getItem(storageKey) || '{}'); Object.entries(stored).forEach(([key, value]) => { if (app.originals.has(key)) app.drafts.set(key, value) }) } catch {}
+      app.selected = keyOf(allRecipes()[0]); render()
+    }).catch((error) => { $('status').textContent = `Could not load recipes: ${error.message}` })
+  </script>
+</body>
+</html>

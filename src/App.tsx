@@ -85,6 +85,7 @@ import {
   collectProcessOutput,
   createCreativeState,
   currentFluidOutputFlows,
+  currentWellWaterFlowLitresPerSecond,
   currentEuCableFlowEuPerSecond,
   availableConnectedEuAmps,
   currentSteamPipeFlowLitresPerSecond,
@@ -149,6 +150,7 @@ import {
   steamPipeTransferLitresPerSecond,
   steamTurbineEuCapacity,
   steamTurbineSteamUseLitresPerSecond,
+  wellWaterProductionLitresPerSecond,
   steamTankCapacityMs,
   steamTankCapacityMsForInstance,
   steamTankFluidCapacityLitresForInstance,
@@ -363,6 +365,12 @@ const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWren
 
 function fluidLabel(fluidId: FluidId) {
   return fluidLabels[fluidId]
+}
+
+function fluidVisualColor(fluidId: FluidId | undefined) {
+  if (fluidId === 'water') return '#55c8ec'
+  if (fluidId === 'creosote') return '#a96a20'
+  return '#73c6b8'
 }
 
 function storedFluids(process: MachineProcessState) {
@@ -765,14 +773,14 @@ function SteamTank({ storedMs, capacityMs }: { storedMs: number; capacityMs: num
 
   return (
     <div className="steam-tank" aria-label={`Steam buffer ${storedLitres} of ${capacityLitres} litres`}>
-      <div className="steam-tank-gauge">
-        <span style={{ height: `${fillPercent}%` }} />
-      </div>
       <div className="steam-tank-readout">
         <span>Steam buffer</span>
         <strong>{storedLitres}L</strong>
-        <small>{capacityLitres}L max</small>
       </div>
+      <div className="steam-tank-gauge">
+        <span style={{ height: `${fillPercent}%` }} />
+      </div>
+      <small className="steam-tank-capacity">{capacityLitres}L max</small>
     </div>
   )
 }
@@ -781,23 +789,14 @@ function FluidTank({ label, storedLitres, capacityLitres }: { label: string; sto
   const fillPercent = capacityLitres > 0 ? Math.max(0, Math.min(100, (storedLitres / capacityLitres) * 100)) : 0
   return (
     <div className="steam-tank fluid-tank" aria-label={`${label} ${storedLitres} of ${capacityLitres} litres`}>
-      <div className="steam-tank-gauge fluid-tank-gauge">
-        <span style={{ height: `${fillPercent}%` }} />
-      </div>
       <div className="steam-tank-readout">
         <span>{label}</span>
         <strong>{formatLitres(storedLitres)}L</strong>
-        <small>{formatLitres(capacityLitres)}L max</small>
       </div>
-    </div>
-  )
-}
-
-function EmptyTank({ capacityLitres, label = 'Empty tank' }: { capacityLitres: number; label?: string }) {
-  return (
-    <div className="empty-storage empty-tank" aria-label={`${label} ${capacityLitres} litres capacity`}>
-      <p>{label}</p>
-      <span>{formatLitres(capacityLitres)}L capacity</span>
+      <div className="steam-tank-gauge fluid-tank-gauge">
+        <span style={{ height: `${fillPercent}%` }} />
+      </div>
+      <small className="steam-tank-capacity">{formatLitres(capacityLitres)}L max</small>
     </div>
   )
 }
@@ -836,14 +835,14 @@ function EnergyTank({ storedEu, capacityEu }: { storedEu: number; capacityEu: nu
 
   return (
     <div className="steam-tank energy-tank" aria-label={`EU buffer ${stored} of ${capacity}`}>
-      <div className="steam-tank-gauge energy-tank-gauge">
-        <span style={{ height: `${fillPercent}%` }} />
-      </div>
       <div className="steam-tank-readout">
         <span>EU buffer</span>
         <strong>{stored} EU</strong>
-        <small>{capacity} EU max</small>
       </div>
+      <div className="steam-tank-gauge energy-tank-gauge">
+        <span style={{ height: `${fillPercent}%` }} />
+      </div>
+      <small className="steam-tank-capacity">{capacity} EU max</small>
     </div>
   )
 }
@@ -1358,6 +1357,8 @@ function QuestBook({
   onSelectQuest,
   onClaimAll,
   claimableRewardCount,
+  showLockedQuests,
+  onToggleLockedQuests,
 }: {
   quests: Quest[]
   state: GameState
@@ -1367,6 +1368,8 @@ function QuestBook({
   onSelectQuest: (questId: QuestId) => void
   onClaimAll: () => void
   claimableRewardCount: number
+  showLockedQuests: boolean
+  onToggleLockedQuests: () => void
 }) {
   const visibleQuestChapters = questChapters.filter((candidate) => visibleQuestChapterIds.has(candidate.id))
   const chapter = visibleQuestChapters.find((candidate) => candidate.id === activeChapterId) ?? visibleQuestChapters[0]
@@ -1565,6 +1568,9 @@ function QuestBook({
           <p>{chapter.description}</p>
           <div className="quest-book-actions">
             <strong>{formatAmount(state.scrip)} Foundry Scrip</strong>
+            <button type="button" className={showLockedQuests ? 'active' : ''} aria-pressed={showLockedQuests} onClick={onToggleLockedQuests}>
+              {showLockedQuests ? 'Hide locked quests' : 'Show locked quests'}
+            </button>
             <button type="button" disabled={claimableRewardCount < 1} onClick={onClaimAll}>
               Claim all rewards{claimableRewardCount > 0 ? ` (${formatAmount(claimableRewardCount)})` : ''}
             </button>
@@ -1666,6 +1672,15 @@ function App() {
       reviewGame = placeMachineInstance(reviewGame, reviewMachineId, 1, 0)
     }
     if (reviewMachineId === 'steamBoiler') reviewGame = placeMachineInstance(reviewGame, 'well', 2, 0)
+    if (reviewMachineId === 'well') {
+      reviewGame = placeMachineInstance(reviewGame, 'copperPipe', 2, 0)
+      reviewGame = placeMachineInstance(reviewGame, 'steamBoiler', 3, 0)
+      const reviewPipe = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'copperPipe')
+      if (reviewPipe) {
+        reviewPipe.pipeSideModes = { west: 'input', east: 'output' }
+        reviewPipe.pipeDisabledSides = { north: true, south: true }
+      }
+    }
     if (reviewMachineId === 'liquidSteamBoiler') reviewGame = placeMachineInstance(reviewGame, 'well', 0, 0)
     if (reviewMachineId === 'steamTurbine') reviewGame = placeMachineInstance(reviewGame, 'steamTank', 0, 0)
     if (isSteamPipeMachine(reviewMachineId)) {
@@ -1675,6 +1690,10 @@ function App() {
     if (isEuCableMachine(reviewMachineId)) {
       reviewGame = placeMachineInstance(reviewGame, 'steamTurbine', 0, 0)
       reviewGame = placeMachineInstance(reviewGame, 'lvMacerator', 2, 0)
+    }
+    if (reviewMachineId === 'arcBlastFurnace') {
+      reviewGame = placeMachineInstance(reviewGame, 'tinCable4A', 2, 0)
+      reviewGame = placeMachineInstance(reviewGame, 'lvBatteryBuffer4A', 3, 0)
     }
     const instance = reviewGame.machineInstances.find((candidate) => candidate.machineId === reviewMachineId)
     if (!instance) return null
@@ -1713,17 +1732,26 @@ function App() {
       }
       if (reviewMachineId === 'well') {
         instance.process.fluidCapacityLitres = 128
-        instance.process.fluids.water = reviewState === 'active' ? 96 : 64
+        instance.process.fluids.water = reviewState === 'active' ? 64 : 112
       }
       if (reviewMachineId === 'steamTank') {
         instance.process.steamCapacityMs = steamTankCapacityMs
-        instance.process.steamStoredMs = steamTankCapacityMs / 2
+        instance.process.steamStoredMs = reviewState === 'active' ? steamTankCapacityMs / 2 : steamTankCapacityMs * 0.85
       }
-      if (isSteamPipeMachine(reviewMachineId) || isSteamPoweredMachine(reviewMachineId) || reviewMachineId === 'steamTurbine') {
+      if (isSteamPoweredMachine(reviewMachineId) || reviewMachineId === 'steamTurbine') {
         instance.process.steamCapacityMs = instance.process.steamCapacityMs || steamMachineInternalCapacityMs
         instance.process.steamStoredMs = instance.process.steamCapacityMs / 2
       }
       if (isSteamPipeMachine(reviewMachineId)) {
+        if (reviewState === 'active') {
+          instance.process.steamCapacityMs = steamPipeBufferCapacityMs(reviewMachineId)
+          instance.process.steamStoredMs = instance.process.steamCapacityMs / 2
+        } else {
+          const previewFluid: FluidId = reviewMachineId === 'ironPipe' ? 'creosote' : 'water'
+          instance.process.steamStoredMs = 0
+          instance.process.fluidCapacityLitres = fluidPipeBufferCapacityLitres(reviewMachineId)
+          instance.process.fluids[previewFluid] = instance.process.fluidCapacityLitres * 0.7
+        }
         const source = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'steamTank')
         if (source) {
           source.process.steamCapacityMs = steamTankCapacityMs
@@ -1750,6 +1778,22 @@ function App() {
         instance.process.storageSlots[0] = { id: 'ironIngot', amount: 24 }
         instance.process.storageSlots[5] = { id: 'copperWire', amount: 18 }
         instance.process.storageSlots[11] = { id: 'coal', amount: 32 }
+      }
+      if (reviewMachineId === 'cokeOven') {
+        instance.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
+        instance.process.fluids.creosote = reviewState === 'active' ? 48 : 64
+      }
+      if (reviewMachineId === 'brickedBlastFurnace') {
+        instance.process.fuelDurationMs = 12000
+        instance.process.fuelRemainingMs = reviewState === 'active' ? 8000 : 0
+      }
+      if (reviewMachineId === 'arcBlastFurnace') {
+        const buffer = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'lvBatteryBuffer4A')
+        if (buffer) {
+          buffer.process.batterySlots = Array.from({ length: 4 }, () => 'lithiumBattery')
+          buffer.process.euCapacity = 16384
+          buffer.process.euStored = 8192
+        }
       }
       if (isLiquidSteamBoilerMachine(reviewMachineId)) {
         const well = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'well')
@@ -1801,6 +1845,7 @@ function App() {
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
+  const [showLockedQuests, setShowLockedQuests] = useState(false)
   const [terminalNotice, setTerminalNotice] = useState('')
   const [, setFactoryNotice] = useState('')
   const [offlineNotice, setOfflineNotice] = useState('')
@@ -2111,7 +2156,7 @@ function App() {
   }, [gatherArea, state])
 
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
-  const guideQuests = useMemo(() => visibleQuests(state), [state])
+  const guideQuests = useMemo(() => (showLockedQuests ? questDefinitions : visibleQuests(state)), [showLockedQuests, state])
   const selectedQuest = useMemo(() => guideQuests.find((quest) => quest.id === selectedQuestId) ?? null, [guideQuests, selectedQuestId])
   const claimableQuestRewardCount = guideQuests.filter((quest) => state.completedQuests.includes(quest.id) && !state.claimedQuests.includes(quest.id)).length
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
@@ -2393,7 +2438,10 @@ function App() {
     isLiquidSteamBoilerMachine(selectedMachine.machineId) ||
     isEuStorageMachine(selectedMachine.machineId) ||
     isEuProducerMachine(selectedMachine.machineId) ||
-    isAutoMinerMachine(selectedMachine.machineId)
+    isAutoMinerMachine(selectedMachine.machineId) ||
+    selectedMachine.machineId === 'cokeOven' ||
+    selectedMachine.machineId === 'brickedBlastFurnace' ||
+    selectedMachine.machineId === 'arcBlastFurnace'
   ))
   const selectedMachineStatusLabel = selectedMachine ? machineStatus(state, selectedMachine) : ''
   const assemblerStageLabel = selectedMachineUsesIntegratedStatus && selectedMachineStatusLabel === 'No input' ? 'Ready for input' : selectedMachineStatusLabel
@@ -5432,13 +5480,16 @@ function App() {
                 ) : selectedMachine.machineId === 'well' ? (
                   <div className="well-interface water-source-interface utility-hmi">
                     <div className="utility-vessel water-vessel" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
-                      <span style={{ height: `${metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128)}%` }} />
+                      <span style={{ '--vessel-fill-scale': metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128) / 100 } as CSSProperties} />
                       <MachineGlyph id="well" active />
                     </div>
-                    <div className="utility-readout-grid">
-                      <span><small>Buffer</small><strong>{formatLitres(selectedMachine.process.fluids.water ?? 0)}L</strong><em>{formatLitres(selectedMachine.process.fluidCapacityLitres || 128)}L max</em></span>
-                      <span><small>Recovery</small><strong>12L/s</strong><em>Ground water</em></span>
-                      <span><small>Output</small><strong>{formatAmount(currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0))}L/s</strong><em>{currentFluidOutputFlows(state, selectedMachine).length ? 'Pipe connected' : 'No route'}</em></span>
+                    <div className="utility-readout-grid well-instrument-stack">
+                      <div className="well-buffer-instrument" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
+                        <div className="well-buffer-gauge"><span style={{ height: `${metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128)}%` }} /></div>
+                        <span><small>Water buffer</small><strong>{formatLitres(selectedMachine.process.fluids.water ?? 0)}L</strong><em>{formatLitres(selectedMachine.process.fluidCapacityLitres || 128)}L max</em></span>
+                      </div>
+                      <span><small>Recovery</small><strong>{formatAmount(wellWaterProductionLitresPerSecond)}L/s</strong><em>Ground water</em></span>
+                      <span><small>Output</small><strong>{formatAmount(currentWellWaterFlowLitresPerSecond(state, selectedMachine))}L/s</strong><em>{currentWellWaterFlowLitresPerSecond(state, selectedMachine) > 0 ? 'Supplying network' : 'No demand'}</em></span>
                     </div>
                   </div>
                 ) : selectedMachine.machineId === 'steamBoiler' ? (
@@ -5462,9 +5513,11 @@ function App() {
                       const isSteam = selectedMachine.process.steamStoredMs > 0 || !fluid
                       const amount = isSteam ? formatSteamLitres(selectedMachine.process.steamStoredMs) : fluid?.amount ?? 0
                       const capacity = isSteam ? formatSteamLitres(selectedSteamTankCapacityMs) : selectedSteamTankFluidCapacityLitres
+                      const outputFaces = pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output').map((direction) => pipeDirectionOffsets[direction].label)
+                      const fluidOutflow = currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0)
                       return <>
                         <div className={`utility-vessel iron-tank-vessel ${isSteam ? 'steam-contents' : 'fluid-contents'}`}>
-                          <span style={{ height: `${metricFill(amount, capacity)}%` }} />
+                          <span style={{ '--vessel-fill-scale': metricFill(amount, capacity) / 100 } as CSSProperties} />
                           <MachineGlyph id="steamTank" active={amount > 0} />
                           <strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong>
                         </div>
@@ -5472,46 +5525,60 @@ function App() {
                           <span><small>Contents</small><strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong><em>Single fluid tank</em></span>
                           <span><small>Stored</small><strong>{formatLitres(amount)}L</strong><em>{formatLitres(capacity)}L max</em></span>
                           <span><small>Structure</small><strong>{selectedMachine.level > 1 ? `${selectedMachine.level} blocks` : 'Single tank'}</strong><em>Capacity scales with size</em></span>
+                          <span><small>Output</small><strong>{outputFaces.join(', ') || 'Closed'}</strong><em>{formatAmount(fluidOutflow)}L/s live · {machines[selectedMachine.machineId].fluidOutputLitresPerSecond ?? 0}L/s max</em></span>
                         </div>
                       </>
                     })()}
                   </div>
                 ) : isSteamPipeMachine(selectedMachine.machineId) ? (
-                  <div className={`well-interface dual-tank-interface pipe-terminal-interface utility-hmi ${currentSteamPipeFlowLitresPerSecond(state, selectedMachine) > 0 ? 'is-flowing' : ''}`}>
-                    {selectedMachine.process.steamStoredMs > 0 && (
-                      <SteamTank
-                        storedMs={selectedMachine.process.steamStoredMs}
-                        capacityMs={selectedMachine.process.steamCapacityMs || steamPipeBufferCapacityMs(selectedMachine.machineId)}
-                      />
-                    )}
-                    {storedFluids(selectedMachine.process).map((fluid) => (
-                      <FluidTank
-                        label={fluidLabel(fluid.id)}
-                        storedLitres={fluid.amount}
-                        capacityLitres={selectedMachine.process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)}
-                        key={fluid.id}
-                      />
-                    ))}
-                    {selectedMachine.process.steamStoredMs < 1 && storedFluids(selectedMachine.process).length < 1 && (
-                      <EmptyTank label="Empty pipe" capacityLitres={fluidPipeBufferCapacityLitres(selectedMachine.machineId)} />
-                    )}
-                    <span>
-                      Content flow {formatAmount(currentSteamPipeFlowLitresPerSecond(state, selectedMachine))}L/s | Limit {steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s
-                    </span>
-                  </div>
+                  (() => {
+                    const fluid = selectedMachineStoredFluids[0]
+                    const hasSteam = selectedMachine.process.steamStoredMs > 0
+                    const contents = hasSteam ? 'Steam' : fluid ? fluidLabel(fluid.id) : 'Empty'
+                    const stored = hasSteam ? formatSteamLitres(selectedMachine.process.steamStoredMs) : fluid?.amount ?? 0
+                    const capacity = hasSteam
+                      ? formatSteamLitres(selectedMachine.process.steamCapacityMs || steamPipeBufferCapacityMs(selectedMachine.machineId))
+                      : selectedMachine.process.fluidCapacityLitres || fluidPipeBufferCapacityLitres(selectedMachine.machineId)
+                    const fluidFlow = fluid ? currentFluidOutputFlows(state, selectedMachine).find((flow) => flow.fluidId === fluid.id)?.litresPerSecond ?? 0 : 0
+                    const flow = hasSteam ? currentSteamPipeFlowLitresPerSecond(state, selectedMachine) : fluidFlow
+                    const inputFaces = pipeDirections.filter((direction) => ['input', 'both'].includes(pipeSideMode(selectedMachine, direction))).map((direction) => pipeDirectionOffsets[direction].label)
+                    const outputFaces = pipeDirections.filter((direction) => ['output', 'both'].includes(pipeSideMode(selectedMachine, direction))).map((direction) => pipeDirectionOffsets[direction].label)
+                    return <div className={`pipe-terminal-interface pipe-hmi ${flow > 0 ? 'is-flowing' : ''} ${hasSteam ? 'contains-steam' : fluid ? 'contains-fluid' : 'is-empty'}`}>
+                      <div className="pipe-route-strip">
+                        <span><small>In</small><strong>{inputFaces.length === 4 ? 'All faces' : inputFaces.join(', ') || 'Closed'}</strong></span>
+                        <span><small>Contents</small><strong>{contents}</strong></span>
+                        <span><small>Out</small><strong>{outputFaces.length === 4 ? 'All faces' : outputFaces.join(', ') || 'Closed'}</strong></span>
+                      </div>
+                      <div className="pipe-sight-stage" style={{ '--pipe-medium': fluidVisualColor(fluid?.id), '--pipe-fill-scale': Math.max(0.08, metricFill(stored, capacity) / 100) } as CSSProperties}>
+                        <div className="pipe-live-medium" aria-hidden="true"><span /></div>
+                        <div className="pipe-stage-readout"><span>{formatLitres(stored)}L</span><small>{formatLitres(capacity)}L internal</small></div>
+                      </div>
+                      <div className="pipe-data-strip">
+                        <span><small>Flow</small><strong>{formatAmount(flow)}L/s</strong></span>
+                        <span><small>Limit</small><strong>{steamPipeTransferLitresPerSecond[selectedMachine.machineId] ?? 0}L/s</strong></span>
+                        <span><small>State</small><strong>{flow > 0 ? 'Transferring' : contents === 'Empty' ? 'Empty' : 'Holding'}</strong></span>
+                      </div>
+                    </div>
+                  })()
                 ) : isEuCableMachine(selectedMachine.machineId) ? (
-                  <div className={`well-interface cable-terminal-interface utility-hmi ${currentEuCableFlowEuPerSecond(state, selectedMachine) > 0 ? 'is-flowing' : ''}`}>
-                    <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || euCableBufferCapacity(selectedMachine.machineId)} />
-                    <span>
-                      Flow {formatAmount(currentEuCableFlowEuPerSecond(state, selectedMachine))} EU/s | Loses {tinCableLossEuPerTile} EU per cable tile
-                    </span>
+                  <div className={`cable-terminal-interface cable-hmi ${currentEuCableFlowEuPerSecond(state, selectedMachine) > 0 ? 'is-flowing' : ''}`}>
+                    <div className="cable-route-strip">
+                      <span><small>Rating</small><strong>{machines[selectedMachine.machineId].euAmps ?? 1}A LV</strong></span>
+                      <span><small>Flow</small><strong>{formatAmount(currentEuCableFlowEuPerSecond(state, selectedMachine))} EU/s</strong></span>
+                      <span><small>Loss</small><strong>{tinCableLossEuPerTile} EU/tile</strong></span>
+                    </div>
+                    <div className="cable-cutaway-stage"><span className="cable-current" aria-hidden="true" /></div>
+                    <div className="cable-data-strip">
+                      <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || euCableBufferCapacity(selectedMachine.machineId)} />
+                      <span><small>Route</small><strong>{currentEuCableFlowEuPerSecond(state, selectedMachine) > 0 ? 'Energized' : selectedMachine.process.euStored > 0 ? 'Charged' : 'No supply'}</strong></span>
+                    </div>
                   </div>
                 ) : isLiquidSteamBoilerMachine(selectedMachine.machineId) ? (
                   <div className="boiler-hmi liquid-boiler-interface">
                     <div className="boiler-system-strip">
                       <span><small>Creosote</small><strong>{formatLitres(selectedMachine.process.fluids.creosote ?? 0)}L</strong></span>
+                      <span><small>Inputs</small><strong>{formatAmount(liquidSteamBoilerCreosoteUseLitresPerSecond)}L/s fuel</strong><em>{formatAmount(boilerSteamProductionLitresPerSecond)}L/s water</em></span>
                       <span><small>Steam out</small><strong>{formatAmount(liquidSteamBoilerSteamProductionLitresPerSecond)}L/s</strong></span>
-                      <span><small>Fuel use</small><strong>{formatAmount(liquidSteamBoilerCreosoteUseLitresPerSecond)}L/s</strong></span>
                     </div>
                     <div className="dual-boiler-vessels">
                       <FluidTank label={fluidLabel('creosote')} storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
@@ -5693,6 +5760,37 @@ function App() {
                       {state.autoMinerAssignments[selectedMachine.uid] ? 'Change target' : 'Choose target'}
                     </button>
                   </div>
+                ) : selectedMachine.machineId === 'cokeOven' || selectedMachine.machineId === 'brickedBlastFurnace' || selectedMachine.machineId === 'arcBlastFurnace' ? (
+                  (() => {
+                    const process = selectedMachine.process
+                    const isCokeOven = selectedMachine.machineId === 'cokeOven'
+                    const isBbf = selectedMachine.machineId === 'brickedBlastFurnace'
+                    const isArc = selectedMachine.machineId === 'arcBlastFurnace'
+                    const progress = process.durationMs > 0 ? metricFill(process.progressMs, process.durationMs) : 0
+                    const activeRecipe = processRecipes.find((recipe) => recipe.id === process.activeRecipeId)
+                    const fluidProductionRate = activeRecipe?.fluidOutput ? activeRecipe.fluidOutput.amount / (activeRecipe.durationMs / 1000) : 0
+                    const fluidOutflow = isCokeOven ? currentFluidOutputFlows(state, selectedMachine).find((flow) => flow.fluidId === 'creosote')?.litresPerSecond ?? 0 : 0
+                    return <div className={`multiblock-hmi ${isArc ? 'arc-multiblock-hmi' : isBbf ? 'bbf-multiblock-hmi' : 'coke-multiblock-hmi'}`}>
+                      <div className="multiblock-stat-strip">
+                        <span><small>State</small><strong>{machineStatus(state, selectedMachine)}</strong></span>
+                        <span><small>Time</small><strong>{selectedMachineProcessTimeLabel || '--'}</strong></span>
+                        <span><small>{isArc ? 'Power' : isBbf ? 'Heat' : 'Byproduct'}</small><strong>{isArc ? `${formatAmount(selectedMachineEuUsagePerSecond)} EU/s` : isBbf ? (process.fuelRemainingMs > 0 ? 'Hot' : 'Cold') : `${formatLitres(process.fluids.creosote ?? 0)}L creosote`}</strong>{isCokeOven && <em>{formatAmount(fluidProductionRate)}L/s made · {formatAmount(fluidOutflow)}L/s out</em>}</span>
+                      </div>
+                      <div className="multiblock-stage">
+                        <div className="multiblock-input-bank">
+                          <ProcessItemSlot slot={process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                          {isBbf && <ProcessItemSlot slot={process.fuel} label="Coke" onClick={() => handleProcessSlotPress('fuel')} />}
+                        </div>
+                        <div className="multiblock-core-state"><span className={process.activeRecipeId ? 'active' : ''} /></div>
+                        <div className="multiblock-output-bank">
+                          {isCokeOven && <FluidTank label={fluidLabel('creosote')} storedLitres={process.fluids.creosote ?? 0} capacityLitres={process.fluidCapacityLitres || cokeOvenFluidCapacityLitres} />}
+                          {isArc && <EnergyTank storedEu={process.euStored} capacityEu={process.euCapacity || 256} />}
+                          <ProcessItemSlot slot={process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                        </div>
+                      </div>
+                      <div className="multiblock-load-rail"><span style={{ width: `${progress}%` }} /><strong>Load</strong><em>{Math.floor(progress)}%</em></div>
+                    </div>
+                  })()
                 ) : selectedMachineIsHmiTerminal ? (
                   (() => {
                     const isSteamHmi = isSteamPoweredMachine(selectedMachine.machineId)
@@ -5785,6 +5883,31 @@ function App() {
                       </div>
                     )
                   })()
+                ) : selectedMachine.machineId === 'furnace' ? (
+                <div className="primitive-furnace-hmi">
+                  <div className="primitive-furnace-stat-strip">
+                    <span><small>State</small><strong>{machineStatus(state, selectedMachine)}</strong></span>
+                    <span><small>Time</small><strong>{selectedMachineProcessTimeLabel || '--'}</strong></span>
+                    <span><small>Heat</small><strong>{selectedMachine.process.fuelRemainingMs > 0 ? 'Hot' : 'Cold'}</strong></span>
+                  </div>
+                  <div className="primitive-furnace-stage">
+                    <div className="primitive-furnace-input-bank">
+                      <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                      <ProcessItemSlot slot={selectedMachine.process.fuel} label="Fuel" onClick={() => handleProcessSlotPress('fuel')} />
+                    </div>
+                    <div className={selectedMachine.process.fuelRemainingMs > 0 ? 'primitive-furnace-fire active' : 'primitive-furnace-fire'} aria-label={selectedMachine.process.fuelRemainingMs > 0 ? 'Firebox hot' : 'Firebox cold'}>
+                      <span />
+                    </div>
+                    <div className="primitive-furnace-output-bank">
+                      <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                    </div>
+                  </div>
+                  <div className="primitive-furnace-load" aria-label={`Primitive Furnace load ${Math.floor(selectedMachineProgressPercent)} percent`}>
+                    <span style={{ width: `${selectedMachineProgressPercent}%` }} />
+                    <strong>{selectedMachine.process.activeRecipeId ? 'Smelting' : 'Load'}</strong>
+                    <em>{Math.floor(selectedMachineProgressPercent)}%</em>
+                  </div>
+                </div>
                 ) : (
                 <div className={`furnace-interface ${selectedMachine.machineId}-process-interface`}>
                   <div className="furnace-inputs">
@@ -5806,42 +5929,6 @@ function App() {
                         <EnergyTank storedEu={selectedMachine.process.euStored} capacityEu={selectedMachine.process.euCapacity || 0} />
                         <span className="steam-usage-line">{formatAmount(selectedMachineEuUsagePerSecond)} EU/s</span>
                       </>
-                    )}
-                    {selectedMachine.machineId === 'cokeOven' && (selectedMachine.process.fluids.creosote ?? 0) > 0 && (
-                      <FluidTank
-                        label={fluidLabel('creosote')}
-                        storedLitres={selectedMachine.process.fluids.creosote ?? 0}
-                        capacityLitres={selectedMachine.process.fluidCapacityLitres || cokeOvenFluidCapacityLitres}
-                      />
-                    )}
-                    {selectedMachine.machineId === 'furnace' && (
-                    <div
-                      className={selectedMachine.process.fuelRemainingMs > 0 ? 'furnace-flame active' : 'furnace-flame'}
-                      title={
-                        selectedMachine.process.fuelRemainingMs > 0
-                          ? `Fuel remaining: ${formatDuration(selectedMachine.process.fuelRemainingMs)}`
-                          : 'No burning fuel'
-                      }
-                    >
-                      <span
-                        style={{
-                          height: `${
-                            selectedMachine.process.fuelRemainingMs > 0 && selectedMachine.process.fuelDurationMs > 0
-                              ? Math.max(6, Math.min(100, (selectedMachine.process.fuelRemainingMs / selectedMachine.process.fuelDurationMs) * 100))
-                              : selectedMachine.process.fuelRemainingMs > 0
-                                ? 100
-                                : 0
-                          }%`,
-                        }}
-                      />
-                      <strong>{selectedMachine.process.fuelRemainingMs > 0 ? formatDuration(selectedMachine.process.fuelRemainingMs) : ''}</strong>
-                    </div>
-                    )}
-                    {selectedMachine.machineId === 'furnace' && (
-                    <ProcessItemSlot slot={selectedMachine.process.fuel} label="Fuel" onClick={() => handleProcessSlotPress('fuel')} />
-                    )}
-                    {selectedMachine.machineId === 'brickedBlastFurnace' && (
-                    <ProcessItemSlot slot={selectedMachine.process.fuel} label="Coke" onClick={() => handleProcessSlotPress('fuel')} />
                     )}
                   </div>
                   <div className="furnace-progress">
@@ -6008,6 +6095,8 @@ function App() {
             onSelectQuest={handleSelectQuest}
             onClaimAll={handleClaimAllQuestRewards}
             claimableRewardCount={claimableQuestRewardCount}
+            showLockedQuests={showLockedQuests}
+            onToggleLockedQuests={() => setShowLockedQuests((current) => !current)}
           />
         </section>
       )}

@@ -4,6 +4,8 @@ Click Foundry is a mobile-first block-tech idle prototype. It starts with surviv
 
 The game uses original names and presentation while following the spirit of long industrial progression: small inputs, many intermediates, satisfying gates, and deliberately slow early automation.
 
+Development workflow and agent guidance live in [`DEVELOPMENT_PLAYBOOK.md`](./DEVELOPMENT_PLAYBOOK.md).
+
 ## Commands
 
 ```bash

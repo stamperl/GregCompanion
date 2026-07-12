@@ -4,6 +4,8 @@
 
 Click Foundry is a mobile-first React/Vite/TypeScript block-tech idle prototype. Keep the presentation original: do not use Minecraft, GregTech, GTNH, modpack names, copied textures, logos, or branded UI art.
 
+For feature planning, content additions, icons, machine terminals, quests, saves, validation, and releases, read and follow `DEVELOPMENT_PLAYBOOK.md` before implementation.
+
 ## Setup
 
 Use Node/npm.

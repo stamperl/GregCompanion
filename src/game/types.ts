@@ -468,8 +468,8 @@ export type QuestIcon =
   | { type: 'gather'; id: GatherTargetId }
 
 export type QuestObjective =
-  | { type: 'resource'; id: ResourceId; amount: number; label?: string }
-  | { type: 'machine'; id: MachineId; amount: number; label?: string }
+  | { type: 'resource'; id: ResourceId; amount: number; label?: string; progressMode?: 'current' | 'lifetime' }
+  | { type: 'machine'; id: MachineId; amount: number; label?: string; progressMode?: 'current' | 'lifetime' }
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }
 
@@ -491,6 +491,7 @@ export type MachineSpec = Machine & {
   pipeTransferLitresPerSecond?: number
   steamCapacityLitres?: number
   fluidCapacityLitres?: number
+  fluidOutputLitresPerSecond?: number
   euCapacity?: number
   euOutputPerSecond?: number
   euAmps?: number
@@ -535,6 +536,8 @@ export type GameState = {
   unlockedQuests: QuestId[]
   craftedResources: ResourceId[]
   discoveredResources: ResourceId[]
+  resourceMilestones: Partial<Record<ResourceId, number>>
+  machineMilestones: Partial<Record<MachineId, number>>
   equipment: EquipmentState
   durability: Partial<Record<ResourceId, number>>
   gatherProgress: Partial<Record<GatherTargetId, number>>

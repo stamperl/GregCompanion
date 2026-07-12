@@ -26,6 +26,7 @@ import {
   crowbarRemoveMachineInstance,
   createCreativeState,
   currentFluidOutputFlows,
+  currentWellWaterFlowLitresPerSecond,
   currentSteamPipeFlowLitresPerSecond,
   craftableQuantity,
   craftRecipeInstant,
@@ -91,6 +92,7 @@ import {
   unassignAutoMiner,
   visibleQuests,
   visibleRecipes,
+  wellWaterOutputLitresPerSecond,
 } from './engine'
 import type { CraftSlot, MachineId, PipeDirection, PipeSideMode, Recipe } from './types'
 
@@ -154,7 +156,7 @@ describe('game engine', () => {
     state.resources.brick = 540
     state.resources.ironPlate = 72
     state.resources.steelPlate = 24
-    state.resources.aluminiumPlate = 8
+    state.resources.aluminiumPlate = 16
 
     state = expandFactoryFloor(state)
     expect(state.factoryFoundationLevel).toBe(2)
@@ -173,7 +175,7 @@ describe('game engine', () => {
       { id: 'cobblestone', amount: 384 },
       { id: 'brick', amount: 192 },
       { id: 'steelPlate', amount: 16 },
-      { id: 'aluminiumPlate', amount: 8 },
+      { id: 'aluminiumPlate', amount: 16 },
     ])
 
     state = expandFactoryFloor(state)
@@ -444,25 +446,28 @@ describe('game engine', () => {
   it('gates shop stock by the displayed age', () => {
     let state = createInitialState(1000)
     const copperShopItem = shopItems.find((item) => item.id === 'copperOre')!
-    const steelShopItem = shopItems.find((item) => item.id === 'steelIngot')!
+    const nickelShopItem = shopItems.find((item) => item.id === 'nickelOre')!
     state.completedQuests.push('buildFoundation')
-    state.discoveredResources = ['copperOre', 'steelIngot']
+    state.discoveredResources = ['copperOre', 'nickelOre']
     state.scrip = 1000
 
     expect(canBuyShopItem(state, copperShopItem)).toBe(false)
-    expect(canBuyShopItem(state, steelShopItem)).toBe(false)
+    expect(canBuyShopItem(state, nickelShopItem)).toBe(false)
 
     state.completedQuests.push('bronzeAge')
     expect(canBuyShopItem(state, copperShopItem)).toBe(true)
-    expect(canBuyShopItem(state, steelShopItem)).toBe(false)
+    expect(canBuyShopItem(state, nickelShopItem)).toBe(false)
 
     state.completedQuests.push('steelPlateQuest')
-    expect(canBuyShopItem(state, steelShopItem)).toBe(true)
+    expect(canBuyShopItem(state, nickelShopItem)).toBe(true)
   })
 
-  it('keeps LV circuit and multiblock casing shortcuts out of the shop', () => {
+  it('keeps processed bottlenecks and machine shortcuts out of the shop', () => {
     expect(shopItems.some((item) => item.id === 'basicBoard' || item.id === 'primitiveCircuit')).toBe(false)
     expect(shopItems.some((item) => item.id === 'bbfCasing' || item.id === 'heatProofCasing')).toBe(false)
+    for (const resourceId of ['rubber', 'conductiveWire', 'redAlloyIngot', 'redAlloyWire', 'steelIngot', 'steelPlate', 'steelRod', 'aluminiumDust']) {
+      expect(shopItems.some((item) => item.id === resourceId), resourceId).toBe(false)
+    }
   })
 
   it('sells only the fixed gathered material list for Foundry Scrip', () => {
@@ -654,6 +659,88 @@ describe('game engine', () => {
     expect(arcFurnace.requirements.machines).toEqual([{ id: 'arcBlastFurnace', amount: 1 }])
   })
 
+  it('completes an already-satisfied child quest when its parent completes', () => {
+    const state = createFactoryState(1000)
+    state.resources.log = 1
+    state.resources.plank = 4
+
+    const result = tickGame(state, 1, 1001)
+
+    expect(result.questCompletions).toEqual(['punchTree', 'craftPlanks'])
+    expect(result.state.completedQuests).toContain('punchTree')
+    expect(result.state.completedQuests).toContain('craftPlanks')
+  })
+
+  it('keeps lifetime quest credit after an early-crafted item is consumed', () => {
+    let state = createFactoryState(1000)
+    state.completedQuests.push('punchTree')
+    state.resources.plank = 6
+    const sticks = recipes.find((recipe) => recipe.id === 'craft_sticks')!
+
+    state = craftRecipeInstant(state, sticks, 1)
+    state.resources.stick = 0
+    state = tickGame(state, 1, 1001).state
+
+    expect(state.completedQuests).toContain('craftPlanks')
+    expect(state.completedQuests).toContain('craftSticks')
+  })
+
+  it('keeps explicit stockpile quests tied to current inventory', () => {
+    const state = createFactoryState(1000)
+    state.completedQuests.push('buildBbfQuest', 'steamOrePrepQuest')
+    state.resourceMilestones.steelIngot = 4
+
+    expect(tickGame(state, 1, 1001).state.completedQuests).not.toContain('firstSteel')
+  })
+
+  it('counts a placed machine toward build milestones', () => {
+    let state = createFactoryState(1000)
+    state.completedQuests.push('craftSteamCasingQuest')
+    state.machines.steamBoiler = 1
+    state.machineMilestones.steamBoiler = 1
+    state = placeMachineInstance(state, 'steamBoiler', 0, 0)
+
+    state = tickGame(state, 1, 1001).state
+
+    expect(state.completedQuests).toContain('makeSteam')
+  })
+
+  it('reveals guided LV recipes alongside their production lessons', () => {
+    const unlocks = {
+      build_tin_cable: 'buildSteamTurbineQuest',
+      bundle_tin_cable_2a: 'fillLvBatteryQuest',
+      bundle_tin_cable_4a: 'buildTwoAmpCableQuest',
+      bundle_tin_cable_8a: 'firstAluminiumQuest',
+      craft_lv_motor: 'makeSteelMechanicsQuest',
+      craft_lv_piston: 'makeLvMotorQuest',
+      craft_lv_pump: 'makeLvMotorQuest',
+      craft_lv_conveyor: 'makeLvMotorQuest',
+      build_lv_wiremill: 'makeLvMotionPartsQuest',
+      build_lv_battery_buffer: 'runLvWiremillQuest',
+      craft_empty_battery_cell: 'gatherBatteryMineralsQuest',
+      build_lv_canner: 'makeEmptyBatteryCellQuest',
+      build_lv_bender: 'fillLvBatteryQuest',
+      build_lv_lathe: 'fillLvBatteryQuest',
+      build_lv_electrolyzer: 'runLvBenderQuest',
+      build_lv_battery_buffer_4a: 'buildFourAmpCableQuest',
+      build_lv_battery_buffer_8a: 'firstAluminiumQuest',
+    } as const
+
+    for (const [recipeId, questId] of Object.entries(unlocks)) {
+      expect(recipes.find((recipe) => recipe.id === recipeId)?.unlockedBy, recipeId).toBe(questId)
+    }
+
+    const state = createFactoryState(1000)
+    state.completedQuests.push('steelPlateQuest')
+    const earlyLvRecipes = new Set(visibleRecipes(state).map((recipe) => recipe.id))
+    expect(earlyLvRecipes.has('craft_lv_motor')).toBe(false)
+    expect(earlyLvRecipes.has('build_lv_wiremill')).toBe(false)
+    expect(earlyLvRecipes.has('bundle_tin_cable_8a')).toBe(false)
+
+    state.completedQuests.push('makeSteelMechanicsQuest')
+    expect(visibleRecipes(state).map((recipe) => recipe.id)).toContain('craft_lv_motor')
+  })
+
   it('keeps quest-unlocked LV recipes visible before all ingredients are owned', () => {
     const state = createFactoryState(1000)
     state.completedQuests.push('steelPlateQuest')
@@ -801,13 +888,31 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(3)
+    expect(state.version).toBe(4)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
     expect(state.resources.log).toBe(1)
     expect(state.resources.charcoal).toBe(1)
     expect(state.migrationNotices).toContain('coke-oven-multiblock')
+  })
+
+  it('migrates legacy discovery and ownership into lifetime quest milestones', () => {
+    const state = loadGame(
+      JSON.stringify({
+        version: 3,
+        resources: { stick: 0, steelIngot: 3 },
+        machines: { steamBoiler: 1 },
+        craftedResources: ['stick'],
+        discoveredResources: ['steelIngot'],
+      }),
+      2000,
+    )
+
+    expect(state.version).toBe(4)
+    expect(state.resourceMilestones.stick).toBe(1)
+    expect(state.resourceMilestones.steelIngot).toBe(3)
+    expect(state.machineMilestones.steamBoiler).toBe(1)
   })
 
   it('keeps current 2x2 coke oven multiblocks intact when loading current saves', () => {
@@ -1893,6 +1998,36 @@ describe('game engine', () => {
     expect(recipes.filter((recipe) => recipe.recipeType === 'machine').map((recipe) => recipe.id)).toEqual([])
   })
 
+  it('builds every core Steam machine around one heavy riveted casing', () => {
+    const steamMachineRecipeIds = [
+      'build_steam_boiler',
+      'build_steam_macerator',
+      'build_steam_forge_hammer',
+      'build_steam_compressor',
+      'build_steam_extractor',
+      'build_steam_alloy_smelter',
+      'build_steam_furnace',
+      'build_steam_auto_miner',
+    ]
+
+    for (const recipeId of steamMachineRecipeIds) {
+      const recipe = recipes.find((candidate) => candidate.id === recipeId)!
+      expect(recipe.inputs).toContainEqual({ id: 'steamCasing', amount: 1 })
+      expect(recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
+      expect(recipe.pattern?.every(Boolean), recipeId).toBe(true)
+    }
+
+    const casing = recipes.find((recipe) => recipe.id === 'craft_steam_casing')!
+    expect(casing.inputs).toEqual([{ id: 'bronzePlate', amount: 8 }])
+    expect(casing.catalysts).toEqual([{ id: 'bronzeWrench', amount: 1 }])
+    expect(casing.durabilityCosts).toEqual([{ id: 'bronzeWrench', amount: 1 }])
+    expect(casing.pattern).toEqual([
+      'bronzePlate', 'bronzePlate', 'bronzePlate',
+      'bronzePlate', 'bronzeWrench', 'bronzePlate',
+      'bronzePlate', 'bronzePlate', 'bronzePlate',
+    ])
+  })
+
   it('uses filled 3x3 grids for machine crafts except primitive furnace', () => {
     const machineCrafts = recipes.filter((recipe) => recipe.machineOutputs?.length)
     const exceptions = new Set(['build_furnace'])
@@ -2155,13 +2290,85 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'steamBoiler', 2, 0)
     state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
     const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const well = state.machineInstances.find((instance) => instance.machineId === 'well')!
+    well.process.fluids.water = 64
 
     expect(boilerHasWater(state, boiler)).toBe(true)
+    expect(currentWellWaterFlowLitresPerSecond(state, well)).toBe(24)
 
     state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
     state = tickGame(state, 1000).state
 
     expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(12000)
+  })
+
+  it('moves water at Bronze pipe throughput and exposes live pipe contents', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.bronzePipe = 1
+    state.machines.steamBoiler = 1
+    state.resources.log = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'bronzePipe', 1, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 2, 0)
+    state = configurePlacedConnector(state, 'bronzePipe', { west: 'input', east: 'output' })
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const well = state.machineInstances.find((instance) => instance.machineId === 'well')!
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
+
+    expect(currentWellWaterFlowLitresPerSecond(state, well)).toBe(48)
+    state = tickGame(state, 1000).state
+
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'bronzePipe')!
+    const activeWell = state.machineInstances.find((instance) => instance.machineId === 'well')!
+    expect(currentWellWaterFlowLitresPerSecond(state, activeWell)).toBe(48)
+    expect(pipe.process.fluids.water).toBeGreaterThan(0)
+    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(12000)
+  })
+
+  it('lets an Iron route drain the Well buffer above its recovery rate', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.ironPipe = 1
+    state.machines.steamBoiler = 1
+    state.resources.log = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'ironPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 2, 0)
+    state = configurePlacedConnector(state, 'ironPipe', { west: 'input', east: 'output' })
+    const well = state.machineInstances.find((instance) => instance.machineId === 'well')!
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    well.process.fluids.water = 128
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
+
+    expect(wellWaterOutputLitresPerSecond).toBe(96)
+    expect(currentWellWaterFlowLitresPerSecond(state, well)).toBe(96)
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === well.uid)!.process.fluids.water).toBe(32)
+    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(12000)
+  })
+
+  it('applies source discharge and route limits to stored fluids', () => {
+    expect(machines.well.fluidOutputLitresPerSecond).toBe(96)
+    expect(machines.cokeOven.fluidOutputLitresPerSecond).toBe(24)
+    expect(machines.steamTank.fluidOutputLitresPerSecond).toBe(96)
+
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.ironPipe = 1
+    state.machines.liquidSteamBoiler = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'ironPipe', 1, 0)
+    state = placeMachineInstance(state, 'liquidSteamBoiler', 2, 0)
+    state = configurePlacedConnector(state, 'ironPipe', { west: 'input', east: 'output' })
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    tank.process.fluids.creosote = 128
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote).toBe(32)
+    expect(state.machineInstances.find((instance) => instance.machineId === 'liquidSteamBoiler')!.process.fluids.creosote).toBe(96)
   })
 
   it('lets one well supply four adjacent boilers', () => {
@@ -2180,7 +2387,7 @@ describe('game engine', () => {
     }
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').reduce((sum, instance) => sum + instance.process.steamStoredMs, 0)).toBe(12000)
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').reduce((sum, instance) => sum + instance.process.steamStoredMs, 0)).toBe(48000)
     expect(state.machineInstances.find((instance) => instance.machineId === 'well')?.process.fluids.water).toBe(0)
   })
 
@@ -2357,6 +2564,21 @@ describe('game engine', () => {
     state = setPipeSideDisabled(state, pipe.uid, 'east', false)
 
     expect(availableConnectedSteam(state, macerator)).toBe(steamTankCapacityMs)
+  })
+
+  it('records collected machine outputs as permanent production milestones', () => {
+    let state = createFactoryState(1000)
+    state.machines.furnace = 1
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    const furnace = state.machineInstances.find((instance) => instance.machineId === 'furnace')!
+    furnace.process.output = { id: 'ironIngot', amount: 2 }
+
+    state = collectProcessOutput(state, furnace.uid)
+    state.resources.ironIngot = 0
+
+    expect(state.resourceMilestones.ironIngot).toBe(2)
+    expect(state.craftedResources).toContain('ironIngot')
+    expect(state.discoveredResources).toContain('ironIngot')
   })
 
   it('places new pipes with every side closed until the player configures flow', () => {
@@ -3543,13 +3765,14 @@ describe('game engine', () => {
     expect(terminalRecipe?.inputs).toEqual([
       { id: 'batteryAlloyPlate', amount: 4 },
       { id: 'tinCable', amount: 1 },
+      { id: 'rubber', amount: 1 },
     ])
     expect(terminalRecipe?.pattern).toEqual([
       null,
       'tinCable',
       null,
       'batteryAlloyPlate',
-      null,
+      'rubber',
       'batteryAlloyPlate',
       'batteryAlloyPlate',
       null,
@@ -3558,12 +3781,11 @@ describe('game engine', () => {
     expect(terminalRecipe?.outputs).toEqual([{ id: 'emptyBatteryCell', amount: 1 }])
   })
 
-  it('keeps LV battery buffer recipes identical except for cable tier', () => {
+  it('stages LV battery buffers through red-alloy controls and aluminium frames', () => {
     const expectations = [
       ['build_lv_battery_buffer', 'tinCable', 'lvBatteryBuffer'],
       ['build_lv_battery_buffer_2a', 'tinCable2A', 'lvBatteryBuffer2A'],
       ['build_lv_battery_buffer_4a', 'tinCable4A', 'lvBatteryBuffer4A'],
-      ['build_lv_battery_buffer_8a', 'tinCable8A', 'lvBatteryBuffer8A'],
     ] as const
 
     for (const [recipeId, cableId, outputId] of expectations) {
@@ -3571,14 +3793,31 @@ describe('game engine', () => {
       expect(recipe?.inputs, recipeId).toEqual([
         { id: 'lvMachineHull', amount: 1 },
         { id: 'tinRod', amount: 4 },
-        { id: cableId, amount: 3 },
+        { id: cableId, amount: 2 },
+        { id: 'redAlloyWire', amount: 1 },
         { id: 'primitiveCircuit', amount: 1 },
       ])
       expect(recipe?.machineInputs, recipeId).toBeUndefined()
-      expect(recipe?.pattern, recipeId).toEqual(['tinRod', cableId, 'tinRod', cableId, 'lvMachineHull', cableId, 'tinRod', 'primitiveCircuit', 'tinRod'])
+      expect(recipe?.pattern, recipeId).toEqual(['tinRod', 'redAlloyWire', 'tinRod', cableId, 'lvMachineHull', cableId, 'tinRod', 'primitiveCircuit', 'tinRod'])
       expect(recipe?.machineOutputs, recipeId).toEqual([{ id: outputId, amount: 1 }])
       expect(recipe && recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
     }
+
+    const eightAmpRecipe = recipes.find((candidate) => candidate.id === 'build_lv_battery_buffer_8a')
+    expect(eightAmpRecipe?.inputs).toEqual([
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'aluminiumPlate', amount: 4 },
+      { id: 'tinCable8A', amount: 2 },
+      { id: 'redAlloyWire', amount: 1 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ])
+    expect(eightAmpRecipe?.pattern).toEqual([
+      'aluminiumPlate', 'redAlloyWire', 'aluminiumPlate',
+      'tinCable8A', 'lvMachineHull', 'tinCable8A',
+      'aluminiumPlate', 'primitiveCircuit', 'aluminiumPlate',
+    ])
+    expect(eightAmpRecipe?.machineOutputs).toEqual([{ id: 'lvBatteryBuffer8A', amount: 1 }])
+    expect(eightAmpRecipe && recipeFitsTerminalGrid(eightAmpRecipe)).toBe(true)
   })
 
   it('crafts LV backbone components from shaped terminal recipes', () => {

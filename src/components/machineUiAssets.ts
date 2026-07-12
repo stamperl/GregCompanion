@@ -29,24 +29,24 @@ const machineUiChamberFiles: Partial<Record<MachineId, string>> = {
 
 const machineUiPanelFiles: Partial<Record<MachineId, string>> = {
   furnace: 'primitive-furnace-panel.webp',
-  well: 'steam-utility-panel.webp',
-  steamBoiler: 'steam-utility-panel.webp',
-  steamTank: 'steam-utility-panel.webp',
+  well: 'well-panel-v2.jpg',
+  steamBoiler: 'steam-boiler-panel-v2.jpg',
+  steamTank: 'iron-tank-panel-v3.jpg',
   standardChest: 'item-logistics-panel.webp',
   hopper: 'item-logistics-panel.webp',
-  copperPipe: 'steam-routing-panel.webp',
-  bronzePipe: 'steam-routing-panel.webp',
-  ironPipe: 'steam-routing-panel.webp',
+  copperPipe: 'universal-pipe-panel-v2.jpg',
+  bronzePipe: 'universal-pipe-panel-v2.jpg',
+  ironPipe: 'universal-pipe-panel-v2.jpg',
   steamAutoMiner: 'auto-miner-panel.webp',
-  steamTurbine: 'lv-power-panel.webp',
-  tinCable: 'lv-power-panel.webp',
-  tinCable2A: 'lv-power-panel.webp',
-  tinCable4A: 'lv-power-panel.webp',
-  tinCable8A: 'lv-power-panel.webp',
-  lvBatteryBuffer: 'lv-power-panel.webp',
-  lvBatteryBuffer2A: 'lv-power-panel.webp',
-  lvBatteryBuffer4A: 'lv-power-panel.webp',
-  lvBatteryBuffer8A: 'lv-power-panel.webp',
+  steamTurbine: 'steam-turbine-panel-v2.jpg',
+  tinCable: 'lv-cable-panel-v2.jpg',
+  tinCable2A: 'lv-cable-panel-v2.jpg',
+  tinCable4A: 'lv-cable-panel-v2.jpg',
+  tinCable8A: 'lv-cable-panel-v2.jpg',
+  lvBatteryBuffer: 'battery-buffer-panel-v2.jpg',
+  lvBatteryBuffer2A: 'battery-buffer-panel-v2.jpg',
+  lvBatteryBuffer4A: 'battery-buffer-panel-v2.jpg',
+  lvBatteryBuffer8A: 'battery-buffer-panel-v2.jpg',
   liquidSteamBoiler: 'liquid-boiler-panel.webp',
   lvAssembler: 'lv-assembler-panel.webp',
   lvAutoMiner: 'auto-miner-panel.webp',
@@ -59,7 +59,7 @@ const machineUiPanelFiles: Partial<Record<MachineId, string>> = {
 }
 
 const machineUiStageFiles: Partial<Record<MachineId, string>> = {
-  lvAssembler: 'lv-assembler-stage.png',
+  lvAssembler: 'lv-assembler-stage-v2.jpg',
 }
 
 export function machineUiChamberSrc(id: MachineId) {
