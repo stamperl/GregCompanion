@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Machine Terminal UI Approval V2</title>
+    <title>Machine Terminal UI Approval V3</title>
     <style>
       :root {
         color-scheme: dark;
@@ -207,7 +207,7 @@
   <body>
     <main>
       <header>
-        <h1>Machine Terminal UI Approval V2</h1>
+        <h1>Machine Terminal UI Approval V3</h1>
         <p>Review every operational terminal in three real phone-sized game states: idle, active, and filled. Casing blocks correctly have no terminal. Decisions and rejection comments are stored in this browser.</p>
         <div class="toolbar">
           <a href="./index.html">Back to review board</a>
@@ -229,20 +229,20 @@
     </main>
 
     <script>
-      const storageKey = 'click-foundry-machine-terminal-ui-approval-v2'
-      const assetVersion = 'terminal-ui-approval-2026-07-11-3'
+      const storageKey = 'click-foundry-machine-terminal-ui-approval-v3'
+      const assetVersion = 'terminal-ui-approval-2026-07-12-4'
       const reviewStates = ['idle', 'active', 'filled']
       const groups = ['all', 'steam', 'lv', 'logistics', 'multi']
       const machines = [
         { id: 'furnace', name: 'Primitive Furnace', group: 'steam', assets: ['primitive-furnace-panel.webp'] },
-        { id: 'well', name: 'Well', group: 'steam', assets: ['steam-utility-panel.webp'], shared: 'Shared Steam utility panel' },
-        { id: 'steamBoiler', name: 'Steam Boiler', group: 'steam', assets: ['steam-utility-panel.webp'], shared: 'Shared Steam utility panel' },
-        { id: 'steamTank', name: 'Iron Tank', group: 'steam', assets: ['steam-utility-panel.webp'], shared: 'Shared Steam utility panel' },
+        { id: 'well', name: 'Well', group: 'steam', assets: ['well-panel-v2.jpg'] },
+        { id: 'steamBoiler', name: 'Steam Boiler', group: 'steam', assets: ['steam-boiler-panel-v2.jpg'] },
+        { id: 'steamTank', name: 'Iron Tank', group: 'steam', assets: ['iron-tank-panel-v3.jpg'] },
         { id: 'standardChest', name: 'Standard Chest', group: 'logistics', assets: ['item-logistics-panel.webp'], shared: 'Shared item logistics panel' },
         { id: 'hopper', name: 'Hopper', group: 'logistics', assets: ['item-logistics-panel.webp'], shared: 'Shared item logistics panel' },
-        { id: 'copperPipe', name: 'Copper Steam Pipe', group: 'logistics', assets: ['steam-routing-panel.webp'], shared: 'Shared Steam routing panel' },
-        { id: 'bronzePipe', name: 'Bronze Steam Pipe', group: 'logistics', assets: ['steam-routing-panel.webp'], shared: 'Shared Steam routing panel' },
-        { id: 'ironPipe', name: 'Iron Steam Pipe', group: 'logistics', assets: ['steam-routing-panel.webp'], shared: 'Shared Steam routing panel' },
+        { id: 'copperPipe', name: 'Copper Steam Pipe', group: 'logistics', assets: ['universal-pipe-panel-v2.jpg'], shared: 'Shared universal fluid panel' },
+        { id: 'bronzePipe', name: 'Bronze Steam Pipe', group: 'logistics', assets: ['universal-pipe-panel-v2.jpg'], shared: 'Shared universal fluid panel' },
+        { id: 'ironPipe', name: 'Iron Steam Pipe', group: 'logistics', assets: ['universal-pipe-panel-v2.jpg'], shared: 'Shared universal fluid panel' },
         { id: 'steamMacerator', name: 'Steam Macerator', group: 'steam', assets: ['steam-macerator-chamber.webp'] },
         { id: 'steamForgeHammer', name: 'Steam Forge Hammer', group: 'steam', assets: ['steam-forge-hammer-chamber.webp'] },
         { id: 'steamCompressor', name: 'Steam Compressor', group: 'steam', assets: ['steam-compressor-chamber.webp'] },
@@ -250,16 +250,16 @@
         { id: 'steamAlloySmelter', name: 'Steam Alloy Smelter', group: 'steam', assets: ['steam-alloy-smelter-chamber.webp'] },
         { id: 'steamFurnace', name: 'Steam Furnace', group: 'steam', assets: ['steam-furnace-chamber.webp'] },
         { id: 'steamAutoMiner', name: 'Steam Auto Miner', group: 'steam', assets: ['auto-miner-panel.webp'], shared: 'Shared auto-miner panel' },
-        { id: 'steamTurbine', name: 'Steam Turbine', group: 'steam', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
+        { id: 'steamTurbine', name: 'Steam Turbine', group: 'steam', assets: ['steam-turbine-panel-v2.jpg'] },
         { id: 'liquidSteamBoiler', name: 'Liquid Steam Boiler', group: 'steam', assets: ['liquid-boiler-panel.webp'] },
-        { id: 'tinCable', name: '1A Tin Cable', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
-        { id: 'tinCable2A', name: '2A Tin Cable', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
-        { id: 'tinCable4A', name: '4A Tin Cable', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
-        { id: 'tinCable8A', name: '8A Tin Cable', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
-        { id: 'lvBatteryBuffer', name: '1A LV Battery Buffer', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
-        { id: 'lvBatteryBuffer2A', name: '2A LV Battery Buffer', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
-        { id: 'lvBatteryBuffer4A', name: '4A LV Battery Buffer', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
-        { id: 'lvBatteryBuffer8A', name: '8A LV Battery Buffer', group: 'lv', assets: ['lv-power-panel.webp'], shared: 'Shared LV power panel' },
+        { id: 'tinCable', name: '1A Tin Cable', group: 'lv', assets: ['lv-cable-panel-v2.jpg'], shared: 'Shared LV cable panel' },
+        { id: 'tinCable2A', name: '2A Tin Cable', group: 'lv', assets: ['lv-cable-panel-v2.jpg'], shared: 'Shared LV cable panel' },
+        { id: 'tinCable4A', name: '4A Tin Cable', group: 'lv', assets: ['lv-cable-panel-v2.jpg'], shared: 'Shared LV cable panel' },
+        { id: 'tinCable8A', name: '8A Tin Cable', group: 'lv', assets: ['lv-cable-panel-v2.jpg'], shared: 'Shared LV cable panel' },
+        { id: 'lvBatteryBuffer', name: '1A LV Battery Buffer', group: 'lv', assets: ['battery-buffer-panel-v2.jpg'], shared: 'Shared LV battery panel' },
+        { id: 'lvBatteryBuffer2A', name: '2A LV Battery Buffer', group: 'lv', assets: ['battery-buffer-panel-v2.jpg'], shared: 'Shared LV battery panel' },
+        { id: 'lvBatteryBuffer4A', name: '4A LV Battery Buffer', group: 'lv', assets: ['battery-buffer-panel-v2.jpg'], shared: 'Shared LV battery panel' },
+        { id: 'lvBatteryBuffer8A', name: '8A LV Battery Buffer', group: 'lv', assets: ['battery-buffer-panel-v2.jpg'], shared: 'Shared LV battery panel' },
         { id: 'lvMacerator', name: 'LV Macerator', group: 'lv', assets: ['lv-macerator-chamber.webp'] },
         { id: 'lvForgeHammer', name: 'LV Forge Hammer', group: 'lv', assets: ['lv-forge-hammer-chamber.webp'] },
         { id: 'lvCompressor', name: 'LV Compressor', group: 'lv', assets: ['lv-compressor-chamber.webp'] },
@@ -270,7 +270,7 @@
         { id: 'lvBender', name: 'LV Bender', group: 'lv', assets: ['lv-bender-chamber.webp'] },
         { id: 'lvLathe', name: 'LV Lathe', group: 'lv', assets: ['lv-lathe-chamber.webp'] },
         { id: 'lvElectrolyzer', name: 'LV Electrolyzer', group: 'lv', assets: ['lv-electrolyzer-chamber.webp'] },
-        { id: 'lvAssembler', name: 'LV Assembler', group: 'lv', assets: ['lv-assembler-panel.webp', 'lv-assembler-stage.png'] },
+        { id: 'lvAssembler', name: 'LV Assembler', group: 'lv', assets: ['lv-assembler-panel.webp', 'lv-assembler-stage-v2.jpg'] },
         { id: 'lvCentrifuge', name: 'LV Centrifuge', group: 'lv', assets: ['lv-centrifuge-chamber.webp'] },
         { id: 'lvCanner', name: 'LV Canner', group: 'lv', assets: ['lv-canner-chamber.webp'] },
         { id: 'lvAutoMiner', name: 'LV Auto Miner', group: 'lv', assets: ['auto-miner-panel.webp'], shared: 'Shared auto-miner panel' },
@@ -312,7 +312,7 @@
         const waiting = machines.filter((machine) => !reviewFor(machine.id).decision)
         summaryLine.innerHTML = `<span class="approved">${approved.length} approved</span> | <span class="rejected">${rejected.length} rejected</span> | <span class="waiting">${waiting.length} waiting</span> | <span class="incomplete">${incomplete.length} comments required</span>`
         const lines = [
-          'Machine Terminal UI Approval V2',
+          'Machine Terminal UI Approval V3',
           `Approved: ${approved.length}`,
           `Rejected: ${rejected.length}`,
           `Waiting: ${waiting.length}`,
@@ -354,7 +354,7 @@
                 <span class="badge ${machine.group}">${machine.group}</span>
               </div>
               <div class="preview-grid">
-                ${reviewStates.map((stateName) => `<figure><img src="./machine-terminal-ui-v2/${machine.id}-${stateName}.png?v=${assetVersion}" alt="${machine.name} ${stateName} in-game terminal at phone size" loading="lazy" /><figcaption>${stateName} - actual 590 x 1280 game state</figcaption></figure>`).join('')}
+                ${reviewStates.map((stateName) => `<figure><img src="./machine-terminal-ui-v3/${machine.id}-${stateName}.png?v=${assetVersion}" alt="${machine.name} ${stateName} in-game terminal at phone size" loading="lazy" /><figcaption>${stateName} - actual 590 x 1280 game state</figcaption></figure>`).join('')}
               </div>
               <p class="status ${review.decision}">${statusText(review)}</p>
               <div class="decision-row">
@@ -426,7 +426,7 @@
         const payload = JSON.stringify({ version: 2, updatedAt: new Date().toISOString(), reviews: state }, null, 2)
         const link = document.createElement('a')
         link.href = URL.createObjectURL(new Blob([payload], { type: 'application/json' }))
-        link.download = 'click-foundry-machine-ui-approvals-v2.json'
+        link.download = 'click-foundry-machine-ui-approvals-v3.json'
         link.click()
         URL.revokeObjectURL(link.href)
       })
