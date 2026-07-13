@@ -213,7 +213,12 @@ describe('content validation', () => {
       expectResourceAmountReferences([recipe.input], `${recipe.id} input`)
       if (recipe.secondaryInput) expectResourceAmountReferences([recipe.secondaryInput], `${recipe.id} secondary input`)
       if (recipe.fuelInput) expectResourceAmountReferences([recipe.fuelInput], `${recipe.id} fuel input`)
-      expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
+      if (recipe.machineOutput) {
+        expect(machines, `${recipe.id} machine output should exist`).toHaveProperty(recipe.machineOutput.id)
+        expect(recipe.machineOutput.amount, `${recipe.id} machine output amount should be positive`).toBeGreaterThan(0)
+      } else {
+        expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
+      }
       if (recipe.fluidOutput) {
         expect(recipe.fluidOutput.amount, `${recipe.id} fluid output amount should be positive`).toBeGreaterThan(0)
         expect(fluidIds, `${recipe.id} fluid output should be known`).toContain(recipe.fluidOutput.id)

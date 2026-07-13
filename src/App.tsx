@@ -8,8 +8,10 @@ import {
   Droplet,
   Download,
   Factory,
+  LayoutGrid,
   Maximize2,
   Pickaxe,
+  Route,
   Save,
   Sparkles,
   Toolbox,
@@ -69,6 +71,7 @@ import {
   availableConnectedEu,
   availableConnectedEuStorage,
   availableConnectedSteam,
+  arcBlastFurnaceStructureForInstance,
   assignAutoMiner,
   buyShopItem,
   boilerSteamProductionLitresPerSecond,
@@ -108,11 +111,13 @@ import {
   hitGatherTarget,
   isAutoMinerPowered,
   isFluidOutletConfigurableMachine,
+  isLvItemAutomationMachine,
   isResourceDiscovered,
   insertProcessSlot,
   insertMachineStorageSlot,
   installLvBatteryInBuffer,
   loadGame,
+  lvItemAutomationStatus,
   simulateOfflineProgress,
   makeGridForRecipe,
   maxDurability,
@@ -140,6 +145,8 @@ import {
   sellShopItem,
   setFluidOutputDirection,
   setHopperOutputDirection,
+  setLvItemOutputDirection,
+  setPipeSideMode,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
   steamMachineInternalCapacityMs,
@@ -330,6 +337,11 @@ const machineOrder: MachineId[] = [
   'lvCentrifuge',
   'lvCanner',
   'lvAutoMiner',
+  'lvEnergyHatch2A',
+  'lvInputBus',
+  'lvOutputBus',
+  'lvFluidInputHatch',
+  'lvFluidOutputHatch',
   'cokeOvenPart',
   'cokeOven',
   'brickedBlastFurnacePart',
@@ -449,6 +461,12 @@ const multiblockQuestIds = new Set<QuestId>([
   'bbfCasingsQuest',
   'buildBbfQuest',
   'makeHeatingCoilsQuest',
+  'makeInvarQuest',
+  'craftArcControllerQuest',
+  'craftArcItemBusesQuest',
+  'craftArcEnergyHatchesQuest',
+  'buildLvAssemblerForPortsQuest',
+  'craftArcFluidHatchesQuest',
   'buildArcBlastFurnaceQuest',
   'bufferArcBlastFurnaceQuest',
 ])
@@ -535,17 +553,29 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   findNickelQuest: { x: 4230, y: 510 },
   makeCupronickelQuest: { x: 4410, y: 510 },
   makeHeatingCoilsQuest: { x: 4590, y: 510 },
-  buildArcBlastFurnaceQuest: { x: 4770, y: 510 },
-  bufferArcBlastFurnaceQuest: { x: 4950, y: 510 },
-  firstAluminiumQuest: { x: 5130, y: 360 },
+  makeInvarQuest: { x: 4770, y: 620 },
+  craftArcControllerQuest: { x: 4950, y: 510 },
+  craftArcItemBusesQuest: { x: 5130, y: 440 },
+  craftArcEnergyHatchesQuest: { x: 5130, y: 580 },
+  buildLvAssemblerForPortsQuest: { x: 4950, y: 720 },
+  craftArcFluidHatchesQuest: { x: 5130, y: 720 },
+  buildArcBlastFurnaceQuest: { x: 5310, y: 510 },
+  bufferArcBlastFurnaceQuest: { x: 5490, y: 510 },
+  firstAluminiumQuest: { x: 5670, y: 360 },
 }
 
 const multiblockQuestPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>> = {
   bbfCasingsQuest: { x: 70, y: 260 },
   buildBbfQuest: { x: 245, y: 260 },
   makeHeatingCoilsQuest: { x: 70, y: 80 },
-  buildArcBlastFurnaceQuest: { x: 245, y: 80 },
-  bufferArcBlastFurnaceQuest: { x: 420, y: 80 },
+  makeInvarQuest: { x: 70, y: 210 },
+  craftArcControllerQuest: { x: 245, y: 145 },
+  craftArcItemBusesQuest: { x: 420, y: 80 },
+  craftArcEnergyHatchesQuest: { x: 420, y: 210 },
+  buildLvAssemblerForPortsQuest: { x: 245, y: 300 },
+  craftArcFluidHatchesQuest: { x: 420, y: 340 },
+  buildArcBlastFurnaceQuest: { x: 595, y: 145 },
+  bufferArcBlastFurnaceQuest: { x: 770, y: 145 },
 }
 
 function isCenteredCraftSlotHit(element: HTMLElement, clientX: number, clientY: number) {
@@ -615,6 +645,7 @@ function offlineProgressNotice(offline: OfflineProgressResult) {
 }
 
 function migrationNoticeText(notices: string[]) {
+  if (notices.includes('arc-furnace-3x3')) return 'Arc Furnaces now use flexible 3x3 structures. Legacy furnaces were dismantled and their heatproof casings returned so you can build the new controller, buses, and Energy Hatches.'
   if (!notices.includes('coke-oven-multiblock')) return ''
   return 'Coke Ovens are now 2x2 multiblocks. Your old Coke Oven has been unpacked and replaced with four Coke Oven Blocks in Factory Parts. Place those four blocks in a 2x2 to form the working oven again.'
 }
@@ -712,21 +743,22 @@ function isFactoryFloorLayoutRecipe(recipe: Recipe) {
 
 function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
   if (!isFactoryFloorLayoutRecipe(recipe)) return null
-  const machineId = recipe.id === 'build_arc_blast_furnace' ? 'arcBlastFurnace' : 'brickedBlastFurnace'
-  const partId = recipe.id === 'build_arc_blast_furnace' ? 'arcBlastFurnacePart' : 'brickedBlastFurnacePart'
-  const label = recipe.id === 'build_arc_blast_furnace' ? 'arc casing blocks' : 'BBF casing blocks'
+  const isArc = recipe.id === 'build_arc_blast_furnace'
+  const machineId = isArc ? 'arcBlastFurnace' : 'brickedBlastFurnace'
+  const partId = isArc ? 'arcBlastFurnacePart' : 'brickedBlastFurnacePart'
+  const arcLayout: MachineId[] = ['lvEnergyHatch2A', 'lvEnergyHatch2A', partId, 'lvInputBus', machineId, 'lvOutputBus', partId, partId, partId]
 
   return (
     <div className="factory-layout-preview" aria-label={`${recipeDisplayName(recipe)} factory floor layout`}>
-      <div className="factory-layout-multiblock">
-        <MachineGlyph id={machineId} />
-        {Array.from({ length: 4 }, (_, index) => (
-          <span className={index === 0 ? 'factory-layout-cell controller' : 'factory-layout-cell'} key={index}>
-            <MachineGlyph id={index === 0 ? machineId : partId} />
+      <div className={isArc ? 'factory-layout-multiblock arc-layout-preview' : 'factory-layout-multiblock'}>
+        {!isArc && <MachineGlyph id={machineId} />}
+        {(isArc ? arcLayout : Array.from({ length: 4 }, (_, index) => index === 0 ? machineId : partId)).map((id, index) => (
+          <span className={id === machineId ? 'factory-layout-cell controller' : 'factory-layout-cell'} key={index}>
+            <MachineGlyph id={id} />
           </span>
         ))}
       </div>
-      <p>Place the 4 staged {label} as a 2x2 on the factory floor.</p>
+      <p>{isArc ? 'Controller in the centre; arrange two Energy Hatches and the item buses anywhere around its perimeter.' : 'Place the 4 staged BBF casing blocks as a 2x2 on the factory floor.'}</p>
     </div>
   )
 }
@@ -1666,7 +1698,14 @@ function App() {
     if (!import.meta.env.DEV || !reviewMachineId || !(reviewMachineId in machines) || !reviewState) return null
     let reviewGame = createCreativeState(createInitialState())
     const controllerSpec = machines[reviewMachineId].multiblock
-    if (controllerSpec && !machines[reviewMachineId].placeable) {
+    if (reviewMachineId === 'arcBlastFurnace') {
+      const layout: Array<[MachineId, number, number]> = [
+        ['lvEnergyHatch2A', 1, 1], ['lvEnergyHatch2A', 2, 1], ['arcBlastFurnacePart', 3, 1],
+        ['lvInputBus', 1, 2], ['arcBlastFurnace', 2, 2], ['lvOutputBus', 3, 2],
+        ['arcBlastFurnacePart', 1, 3], ['arcBlastFurnacePart', 2, 3], ['arcBlastFurnacePart', 3, 3],
+      ]
+      for (const [machineId, x, y] of layout) reviewGame = placeMachineInstance(reviewGame, machineId, x, y)
+    } else if (controllerSpec && !machines[reviewMachineId].placeable) {
       for (const [x, y] of [[0, 0], [1, 0], [0, 1], [1, 1]]) reviewGame = placeMachineInstance(reviewGame, controllerSpec.part, x, y)
     } else {
       reviewGame = placeMachineInstance(reviewGame, reviewMachineId, 1, 0)
@@ -1690,10 +1729,6 @@ function App() {
     if (isEuCableMachine(reviewMachineId)) {
       reviewGame = placeMachineInstance(reviewGame, 'steamTurbine', 0, 0)
       reviewGame = placeMachineInstance(reviewGame, 'lvMacerator', 2, 0)
-    }
-    if (reviewMachineId === 'arcBlastFurnace') {
-      reviewGame = placeMachineInstance(reviewGame, 'tinCable4A', 2, 0)
-      reviewGame = placeMachineInstance(reviewGame, 'lvBatteryBuffer4A', 3, 0)
     }
     const instance = reviewGame.machineInstances.find((candidate) => candidate.machineId === reviewMachineId)
     if (!instance) return null
@@ -1788,11 +1823,11 @@ function App() {
         instance.process.fuelRemainingMs = reviewState === 'active' ? 8000 : 0
       }
       if (reviewMachineId === 'arcBlastFurnace') {
-        const buffer = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'lvBatteryBuffer4A')
-        if (buffer) {
-          buffer.process.batterySlots = Array.from({ length: 4 }, () => 'lithiumBattery')
-          buffer.process.euCapacity = 16384
-          buffer.process.euStored = 8192
+        const structure = arcBlastFurnaceStructureForInstance(reviewGame, instance)
+        for (const hatch of structure?.energyHatches ?? []) hatch.process.euStored = reviewState === 'active' ? 96 : 64
+        if (structure?.inputBus) {
+          structure.inputBus.process.input = instance.process.input
+          instance.process.input = null
         }
       }
       if (isLiquidSteamBoilerMachine(reviewMachineId)) {
@@ -1859,6 +1894,8 @@ function App() {
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
   const [selectedFactoryTool, setSelectedFactoryTool] = useState<ResourceId | null>(null)
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(reviewSetup?.uid ?? null)
+  const [isArcStructureOpen, setIsArcStructureOpen] = useState(false)
+  const [isMachineAutomationOpen, setIsMachineAutomationOpen] = useState(false)
   const [selectedPipeConfigUid, setSelectedPipeConfigUid] = useState<string | null>(null)
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
@@ -2217,7 +2254,22 @@ function App() {
     : 0
   const selectedRecipe = selectedRecipeGroup?.recipes[clampedSelectedRecipeIndex]
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
-  const selectedMachine = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const selectedMachineSource = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const selectedArcStructure = selectedMachineSource?.machineId === 'arcBlastFurnace'
+    ? arcBlastFurnaceStructureForInstance(state, selectedMachineSource)
+    : null
+  const selectedMachine = selectedMachineSource && selectedArcStructure
+    ? {
+        ...selectedMachineSource,
+        process: {
+          ...selectedMachineSource.process,
+          input: selectedArcStructure.inputBus?.process.input ?? null,
+          output: selectedArcStructure.outputBus?.process.output ?? null,
+          euStored: selectedArcStructure.energyHatches.reduce((sum, hatch) => sum + hatch.process.euStored, 0),
+          euCapacity: selectedArcStructure.energyHatches.reduce((sum, hatch) => sum + hatch.process.euCapacity, 0),
+        },
+      }
+    : selectedMachineSource
   const selectedSteamTankCapacityMs =
     selectedMachine?.machineId === 'steamTank' ? steamTankCapacityMsForInstance(state, selectedMachine) || steamTankCapacityMs : steamTankCapacityMs
   const selectedSteamTankFluidCapacityLitres =
@@ -2424,6 +2476,8 @@ function App() {
     : []
   const selectedMachineStorageResource = selectedResource && furnaceStorageResources.includes(selectedResource) ? selectedResource : null
   const selectedMachineHmiConfig = selectedMachine ? machineHmiConfigs[selectedMachine.machineId] ?? null : null
+  const selectedMachineCanAutomateItems = Boolean(selectedMachine && isLvItemAutomationMachine(selectedMachine.machineId))
+  const selectedMachineAutomationStatus = selectedMachine && selectedMachineCanAutomateItems ? lvItemAutomationStatus(state, selectedMachine) : null
   const selectedMachineHmiKind = selectedMachineHmiConfig?.kind ?? null
   const selectedMachineIsHmiTerminal = selectedMachineHmiConfig !== null
   const selectedMachineUsesIntegratedStatus = Boolean(selectedMachine && (
@@ -2642,6 +2696,8 @@ function App() {
   const controllerForFactoryStructure = (instance: MachineInstance) => {
     const tankStructure = steamTankStructureForInstance(state, instance)
     if (tankStructure) return tankStructure.controller
+    const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
+    if (arcStructure) return arcStructure.controller
     return controllerForMultiblockPart(instance)
   }
 
@@ -2891,6 +2947,11 @@ function App() {
     if (suppressFactoryCellClickRef.current) return
     if (instance) {
       if (isFactoryRemoveMode) {
+        if (
+          (instance.machineId === 'lvFluidInputHatch' || instance.machineId === 'lvFluidOutputHatch') &&
+          storedFluids(instance.process).some((fluid) => fluid.amount > 0) &&
+          !window.confirm('This hatch still contains fluid. Remove it and discard the stored fluid?')
+        ) return
         setState((current) => {
           if (!canCrowbarRemoveMachine(current)) {
             setFactoryNotice('Need an iron crowbar.')
@@ -2904,18 +2965,26 @@ function App() {
         return
       }
       if (isFactoryPipeConfigMode) {
-        const configTarget = controllerForFactoryStructure(instance) ?? instance
-        if (isSteamPipeMachine(configTarget.machineId) || isItemHopperMachine(configTarget.machineId) || isFluidOutletConfigurableMachine(configTarget.machineId)) {
+        const isArcPort = instance.machineId === 'lvEnergyHatch2A' || instance.machineId === 'lvInputBus' || instance.machineId === 'lvOutputBus' || instance.machineId === 'lvFluidInputHatch' || instance.machineId === 'lvFluidOutputHatch'
+        const configTarget = isArcPort ? instance : controllerForFactoryStructure(instance) ?? instance
+        if (isArcPort || isSteamPipeMachine(configTarget.machineId) || isItemHopperMachine(configTarget.machineId) || isFluidOutletConfigurableMachine(configTarget.machineId)) {
           setSelectedMachineUid(null)
           setSelectedPipeConfigUid(configTarget.uid)
           return
         }
-        setFactoryNotice('Wrench configures pipes, hoppers, and fluid outputs.')
+        setFactoryNotice('Wrench configures pipes, hoppers, multiblock ports, and fluid outputs.')
         return
       }
       const structureController = controllerForFactoryStructure(instance)
       if (structureController && structureController.uid !== instance.uid) {
         setSelectedMachineUid(structureController.uid)
+        return
+      }
+      if (
+        !structureController &&
+        (instance.machineId === 'arcBlastFurnacePart' || instance.machineId === 'lvEnergyHatch2A' || instance.machineId === 'lvInputBus' || instance.machineId === 'lvOutputBus' || instance.machineId === 'lvFluidInputHatch' || instance.machineId === 'lvFluidOutputHatch')
+      ) {
+        setFactoryNotice('Place this component on the perimeter of an Arc Furnace Controller.')
         return
       }
       if (machines[instance.machineId].multiblock) {
@@ -2925,11 +2994,11 @@ function App() {
         }
         if (instance.machineId === 'cokeOvenPart') setFactoryNotice('Place Coke Oven Blocks in a full 2x2 to form the oven.')
         if (instance.machineId === 'brickedBlastFurnacePart') setFactoryNotice('Place BBF casings in a full 2x2 to form the furnace.')
-        if (instance.machineId === 'arcBlastFurnacePart') setFactoryNotice('Place arc casings in a full 2x2 to form the furnace.')
+        if (instance.machineId === 'arcBlastFurnacePart') setFactoryNotice('Fill every unused perimeter cell around an Arc Furnace Controller to complete its 3x3 structure.')
         return
       }
       if (machines[instance.machineId].processKind === 'none') {
-        setFactoryNotice('Structure casing selected. Use the crowbar to remove it or complete its 2x2 structure.')
+        setFactoryNotice('Structure casing selected. Use the crowbar to remove it or complete its multiblock structure.')
         return
       }
       setSelectedMachineUid(instance.uid)
@@ -5092,6 +5161,11 @@ function App() {
                       const x = index % factoryGridSize.width
                       const y = Math.floor(index / factoryGridSize.width)
                       const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
+                      const arcStructure = instance ? arcBlastFurnaceStructureForInstance(state, instance) : null
+                      const isFormedArc = Boolean(arcStructure?.formed)
+                      const isFormedArcController = Boolean(isFormedArc && arcStructure && instance?.uid === arcStructure.controller.uid)
+                      const isFormedArcInspection = isFormedArc && (isFactoryPipeConfigMode || isFactoryRemoveMode)
+                      const showFormedArc = isFormedArcController && !isFormedArcInspection
                       const multiblockController = instance ? controllerForMultiblockPart(instance) : null
                       const tankStructure = instance?.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
                       const pipePolarity = instance ? pipePolarityForInstance(instance) : null
@@ -5134,6 +5208,10 @@ function App() {
                                   multiblockController ? 'multiblock-bbf-child' : '',
                                   isTankStructureController ? 'tank-structure-controller' : '',
                                   isTankStructureChild ? 'tank-structure-child' : '',
+                                  isFormedArc ? 'formed-arc-cell' : '',
+                                  isFormedArcController ? 'formed-arc-controller-cell' : '',
+                                  isFormedArc && !isFormedArcController ? 'formed-arc-child-cell' : '',
+                                  isFormedArcInspection ? 'formed-arc-inspection-cell' : '',
                                 ].filter(Boolean).join(' ')
                               : placingMachineId
                                 ? 'factory-cell placing'
@@ -5148,7 +5226,27 @@ function App() {
                           onClick={() => handleFactoryCellPress(x, y, instance)}
                           key={`${x}-${y}`}
                         >
-                          {instance && (!isStructureCell || isStructureController) ? (
+                          {showFormedArc && arcStructure ? (
+                            <span className={isMachineActive ? 'formed-arc-render active' : 'formed-arc-render'} aria-hidden="true">
+                              <img src={`${import.meta.env.BASE_URL}game-art/formed-arc-blast-furnace.png`} alt="" draggable={false} />
+                              <span className="formed-arc-core" />
+                              {arcStructure.perimeter
+                                .filter((part) => part.machineId !== 'arcBlastFurnacePart')
+                                .map((part) => {
+                                  const activeDirection = pipeDirections.find((direction) => pipeSideMode(part, direction) !== 'blocked') ?? 'east'
+                                  return <span
+                                      className={`formed-arc-port formed-arc-port-${part.machineId} formed-arc-port-direction-${activeDirection}`}
+                                      style={{
+                                        left: `${(part.x - arcStructure.controller.x + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
+                                        top: `${(part.y - arcStructure.controller.y + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
+                                      }}
+                                      key={part.uid}
+                                    >
+                                      <span className="formed-arc-port-mark" />
+                                    </span>
+                                })}
+                            </span>
+                          ) : instance && (!isFormedArc || isFormedArcInspection) && (!isStructureCell || isStructureController || isFormedArcInspection) ? (
                             <MachineGlyph id={instance.machineId} active={isMachineActive} pipeConnections={pipeConnectionsForInstance(instance)} />
                           ) : (
                             <span />
@@ -5356,6 +5454,7 @@ function App() {
               role="presentation"
               onClick={() => {
                 setPendingProcessInsert(null)
+                setIsMachineAutomationOpen(false)
                 setSelectedMachineUid(null)
               }}
             >
@@ -5378,6 +5477,8 @@ function App() {
                     aria-label="Close furnace"
                     onClick={() => {
                       setPendingProcessInsert(null)
+                      setIsArcStructureOpen(false)
+                      setIsMachineAutomationOpen(false)
                       setSelectedMachineUid(null)
                     }}
                   >
@@ -5428,6 +5529,18 @@ function App() {
                     )}
                   </div>
                 )}
+                {selectedMachineCanAutomateItems && (
+                  <button
+                    type="button"
+                    className={isMachineAutomationOpen ? 'machine-automation-toggle active' : 'machine-automation-toggle'}
+                    aria-pressed={isMachineAutomationOpen}
+                    onClick={() => setIsMachineAutomationOpen((current) => !current)}
+                  >
+                    <Route size={14} />
+                    <span>{isMachineAutomationOpen ? 'Operating HMI' : 'Automation'}</span>
+                    <strong>{selectedMachineAutomationStatus?.label}</strong>
+                  </button>
+                )}
                 {(canFillBucketFromSelectedMachine || canEmptyBucketIntoSelectedMachine || (state.bucketFluid && selectedMachineCanManualFluidTransfer)) && selectedMachine && (
                   <div className="manual-fluid-transfer" aria-label="Manual fluid transfer">
                     <div>
@@ -5452,7 +5565,42 @@ function App() {
                     )}
                   </div>
                 )}
-                {isItemAutomationMachine(selectedMachine.machineId) ? (
+                {isMachineAutomationOpen && selectedMachineCanAutomateItems ? (
+                  <div className="lv-item-automation-hmi">
+                    <div className="lv-automation-head">
+                      <span><small>Item output</small><strong>{selectedMachine.itemOutputDirection ? pipeDirectionOffsets[selectedMachine.itemOutputDirection].label : 'Disabled'}</strong></span>
+                      <span className={`lv-automation-state state-${selectedMachineAutomationStatus?.code ?? 'disabled'}`}><small>State</small><strong>{selectedMachineAutomationStatus?.label ?? 'Disabled'}</strong></span>
+                    </div>
+                    <div className="lv-automation-grid" aria-label="Automatic item output direction">
+                      {[-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => {
+                        const direction: PipeDirection | null = dx === 0 && dy === -1 ? 'north' : dx === 1 && dy === 0 ? 'east' : dx === 0 && dy === 1 ? 'south' : dx === -1 && dy === 0 ? 'west' : null
+                        const isCenter = dx === 0 && dy === 0
+                        if (!direction && !isCenter) return <span className="lv-automation-spacer" key={`${dx},${dy}`} />
+                        if (isCenter) return <span className="lv-automation-machine" key="center"><MachineGlyph id={selectedMachine.machineId} active={Boolean(selectedMachine.process.activeRecipeId)} /><strong>{machines[selectedMachine.machineId].name}</strong></span>
+                        const offset = pipeDirectionOffsets[direction!]
+                        const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
+                        const selected = selectedMachine.itemOutputDirection === direction
+                        const blockedByOutput = Boolean(neighbour && isLvItemAutomationMachine(neighbour.machineId) && neighbour.itemOutputDirection && neighbour.itemOutputDirection === ({ north: 'south', east: 'west', south: 'north', west: 'east' } as Record<PipeDirection, PipeDirection>)[direction!])
+                        return <button
+                            type="button"
+                            className={['lv-automation-face', direction, selected ? 'selected' : '', blockedByOutput ? 'conflict' : ''].filter(Boolean).join(' ')}
+                            aria-label={`${selected ? 'Disable' : 'Set'} automatic item output ${offset.label}`}
+                            aria-pressed={selected}
+                            onClick={() => setState((current) => setLvItemOutputDirection(current, selectedMachine.uid, direction!))}
+                            key={direction}
+                          >
+                            {neighbour ? <MachineGlyph id={neighbour.machineId} /> : <span className="lv-automation-empty" />}
+                            <b>{offset.label}</b>
+                            {selected && <i aria-hidden="true" />}
+                          </button>
+                      }))}
+                    </div>
+                    <div className="lv-automation-route-readout">
+                      <span><small>Destination</small><strong>{selectedMachineAutomationStatus?.target ? machines[selectedMachineAutomationStatus.target.machineId].name : 'None'}</strong></span>
+                      <span><small>Rate</small><strong>1 item/s</strong></span>
+                    </div>
+                  </div>
+                ) : isItemAutomationMachine(selectedMachine.machineId) ? (
                   <div className={`furnace-interface ${selectedMachine.machineId}-process-interface item-automation-interface`}>
                     <div className={isItemStorageMachine(selectedMachine.machineId) ? 'indexed-storage-grid chest-storage-grid' : 'furnace-inputs'}>
                       {isItemStorageMachine(selectedMachine.machineId) ? (
@@ -5715,7 +5863,12 @@ function App() {
                       <em>{Math.floor(selectedMachineProgressPercent)}%</em>
                     </div>
                     <div className="assembler-output-lot" aria-label="Assembler output">
-                      <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                      {selectedMachineRecipe?.machineOutput && !selectedMachine.process.output ? (
+                        <span className="process-slot filled" aria-label={`${machines[selectedMachineRecipe.machineOutput.id].name} will be sent to Factory Parts`}>
+                          <MachineGlyph id={selectedMachineRecipe.machineOutput.id} />
+                          <span className="process-slot-label">Factory Parts</span>
+                        </span>
+                      ) : <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />}
                     </div>
                   </div>
                 ) : isAutoMinerMachine(selectedMachine.machineId) ? (
@@ -5770,12 +5923,60 @@ function App() {
                     const activeRecipe = processRecipes.find((recipe) => recipe.id === process.activeRecipeId)
                     const fluidProductionRate = activeRecipe?.fluidOutput ? activeRecipe.fluidOutput.amount / (activeRecipe.durationMs / 1000) : 0
                     const fluidOutflow = isCokeOven ? currentFluidOutputFlows(state, selectedMachine).find((flow) => flow.fluidId === 'creosote')?.litresPerSecond ?? 0 : 0
+                    if (isArc && isArcStructureOpen && selectedArcStructure) {
+                      return <div className="arc-structure-inspector">
+                        <div className="arc-structure-toolbar">
+                          <span><small>Structure</small><strong>{selectedArcStructure.formed ? 'Formed 3x3' : 'Incomplete'}</strong></span>
+                          <button type="button" onClick={() => setIsArcStructureOpen(false)}>Operating HMI</button>
+                        </div>
+                        <div className="arc-structure-grid" aria-label="Arc Furnace 3x3 structure">
+                          {selectedArcStructure.positions.map((position) => {
+                            const cell = state.machineInstances.find((candidate) => candidate.x === position.x && candidate.y === position.y)
+                            const isControllerCell = position.x === selectedArcStructure.controller.x && position.y === selectedArcStructure.controller.y
+                            const outward: PipeDirection[] = []
+                            if (position.x < selectedArcStructure.controller.x) outward.push('west')
+                            if (position.x > selectedArcStructure.controller.x) outward.push('east')
+                            if (position.y < selectedArcStructure.controller.y) outward.push('north')
+                            if (position.y > selectedArcStructure.controller.y) outward.push('south')
+                            const isPort = Boolean(cell && cell.machineId !== 'arcBlastFurnacePart' && cell.machineId !== 'arcBlastFurnace')
+                            return <span className={`arc-structure-cell ${cell ? 'installed' : 'missing'} ${isControllerCell ? 'controller' : ''}`} key={`${position.x},${position.y}`}>
+                              {cell ? <MachineGlyph id={cell.machineId} /> : <b>Missing</b>}
+                              <strong>{cell ? machines[cell.machineId].name : 'Empty position'}</strong>
+                              {cell?.machineId === 'lvEnergyHatch2A' && <small>{Math.floor(cell.process.euStored)} / 128 EU</small>}
+                              {(cell?.machineId === 'lvFluidInputHatch' || cell?.machineId === 'lvFluidOutputHatch') && <small>{storedFluids(cell.process)[0]?.amount ?? 0} / 64L</small>}
+                              {isPort && <i>{outward.map((direction) => <button
+                                type="button"
+                                className={pipeSideMode(cell!, direction) === 'blocked' ? '' : 'active'}
+                                aria-label={`Use ${pipeDirectionOffsets[direction].label} face for ${machines[cell!.machineId].name}`}
+                                onClick={() => setState((current) => setPipeSideMode(current, cell!.uid, direction, 'both'))}
+                                key={direction}
+                              >{pipeDirectionOffsets[direction].label.slice(0, 1)}</button>)}</i>}
+                            </span>
+                          })}
+                        </div>
+                        <div className="arc-structure-faults">
+                          {(selectedArcStructure.faults.length > 0 ? selectedArcStructure.faults : ['All required components installed.']).map((fault) => <span key={fault}>{fault}</span>)}
+                        </div>
+                      </div>
+                    }
                     return <div className={`multiblock-hmi ${isArc ? 'arc-multiblock-hmi' : isBbf ? 'bbf-multiblock-hmi' : 'coke-multiblock-hmi'}`}>
+                      {isArc && <button type="button" className="arc-structure-open" onClick={() => setIsArcStructureOpen(true)}><LayoutGrid size={15} />Structure</button>}
                       <div className="multiblock-stat-strip">
-                        <span><small>State</small><strong>{machineStatus(state, selectedMachine)}</strong></span>
+                        <span><small>State</small><strong>{isArc && !selectedArcStructure?.formed ? 'Incomplete' : machineStatus(state, selectedMachine)}</strong>{isArc && selectedArcStructure && !selectedArcStructure.formed && <em>{selectedArcStructure.faults[0]}</em>}</span>
                         <span><small>Time</small><strong>{selectedMachineProcessTimeLabel || '--'}</strong></span>
                         <span><small>{isArc ? 'Power' : isBbf ? 'Heat' : 'Byproduct'}</small><strong>{isArc ? `${formatAmount(selectedMachineEuUsagePerSecond)} EU/s` : isBbf ? (process.fuelRemainingMs > 0 ? 'Hot' : 'Cold') : `${formatLitres(process.fluids.creosote ?? 0)}L creosote`}</strong>{isCokeOven && <em>{formatAmount(fluidProductionRate)}L/s made · {formatAmount(fluidOutflow)}L/s out</em>}</span>
                       </div>
+                      {isArc && selectedArcStructure && (
+                        <div className="arc-hatch-strip" aria-label="Arc Furnace Energy Hatches">
+                          {selectedArcStructure.energyHatches.map((hatch, index) => (
+                            <span key={hatch.uid}>
+                              <small>Hatch {index + 1} | 2A</small>
+                              <strong>{Math.floor(hatch.process.euStored)} / 128 EU</strong>
+                              <i><b style={{ width: `${metricFill(hatch.process.euStored, 128)}%` }} /></i>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="multiblock-stage">
                         <div className="multiblock-input-bank">
                           <ProcessItemSlot slot={process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />

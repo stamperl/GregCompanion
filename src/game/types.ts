@@ -57,6 +57,7 @@ export type ResourceId =
   | 'bronzeIngot'
   | 'nickelIngot'
   | 'cupronickelIngot'
+  | 'invarIngot'
   | 'aluminiumIngot'
   | 'clay'
   | 'sand'
@@ -74,6 +75,7 @@ export type ResourceId =
   | 'bronzeRod'
   | 'steelIngot'
   | 'steelPlate'
+  | 'invarPlate'
   | 'aluminiumPlate'
   | 'steelRod'
   | 'aluminiumRod'
@@ -172,6 +174,11 @@ export type MachineId =
   | 'lvCentrifuge'
   | 'lvCanner'
   | 'lvAutoMiner'
+  | 'lvEnergyHatch2A'
+  | 'lvInputBus'
+  | 'lvOutputBus'
+  | 'lvFluidInputHatch'
+  | 'lvFluidOutputHatch'
   | 'cokeOvenPart'
   | 'cokeOven'
   | 'brickedBlastFurnacePart'
@@ -253,6 +260,12 @@ export type QuestId =
   | 'findNickelQuest'
   | 'makeCupronickelQuest'
   | 'makeHeatingCoilsQuest'
+  | 'makeInvarQuest'
+  | 'craftArcControllerQuest'
+  | 'craftArcItemBusesQuest'
+  | 'craftArcEnergyHatchesQuest'
+  | 'buildLvAssemblerForPortsQuest'
+  | 'craftArcFluidHatchesQuest'
   | 'findBauxiteQuest'
   | 'makeAluminiumDustQuest'
   | 'buildArcBlastFurnaceQuest'
@@ -308,6 +321,9 @@ export type MachineProcessKind =
   | 'liquidSteamBoiler'
   | 'cokeOven'
   | 'blastFurnace'
+  | 'euHatch'
+  | 'itemBus'
+  | 'fluidHatch'
 
 export type ToolId =
   | 'bareHand'
@@ -411,6 +427,7 @@ export type ProcessRecipe = {
   minimumEuStored?: number
   startupEu?: number
   output: ResourceAmount
+  machineOutput?: MachineAmount
   fluidOutput?: {
     id: FluidId
     amount: number
@@ -601,6 +618,8 @@ export type MachineInstance = {
   level: number
   pipeDisabledSides?: Partial<Record<PipeDirection, boolean>>
   pipeSideModes?: Partial<Record<PipeDirection, PipeSideMode>>
+  itemOutputDirection?: PipeDirection
+  itemTransferProgressMs?: number
   process: MachineProcessState
 }
 
