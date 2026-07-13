@@ -80,7 +80,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 7
+export const currentSaveVersion = 8
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -2765,12 +2765,52 @@ export function assignAutoMiner(state: GameState, uid: string, targetId: GatherT
   if (!instance || !isAutoMinerMachine(instance.machineId) || !canAutoMinerTarget(instance.machineId, targetId)) return state
   if (gatherTargets[targetId].area === 'shatteredReach' && !isReachGateFormed(state)) return state
   const requiresSurveyCard = instance.machineId === 'lvAutoMiner' && !canAutoMinerTarget('steamAutoMiner', targetId)
-  if (requiresSurveyCard && (state.surveyCards[targetId] ?? 0) < 1) return state
+  if (requiresSurveyCard && instance.surveyCardTarget !== targetId) return state
 
   const next = cloneState(state)
   next.autoMinerAssignments[uid] = targetId
-  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
-  if (nextInstance && requiresSurveyCard) nextInstance.surveyCardTarget = targetId
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function installSurveyCardInAutoMiner(state: GameState, uid: string, targetId: GatherTargetId) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (
+    !instance ||
+    instance.machineId !== 'lvAutoMiner' ||
+    canAutoMinerTarget('steamAutoMiner', targetId) ||
+    (state.surveyCards[targetId] ?? 0) < 1 ||
+    instance.surveyCardTarget === targetId
+  ) return state
+
+  const next = cloneState(state)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)!
+  if (nextInstance.surveyCardTarget) {
+    next.surveyCards[nextInstance.surveyCardTarget] = (next.surveyCards[nextInstance.surveyCardTarget] ?? 0) + 1
+  }
+  next.surveyCards[targetId] = (next.surveyCards[targetId] ?? 0) - 1
+  if ((next.surveyCards[targetId] ?? 0) < 1) delete next.surveyCards[targetId]
+  nextInstance.surveyCardTarget = targetId
+  const assignedTarget = next.autoMinerAssignments[uid]
+  if (assignedTarget && !canAutoMinerTarget('steamAutoMiner', assignedTarget) && assignedTarget !== targetId) {
+    delete next.autoMinerAssignments[uid]
+  }
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function removeSurveyCardFromAutoMiner(state: GameState, uid: string) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || instance.machineId !== 'lvAutoMiner' || !instance.surveyCardTarget) return state
+
+  const next = cloneState(state)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)!
+  const targetId = nextInstance.surveyCardTarget!
+  next.surveyCards[targetId] = (next.surveyCards[targetId] ?? 0) + 1
+  nextInstance.surveyCardTarget = undefined
+  if (next.autoMinerAssignments[uid] && !canAutoMinerTarget('steamAutoMiner', next.autoMinerAssignments[uid])) {
+    delete next.autoMinerAssignments[uid]
+  }
   next.lastSavedAt = Date.now()
   return next
 }
@@ -4214,7 +4254,10 @@ function questObjectiveCurrent(state: GameState, objective: QuestObjective) {
     if (objective.progressMode === 'current') return state.machines[objective.id]
     return Math.max(state.machineMilestones[objective.id] ?? 0, state.machines[objective.id])
   }
-  if (objective.type === 'surveyCard') return state.surveyCards[objective.id] ?? 0
+  if (objective.type === 'surveyCard') {
+    const installedCards = state.machineInstances.filter((instance) => instance.surveyCardTarget === objective.id).length
+    return (state.surveyCards[objective.id] ?? 0) + installedCards
+  }
   if (objective.type === 'recipe') return state.recipeMilestones[objective.id] ?? 0
   if (objective.type === 'placedMachine') {
     if (objective.id === 'arcBlastFurnace') {
@@ -4638,6 +4681,20 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
         migratedSurveyMiner = true
       }
       if (migratedSurveyMiner) migrationNotices.push('survey-card-miners')
+    }
+    if (parsedVersion < 8) {
+      let migratedInstalledCard = false
+      for (const instance of machineInstances) {
+        const targetId = instance.machineId === 'lvAutoMiner' ? instance.surveyCardTarget : undefined
+        if (!targetId) continue
+        const inventoryCount = surveyCards[targetId] ?? 0
+        if (inventoryCount > 0) {
+          surveyCards[targetId] = inventoryCount - 1
+          if (surveyCards[targetId]! < 1) delete surveyCards[targetId]
+        }
+        migratedInstalledCard = true
+      }
+      if (migratedInstalledCard) migrationNotices.push('survey-card-inventory')
     }
 
     return {

@@ -411,65 +411,6 @@
   white-space: normal;
 }
 
-.auto-miner-controls {
-  align-items: center;
-  background: var(--bevel-deep);
-  border: 2px solid var(--bevel-light);
-  border-bottom-color: var(--bevel-dark);
-  border-radius: 0;
-  border-right-color: var(--bevel-dark);
-  color: #242424;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 4px;
-  text-transform: uppercase;
-}
-
-.auto-miner-controls > span {
-  color: var(--muted-strong);
-  font-size: 0.58rem;
-  font-weight: 900;
-  line-height: 1;
-  width: 100%;
-}
-
-.auto-miner-control {
-  align-items: center;
-  display: grid;
-  flex: 1 1 96px;
-  gap: 3px;
-  grid-template-columns: minmax(0, 1fr) 24px 24px;
-}
-
-.auto-miner-control strong {
-  font-size: 0.66rem;
-  line-height: 1;
-  min-width: 0;
-}
-
-.auto-miner-control button {
-  align-items: center;
-  background: #4a4a4a;
-  border: 2px solid #eeeeee;
-  border-bottom-color: #1d1d1d;
-  border-radius: 0;
-  border-right-color: #1d1d1d;
-  color: #f4f0dc;
-  display: grid;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 900;
-  height: 24px;
-  justify-content: center;
-  padding: 0;
-}
-
-.auto-miner-control button:disabled {
-  color: var(--bevel-dark);
-  opacity: 0.5;
-}
-
 .gather-panels {
   display: grid;
   gap: 10px;
@@ -4099,52 +4040,6 @@ button.craft-output:disabled {
   color: #aebbb3;
 }
 
-.manual-fluid-transfer {
-  align-items: stretch;
-  background: #9f9f9f;
-  border: 2px solid #efefef;
-  border-bottom-color: #616161;
-  border-radius: 0;
-  border-right-color: #616161;
-  color: #202020;
-  display: grid;
-  gap: 6px;
-  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.45fr);
-  min-height: 52px;
-  padding: 6px;
-}
-
-.manual-fluid-transfer > div {
-  align-content: center;
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  text-transform: uppercase;
-}
-
-.manual-fluid-transfer span {
-  color: #555;
-  font: 950 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
-  line-height: 1;
-}
-
-.manual-fluid-transfer strong {
-  color: #fff8ea;
-  font: 950 0.78rem "Courier New", ui-monospace, monospace;
-  line-height: 1;
-  overflow: hidden;
-  text-shadow: 1px 1px 0 #333;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.compact-action-button {
-  align-self: stretch;
-  font-size: 0.78rem;
-  min-height: 36px;
-  padding: 4px 6px;
-}
-
 .machine-meter-bar {
   align-self: end;
   background: #707070;
@@ -5896,8 +5791,7 @@ button.craft-output:disabled {
 .machine-terminal .well-interface,
 .machine-terminal .machine-status-row,
 .machine-terminal .processing-storage,
-.machine-terminal .machine-selected-item,
-.machine-terminal .manual-fluid-transfer {
+.machine-terminal .machine-selected-item {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 40%),
     var(--machine-panel-well);
@@ -12062,8 +11956,7 @@ button.button-primary:disabled,
 .machine-terminal .well-interface,
 .machine-terminal .machine-status-row,
 .machine-terminal .processing-storage,
-.machine-terminal .machine-selected-item,
-.machine-terminal .manual-fluid-transfer {
+.machine-terminal .machine-selected-item {
   background:
     radial-gradient(circle at 50% 0, var(--machine-glow), transparent 40%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 36%),
@@ -12753,10 +12646,6 @@ button.button-primary:disabled,
   width: 100%;
 }
 
-.manual-fluid-transfer strong {
-  color: #ffe7a0;
-}
-
 .machine-terminal .machine-selected-item span {
   color: var(--machine-accent);
   text-shadow: 1px 1px 0 #050605;
@@ -12888,8 +12777,7 @@ button.button-primary:disabled,
 
 .machine-terminal .machine-status-row,
 .machine-terminal .processing-storage,
-.machine-terminal .machine-selected-item,
-.machine-terminal .manual-fluid-transfer {
+.machine-terminal .machine-selected-item {
   background:
     linear-gradient(180deg, rgba(8, 9, 8, 0.76), rgba(7, 8, 7, 0.88)),
     radial-gradient(circle at 50% 0, var(--machine-glow), transparent 46%),
@@ -14976,6 +14864,7 @@ button.button-primary:disabled,
 .furnace-modal.machine-terminal .auto-miner-interface > span,
 .furnace-modal.machine-terminal .auto-miner-readout-grid,
 .furnace-modal.machine-terminal .auto-miner-output,
+.furnace-modal.machine-terminal .auto-miner-card-inventory,
 .furnace-modal.machine-terminal .auto-miner-assign {
   grid-column: 1 / -1;
 }
@@ -15006,6 +14895,240 @@ button.button-primary:disabled,
 .furnace-modal.machine-terminal .auto-miner-output > strong {
   font-size: 0.66rem;
   overflow-wrap: anywhere;
+}
+
+.furnace-modal.machine-terminal .auto-miner-card-inventory {
+  align-items: stretch;
+  background: rgba(7, 11, 11, 0.94);
+  border: 1px solid #675c38;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  min-height: 56px;
+  padding: 5px;
+}
+
+.auto-miner-card-inventory > span {
+  align-content: center;
+  display: grid;
+  gap: 3px;
+  text-transform: uppercase;
+}
+
+.auto-miner-card-inventory > span small {
+  color: #6fd5df;
+  font-size: 0.46rem;
+}
+
+.auto-miner-card-inventory > span strong {
+  color: #f2e7b8;
+  font-size: 0.62rem;
+}
+
+.auto-miner-card-slot {
+  align-items: center;
+  background: #151a19;
+  border: 2px solid #697571;
+  border-bottom-color: #050707;
+  border-radius: 0;
+  border-right-color: #050707;
+  color: #dbd5b8;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  min-height: 44px;
+  padding: 3px 6px;
+  text-align: left;
+}
+
+.auto-miner-card-slot.installed {
+  border-color: #d8bb4b;
+  border-bottom-color: #534815;
+  border-right-color: #534815;
+  box-shadow: inset 3px 0 0 #69d8e8;
+}
+
+.auto-miner-card-slot > span:first-child {
+  align-items: center;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  position: relative;
+  width: 40px;
+}
+
+.auto-miner-card-slot > span:first-child .pixel-icon {
+  height: 30px;
+  width: 30px;
+}
+
+.auto-miner-card-slot > span:first-child .pixel-icon + .pixel-icon {
+  bottom: 0;
+  height: 20px;
+  position: absolute;
+  right: 0;
+  width: 20px;
+}
+
+.auto-miner-card-slot .empty-card-slot {
+  border: 1px dashed #68716e;
+  color: #7f8a86;
+  font-size: 0.42rem;
+  text-transform: uppercase;
+}
+
+.auto-miner-card-slot > strong {
+  font-size: 0.6rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auto-miner-card-slot > small {
+  color: #91b9b5;
+  font-size: 0.46rem;
+  text-transform: uppercase;
+}
+
+.furnace-modal.machine-terminal .auto-miner-target-popover {
+  background:
+    linear-gradient(90deg, rgba(71, 207, 226, 0.05) 0 1px, transparent 1px 14px),
+    linear-gradient(180deg, rgba(18, 25, 24, 0.98), rgba(5, 8, 8, 0.99));
+  border: 2px solid var(--forge-trim);
+  box-shadow: inset 0 0 0 1px #050707, 0 0 24px rgba(0, 0, 0, 0.82);
+  display: grid;
+  gap: 6px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  inset: 6px;
+  overflow: hidden;
+  padding: 7px;
+  position: absolute;
+  z-index: 20;
+}
+
+.auto-miner-target-head {
+  align-items: center;
+  border-bottom: 1px solid rgba(211, 178, 93, 0.48);
+  display: flex;
+  justify-content: space-between;
+  min-height: 42px;
+  padding-bottom: 5px;
+}
+
+.auto-miner-target-head > span {
+  display: grid;
+  gap: 2px;
+  text-transform: uppercase;
+}
+
+.auto-miner-target-head small {
+  color: #69d8e8;
+  font-size: 0.48rem;
+}
+
+.auto-miner-target-head strong {
+  color: #f4e8ba;
+  font-size: 0.8rem;
+}
+
+.auto-miner-target-head .icon-button {
+  background: #303735;
+  min-height: 36px;
+  min-width: 36px;
+}
+
+.auto-miner-target-list {
+  display: grid;
+  gap: 5px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.auto-miner-target-option {
+  align-items: center;
+  background: #171d1c;
+  border: 1px solid #596763;
+  border-radius: 0;
+  color: #f1e8c6;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  min-height: 50px;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.auto-miner-target-option.selected {
+  background: #263a36;
+  border-color: #e3c14b;
+  box-shadow: inset 3px 0 0 #69d8e8;
+}
+
+.auto-miner-target-option:disabled {
+  background: #101313;
+  color: #818985;
+  opacity: 0.7;
+}
+
+.auto-miner-target-icon {
+  align-items: center;
+  background: #9b9d96;
+  border: 2px solid #e8e8df;
+  border-bottom-color: #343b39;
+  border-right-color: #343b39;
+  display: grid;
+  height: 38px;
+  justify-items: center;
+  width: 38px;
+}
+
+.auto-miner-target-icon .pixel-icon {
+  height: 30px;
+  width: 30px;
+}
+
+.auto-miner-target-option > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.auto-miner-target-option strong {
+  font-size: 0.66rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auto-miner-target-option small {
+  color: #94bfbc;
+  font-size: 0.48rem;
+  line-height: 1.15;
+}
+
+.auto-miner-target-option em {
+  color: #e6c851;
+  font-size: 0.5rem;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.auto-miner-target-option:disabled em,
+.auto-miner-target-option:disabled small {
+  color: #8b7a6c;
+}
+
+.auto-miner-clear-target {
+  background: #3a2925;
+  border: 1px solid #9b5d45;
+  border-radius: 0;
+  color: #f0c5a9;
+  font: 900 0.6rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 34px;
+  text-transform: uppercase;
 }
 
 .furnace-modal.machine-terminal .primitive-furnace-hmi {
@@ -15518,27 +15641,6 @@ button.button-primary:disabled,
   .machine-lvChemicalReactor-terminal .processing-storage,
   .machine-lvChemicalReactor-terminal .machine-selected-item {
     padding: 3px;
-  }
-
-  .machine-lvChemicalReactor-terminal .manual-fluid-transfer {
-    gap: 3px;
-    grid-template-columns: minmax(76px, 1fr) repeat(3, minmax(0, 1fr));
-    min-height: 42px;
-    padding: 3px;
-  }
-
-  .machine-lvChemicalReactor-terminal .manual-fluid-transfer > div {
-    gap: 1px;
-  }
-
-  .machine-lvChemicalReactor-terminal .manual-fluid-transfer strong {
-    font-size: 0.58rem;
-  }
-
-  .machine-lvChemicalReactor-terminal .compact-action-button {
-    font-size: 0.58rem;
-    min-height: 34px;
-    padding: 2px;
   }
 
   .machine-lvChemicalReactor-terminal .forge-hammer-interface {

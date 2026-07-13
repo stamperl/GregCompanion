@@ -45,6 +45,7 @@ import {
   insertProcessSlot,
   insertMachineStorageSlot,
   installLvBatteryInBuffer,
+  installSurveyCardInAutoMiner,
   isAutoMinerPowered,
   isReachGateFormed,
   loadGame,
@@ -72,6 +73,7 @@ import {
   removeProcessSlot,
   removeMachineStorageSlot,
   removeLvBatteryFromBuffer,
+  removeSurveyCardFromAutoMiner,
   searchTerminalRecipes,
   sellShopItem,
   setFluidOutputDirection,
@@ -906,7 +908,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(7)
+    expect(state.version).toBe(8)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -927,7 +929,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(7)
+    expect(state.version).toBe(8)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -4658,7 +4660,7 @@ describe('game engine', () => {
     expect(hitGatherTarget(state, 'sulfurVent').state.gatherProgress.sulfurVent).toBe(5)
   })
 
-  it('requires and installs a survey card for non-basic LV mining profiles', () => {
+  it('requires a matching Survey Card in the LV miner inventory', () => {
     let state = createFactoryState()
     state.machines.lvAutoMiner = 1
     state = placeMachineInstance(state, 'lvAutoMiner', 0, 0)
@@ -4666,10 +4668,42 @@ describe('game engine', () => {
 
     expect(assignAutoMiner(state, miner.uid, 'coalSeam')).toBe(state)
     state.surveyCards.coalSeam = 1
+    expect(assignAutoMiner(state, miner.uid, 'coalSeam')).toBe(state)
+    state = installSurveyCardInAutoMiner(state, miner.uid, 'coalSeam')
+
+    expect(state.surveyCards.coalSeam).toBeUndefined()
+    expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
+    expect(questObjectiveProgress(state, { type: 'surveyCard', id: 'coalSeam', amount: 1 }).current).toBe(1)
     state = assignAutoMiner(state, miner.uid, 'coalSeam')
 
     expect(state.autoMinerAssignments[miner.uid]).toBe('coalSeam')
+    state = removeSurveyCardFromAutoMiner(state, miner.uid)
+    expect(state.autoMinerAssignments[miner.uid]).toBeUndefined()
+    expect(state.machineInstances[0].surveyCardTarget).toBeUndefined()
+    expect(state.surveyCards.coalSeam).toBe(1)
+  })
+
+  it('migrates legacy duplicated Survey Cards into the miner inventory', () => {
+    const state = loadGame(JSON.stringify({
+      version: 7,
+      factoryFoundationLevel: 2,
+      machines: { lvAutoMiner: 0 },
+      surveyCards: { coalSeam: 1 },
+      autoMinerAssignments: { miner: 'coalSeam' },
+      machineInstances: [{
+        uid: 'miner',
+        machineId: 'lvAutoMiner',
+        x: 0,
+        y: 0,
+        level: 1,
+        surveyCardTarget: 'coalSeam',
+      }],
+    }), 3000)
+
+    expect(state.version).toBe(8)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
+    expect(state.surveyCards.coalSeam).toBeUndefined()
+    expect(state.autoMinerAssignments.miner).toBe('coalSeam')
   })
 
   it('stores auto-mined drops in the miner output instead of global inventory', () => {
