@@ -132,6 +132,14 @@ export type ResourceId =
   | 'sodiumBattery'
   | 'lithiumBattery'
   | 'lvBattery'
+  | 'obsidian'
+  | 'sulfurOre'
+  | 'sulfurDust'
+  | 'surveyKit'
+  | 'emptySteelCell'
+  | 'waterSteelCell'
+  | 'creosoteSteelCell'
+  | 'liquidRubberSteelCell'
 
 export type MachineId =
   | 'furnace'
@@ -174,6 +182,9 @@ export type MachineId =
   | 'lvCentrifuge'
   | 'lvCanner'
   | 'lvAutoMiner'
+  | 'lvChemicalReactor'
+  | 'reachGateCasing'
+  | 'reachGate'
   | 'lvEnergyHatch2A'
   | 'lvInputBus'
   | 'lvOutputBus'
@@ -271,8 +282,22 @@ export type QuestId =
   | 'buildArcBlastFurnaceQuest'
   | 'bufferArcBlastFurnaceQuest'
   | 'firstAluminiumQuest'
+  | 'buildLvAutoMinerQuest'
+  | 'craftSurveyKitQuest'
+  | 'encodeCoalSurveyCardQuest'
+  | 'gatherObsidianQuest'
+  | 'craftReachGateQuest'
+  | 'formReachGateQuest'
+  | 'gatherSulfurQuest'
+  | 'encodeSulfurSurveyCardQuest'
+  | 'makeSulfurDustQuest'
+  | 'craftSteelCellsQuest'
+  | 'buildChemicalReactorQuest'
+  | 'makeLiquidRubberQuest'
+  | 'insulateWithLiquidRubberQuest'
+  | 'cureLiquidRubberQuest'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
 
@@ -356,8 +381,10 @@ export type GatherTargetId =
   | 'diamondVein'
   | 'leadVein'
   | 'saltDeposit'
+  | 'obsidianDeposit'
+  | 'sulfurVent'
 
-export type FluidId = 'water' | 'creosote'
+export type FluidId = 'water' | 'creosote' | 'liquidRubber'
 
 export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | 'axe' | 'shovel' | 'pickaxe' | 'weapon'
 
@@ -397,6 +424,7 @@ export type Recipe = {
   durabilityCosts?: ResourceAmount[]
   machineInputs?: MachineAmount[]
   machineOutputs?: MachineAmount[]
+  surveyCardOutput?: GatherTargetId
   requiredMachine?: MachineId
   unlockedBy?: QuestId
 }
@@ -451,6 +479,8 @@ export type Quest = {
   requirements: {
     resources?: ResourceAmount[]
     machines?: MachineAmount[]
+    surveyCards?: Array<{ id: GatherTargetId; amount: number }>
+    recipes?: Array<{ id: string; amount: number }>
   }
   rewards: {
     resources?: ResourceAmount[]
@@ -487,6 +517,8 @@ export type QuestIcon =
 export type QuestObjective =
   | { type: 'resource'; id: ResourceId; amount: number; label?: string; progressMode?: 'current' | 'lifetime' }
   | { type: 'machine'; id: MachineId; amount: number; label?: string; progressMode?: 'current' | 'lifetime' }
+  | { type: 'surveyCard'; id: GatherTargetId; amount: number; label?: string }
+  | { type: 'recipe'; id: string; amount: number; label?: string }
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }
 
@@ -537,6 +569,8 @@ export type GatherTarget = {
   maxHp: number
   drops: ResourceAmount[]
   preferredTool: ToolId
+  area?: 'forest' | 'lake' | 'mine' | 'shatteredReach'
+  autoMinerProfile?: 'basic' | 'survey'
 }
 
 export type GameState = {
@@ -559,6 +593,8 @@ export type GameState = {
   durability: Partial<Record<ResourceId, number>>
   gatherProgress: Partial<Record<GatherTargetId, number>>
   autoMinerAssignments: Record<string, GatherTargetId>
+  surveyCards: Partial<Record<GatherTargetId, number>>
+  recipeMilestones: Partial<Record<string, number>>
   machineProgress: Partial<Record<MachineId, number>>
   migrationNotices: string[]
   lastSavedAt: number
@@ -602,6 +638,7 @@ export type MachineProcessState = {
   durationMs: number
   fuelRemainingMs: number
   fuelDurationMs: number
+  miningDamage: number
   steamStoredMs: number
   steamCapacityMs: number
   euStored: number
@@ -620,6 +657,7 @@ export type MachineInstance = {
   pipeSideModes?: Partial<Record<PipeDirection, PipeSideMode>>
   itemOutputDirection?: PipeDirection
   itemTransferProgressMs?: number
+  surveyCardTarget?: GatherTargetId
   process: MachineProcessState
 }
 

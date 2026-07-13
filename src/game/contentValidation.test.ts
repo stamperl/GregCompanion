@@ -86,6 +86,14 @@ function expectQuestObjectiveReferences(objective: QuestObjective, context: stri
   if (objective.type === 'factoryFoundation') {
     expect(objective.level, `${context} factory foundation level should be positive`).toBeGreaterThan(0)
   }
+  if (objective.type === 'surveyCard') {
+    expect(gatherTargets, `${context} references unknown survey target ${objective.id}`).toHaveProperty(objective.id)
+    expect(objective.amount, `${context} survey card amount should be positive`).toBeGreaterThan(0)
+  }
+  if (objective.type === 'recipe') {
+    expect([...recipes, ...processRecipes].some((recipe) => recipe.id === objective.id), `${context} references unknown recipe ${objective.id}`).toBe(true)
+    expect(objective.amount, `${context} recipe amount should be positive`).toBeGreaterThan(0)
+  }
 }
 
 describe('content validation', () => {
@@ -217,7 +225,11 @@ describe('content validation', () => {
         expect(machines, `${recipe.id} machine output should exist`).toHaveProperty(recipe.machineOutput.id)
         expect(recipe.machineOutput.amount, `${recipe.id} machine output amount should be positive`).toBeGreaterThan(0)
       } else {
-        expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
+        if (recipe.output.amount === 0 && recipe.fluidOutput) {
+          expect(resourceLabels, `${recipe.id} placeholder output should reference a known resource`).toHaveProperty(recipe.output.id)
+        } else {
+          expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
+        }
       }
       if (recipe.fluidOutput) {
         expect(recipe.fluidOutput.amount, `${recipe.id} fluid output amount should be positive`).toBeGreaterThan(0)
@@ -237,6 +249,7 @@ describe('content validation', () => {
   it('keeps quests valid', () => {
     const questIds = new Set(quests.map((quest) => quest.id))
     const chapterIds = new Set(questChapters.map((chapter) => chapter.id))
+    const recipeIds = new Set([...recipes, ...processRecipes].map((recipe) => recipe.id))
 
     for (const quest of quests) {
       expect(quest.title.trim(), `${quest.id} should have a title`).not.toBe('')
@@ -248,10 +261,31 @@ describe('content validation', () => {
       if (quest.icon?.type === 'gather') expect(gatherTargets, `${quest.id} icon gather target should exist`).toHaveProperty(quest.icon.id)
       expectResourceAmountReferences(quest.requirements.resources ?? [], `${quest.id} required resources`)
       expectMachineAmountReferences(quest.requirements.machines ?? [], `${quest.id} required machines`)
+      for (const card of quest.requirements.surveyCards ?? []) {
+        expect(gatherTargets, `${quest.id} required survey target should exist`).toHaveProperty(card.id)
+        expect(card.amount, `${quest.id} required survey card amount should be positive`).toBeGreaterThan(0)
+      }
+      for (const recipe of quest.requirements.recipes ?? []) {
+        expect(recipeIds, `${quest.id} required recipe should exist`).toContain(recipe.id)
+        expect(recipe.amount, `${quest.id} required recipe amount should be positive`).toBeGreaterThan(0)
+      }
       expectResourceAmountReferences(quest.rewards.resources ?? [], `${quest.id} reward resources`)
       expectMachineAmountReferences(quest.rewards.machines ?? [], `${quest.id} reward machines`)
       for (const unlock of quest.rewards.unlocks ?? []) expect(questIds, `${quest.id} reward unlock should exist`).toContain(unlock)
       for (const objective of quest.objectives ?? []) expectQuestObjectiveReferences(objective, `${quest.id} objective`)
     }
+
+    const questById = new Map<string, (typeof quests)[number]>(quests.map((quest) => [quest.id, quest]))
+    const visited = new Set<string>()
+    const active = new Set<string>()
+    const visit = (questId: string) => {
+      expect(active, `quest prerequisites should not contain a cycle through ${questId}`).not.toContain(questId)
+      if (visited.has(questId)) return
+      active.add(questId)
+      for (const prerequisite of questById.get(questId)?.prerequisites ?? []) visit(prerequisite)
+      active.delete(questId)
+      visited.add(questId)
+    }
+    for (const quest of quests) visit(quest.id)
   })
 })

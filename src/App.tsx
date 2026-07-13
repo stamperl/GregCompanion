@@ -97,11 +97,13 @@ import {
   craftRecipeInstant,
   equipResource,
   emptyBucketIntoMachine,
+  emptySteelCellIntoMachine,
   equipmentSlots,
   equipmentSlotAccepts,
   expandFactoryFloor,
   findGridRecipe,
   fillBucketFromMachine,
+  fillSteelCellFromMachine,
   factoryFoundationCost,
   factoryFoundationSizes,
   factoryGridForState,
@@ -110,6 +112,7 @@ import {
   hasFactoryFloor,
   hitGatherTarget,
   isAutoMinerPowered,
+  isReachGateFormed,
   isFluidOutletConfigurableMachine,
   isLvItemAutomationMachine,
   isResourceDiscovered,
@@ -334,6 +337,7 @@ const machineOrder: MachineId[] = [
   'lvLathe',
   'lvElectrolyzer',
   'lvAssembler',
+  'lvChemicalReactor',
   'lvCentrifuge',
   'lvCanner',
   'lvAutoMiner',
@@ -348,6 +352,8 @@ const machineOrder: MachineId[] = [
   'brickedBlastFurnace',
   'arcBlastFurnacePart',
   'arcBlastFurnace',
+  'reachGateCasing',
+  'reachGate',
 ]
 
 const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
@@ -369,9 +375,10 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   lvElectrolyzer: { kind: 'electrolyzer', runningLabel: 'Splitting' },
   lvCentrifuge: { kind: 'centrifuge', runningLabel: 'Spinning', secondaryInput: true },
   lvCanner: { kind: 'canner', runningLabel: 'Canning', secondaryInput: true },
+  lvChemicalReactor: { kind: 'chemicalReactor', runningLabel: 'Reacting', secondaryInput: true },
 }
 
-const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks'])
+const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach'])
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
 const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWrench']
 
@@ -424,7 +431,7 @@ function PipeFlowArrows({ direction, mode }: { direction: PipeDirection; mode: P
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
 
-type GatherAreaId = 'forest' | 'lake' | 'mine'
+type GatherAreaId = 'forest' | 'lake' | 'mine' | 'shatteredReach'
 
 const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTargetId[] }> = [
   { id: 'forest', label: 'Forest', targets: ['tree', 'rubberTree'] },
@@ -432,8 +439,9 @@ const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTarge
   {
     id: 'mine',
     label: 'Mine',
-    targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam', 'diamondVein', 'leadVein', 'saltDeposit'],
+    targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam', 'diamondVein', 'leadVein', 'saltDeposit', 'obsidianDeposit'],
   },
+  { id: 'shatteredReach', label: 'Shattered Reach', targets: ['sulfurVent'] },
 ]
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tree: 'log',
@@ -452,6 +460,8 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   diamondVein: 'diamond',
   leadVein: 'leadOre',
   saltDeposit: 'sodiumSalt',
+  obsidianDeposit: 'obsidian',
+  sulfurVent: 'sulfurOre',
 }
 const craftSlotHitboxScale = 0.64
 
@@ -465,13 +475,15 @@ const multiblockQuestIds = new Set<QuestId>([
   'craftArcControllerQuest',
   'craftArcItemBusesQuest',
   'craftArcEnergyHatchesQuest',
-  'buildLvAssemblerForPortsQuest',
   'craftArcFluidHatchesQuest',
   'buildArcBlastFurnaceQuest',
   'bufferArcBlastFurnaceQuest',
 ])
 
 function questBookChapterId(quest: Quest): QuestChapterId {
+  if (quest.chapterId === 'shatteredReach') return 'shatteredReach'
+  if (quest.chapterId === 'lvAge') return 'lvAge'
+  if (quest.chapterId === 'multiblocks') return 'multiblocks'
   if (quest.chapterId === 'lvFoundations' || quest.chapterId === 'blastPrep') return 'lvAge'
   if (quest.chapterId === 'steamAge' || quest.chapterId === 'cokeAndSteel') return 'steamAge'
   return 'gettingStarted'
@@ -565,17 +577,18 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
 }
 
 const multiblockQuestPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>> = {
-  bbfCasingsQuest: { x: 70, y: 260 },
-  buildBbfQuest: { x: 245, y: 260 },
+  cokeOvenBrickQuest: { x: 70, y: 380 },
+  cokeOvenQuest: { x: 245, y: 380 },
+  bbfCasingsQuest: { x: 420, y: 380 },
+  buildBbfQuest: { x: 595, y: 380 },
   makeHeatingCoilsQuest: { x: 70, y: 80 },
-  makeInvarQuest: { x: 70, y: 210 },
-  craftArcControllerQuest: { x: 245, y: 145 },
-  craftArcItemBusesQuest: { x: 420, y: 80 },
-  craftArcEnergyHatchesQuest: { x: 420, y: 210 },
-  buildLvAssemblerForPortsQuest: { x: 245, y: 300 },
-  craftArcFluidHatchesQuest: { x: 420, y: 340 },
-  buildArcBlastFurnaceQuest: { x: 595, y: 145 },
-  bufferArcBlastFurnaceQuest: { x: 770, y: 145 },
+  makeInvarQuest: { x: 245, y: 80 },
+  craftArcControllerQuest: { x: 420, y: 145 },
+  craftArcItemBusesQuest: { x: 595, y: 80 },
+  craftArcEnergyHatchesQuest: { x: 595, y: 210 },
+  craftArcFluidHatchesQuest: { x: 595, y: 290 },
+  buildArcBlastFurnaceQuest: { x: 770, y: 145 },
+  bufferArcBlastFurnaceQuest: { x: 945, y: 145 },
 }
 
 function isCenteredCraftSlotHit(element: HTMLElement, clientX: number, clientY: number) {
@@ -764,6 +777,7 @@ function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
 }
 
 function recipeOutputLabel(recipe: Recipe) {
+  if (recipe.surveyCardOutput) return `1 ${gatherTargets[recipe.surveyCardOutput].name} Survey Card`
   if (recipe.outputs.length > 0) {
     return recipe.outputs.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`).join(', ')
   }
@@ -771,6 +785,14 @@ function recipeOutputLabel(recipe: Recipe) {
 }
 
 function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
+  if (recipe.surveyCardOutput) {
+    return {
+      kind: 'resource',
+      id: 'surveyKit',
+      amount: 1,
+      label: `${gatherTargets[recipe.surveyCardOutput].name} Survey Card`,
+    }
+  }
   const resourceOutput = recipe.outputs[0]
   if (resourceOutput) {
     return {
@@ -880,6 +902,7 @@ function EnergyTank({ storedEu, capacityEu }: { storedEu: number; capacityEu: nu
 }
 
 function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
+  if (group.recipes[0]?.surveyCardOutput) return recipePrimaryOutput(group.recipes[0])
   const recipeOutput = recipeGroupOutput(group.recipes[0])
   const output = recipeOutput ?? group.output
   if (output.kind === 'resource') {
@@ -1211,6 +1234,8 @@ function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
     return hasToolTierUnlocked(state, 'stonePickaxe') || hasToolTierUnlocked(state, 'ironPickaxe')
   }
   if (targetId === 'leadVein' || targetId === 'saltDeposit') return hasToolTierUnlocked(state, 'diamondPickaxe')
+  if (targetId === 'obsidianDeposit') return hasToolTierUnlocked(state, 'diamondPickaxe')
+  if (targetId === 'sulfurVent') return isReachGateFormed(state) && hasToolTierUnlocked(state, 'ironPickaxe')
   return hasToolTierUnlocked(state, 'ironPickaxe')
 }
 
@@ -1642,15 +1667,16 @@ function QuestBook({
                 const parentCenterY = questY(parent) + nodeHeight / 2
                 const childCenterX = questX(quest) + nodeWidth / 2
                 const childCenterY = questY(quest) + nodeHeight / 2
-                const deltaX = childCenterX - parentCenterX
-                const deltaY = childCenterY - parentCenterY
-                const distance = Math.max(1, Math.hypot(deltaX, deltaY))
-                const edgeInset = nodeWidth / 2
-                const startX = parentCenterX + (deltaX / distance) * edgeInset
-                const startY = parentCenterY + (deltaY / distance) * edgeInset
-                const endX = childCenterX - (deltaX / distance) * edgeInset
-                const endY = childCenterY - (deltaY / distance) * edgeInset
-                const path = `M ${startX} ${startY} L ${endX} ${endY}`
+                const horizontal = Math.abs(childCenterX - parentCenterX) >= Math.abs(childCenterY - parentCenterY)
+                const movingRight = childCenterX >= parentCenterX
+                const movingDown = childCenterY >= parentCenterY
+                const startX = horizontal ? parentCenterX + (movingRight ? nodeWidth / 2 : -nodeWidth / 2) : parentCenterX
+                const startY = horizontal ? parentCenterY : parentCenterY + (movingDown ? nodeHeight / 2 : -nodeHeight / 2)
+                const endX = horizontal ? childCenterX - (movingRight ? nodeWidth / 2 : -nodeWidth / 2) : childCenterX
+                const endY = horizontal ? childCenterY : childCenterY - (movingDown ? nodeHeight / 2 : -nodeHeight / 2)
+                const path = horizontal
+                  ? `M ${startX} ${startY} H ${(startX + endX) / 2} V ${endY} H ${endX}`
+                  : `M ${startX} ${startY} V ${(startY + endY) / 2} H ${endX} V ${endY}`
                 return (
                   <g key={`${parent.id}-${quest.id}`}>
                     <path className="quest-line-shadow" d={path} />
@@ -2294,12 +2320,28 @@ function App() {
         : ''
     : ''
   const selectedMachineStoredFluids = selectedMachine ? storedFluids(selectedMachine.process) : []
+  const selectedMachineFluidCapacity = selectedMachine
+    ? selectedMachine.process.fluidCapacityLitres || machines[selectedMachine.machineId].fluidCapacityLitres || 0
+    : 0
   const selectedMachineCanManualFluidTransfer = Boolean(
     selectedMachine &&
       (selectedMachine.machineId === 'cokeOven' ||
         selectedMachine.machineId === 'steamTank' ||
         selectedMachine.machineId === 'lvAssembler' ||
+        selectedMachine.machineId === 'lvChemicalReactor' ||
+        selectedMachine.machineId === 'lvCanner' ||
         isLiquidSteamBoilerMachine(selectedMachine.machineId)),
+  )
+  const steelCellResources = [
+    { id: 'waterSteelCell' as const, fluidId: 'water' as const },
+    { id: 'creosoteSteelCell' as const, fluidId: 'creosote' as const },
+    { id: 'liquidRubberSteelCell' as const, fluidId: 'liquidRubber' as const },
+  ]
+  const availableFilledSteelCells = steelCellResources.filter((cell) => availableResourceAmount(state, cell.id) > 0)
+  const canUseSteelCells = Boolean(
+    selectedMachine &&
+      (selectedMachineStoredFluids.some((fluid) => fluid.amount >= 8) ||
+        (selectedMachineFluidCapacity >= 8 && (availableResourceAmount(state, 'emptySteelCell') > 0 || availableFilledSteelCells.length > 0))),
   )
   const canFillBucketFromSelectedMachine = selectedMachineCanManualFluidTransfer && availableResourceAmount(state, 'bucket') > 0 && !state.bucketFluid && selectedMachineStoredFluids.length > 0
   const canEmptyBucketIntoSelectedMachine = Boolean(
@@ -2429,6 +2471,7 @@ function App() {
       addRateMetric('Uses', selectedMachineSteamUsagePerSecond, 'L/s', 'usage', 'recipe draw')
     } else if (isEuPoweredMachine(selectedMachine.machineId)) {
       addEuMetric('Internal', process.euStored, process.euCapacity || 0)
+      if (process.fluidCapacityLitres > 0) addStoredFluidMetrics(process, process.fluidCapacityLitres)
       selectedMachineMetrics.push({
         label: 'Supply',
         value: `${Math.floor(availableConnectedEu(state, selectedMachine))}`,
@@ -2532,6 +2575,7 @@ function App() {
     ? [
         'furnace-modal',
         'machine-terminal',
+        `machine-${selectedMachine.machineId}-terminal`,
         selectedMachine.machineId === 'lvAssembler' ? 'lv-assembler-terminal' : '',
         selectedMachineIsHmiTerminal ? 'forge-hammer-terminal' : '',
         selectedMachineHmiKind === 'macerator' ? 'macerator-terminal' : '',
@@ -2977,6 +3021,10 @@ function App() {
       }
       const structureController = controllerForFactoryStructure(instance)
       if (structureController && structureController.uid !== instance.uid) {
+        if (structureController.machineId === 'reachGate') {
+          setFactoryNotice('Reach Gate formed. Shattered Reach access is stable while all four casings remain placed.')
+          return
+        }
         setSelectedMachineUid(structureController.uid)
         return
       }
@@ -2989,12 +3037,20 @@ function App() {
       }
       if (machines[instance.machineId].multiblock) {
         if (structureController) {
+          if (structureController.machineId === 'reachGate') {
+            setFactoryNotice('Reach Gate formed. Shattered Reach access is stable while all four casings remain placed.')
+            return
+          }
           setSelectedMachineUid(structureController.uid)
           return
         }
         if (instance.machineId === 'cokeOvenPart') setFactoryNotice('Place Coke Oven Blocks in a full 2x2 to form the oven.')
         if (instance.machineId === 'brickedBlastFurnacePart') setFactoryNotice('Place BBF casings in a full 2x2 to form the furnace.')
         if (instance.machineId === 'arcBlastFurnacePart') setFactoryNotice('Fill every unused perimeter cell around an Arc Furnace Controller to complete its 3x3 structure.')
+        return
+      }
+      if (instance.machineId === 'reachGateCasing') {
+        setFactoryNotice('Place four Reach Gate Casings in a full 2x2 to stabilize the breach.')
         return
       }
       if (machines[instance.machineId].processKind === 'none') {
@@ -3035,6 +3091,14 @@ function App() {
 
   const handleEmptyBucketIntoMachine = (uid: string) => {
     setState((current) => emptyBucketIntoMachine(current, uid))
+  }
+
+  const handleFillSteelCellFromMachine = (uid: string, fluidId?: FluidId) => {
+    setState((current) => fillSteelCellFromMachine(current, uid, fluidId))
+  }
+
+  const handleEmptySteelCellIntoMachine = (uid: string, cellId: ResourceId) => {
+    setState((current) => emptySteelCellIntoMachine(current, uid, cellId))
   }
 
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
@@ -4175,7 +4239,13 @@ function App() {
         <section className="tap-panel" aria-label="Manual gathering">
           <div className="gather-area-tabs" aria-label="Gathering areas">
             {gatherAreas.map((area) => (
-              <button type="button" className={gatherArea === area.id ? 'active' : ''} onClick={() => setGatherArea(area.id)} key={area.id}>
+              <button
+                type="button"
+                className={gatherArea === area.id ? 'active' : ''}
+                disabled={area.id === 'shatteredReach' && !isReachGateFormed(state)}
+                onClick={() => setGatherArea(area.id)}
+                key={area.id}
+              >
                 {area.label}
               </button>
             ))}
@@ -4206,6 +4276,7 @@ function App() {
               const unassignedLvMiners = autoMinerInstances.filter(
                 (instance) => instance.machineId === 'lvAutoMiner' && !state.autoMinerAssignments[instance.uid] && lvMinerCompatible,
               )
+              const lvSurveyReady = steamMinerCompatible || (state.surveyCards[targetId] ?? 0) > 0
               const showAutoMinerControls =
                 assignedSteamMiners.length > 0 ||
                 assignedLvMiners.length > 0 ||
@@ -4285,6 +4356,7 @@ function App() {
                             <div className="auto-miner-control">
                               <strong>
                                 LV {assignedLvMiners.filter((instance) => isAutoMinerPowered(state, instance)).length}/{assignedLvMiners.length}
+                                {!lvSurveyReady && ' | Needs card'}
                               </strong>
                               <button
                                 type="button"
@@ -4296,7 +4368,7 @@ function App() {
                               </button>
                               <button
                                 type="button"
-                                disabled={unassignedLvMiners.length < 1}
+                                disabled={unassignedLvMiners.length < 1 || !lvSurveyReady}
                                 aria-label={`Assign LV auto miner to ${target.name}`}
                                 onClick={() => handleAssignAutoMiner(targetId, 'lvAutoMiner')}
                               >
@@ -5563,6 +5635,33 @@ function App() {
                         Empty bucket
                       </button>
                     )}
+                  </div>
+                )}
+                {canUseSteelCells && selectedMachine && (
+                  <div className="manual-fluid-transfer steel-cell-transfer" aria-label="Steel fluid cell transfer">
+                    <div>
+                      <span>Steel cells</span>
+                      <strong>8L each</strong>
+                    </div>
+                    {availableResourceAmount(state, 'emptySteelCell') > 0 && selectedMachineStoredFluids.some((fluid) => fluid.amount >= 8) && (
+                      <button
+                        type="button"
+                        className="load-recipe-button compact-action-button"
+                        onClick={() => handleFillSteelCellFromMachine(selectedMachine.uid, selectedMachineStoredFluids.find((fluid) => fluid.amount >= 8)?.id)}
+                      >
+                        Fill cell
+                      </button>
+                    )}
+                    {availableFilledSteelCells.map((cell) => (
+                      <button
+                        type="button"
+                        className="load-recipe-button compact-action-button"
+                        onClick={() => handleEmptySteelCellIntoMachine(selectedMachine.uid, cell.id)}
+                        key={cell.id}
+                      >
+                        Load {fluidLabel(cell.fluidId)}
+                      </button>
+                    ))}
                   </div>
                 )}
                 {isMachineAutomationOpen && selectedMachineCanAutomateItems ? (

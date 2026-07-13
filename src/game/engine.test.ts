@@ -36,6 +36,7 @@ import {
   expandFactoryFloor,
   factoryFoundationCost,
   fillBucketFromMachine,
+  fillSteelCellFromMachine,
   factoryGridForState,
   findGridRecipe,
   getBestToolForTarget,
@@ -45,12 +46,15 @@ import {
   insertMachineStorageSlot,
   installLvBatteryInBuffer,
   isAutoMinerPowered,
+  isReachGateFormed,
   loadGame,
   loadGameWithOfflineProgress,
   emptyBucketIntoMachine,
+  emptySteelCellIntoMachine,
   liquidSteamBoilerCapacityMs,
   liquidSteamBoilerFluidCapacityLitres,
   lvItemAutomationStatus,
+  lvAutoMinerActionMs,
   makeGridForRecipe,
   maxDurability,
   missingForQuantity,
@@ -902,7 +906,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(6)
+    expect(state.version).toBe(7)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -923,7 +927,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(6)
+    expect(state.version).toBe(7)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1005,7 +1009,7 @@ describe('game engine', () => {
     expect(Object.values(state.resources).every((amount) => amount >= 32)).toBe(true)
     expect(
       Object.entries(state.machines).every(([id, amount]) =>
-        id === 'cokeOven' || id === 'brickedBlastFurnace' ? amount === 0 : amount >= 32,
+        id === 'cokeOven' || id === 'brickedBlastFurnace' || id === 'reachGate' ? amount === 0 : amount >= 32,
       ),
     ).toBe(true)
     expect(state.machines.cokeOven).toBe(0)
@@ -1014,6 +1018,8 @@ describe('game engine', () => {
     expect(state.machines.brickedBlastFurnacePart).toBe(32)
     expect(state.machines.arcBlastFurnace).toBe(32)
     expect(state.machines.arcBlastFurnacePart).toBe(32)
+    expect(state.machines.reachGate).toBe(0)
+    expect(state.machines.reachGateCasing).toBe(32)
     expect(state.factoryFoundationLevel).toBe(6)
     expect(state.craftedResources).toEqual(Object.keys(state.resources))
     expect(state.lastSavedAt).toBe(2000)
@@ -4090,14 +4096,17 @@ describe('game engine', () => {
   it('keeps steam auto miners limited to basic mine resources', () => {
     expect(canAutoMinerTarget('steamAutoMiner', 'stone')).toBe(true)
     expect(canAutoMinerTarget('steamAutoMiner', 'ironVein')).toBe(true)
-    expect(canAutoMinerTarget('steamAutoMiner', 'coalSeam')).toBe(true)
+    expect(canAutoMinerTarget('steamAutoMiner', 'copperVein')).toBe(true)
+    expect(canAutoMinerTarget('steamAutoMiner', 'tinVein')).toBe(true)
+    expect(canAutoMinerTarget('steamAutoMiner', 'coalSeam')).toBe(false)
     expect(canAutoMinerTarget('steamAutoMiner', 'redstoneVein')).toBe(false)
     expect(canAutoMinerTarget('steamAutoMiner', 'tree')).toBe(false)
   })
 
   it('lets LV auto miners target non-tree resources only', () => {
     expect(canAutoMinerTarget('lvAutoMiner', 'redstoneVein')).toBe(true)
-    expect(canAutoMinerTarget('lvAutoMiner', 'sandPatch')).toBe(true)
+    expect(canAutoMinerTarget('lvAutoMiner', 'sulfurVent')).toBe(true)
+    expect(canAutoMinerTarget('lvAutoMiner', 'sandPatch')).toBe(false)
     expect(canAutoMinerTarget('lvAutoMiner', 'tree')).toBe(false)
     expect(canAutoMinerTarget('lvAutoMiner', 'rubberTree')).toBe(false)
   })
@@ -4115,8 +4124,9 @@ describe('game engine', () => {
     state = assignAutoMiner(state, miner.uid, 'stone')
     state = tickGame(state, 70000).state
 
-    expect(state.resources.cobblestone).toBe(5)
-    expect(state.gatherProgress.stone).toBeGreaterThan(0)
+    expect(state.resources.cobblestone).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.output).toEqual({ id: 'cobblestone', amount: 5 })
+    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.miningDamage).toBeGreaterThan(0)
     expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.steamStoredMs ?? 0).toBeLessThan(32000)
   })
 
@@ -4132,8 +4142,9 @@ describe('game engine', () => {
 
     const result = simulateOfflineProgress(state, 70_000, 71_000)
 
-    expect(result.state.resources.cobblestone).toBe(5)
-    expect(result.offline.resourceDelta).toContainEqual({ id: 'cobblestone', amount: 5 })
+    expect(result.state.resources.cobblestone).toBe(0)
+    expect(result.state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.output).toEqual({ id: 'cobblestone', amount: 5 })
+    expect(result.offline.resourceDelta).toEqual([])
   })
 
   it('does not deal auto miner damage before the action lands', () => {
@@ -4150,7 +4161,7 @@ describe('game engine', () => {
 
     const nextMiner = state.machineInstances.find((instance) => instance.uid === miner.uid)!
     expect(nextMiner.process.progressMs).toBe(4000)
-    expect(state.gatherProgress.stone ?? 0).toBe(0)
+    expect(nextMiner.process.miningDamage).toBe(0)
     expect(state.resources.cobblestone).toBe(0)
   })
 
@@ -4185,7 +4196,11 @@ describe('game engine', () => {
     state = assignAutoMiner(state, miners[1].uid, 'stone')
     state = tickGame(state, 35000).state
 
-    expect(state.resources.cobblestone).toBe(5)
+    expect(
+      state.machineInstances
+        .filter((instance) => instance.machineId === 'steamAutoMiner')
+        .reduce((total, instance) => total + (instance.process.output?.amount ?? 0), 0),
+    ).toBe(4)
   })
 
   it('runs LV auto miners from connected EU and clears assignment when removed', () => {
@@ -4197,14 +4212,15 @@ describe('game engine', () => {
     state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.process.euStored = steamTurbineEuCapacity
     const miner = state.machineInstances.find((instance) => instance.machineId === 'lvAutoMiner')!
 
-    state = assignAutoMiner(state, miner.uid, 'sandPatch')
+    state = assignAutoMiner(state, miner.uid, 'ironVein')
     expect(isAutoMinerPowered(state, miner)).toBe(true)
     state = tickGame(state, 25000).state
 
-    expect(state.resources.sand).toBe(4)
+    expect(state.resources.ironOre).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.output?.id).toBe('ironOre')
     state = unassignAutoMiner(state, miner.uid)
     expect(state.autoMinerAssignments[miner.uid]).toBeUndefined()
-    state = assignAutoMiner(state, miner.uid, 'sandPatch')
+    state = assignAutoMiner(state, miner.uid, 'ironVein')
     state = removeMachineInstance(state, miner.uid)
     expect(state.autoMinerAssignments[miner.uid]).toBeUndefined()
   })
@@ -4609,6 +4625,118 @@ describe('game engine', () => {
     expect(craftableQuantity(state, recycleAxe)).toBe(0)
     expect(missingForQuantity(state, recycleAxe, 1)).toEqual([{ id: 'woodenAxe', amount: 1 }])
     expect(craftRecipeInstant(state, recycleAxe, 1)).toBe(state)
+  })
+
+  it('encodes reusable survey cards and records the exact recipe milestone', () => {
+    let state = createFactoryState()
+    state.resources.surveyKit = 1
+    state.resources.coal = 8
+    const recipe = recipes.find((candidate) => candidate.id === 'encode_coalSeam_survey_card')!
+
+    state = craftRecipeInstant(state, recipe, 1)
+
+    expect(state.resources.surveyKit).toBe(0)
+    expect(state.resources.coal).toBe(0)
+    expect(state.surveyCards.coalSeam).toBe(1)
+    expect(state.recipeMilestones[recipe.id]).toBe(1)
+  })
+
+  it('opens Reach gathering only while the 2x2 gate is formed', () => {
+    let state = createFactoryState()
+    state.resources.ironPickaxe = 1
+    state = equipResource(state, 'pickaxe', 'ironPickaxe')
+
+    expect(hitGatherTarget(state, 'sulfurVent').state.gatherProgress.sulfurVent).toBeUndefined()
+
+    state.machines.reachGateCasing = 4
+    state = placeMachineInstance(state, 'reachGateCasing', 0, 0)
+    state = placeMachineInstance(state, 'reachGateCasing', 1, 0)
+    state = placeMachineInstance(state, 'reachGateCasing', 0, 1)
+    state = placeMachineInstance(state, 'reachGateCasing', 1, 1)
+
+    expect(isReachGateFormed(state)).toBe(true)
+    expect(hitGatherTarget(state, 'sulfurVent').state.gatherProgress.sulfurVent).toBe(5)
+  })
+
+  it('requires and installs a survey card for non-basic LV mining profiles', () => {
+    let state = createFactoryState()
+    state.machines.lvAutoMiner = 1
+    state = placeMachineInstance(state, 'lvAutoMiner', 0, 0)
+    const miner = state.machineInstances[0]
+
+    expect(assignAutoMiner(state, miner.uid, 'coalSeam')).toBe(state)
+    state.surveyCards.coalSeam = 1
+    state = assignAutoMiner(state, miner.uid, 'coalSeam')
+
+    expect(state.autoMinerAssignments[miner.uid]).toBe('coalSeam')
+    expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
+  })
+
+  it('stores auto-mined drops in the miner output instead of global inventory', () => {
+    let state = createFactoryState()
+    state.machines.lvAutoMiner = 1
+    state = placeMachineInstance(state, 'lvAutoMiner', 0, 0)
+    const uid = state.machineInstances[0].uid
+    state = assignAutoMiner(state, uid, 'stone')
+    state.machineInstances[0].process.euStored = 128
+
+    state = tickGame(state, lvAutoMinerActionMs * 8).state
+
+    expect(state.resources.cobblestone).toBe(0)
+    expect(state.machineInstances[0].process.output?.id).toBe('cobblestone')
+    expect(state.machineInstances[0].process.output?.amount).toBeGreaterThan(0)
+  })
+
+  it('lets a hopper extract a Steam Auto Miner local output', () => {
+    let state = createFactoryState()
+    state.machines.steamAutoMiner = 1
+    state.machines.hopper = 1
+    state.machines.furnace = 1
+    state = placeMachineInstance(state, 'steamAutoMiner', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    state = placeMachineInstance(state, 'furnace', 2, 0)
+    const miner = state.machineInstances.find((instance) => instance.machineId === 'steamAutoMiner')!
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    miner.process.output = { id: 'cobblestone', amount: 2 }
+    state = setHopperOutputDirection(state, hopper.uid, 'east')
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.output?.amount).toBe(1)
+    expect(state.machineInstances.find((instance) => instance.machineId === 'furnace')?.process.input).toEqual({ id: 'cobblestone', amount: 1 })
+  })
+
+  it('runs the Chemical Reactor fluid recipe and records engine truth', () => {
+    let state = createFactoryState()
+    state.machines.lvChemicalReactor = 1
+    state = placeMachineInstance(state, 'lvChemicalReactor', 0, 0)
+    const reactor = state.machineInstances[0]
+    reactor.process.input = { id: 'rubberSap', amount: 2 }
+    reactor.process.secondaryInput = { id: 'sulfurDust', amount: 1 }
+    reactor.process.euStored = 128
+
+    state = tickGame(state, 8000).state
+
+    expect(state.machineInstances[0].process.fluids.liquidRubber).toBe(8)
+    expect(state.recipeMilestones.lv_reactor_liquid_rubber).toBe(1)
+  })
+
+  it('moves supported fluids through reusable 8L steel cells', () => {
+    let state = createFactoryState()
+    state.machines.lvChemicalReactor = 1
+    state.machines.lvAssembler = 1
+    state = placeMachineInstance(state, 'lvChemicalReactor', 0, 0)
+    state = placeMachineInstance(state, 'lvAssembler', 2, 0)
+    state.resources.emptySteelCell = 1
+    state.machineInstances[0].process.fluidCapacityLitres = 32
+    state.machineInstances[0].process.fluids.liquidRubber = 8
+
+    state = fillSteelCellFromMachine(state, state.machineInstances[0].uid, 'liquidRubber')
+    expect(state.resources.liquidRubberSteelCell).toBe(1)
+    state = emptySteelCellIntoMachine(state, state.machineInstances[1].uid, 'liquidRubberSteelCell')
+
+    expect(state.resources.emptySteelCell).toBe(1)
+    expect(state.machineInstances[1].process.fluids.liquidRubber).toBe(8)
   })
 })
 

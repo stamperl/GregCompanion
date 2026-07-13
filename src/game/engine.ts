@@ -80,7 +80,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 6
+export const currentSaveVersion = 7
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -275,6 +275,7 @@ function emptyProcessState(): MachineProcessState {
     durationMs: 0,
     fuelRemainingMs: 0,
     fuelDurationMs: 0,
+    miningDamage: 0,
     steamStoredMs: 0,
     steamCapacityMs: 0,
     euStored: 0,
@@ -305,6 +306,7 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     durationMs: process.durationMs,
     fuelRemainingMs: process.fuelRemainingMs,
     fuelDurationMs: process.fuelDurationMs,
+    miningDamage: process.miningDamage,
     steamStoredMs: process.steamStoredMs,
     steamCapacityMs: process.steamCapacityMs,
     euStored: process.euStored,
@@ -355,6 +357,7 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     durationMs: Math.max(0, Math.floor(process.durationMs ?? 0)),
     fuelRemainingMs: Math.max(0, Math.floor(process.fuelRemainingMs ?? 0)),
     fuelDurationMs: Math.max(0, Math.floor(process.fuelDurationMs ?? 0)),
+    miningDamage: Math.max(0, Math.floor(process.miningDamage ?? 0)),
     steamStoredMs: Math.max(0, Math.floor(process.steamStoredMs ?? 0)),
     steamCapacityMs: Math.max(0, Math.floor(process.steamCapacityMs ?? 0)),
     euStored: Math.max(0, process.euStored ?? 0),
@@ -474,6 +477,10 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
         ? instance.itemOutputDirection as PipeDirection
         : undefined,
       itemTransferProgressMs: Math.max(0, Number(instance.itemTransferProgressMs) || 0),
+      surveyCardTarget:
+        instance.surveyCardTarget && instance.surveyCardTarget in gatherTargets
+          ? instance.surveyCardTarget as GatherTargetId
+          : undefined,
       process,
     })
   }
@@ -501,6 +508,8 @@ export function cloneState(state: GameState): GameState {
     discoveredResources: [...(state.discoveredResources ?? [])],
     resourceMilestones: { ...(state.resourceMilestones ?? {}) },
     machineMilestones: { ...(state.machineMilestones ?? {}) },
+    surveyCards: { ...(state.surveyCards ?? {}) },
+    recipeMilestones: { ...(state.recipeMilestones ?? {}) },
     equipment: { ...state.equipment },
     durability: { ...state.durability },
     gatherProgress: { ...state.gatherProgress },
@@ -866,11 +875,18 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
   if ((targetId === 'leadVein' || targetId === 'saltDeposit') && state.equipment.pickaxe === 'diamondPickaxe') {
     return tools.diamondPickaxe
   }
+  if (targetId === 'obsidianDeposit' && state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
+  if (targetId === 'sulfurVent' && (state.equipment.pickaxe === 'ironPickaxe' || state.equipment.pickaxe === 'diamondPickaxe')) {
+    return state.equipment.pickaxe === 'diamondPickaxe' ? tools.diamondPickaxe : tools.ironPickaxe
+  }
   return tools.bareHand
 }
 
 export function hitGatherTarget(state: GameState, targetId: GatherTargetId) {
   const target = gatherTargets[targetId]
+  if (target.area === 'shatteredReach' && !isReachGateFormed(state)) {
+    return { state, completed: false, drops: [] as ResourceAmount[], tool: tools.bareHand, toolBroke: undefined }
+  }
   const tool = getBestToolForTarget(state, targetId)
   const damage = tool.damageByTarget[targetId] ?? 0
   let next = cloneState(state)
@@ -1194,6 +1210,13 @@ export function craftRecipeInstant(state: GameState, recipe: Recipe, quantity: n
     next.lastSavedAt = Date.now()
   }
 
+  next = cloneState(next)
+  next.recipeMilestones[recipe.id] = (next.recipeMilestones[recipe.id] ?? 0) + requestedQuantity
+  if (recipe.surveyCardOutput) {
+    next.surveyCards[recipe.surveyCardOutput] = Math.max(1, next.surveyCards[recipe.surveyCardOutput] ?? 0)
+  }
+  next.lastSavedAt = Date.now()
+
   return next
 }
 
@@ -1357,7 +1380,7 @@ function machineAt(state: GameState, x: number, y: number) {
 }
 
 export function isFluidOutletConfigurableMachine(machineId: MachineId) {
-  return machineId === 'cokeOven' || machineId === 'cokeOvenPart'
+  return machineId === 'cokeOven' || machineId === 'cokeOvenPart' || machineId === 'lvChemicalReactor'
 }
 
 function isConfigurableConnector(machineId: MachineId) {
@@ -1509,6 +1532,12 @@ function tryFormMultiblock(state: GameState, placed: MachineInstance) {
 
 export function multiblockControllerForInstance(state: GameState, instance: MachineInstance) {
   return multiblockCenterForInstance(state, instance)
+}
+
+export function isReachGateFormed(state: GameState) {
+  return state.machineInstances.some(
+    (instance) => instance.machineId === 'reachGate' && Boolean(multiblockCenterForInstance(state, instance)),
+  )
 }
 
 const arcPerimeterMachineIds = new Set<MachineId>([
@@ -2177,6 +2206,52 @@ function manualBucketTargetForInstance(state: GameState, instance: MachineInstan
   return null
 }
 
+const steelCellByFluid: Partial<Record<FluidId, ResourceId>> = {
+  water: 'waterSteelCell',
+  creosote: 'creosoteSteelCell',
+  liquidRubber: 'liquidRubberSteelCell',
+}
+
+const fluidBySteelCell: Partial<Record<ResourceId, FluidId>> = Object.fromEntries(
+  Object.entries(steelCellByFluid).map(([fluidId, resourceId]) => [resourceId, fluidId]),
+) as Partial<Record<ResourceId, FluidId>>
+
+export function fillSteelCellFromMachine(state: GameState, uid: string, fluidId?: FluidId) {
+  if (availableResourceAmount(state, 'emptySteelCell') < 1) return state
+  const source = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!source) return state
+  const availableFluids = storedFluidTypes(source.process).filter((candidate) => Boolean(steelCellByFluid[candidate]))
+  const selectedFluid = fluidId && availableFluids.includes(fluidId) ? fluidId : availableFluids[0]
+  const filledCell = selectedFluid ? steelCellByFluid[selectedFluid] : undefined
+  if (!selectedFluid || !filledCell || (source.process.fluids[selectedFluid] ?? 0) < 8) return state
+
+  let next = subtractResources(state, [{ id: 'emptySteelCell', amount: 1 }])
+  next = addResources(next, [{ id: filledCell, amount: 1 }])
+  const nextSource = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextSource) return state
+  nextSource.process.fluids[selectedFluid] = Math.max(0, (nextSource.process.fluids[selectedFluid] ?? 0) - 8)
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function emptySteelCellIntoMachine(state: GameState, uid: string, cellId: ResourceId) {
+  const fluidId = fluidBySteelCell[cellId]
+  if (!fluidId || availableResourceAmount(state, cellId) < 1) return state
+  const target = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!target || (isLiquidSteamBoilerMachine(target.machineId) && fluidId !== 'creosote')) return state
+  const capacity = machineFluidCapacityForInstance(state, target)
+  if (capacity < 1 || !canStoreFluid(state, target, fluidId) || freeFluidCapacity(state, target, fluidId) < 8) return state
+
+  let next = subtractResources(state, [{ id: cellId, amount: 1 }])
+  next = addResources(next, [{ id: 'emptySteelCell', amount: 1 }])
+  const nextTarget = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextTarget) return state
+  nextTarget.process.fluidCapacityLitres = machineFluidCapacityForInstance(next, nextTarget)
+  nextTarget.process.fluids[fluidId] = (nextTarget.process.fluids[fluidId] ?? 0) + 8
+  next.lastSavedAt = Date.now()
+  return next
+}
+
 export function fillBucketFromMachine(state: GameState, uid: string, fluidId?: FluidId) {
   if (availableResourceAmount(state, 'bucket') < 1 || state.bucketFluid) return state
   const source = state.machineInstances.find((candidate) => candidate.uid === uid)
@@ -2546,6 +2621,7 @@ function fillInternalEuFromConnectedStorage(state: GameState, instance: MachineI
 }
 
 function addToProcessOutput(output: ProcessSlot, produced: ResourceAmount): ProcessSlot {
+  if (produced.amount <= 0) return output
   if (!output) return { ...produced }
   return { ...output, amount: output.amount + produced.amount }
 }
@@ -2687,9 +2763,14 @@ function pullFluidFromConnectedSources(state: GameState, instance: MachineInstan
 export function assignAutoMiner(state: GameState, uid: string, targetId: GatherTargetId) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isAutoMinerMachine(instance.machineId) || !canAutoMinerTarget(instance.machineId, targetId)) return state
+  if (gatherTargets[targetId].area === 'shatteredReach' && !isReachGateFormed(state)) return state
+  const requiresSurveyCard = instance.machineId === 'lvAutoMiner' && !canAutoMinerTarget('steamAutoMiner', targetId)
+  if (requiresSurveyCard && (state.surveyCards[targetId] ?? 0) < 1) return state
 
   const next = cloneState(state)
   next.autoMinerAssignments[uid] = targetId
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (nextInstance && requiresSurveyCard) nextInstance.surveyCardTarget = targetId
   next.lastSavedAt = Date.now()
   return next
 }
@@ -3394,7 +3475,10 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
     if (recipe.fluidInput) process.fluids[recipe.fluidInput.id] = Math.max(0, (process.fluids[recipe.fluidInput.id] ?? 0) - recipe.fluidInput.amount)
     if (recipe.fluidOutput && arcStructure?.fluidOutputHatch) {
       arcStructure.fluidOutputHatch.process.fluids[recipe.fluidOutput.id] = (arcStructure.fluidOutputHatch.process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount
+    } else {
+      addFluidOutput(process, recipe)
     }
+    state.recipeMilestones[recipe.id] = (state.recipeMilestones[recipe.id] ?? 0) + 1
     process.progressMs = 0
     process.activeRecipeId = null
     process.durationMs = 0
@@ -3483,24 +3567,21 @@ function tickBrickedBlastFurnace(instance: MachineInstance, elapsedMs: number) {
   }
 }
 
-function addGatherDropsInPlace(state: GameState, targetId: GatherTargetId, cycles: number) {
-  if (cycles < 1) return
-  const produced: ResourceAmount[] = []
-  for (const drop of gatherTargets[targetId].drops) {
-    const amount = drop.amount * cycles
-    state.resources[drop.id] += amount
-    produced.push({ id: drop.id, amount })
-  }
-  recordResourceMilestones(state, produced)
-}
-
-function applyAutoMinerDamage(state: GameState, targetId: GatherTargetId, damage: number) {
-  if (damage <= 0) return
+function applyAutoMinerDamage(instance: MachineInstance, targetId: GatherTargetId, damage: number) {
+  if (damage <= 0) return false
   const target = gatherTargets[targetId]
-  const progress = (state.gatherProgress[targetId] ?? 0) + damage
+  const progress = instance.process.miningDamage + damage
   const cycles = Math.floor(progress / target.maxHp)
-  state.gatherProgress[targetId] = progress % target.maxHp
-  addGatherDropsInPlace(state, targetId, cycles)
+  if (cycles > 0) {
+    const produced = target.drops[0]
+    if (!produced || target.drops.length !== 1) return false
+    const amount = produced.amount * cycles
+    const output = instance.process.output
+    if (output && (output.id !== produced.id || output.amount + amount > processStackLimit)) return false
+    instance.process.output = output ? { id: output.id, amount: output.amount + amount } : { id: produced.id, amount }
+  }
+  instance.process.miningDamage = progress % target.maxHp
+  return true
 }
 
 function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: number) {
@@ -3515,7 +3596,13 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
   }
 
   const targetId = state.autoMinerAssignments[instance.uid]
-  if (!targetId || !canAutoMinerTarget(instance.machineId, targetId)) {
+  const requiresSurveyCard = instance.machineId === 'lvAutoMiner' && Boolean(targetId) && !canAutoMinerTarget('steamAutoMiner', targetId)
+  if (
+    !targetId ||
+    !canAutoMinerTarget(instance.machineId, targetId) ||
+    (requiresSurveyCard && instance.surveyCardTarget !== targetId) ||
+    (gatherTargets[targetId].area === 'shatteredReach' && !isReachGateFormed(state))
+  ) {
     instance.process.activeRecipeId = null
     instance.process.progressMs = 0
     instance.process.durationMs = 0
@@ -3536,8 +3623,11 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
         instance.process.progressMs = actionMs
         break
       }
+      if (!applyAutoMinerDamage(instance, targetId, damage)) {
+        instance.process.progressMs = actionMs
+        break
+      }
       instance.process.steamStoredMs -= steamCostMs
-      applyAutoMinerDamage(state, targetId, damage)
       instance.process.progressMs -= actionMs
       completedAction = true
     }
@@ -3548,8 +3638,11 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
         instance.process.progressMs = actionMs
         break
       }
+      if (!applyAutoMinerDamage(instance, targetId, damage)) {
+        instance.process.progressMs = actionMs
+        break
+      }
       instance.process.euStored -= lvAutoMinerEuUse
-      applyAutoMinerDamage(state, targetId, damage)
       instance.process.progressMs -= actionMs
       completedAction = true
     }
@@ -3589,7 +3682,34 @@ function hopperFeedTarget(state: GameState, target: MachineInstance) {
   return machineAt(state, multiblock.x, multiblock.y) ?? target
 }
 
+function hopperPullFromMiner(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const outputDirection = hopperOutputDirection(instance)
+  const sourceDirections = pipeDirections.filter((direction) => direction !== outputDirection)
+  instance.itemTransferProgressMs = (instance.itemTransferProgressMs ?? 0) + elapsedMs
+  while (instance.itemTransferProgressMs >= 1000) {
+    const source = sourceDirections
+      .map((direction) => {
+        const offset = pipeDirectionOffsets[direction]
+        return machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+      })
+      .find((candidate) => candidate && isAutoMinerMachine(candidate.machineId) && candidate.process.output)
+    const stored = source?.process.output
+    if (!source || !stored) break
+    const hopperSlotId = hopperStorageSlotIds.find((slotId) => processSlotAcceptsItem(instance.process[slotId], stored.id))
+    if (!hopperSlotId) break
+    const hopperSlot = instance.process[hopperSlotId]
+    instance.process[hopperSlotId] = hopperSlot ? { id: stored.id, amount: hopperSlot.amount + 1 } : { id: stored.id, amount: 1 }
+    source.process.output = decrementProcessSlot(stored, 1)
+    instance.itemTransferProgressMs -= 1000
+  }
+  if (!sourceDirections.some((direction) => {
+    const offset = pipeDirectionOffsets[direction]
+    return Boolean(machineAt(state, instance.x + offset.dx, instance.y + offset.dy)?.process.output)
+  })) instance.itemTransferProgressMs = 0
+}
+
 function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  hopperPullFromMiner(state, instance, elapsedMs)
   const direction = hopperOutputDirection(instance)
   if (!hopperStorageSlotIds.some((slotId) => instance.process[slotId]) || !direction) {
     instance.process.activeRecipeId = null
@@ -3914,6 +4034,10 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
   for (const instance of euConsumersByDistance) {
     if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
   }
+  for (const instance of next.machineInstances) {
+    if (instance.machineId !== 'lvChemicalReactor') continue
+    for (const fluidId of storedFluidTypes(instance.process)) pushFluidToConnectedStorage(next, instance, fluidId, elapsedMs)
+  }
   for (const instance of euConsumersByDistance) {
     if (isAutoMinerMachine(instance.machineId)) tickAutoMiner(next, instance, elapsedMs)
   }
@@ -4079,6 +4203,8 @@ export function questObjectives(quest: Quest): QuestObjective[] {
   return [
     ...(quest.requirements.resources ?? []).map((amount): QuestObjective => ({ type: 'resource', id: amount.id, amount: amount.amount, progressMode: resourceProgressMode })),
     ...(quest.requirements.machines ?? []).map((amount): QuestObjective => ({ type: 'machine', id: amount.id, amount: amount.amount, progressMode: 'lifetime' })),
+    ...(quest.requirements.surveyCards ?? []).map((amount): QuestObjective => ({ type: 'surveyCard', id: amount.id, amount: amount.amount })),
+    ...(quest.requirements.recipes ?? []).map((amount): QuestObjective => ({ type: 'recipe', id: amount.id, amount: amount.amount })),
   ]
 }
 
@@ -4088,6 +4214,8 @@ function questObjectiveCurrent(state: GameState, objective: QuestObjective) {
     if (objective.progressMode === 'current') return state.machines[objective.id]
     return Math.max(state.machineMilestones[objective.id] ?? 0, state.machines[objective.id])
   }
+  if (objective.type === 'surveyCard') return state.surveyCards[objective.id] ?? 0
+  if (objective.type === 'recipe') return state.recipeMilestones[objective.id] ?? 0
   if (objective.type === 'placedMachine') {
     if (objective.id === 'arcBlastFurnace') {
       return state.machineInstances.filter(
@@ -4102,6 +4230,8 @@ function questObjectiveCurrent(state: GameState, objective: QuestObjective) {
 export function questObjectiveLabel(objective: QuestObjective) {
   if (objective.label) return objective.label
   if (objective.type === 'resource') return resourceLabels[objective.id]
+  if (objective.type === 'surveyCard') return `${gatherTargets[objective.id].name} Survey Card`
+  if (objective.type === 'recipe') return processRecipes.find((recipe) => recipe.id === objective.id)?.name ?? recipes.find((recipe) => recipe.id === objective.id)?.name ?? objective.id
   if (objective.type === 'factoryFoundation') return `Factory foundation level ${objective.level}`
   return machines[objective.id].name
 }
@@ -4492,6 +4622,23 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       const placed = machineInstances.filter((instance) => instance.machineId === machineId).length
       machineMilestones[machineId] = Math.max(machineMilestones[machineId] ?? 0, machinesState[machineId], placed)
     }
+    const surveyCards = Object.fromEntries(
+      Object.entries(parsed.surveyCards ?? {})
+        .filter(([targetId, amount]) => targetId in gatherTargets && Number(amount) > 0)
+        .map(([targetId, amount]) => [targetId, Math.max(1, Math.floor(Number(amount)))])
+    ) as Partial<Record<GatherTargetId, number>>
+    const autoMinerAssignments = normalizeAutoMinerAssignments(parsed, machineInstances)
+    if (parsedVersion < 7) {
+      let migratedSurveyMiner = false
+      for (const [uid, targetId] of Object.entries(autoMinerAssignments)) {
+        const instance = machineInstances.find((candidate) => candidate.uid === uid)
+        if (instance?.machineId !== 'lvAutoMiner' || canAutoMinerTarget('steamAutoMiner', targetId)) continue
+        surveyCards[targetId] = Math.max(1, surveyCards[targetId] ?? 0)
+        instance.surveyCardTarget = targetId
+        migratedSurveyMiner = true
+      }
+      if (migratedSurveyMiner) migrationNotices.push('survey-card-miners')
+    }
 
     return {
       ...fresh,
@@ -4509,10 +4656,14 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       discoveredResources,
       resourceMilestones,
       machineMilestones,
+      surveyCards,
+      recipeMilestones: Object.fromEntries(
+        Object.entries(parsed.recipeMilestones ?? {}).map(([recipeId, amount]) => [recipeId, Math.max(0, Math.floor(Number(amount) || 0))]),
+      ),
       equipment: normalizeEquipment(parsed.equipment),
       durability: normalizeDurability(parsed.durability),
       gatherProgress: parsed.gatherProgress ?? {},
-      autoMinerAssignments: normalizeAutoMinerAssignments(parsed, machineInstances),
+      autoMinerAssignments,
       machineProgress: parsed.machineProgress ?? {},
       migrationNotices,
       lastSavedAt: now,

@@ -483,7 +483,7 @@
     0 8px 0 var(--bevel-face);
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   height: 38px;
   margin-bottom: 8px;
   position: sticky;
@@ -8884,6 +8884,7 @@ button.craft-output:disabled {
 .machine-lvLathe,
 .machine-lvElectrolyzer,
 .machine-lvAssembler,
+.machine-lvChemicalReactor,
 .machine-lvCentrifuge,
 .machine-liquidSteamBoiler {
   --m1: #8f9aa0;
@@ -8941,6 +8942,7 @@ button.craft-output:disabled {
 .machine-lvLathe span,
 .machine-lvElectrolyzer span,
 .machine-lvAssembler span,
+.machine-lvChemicalReactor span,
 .machine-lvCentrifuge span,
 .machine-lvMacerator span,
 .machine-lvForgeHammer span,
@@ -8953,6 +8955,14 @@ button.craft-output:disabled {
   left: 24%;
   top: 54%;
   width: 34%;
+}
+
+.machine-lvChemicalReactor span {
+  background: #151515;
+  box-shadow:
+    7px -8px 0 #aae8f6,
+    14px 0 0 #3f474b,
+    7px 8px 0 #d8dde0;
 }
 
 .machine-lvMacerator span {
@@ -9381,6 +9391,45 @@ button.craft-output:disabled {
   left: 23%;
   top: 23%;
   width: 22%;
+}
+
+.machine-reachGateCasing {
+  --m1: #302d3a;
+  --m2: #101016;
+  --m3: #655777;
+  background:
+    radial-gradient(circle at 50% 50%, #cf5035 0 7%, #661f1b 8% 13%, transparent 14%),
+    linear-gradient(45deg, transparent 0 43%, #695a79 43% 57%, transparent 57%),
+    linear-gradient(-45deg, transparent 0 43%, #302d3a 43% 57%, transparent 57%),
+    linear-gradient(135deg, #655777 0 16%, #302d3a 16% 82%, #101016 82%);
+}
+
+.machine-reachGateCasing span {
+  background: #cf5035;
+  box-shadow: 7px 0 0 #101016, 0 7px 0 #655777, 7px 7px 0 #302d3a;
+  height: 16%;
+  left: 34%;
+  top: 34%;
+  width: 16%;
+}
+
+.machine-reachGate {
+  --m1: #3d3449;
+  --m2: #0d0c12;
+  --m3: #8a709d;
+  background:
+    radial-gradient(ellipse at 50% 52%, #1d111e 0 22%, #87334d 23% 31%, #b86880 32% 36%, transparent 37%),
+    linear-gradient(90deg, #17131e 0 14%, transparent 14% 86%, #17131e 86%),
+    linear-gradient(180deg, #655777 0 14%, #302d3a 14% 86%, #101016 86%);
+}
+
+.machine-reachGate span {
+  background: #cf5035;
+  box-shadow: 0 7px 0 #8a709d, 0 14px 0 #101016;
+  height: 12%;
+  left: 44%;
+  top: 22%;
+  width: 12%;
 }
 
 .machine-lvEnergyHatch2A,
@@ -11838,6 +11887,14 @@ button.button-primary:disabled,
 .pixel-batteryAlloyIngot,
 .pixel-batteryAlloyPlate,
 .pixel-emptyBatteryCell,
+.pixel-obsidian,
+.pixel-sulfurOre,
+.pixel-sulfurDust,
+.pixel-surveyKit,
+.pixel-emptySteelCell,
+.pixel-waterSteelCell,
+.pixel-creosoteSteelCell,
+.pixel-liquidRubberSteelCell,
 .pixel-sodiumBattery,
 .pixel-lithiumBattery,
 .pixel-lvBattery {
@@ -15445,4 +15502,51 @@ button.button-primary:disabled,
 .furnace-modal.machine-terminal .brickedBlastFurnace-process-interface .furnace-progress,
 .furnace-modal.machine-terminal .arcBlastFurnace-process-interface .furnace-progress {
   margin-top: auto;
+}
+
+@media (max-width: 420px) and (max-height: 900px) {
+  .machine-lvChemicalReactor-terminal {
+    gap: 4px;
+    padding: 5px;
+  }
+
+  .machine-lvChemicalReactor-terminal .modal-head {
+    min-height: 44px;
+    padding: 3px 5px;
+  }
+
+  .machine-lvChemicalReactor-terminal .processing-storage,
+  .machine-lvChemicalReactor-terminal .machine-selected-item {
+    padding: 3px;
+  }
+
+  .machine-lvChemicalReactor-terminal .manual-fluid-transfer {
+    gap: 3px;
+    grid-template-columns: minmax(76px, 1fr) repeat(3, minmax(0, 1fr));
+    min-height: 42px;
+    padding: 3px;
+  }
+
+  .machine-lvChemicalReactor-terminal .manual-fluid-transfer > div {
+    gap: 1px;
+  }
+
+  .machine-lvChemicalReactor-terminal .manual-fluid-transfer strong {
+    font-size: 0.58rem;
+  }
+
+  .machine-lvChemicalReactor-terminal .compact-action-button {
+    font-size: 0.58rem;
+    min-height: 34px;
+    padding: 2px;
+  }
+
+  .machine-lvChemicalReactor-terminal .forge-hammer-interface {
+    grid-template-rows: 28px minmax(130px, 20svh) auto 36px;
+    padding: 4px;
+  }
+
+  .machine-lvChemicalReactor-terminal .furnace-help {
+    display: none;
+  }
 }

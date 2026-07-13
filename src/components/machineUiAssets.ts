@@ -25,6 +25,7 @@ const machineUiChamberFiles: Partial<Record<MachineId, string>> = {
   lvElectrolyzer: 'lv-electrolyzer-chamber.webp',
   lvCentrifuge: 'lv-centrifuge-chamber.webp',
   lvCanner: 'lv-canner-chamber.webp',
+  lvChemicalReactor: 'lv-chemical-reactor-chamber.webp',
 }
 
 const machineUiPanelFiles: Partial<Record<MachineId, string>> = {
