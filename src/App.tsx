@@ -102,6 +102,10 @@ import {
   factoryFoundationCost,
   factoryFoundationSizes,
   factoryGridForState,
+  fillPortableFluidContainer,
+  drainPortableFluidContainer,
+  fluidContainerCapacities,
+  fluidContainerGroups,
   fluidPipeBufferCapacityLitres,
   getBestToolForTarget,
   hasFactoryFloor,
@@ -116,6 +120,7 @@ import {
   installLvBatteryInBuffer,
   installSurveyCardInAutoMiner,
   loadGame,
+  machineFluidBuffersForInstance,
   lvItemAutomationStatus,
   simulateOfflineProgress,
   makeGridForRecipe,
@@ -217,6 +222,7 @@ import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './compone
 import type {
   CraftSlot,
   EquipmentSlotId,
+  FluidContainerKind,
   FluidId,
   GatherTargetId,
   GameState,
@@ -255,6 +261,7 @@ function recipeOpensProcessView(recipe: Recipe) {
 
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'uses'
+type MachineTerminalMode = 'items' | 'fluids'
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
 type FactoryPointerPosition = { x: number; y: number; clientX: number; clientY: number }
@@ -656,6 +663,7 @@ function offlineProgressNotice(offline: OfflineProgressResult) {
 }
 
 function migrationNoticeText(notices: string[]) {
+  if (notices.includes('portable-fluid-containers')) return 'Buckets and Steel Cells now keep their exact fluid and fill level. Legacy filled cells were converted, and old overfilled buckets were safely limited to their new 1L capacity.'
   if (notices.includes('arc-furnace-3x3')) return 'Arc Furnaces now use flexible 3x3 structures. Legacy furnaces were dismantled and their heatproof casings returned so you can build the new controller, buses, and Energy Hatches.'
   if (notices.includes('survey-card-inventory')) return 'Survey Cards are now physical LV Auto Miner inventory items. Cards assigned by an older save have been moved into their miner without losing the target or card.'
   if (!notices.includes('coke-oven-multiblock')) return ''
@@ -1378,7 +1386,7 @@ function QuestDetail({
               onSelectResource={onSelectResource}
               onSelectMachine={onSelectMachine}
               onOpenFactory={onOpenFactory}
-              key={`${progress.objective.type}-${'id' in progress.objective ? progress.objective.id : progress.objective.level}`}
+              key={`${progress.objective.type}-${'id' in progress.objective ? progress.objective.id : progress.objective.type === 'factoryFoundation' ? progress.objective.level : `${progress.objective.kind}-${progress.objective.fluidId}-${progress.objective.direction}`}`}
             />
           ))}
         </div>
@@ -1910,6 +1918,9 @@ function App() {
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
+  const [machineTerminalMode, setMachineTerminalMode] = useState<MachineTerminalMode>('items')
+  const [selectedFluidContainerKey, setSelectedFluidContainerKey] = useState<string | null>(null)
+  const [selectedFluidBufferId, setSelectedFluidBufferId] = useState<string | null>(null)
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [showLockedQuests, setShowLockedQuests] = useState(false)
@@ -2263,6 +2274,11 @@ function App() {
   const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
   const unplacedMachineCounts = Object.fromEntries(machineOrder.map((id) => [id, availableUnplacedMachineCount(state, id)])) as Record<MachineId, number>
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
+  const portableFluidGroups = fluidContainerGroups(state)
+  const filteredPortableFluidGroups = portableFluidGroups.filter((group) => {
+    const query = terminalSearch.trim().toLowerCase()
+    return !query || fluidLabel(group.fluidId).toLowerCase().includes(query) || (group.kind === 'bucket' ? 'bucket' : 'steel cell').includes(query)
+  })
   const filteredResources = inventoryResources.filter((id) => {
     const query = terminalSearch.trim().toLowerCase()
     if (!query) return true
@@ -2333,6 +2349,38 @@ function App() {
         : ''
     : ''
   const selectedMachineStoredFluids = selectedMachine ? storedFluids(selectedMachine.process) : []
+  const selectedMachineFluidBuffers = selectedMachine ? machineFluidBuffersForInstance(state, selectedMachine) : []
+  const selectedMachineFluidBuffer = selectedMachineFluidBuffers.find((buffer) => buffer.id === selectedFluidBufferId) ?? selectedMachineFluidBuffers[0]
+  const selectedFluidContainerGroup = portableFluidGroups.find((group) => group.key === selectedFluidContainerKey)
+  const selectedEmptyFluidContainerKind = selectedFluidContainerKey?.startsWith('empty:')
+    ? selectedFluidContainerKey.slice('empty:'.length) as FluidContainerKind
+    : null
+  const selectedBufferFluidId = selectedMachineFluidBuffer?.acceptedFluids.find((id) => (selectedMachine?.process.fluids[id] ?? 0) > 0)
+  const selectedBufferStoredLitres = selectedBufferFluidId && selectedMachine ? selectedMachine.process.fluids[selectedBufferFluidId] ?? 0 : 0
+  const selectedContainerKind = selectedEmptyFluidContainerKind ?? selectedFluidContainerGroup?.kind
+  const canFillSelectedContainer = Boolean(
+    selectedMachineFluidBuffer &&
+    selectedContainerKind &&
+    (selectedMachineFluidBuffer.access === 'output' || selectedMachineFluidBuffer.access === 'both') &&
+    selectedBufferFluidId &&
+    (!selectedFluidContainerGroup || (
+      selectedFluidContainerGroup.fluidId === selectedBufferFluidId &&
+      selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind]
+    )),
+  )
+  const canDrainSelectedContainer = Boolean(
+    selectedMachineFluidBuffer &&
+    selectedFluidContainerGroup &&
+    (selectedMachineFluidBuffer.access === 'input' || selectedMachineFluidBuffer.access === 'both') &&
+    selectedMachineFluidBuffer.acceptedFluids.includes(selectedFluidContainerGroup.fluidId) &&
+    (selectedMachine?.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) < selectedMachineFluidBuffer.capacityLitres,
+  )
+
+  useEffect(() => {
+    setMachineTerminalMode('items')
+    setSelectedFluidContainerKey(null)
+    setSelectedFluidBufferId(null)
+  }, [selectedMachineUid])
 
   useEffect(() => {
     if (terminalMode === 'uses' && !selectedResourceForRecipes) {
@@ -2830,6 +2878,26 @@ function App() {
 
   const handleRemoveBufferBattery = (uid: string, slotIndex?: number) => {
     setState((current) => removeLvBatteryFromBuffer(current, uid, slotIndex))
+  }
+
+  const handleFillPortableContainer = () => {
+    if (!selectedMachine || !selectedMachineFluidBuffer) return
+    const kind = selectedEmptyFluidContainerKind ?? selectedFluidContainerGroup?.kind
+    if (!kind) return
+    const fluidId = selectedFluidContainerGroup?.fluidId ?? selectedMachineFluidBuffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
+    const containerUid = selectedFluidContainerGroup?.containerUid
+    setState((current) => fillPortableFluidContainer(current, selectedMachine.uid, kind, {
+      containerUid,
+      fluidId,
+      bufferId: selectedMachineFluidBuffer.id,
+    }))
+    setSelectedFluidContainerKey(null)
+  }
+
+  const handleDrainPortableContainer = () => {
+    if (!selectedMachine || !selectedMachineFluidBuffer || !selectedFluidContainerGroup) return
+    setState((current) => drainPortableFluidContainer(current, selectedMachine.uid, selectedFluidContainerGroup.containerUid, selectedMachineFluidBuffer.id))
+    setSelectedFluidContainerKey(null)
   }
 
   const handleStorageSlotPress = (uid: string, slotIndex: number, slot: ProcessSlot) => {
@@ -4325,7 +4393,7 @@ function App() {
           </div>
 
           <div className="terminal-items" aria-label="Stored items">
-            {filteredResources.length > 0 || filteredMachines.length > 0 ? (
+            {filteredResources.length > 0 || filteredMachines.length > 0 || filteredPortableFluidGroups.length > 0 ? (
               <>
                 {filteredResources.map((id) => {
                   const available = terminalAvailableAmount(state, terminalGrid, id)
@@ -4354,6 +4422,24 @@ function App() {
                     <span className="item-count">{formatAmount(unplacedMachineCounts[id])}</span>
                   </span>
                 ))}
+                {filteredPortableFluidGroups.map((group) => (
+                  <button
+                    type="button"
+                    className={selectedFluidContainerKey === group.key ? 'item-slot fluid-container-slot selected' : 'item-slot fluid-container-slot'}
+                    aria-label={`${fluidLabel(group.fluidId)} ${group.kind === 'bucket' ? 'Bucket' : 'Steel Cell'}, ${formatLitres(group.amountLitres)} of ${formatLitres(fluidContainerCapacities[group.kind])} litres, ${group.count} stored`}
+                    title={`${fluidLabel(group.fluidId)} ${group.kind === 'bucket' ? 'Bucket' : 'Steel Cell'}`}
+                    onClick={() => {
+                      setSelectedResource(null)
+                      setSelectedFluidContainerKey(group.key)
+                    }}
+                    key={`fluid-${group.key}`}
+                  >
+                    <PixelIcon id={group.kind === 'bucket' ? 'bucket' : 'emptySteelCell'} />
+                    <span className="fluid-container-tint" style={{ '--portable-fluid-color': fluidVisualColor(group.fluidId) } as CSSProperties} />
+                    <span className="fluid-container-level">{formatLitres(group.amountLitres)}L</span>
+                    <span className="item-count">{formatAmount(group.count)}</span>
+                  </button>
+                ))}
               </>
             ) : (
               <div className="empty-storage">
@@ -4363,8 +4449,13 @@ function App() {
             )}
           </div>
 
-          <div className={selectedResource ? 'item-tooltip' : 'item-tooltip empty'} role={selectedResource ? 'status' : undefined}>
-            {selectedResource ? (
+          <div className={selectedResource || selectedFluidContainerGroup ? 'item-tooltip' : 'item-tooltip empty'} role={selectedResource || selectedFluidContainerGroup ? 'status' : undefined}>
+            {selectedFluidContainerGroup ? (
+              <>
+                <strong>{fluidLabel(selectedFluidContainerGroup.fluidId)} {selectedFluidContainerGroup.kind === 'bucket' ? 'Bucket' : 'Steel Cell'}</strong>
+                <span>{formatLitres(selectedFluidContainerGroup.amountLitres)}L / {formatLitres(fluidContainerCapacities[selectedFluidContainerGroup.kind])}L | x{formatAmount(selectedFluidContainerGroup.count)}</span>
+              </>
+            ) : selectedResource ? (
               <>
                 <strong>{resourceLabels[selectedResource]}</strong>
                 <span>
@@ -5449,7 +5540,13 @@ function App() {
                     <X size={18} />
                   </button>
                 </div>
-                {machineUsesProcessStorage(selectedMachine.machineId) && (
+                {selectedMachineFluidBuffers.length > 0 && (
+                  <div className="machine-terminal-tabs" role="tablist" aria-label="Terminal inventory view">
+                    <button type="button" role="tab" aria-selected={machineTerminalMode === 'items'} className={machineTerminalMode === 'items' ? 'active' : ''} onClick={() => setMachineTerminalMode('items')}>Items</button>
+                    <button type="button" role="tab" aria-selected={machineTerminalMode === 'fluids'} className={machineTerminalMode === 'fluids' ? 'active' : ''} onClick={() => setMachineTerminalMode('fluids')}><Droplet size={14} />Fluids</button>
+                  </div>
+                )}
+                {machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                 <>
                   <div className="processing-storage furnace-storage" aria-label={`${machines[selectedMachine.machineId].name} storage`}>
                     {furnaceStorageResources.length > 0 ? (
@@ -5480,6 +5577,77 @@ function App() {
                     </strong>
                   </div>
                 </>
+                )}
+                {machineTerminalMode === 'fluids' && selectedMachineFluidBuffer && (
+                  <div className="portable-fluid-console">
+                    {selectedMachineFluidBuffers.length > 1 && (
+                      <div className="fluid-buffer-tabs" role="tablist" aria-label="Machine fluid buffers">
+                        {selectedMachineFluidBuffers.map((buffer) => (
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={selectedMachineFluidBuffer.id === buffer.id}
+                            className={selectedMachineFluidBuffer.id === buffer.id ? 'active' : ''}
+                            onClick={() => {
+                              setSelectedFluidBufferId(buffer.id)
+                              setSelectedFluidContainerKey(null)
+                            }}
+                            key={buffer.id}
+                          >
+                            {buffer.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="portable-fluid-buffer">
+                      <div className="portable-fluid-vessel" aria-label={`${selectedMachineFluidBuffer.label} ${formatLitres(selectedBufferStoredLitres)} of ${formatLitres(selectedMachineFluidBuffer.capacityLitres)} litres`}>
+                        <span
+                          style={{
+                            height: `${metricFill(selectedBufferStoredLitres, selectedMachineFluidBuffer.capacityLitres)}%`,
+                            '--portable-fluid-color': fluidVisualColor(selectedBufferFluidId),
+                          } as CSSProperties}
+                        />
+                      </div>
+                      <div>
+                        <small>{selectedMachineFluidBuffer.label}</small>
+                        <strong>{selectedBufferFluidId ? fluidLabel(selectedBufferFluidId) : 'Empty'}</strong>
+                        <em>{formatLitres(selectedBufferStoredLitres)}L / {formatLitres(selectedMachineFluidBuffer.capacityLitres)}L</em>
+                        <span>{selectedMachineFluidBuffer.access === 'both' ? 'Fill or drain' : selectedMachineFluidBuffer.access === 'input' ? 'Machine input' : 'Machine output'}</span>
+                      </div>
+                    </div>
+                    <div className="portable-fluid-inventory" aria-label="Portable fluid containers">
+                      {(['bucket', 'steelCell'] as FluidContainerKind[]).map((kind) => {
+                        const resourceId: ResourceId = kind === 'bucket' ? 'bucket' : 'emptySteelCell'
+                        const amount = availableResourceAmount(state, resourceId)
+                        if (amount < 1) return null
+                        const key = `empty:${kind}`
+                        return (
+                          <button type="button" className={selectedFluidContainerKey === key ? 'portable-container selected' : 'portable-container'} onClick={() => setSelectedFluidContainerKey(key)} key={key}>
+                            <PixelIcon id={resourceId} />
+                            <strong>Empty {kind === 'bucket' ? 'Bucket' : 'Steel Cell'}</strong>
+                            <small>{fluidContainerCapacities[kind]}L | x{formatAmount(amount)}</small>
+                          </button>
+                        )
+                      })}
+                      {portableFluidGroups.map((group) => (
+                        <button type="button" className={selectedFluidContainerKey === group.key ? 'portable-container selected' : 'portable-container'} onClick={() => setSelectedFluidContainerKey(group.key)} key={group.key}>
+                          <span className="portable-container-icon">
+                            <PixelIcon id={group.kind === 'bucket' ? 'bucket' : 'emptySteelCell'} />
+                            <i style={{ '--portable-fluid-color': fluidVisualColor(group.fluidId) } as CSSProperties} />
+                          </span>
+                          <strong>{fluidLabel(group.fluidId)}</strong>
+                          <small>{formatLitres(group.amountLitres)}L / {fluidContainerCapacities[group.kind]}L | x{formatAmount(group.count)}</small>
+                        </button>
+                      ))}
+                      {availableResourceAmount(state, 'bucket') < 1 && availableResourceAmount(state, 'emptySteelCell') < 1 && portableFluidGroups.length < 1 && (
+                        <span className="empty-furnace-storage">No portable containers</span>
+                      )}
+                    </div>
+                    <div className="portable-fluid-actions">
+                      <button type="button" disabled={!canFillSelectedContainer} onClick={handleFillPortableContainer}><Download size={15} />Fill from machine</button>
+                      <button type="button" disabled={!canDrainSelectedContainer} onClick={handleDrainPortableContainer}><Upload size={15} />Drain into machine</button>
+                    </div>
+                  </div>
                 )}
                 {!selectedMachineIsHmiTerminal && !selectedMachineUsesIntegratedStatus && (
                   <div className={selectedMachineMetrics.length > 0 ? 'machine-status-row has-metrics' : 'machine-status-row'}>

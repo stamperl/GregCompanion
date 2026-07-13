@@ -52,9 +52,10 @@ import {
 } from './recipeGraph'
 import type {
   CraftSlot,
-  BucketFluidState,
   EquipmentSlotId,
   EquipmentState,
+  FluidContainerInstance,
+  FluidContainerKind,
   FluidId,
   GatherTargetId,
   GameState,
@@ -62,6 +63,7 @@ import type {
   MachineId,
   MachineInstance,
   MachineProcessState,
+  MachineFluidBufferSpec,
   ProcessRecipe,
   ProcessSlot,
   ProcessSlotId,
@@ -80,7 +82,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 8
+export const currentSaveVersion = 9
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -156,7 +158,8 @@ export const liquidSteamBoilerCapacityMs = machineSteamCapacityLitres('liquidSte
 export const liquidSteamBoilerFluidCapacityLitres = machineFluidCapacityLitres('liquidSteamBoiler')
 export const liquidSteamBoilerSteamProductionLitresPerSecond = 36
 export const liquidSteamBoilerCreosoteUseLitresPerSecond = 1
-export const bucketFluidTransferLitres = 16
+export const bucketFluidTransferLitres = 1
+export const fluidContainerCapacities: Record<FluidContainerKind, number> = { bucket: 1, steelCell: 8 }
 export const steamAutoMinerActionDamage = 10
 export const steamAutoMinerActionMs = 5000
 export const steamAutoMinerSteamUseLitres = 16
@@ -317,16 +320,34 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
 }
 
 function normalizeFluidStore(fluids?: Partial<Record<FluidId, number>>) {
-  const selected = fluidIds
-    .map((id) => ({ id, amount: Math.max(0, Math.floor(fluids?.[id] ?? 0)) }))
-    .filter((fluid) => fluid.amount > 0)
-    .sort((a, b) => b.amount - a.amount || fluidIds.indexOf(a.id) - fluidIds.indexOf(b.id))[0]
+  return Object.fromEntries(fluidIds.map((id) => [id, normalizeLitres(fluids?.[id] ?? 0)])) as Partial<Record<FluidId, number>>
+}
 
-  return Object.fromEntries(fluidIds.map((id) => [id, selected?.id === id ? selected.amount : 0])) as Partial<Record<FluidId, number>>
+function normalizeLitres(amount: number) {
+  return Math.max(0, Math.round((Number(amount) || 0) * 1000) / 1000)
+}
+
+function normalizeFluidContainers(parsed: unknown): FluidContainerInstance[] {
+  if (!Array.isArray(parsed)) return []
+  const seen = new Set<string>()
+  return parsed.flatMap((entry): FluidContainerInstance[] => {
+    if (!entry || typeof entry !== 'object') return []
+    const candidate = entry as Partial<FluidContainerInstance>
+    if (!candidate.uid || seen.has(candidate.uid) || (candidate.kind !== 'bucket' && candidate.kind !== 'steelCell') || !candidate.fluidId || !fluidIds.includes(candidate.fluidId)) return []
+    const amountLitres = Math.min(fluidContainerCapacities[candidate.kind], normalizeLitres(candidate.amountLitres ?? 0))
+    if (amountLitres <= 0) return []
+    seen.add(candidate.uid)
+    return [{ uid: candidate.uid, kind: candidate.kind, fluidId: candidate.fluidId, amountLitres }]
+  })
 }
 
 function enforceSingleFluidStore(process: MachineProcessState) {
-  process.fluids = normalizeFluidStore(process.fluids)
+  const normalized = normalizeFluidStore(process.fluids)
+  const selected = fluidIds
+    .map((id) => ({ id, amount: normalized[id] ?? 0 }))
+    .filter((entry) => entry.amount > 0)
+    .sort((a, b) => b.amount - a.amount)[0]
+  process.fluids = normalizeFluidStore(selected ? { [selected.id]: selected.amount } : undefined)
 }
 
 function normalizeProcessSlot(slot: unknown): ProcessSlot {
@@ -387,12 +408,6 @@ function normalizePipeSideModes(parsed?: Partial<Record<PipeDirection, PipeSideM
     if (disabledSides?.[direction]) normalized[direction] = 'blocked'
   }
   return normalized
-}
-
-function normalizeBucketFluid(parsed?: Partial<BucketFluidState> | null): BucketFluidState | null {
-  if (!parsed || !parsed.id || !fluidIds.includes(parsed.id)) return null
-  const amount = Math.max(0, Math.floor(parsed.amount ?? 0))
-  return amount > 0 ? { id: parsed.id, amount } : null
 }
 
 const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
@@ -493,6 +508,8 @@ export function cloneState(state: GameState): GameState {
     resources: { ...state.resources },
     machines: { ...state.machines },
     bucketFluid: state.bucketFluid ? { ...state.bucketFluid } : null,
+    fluidContainers: state.fluidContainers.map((container) => ({ ...container })),
+    fluidTransferMilestones: { ...state.fluidTransferMilestones },
     machineInstances: state.machineInstances.map((instance) => ({
       ...instance,
       pipeDisabledSides: { ...instance.pipeDisabledSides },
@@ -1873,14 +1890,44 @@ function machineFluidCapacityForInstance(state: GameState, instance: MachineInst
   return machineFluidCapacity(instance.machineId)
 }
 
+export function fluidBufferAcceptedFluids(machineId: MachineId, buffer: MachineFluidBufferSpec) {
+  if (Array.isArray(buffer.fluidRule)) return buffer.fluidRule
+  if (buffer.fluidRule === 'any') return fluidIds
+  const recipesForMachine = processRecipes.filter((recipe) => recipe.machineId === machineId)
+  const accepted = buffer.fluidRule === 'recipe-inputs'
+    ? recipesForMachine.map((recipe) => recipe.fluidInput).filter((fluid): fluid is NonNullable<ProcessRecipe['fluidInput']> => Boolean(fluid && (!fluid.bufferId || fluid.bufferId === buffer.id))).map((fluid) => fluid.id)
+    : recipesForMachine.map((recipe) => recipe.fluidOutput).filter((fluid): fluid is NonNullable<ProcessRecipe['fluidOutput']> => Boolean(fluid && (!fluid.bufferId || fluid.bufferId === buffer.id))).map((fluid) => fluid.id)
+  return [...new Set(accepted)]
+}
+
+export function machineFluidBuffersForInstance(state: GameState, instance: MachineInstance) {
+  return (machines[instance.machineId].fluidBuffers ?? []).map((buffer) => ({
+    ...buffer,
+    capacityLitres: instance.machineId === 'steamTank' ? steamTankFluidCapacityLitresForInstance(state, instance) : buffer.capacityLitres,
+    acceptedFluids: fluidBufferAcceptedFluids(instance.machineId, buffer),
+  }))
+}
+
+function compatibleFluidBuffer(state: GameState, instance: MachineInstance, fluidId: FluidId, direction: 'input' | 'output') {
+  return machineFluidBuffersForInstance(state, instance).find((buffer) => {
+    const accessMatches = buffer.access === 'both' || buffer.access === direction
+    return accessMatches && buffer.acceptedFluids.includes(fluidId)
+  })
+}
+
+function fluidCapacityForFluid(state: GameState, instance: MachineInstance, fluidId: FluidId, direction: 'input' | 'output' = 'input') {
+  return compatibleFluidBuffer(state, instance, fluidId, direction)?.capacityLitres ?? 0
+}
+
 function storedFluidTypes(process: MachineProcessState) {
   return (Object.keys(process.fluids) as FluidId[]).filter((id) => (process.fluids[id] ?? 0) > 0)
 }
 
 function canStoreFluid(state: GameState, instance: MachineInstance, fluidId: FluidId) {
-  if (instance.machineId === 'steamBoiler' && fluidId !== 'water') return false
-  const capacity = machineFluidCapacityForInstance(state, instance)
+  const capacity = fluidCapacityForFluid(state, instance, fluidId, 'input')
   if (capacity < 1) return false
+  const buffer = compatibleFluidBuffer(state, instance, fluidId, 'input')
+  if (buffer?.fluidRule !== 'any') return true
   const storedTypes = storedFluidTypes(instance.process)
   return storedTypes.length < 1 || storedTypes.every((id) => id === fluidId)
 }
@@ -2144,12 +2191,7 @@ function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId
     connectedFluidNetworkForInstance(state, start, true)
       .filter((instance) => instance.uid !== start.uid)
       .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
-      .filter(
-        (instance) =>
-          instance.uid !== startStorage.uid &&
-          (instance.machineId === 'steamTank' || instance.machineId === 'steamBoiler' || (isLiquidSteamBoilerMachine(instance.machineId) && fluidId !== 'water')) &&
-          canStoreFluid(state, instance, fluidId),
-      ),
+      .filter((instance) => instance.uid !== startStorage.uid && canStoreFluid(state, instance, fluidId)),
   )
 }
 
@@ -2205,103 +2247,109 @@ function connectedFluidOutputTargets(state: GameState, source: MachineInstance, 
 }
 
 function freeFluidCapacity(state: GameState, instance: MachineInstance, fluidId: FluidId) {
-  const capacity = machineFluidCapacityForInstance(state, instance)
+  const capacity = fluidCapacityForFluid(state, instance, fluidId, 'input')
   return Math.max(0, capacity - (instance.process.fluids[fluidId] ?? 0))
 }
 
-function manualBucketTargetForInstance(state: GameState, instance: MachineInstance) {
-  if (instance.machineId === 'steamTank') return steamTankStorageForInstance(state, instance)
-  if (isLiquidSteamBoilerMachine(instance.machineId)) return instance
-  if (instance.machineId === 'lvAssembler') return instance
-  return null
+function emptyContainerResource(kind: FluidContainerKind): ResourceId {
+  return kind === 'bucket' ? 'bucket' : 'emptySteelCell'
 }
 
-const steelCellByFluid: Partial<Record<FluidId, ResourceId>> = {
-  water: 'waterSteelCell',
-  creosote: 'creosoteSteelCell',
-  liquidRubber: 'liquidRubberSteelCell',
+function nextFluidContainerUid(state: GameState, kind: FluidContainerKind) {
+  const prefix = kind === 'bucket' ? 'bucket' : 'cell'
+  let index = state.fluidContainers.length + 1
+  while (state.fluidContainers.some((container) => container.uid === `${prefix}-${index}`)) index += 1
+  return `${prefix}-${index}`
 }
 
-const fluidBySteelCell: Partial<Record<ResourceId, FluidId>> = Object.fromEntries(
-  Object.entries(steelCellByFluid).map(([fluidId, resourceId]) => [resourceId, fluidId]),
-) as Partial<Record<ResourceId, FluidId>>
-
-export function fillSteelCellFromMachine(state: GameState, uid: string, fluidId?: FluidId) {
-  if (availableResourceAmount(state, 'emptySteelCell') < 1) return state
-  const source = state.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!source) return state
-  const availableFluids = storedFluidTypes(source.process).filter((candidate) => Boolean(steelCellByFluid[candidate]))
-  const selectedFluid = fluidId && availableFluids.includes(fluidId) ? fluidId : availableFluids[0]
-  const filledCell = selectedFluid ? steelCellByFluid[selectedFluid] : undefined
-  if (!selectedFluid || !filledCell || (source.process.fluids[selectedFluid] ?? 0) < 8) return state
-
-  let next = subtractResources(state, [{ id: 'emptySteelCell', amount: 1 }])
-  next = addResources(next, [{ id: filledCell, amount: 1 }])
-  const nextSource = next.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!nextSource) return state
-  nextSource.process.fluids[selectedFluid] = Math.max(0, (nextSource.process.fluids[selectedFluid] ?? 0) - 8)
-  next.lastSavedAt = Date.now()
-  return next
+export function fluidTransferMilestoneKey(direction: 'fill' | 'drain', kind: FluidContainerKind, fluidId: FluidId, machineId?: MachineId) {
+  return [direction, kind, fluidId, machineId ?? 'any'].join(':')
 }
 
-export function emptySteelCellIntoMachine(state: GameState, uid: string, cellId: ResourceId) {
-  const fluidId = fluidBySteelCell[cellId]
-  if (!fluidId || availableResourceAmount(state, cellId) < 1) return state
-  const target = state.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!target || (isLiquidSteamBoilerMachine(target.machineId) && fluidId !== 'creosote')) return state
-  const capacity = machineFluidCapacityForInstance(state, target)
-  if (capacity < 1 || !canStoreFluid(state, target, fluidId) || freeFluidCapacity(state, target, fluidId) < 8) return state
-
-  let next = subtractResources(state, [{ id: cellId, amount: 1 }])
-  next = addResources(next, [{ id: 'emptySteelCell', amount: 1 }])
-  const nextTarget = next.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!nextTarget) return state
-  nextTarget.process.fluidCapacityLitres = machineFluidCapacityForInstance(next, nextTarget)
-  nextTarget.process.fluids[fluidId] = (nextTarget.process.fluids[fluidId] ?? 0) + 8
-  next.lastSavedAt = Date.now()
-  return next
+function recordFluidTransfer(state: GameState, direction: 'fill' | 'drain', kind: FluidContainerKind, fluidId: FluidId, machineId: MachineId, amountLitres: number) {
+  const amount = normalizeLitres(amountLitres)
+  for (const key of [fluidTransferMilestoneKey(direction, kind, fluidId), fluidTransferMilestoneKey(direction, kind, fluidId, machineId)]) {
+    state.fluidTransferMilestones[key] = normalizeLitres((state.fluidTransferMilestones[key] ?? 0) + amount)
+  }
 }
 
-export function fillBucketFromMachine(state: GameState, uid: string, fluidId?: FluidId) {
-  if (availableResourceAmount(state, 'bucket') < 1 || state.bucketFluid) return state
-  const source = state.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!source) return state
-  const availableFluids = storedFluidTypes(source.process)
-  const selectedFluid = fluidId && availableFluids.includes(fluidId) ? fluidId : availableFluids[0]
+export function fluidContainerGroups(state: GameState) {
+  const groups = new Map<string, { key: string; kind: FluidContainerKind; fluidId: FluidId; amountLitres: number; count: number; containerUid: string }>()
+  for (const container of state.fluidContainers) {
+    const key = `${container.kind}:${container.fluidId}:${container.amountLitres.toFixed(3)}`
+    const existing = groups.get(key)
+    if (existing) existing.count += 1
+    else groups.set(key, { key, kind: container.kind, fluidId: container.fluidId, amountLitres: container.amountLitres, count: 1, containerUid: container.uid })
+  }
+  return [...groups.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.fluidId.localeCompare(b.fluidId) || b.amountLitres - a.amountLitres)
+}
+
+function manualFluidTarget(state: GameState, instance: MachineInstance) {
+  return instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance
+}
+
+export function fillPortableFluidContainer(
+  state: GameState,
+  machineUid: string,
+  kind: FluidContainerKind,
+  options: { containerUid?: string; fluidId?: FluidId; bufferId?: string } = {},
+) {
+  const sourceInstance = state.machineInstances.find((candidate) => candidate.uid === machineUid)
+  if (!sourceInstance) return state
+  const source = manualFluidTarget(state, sourceInstance)
+  const existing = options.containerUid ? state.fluidContainers.find((container) => container.uid === options.containerUid && container.kind === kind) : undefined
+  if (options.containerUid && !existing) return state
+  if (!existing && availableResourceAmount(state, emptyContainerResource(kind)) < 1) return state
+  const outputBuffers = machineFluidBuffersForInstance(state, source).filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
+  const selectedFluid = existing?.fluidId ?? options.fluidId ?? outputBuffers.flatMap((buffer) => buffer.acceptedFluids).find((fluidId) => (source.process.fluids[fluidId] ?? 0) > 0)
   if (!selectedFluid) return state
+  const outputBuffer = outputBuffers.find((buffer) => (!options.bufferId || buffer.id === options.bufferId) && buffer.acceptedFluids.includes(selectedFluid))
+  if (!outputBuffer) return state
   const stored = source.process.fluids[selectedFluid] ?? 0
-  const amount = Math.min(bucketFluidTransferLitres, stored)
-  if (amount < 1) return state
+  const free = fluidContainerCapacities[kind] - (existing?.amountLitres ?? 0)
+  const transfer = normalizeLitres(Math.min(stored, free))
+  if (transfer <= 0) return state
 
   const next = cloneState(state)
-  const nextSource = next.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!nextSource) return state
-  nextSource.process.fluids[selectedFluid] = Math.max(0, (nextSource.process.fluids[selectedFluid] ?? 0) - amount)
-  next.bucketFluid = { id: selectedFluid, amount }
+  const nextSourceInstance = next.machineInstances.find((candidate) => candidate.uid === machineUid)!
+  const nextSource = manualFluidTarget(next, nextSourceInstance)
+  nextSource.process.fluids[selectedFluid] = normalizeLitres((nextSource.process.fluids[selectedFluid] ?? 0) - transfer)
+  if (existing) {
+    const nextContainer = next.fluidContainers.find((container) => container.uid === existing.uid)!
+    nextContainer.amountLitres = normalizeLitres(nextContainer.amountLitres + transfer)
+  } else {
+    next.resources[emptyContainerResource(kind)] -= 1
+    next.fluidContainers.push({ uid: nextFluidContainerUid(next, kind), kind, fluidId: selectedFluid, amountLitres: transfer })
+  }
+  recordFluidTransfer(next, 'fill', kind, selectedFluid, sourceInstance.machineId, transfer)
   next.lastSavedAt = Date.now()
   return next
 }
 
-export function emptyBucketIntoMachine(state: GameState, uid: string) {
-  if (!state.bucketFluid) return state
-  const target = state.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!target) return state
+export function drainPortableFluidContainer(state: GameState, machineUid: string, containerUid: string, bufferId?: string) {
+  const targetInstance = state.machineInstances.find((candidate) => candidate.uid === machineUid)
+  const container = state.fluidContainers.find((candidate) => candidate.uid === containerUid)
+  if (!targetInstance || !container) return state
+  const target = manualFluidTarget(state, targetInstance)
+  const inputBuffer = machineFluidBuffersForInstance(state, target).find((buffer) =>
+    (!bufferId || buffer.id === bufferId) && (buffer.access === 'input' || buffer.access === 'both') && buffer.acceptedFluids.includes(container.fluidId),
+  )
+  if (!inputBuffer || !canStoreFluid(state, target, container.fluidId)) return state
+  const transfer = normalizeLitres(Math.min(container.amountLitres, inputBuffer.capacityLitres - (target.process.fluids[container.fluidId] ?? 0)))
+  if (transfer <= 0) return state
 
   const next = cloneState(state)
-  const nextTarget = next.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!nextTarget || !next.bucketFluid) return state
-  if (isLiquidSteamBoilerMachine(nextTarget.machineId) && next.bucketFluid.id !== 'creosote') return state
-  const storage = manualBucketTargetForInstance(next, nextTarget)
-  if (!storage || !canStoreFluid(next, storage, next.bucketFluid.id)) return state
-
-  storage.process.fluidCapacityLitres = machineFluidCapacityForInstance(next, storage)
-  const free = freeFluidCapacity(next, storage, next.bucketFluid.id)
-  const transfer = Math.min(next.bucketFluid.amount, free)
-  if (transfer < 1) return state
-
-  storage.process.fluids[next.bucketFluid.id] = (storage.process.fluids[next.bucketFluid.id] ?? 0) + transfer
-  const remaining = next.bucketFluid.amount - transfer
-  next.bucketFluid = remaining > 0 ? { ...next.bucketFluid, amount: remaining } : null
+  const nextTargetInstance = next.machineInstances.find((candidate) => candidate.uid === machineUid)!
+  const nextTarget = manualFluidTarget(next, nextTargetInstance)
+  nextTarget.process.fluids[container.fluidId] = normalizeLitres((nextTarget.process.fluids[container.fluidId] ?? 0) + transfer)
+  nextTarget.process.fluidCapacityLitres = Math.max(nextTarget.process.fluidCapacityLitres, inputBuffer.capacityLitres)
+  const nextContainer = next.fluidContainers.find((candidate) => candidate.uid === containerUid)!
+  nextContainer.amountLitres = normalizeLitres(nextContainer.amountLitres - transfer)
+  if (nextContainer.amountLitres <= 0) {
+    next.fluidContainers = next.fluidContainers.filter((candidate) => candidate.uid !== containerUid)
+    next.resources[emptyContainerResource(container.kind)] += 1
+  }
+  recordFluidTransfer(next, 'drain', container.kind, container.fluidId, targetInstance.machineId, transfer)
   next.lastSavedAt = Date.now()
   return next
 }
@@ -3329,6 +3377,7 @@ function tickLiquidSteamBoiler(state: GameState, instance: MachineInstance, elap
   process.steamCapacityMs = liquidSteamBoilerCapacityMs
   process.steamStoredMs = Math.min(process.steamStoredMs, liquidSteamBoilerCapacityMs)
   process.fluidCapacityLitres = liquidSteamBoilerFluidCapacityLitres
+  process.fluids.water = Math.min(128, process.fluids.water ?? 0)
   process.fluids.creosote = Math.min(process.fluids.creosote ?? 0, liquidSteamBoilerFluidCapacityLitres)
 
   const freeFluid = liquidSteamBoilerFluidCapacityLitres - (process.fluids.creosote ?? 0)
@@ -3336,7 +3385,12 @@ function tickLiquidSteamBoiler(state: GameState, instance: MachineInstance, elap
     process.fluids.creosote = (process.fluids.creosote ?? 0) + pullFluidFromConnectedSources(state, instance, 'creosote', freeFluid, elapsedMs)
   }
 
-  if (!boilerHasWater(state, instance)) {
+  const waterFree = Math.max(0, 128 - (process.fluids.water ?? 0))
+  if (waterFree > 0) {
+    process.fluids.water = (process.fluids.water ?? 0) + pullFluidFromConnectedSources(state, instance, 'water', waterFree, elapsedMs)
+  }
+
+  if ((process.fluids.water ?? 0) <= 0) {
     process.activeRecipeId = null
     return
   }
@@ -3348,16 +3402,9 @@ function tickLiquidSteamBoiler(state: GameState, instance: MachineInstance, elap
     return
   }
 
-  const waterRequested = boilerSteamProductionLitresPerSecond * (elapsedMs / 1000)
-  const waterReceived = pullFluidFromConnectedSources(state, instance, 'water', waterRequested, elapsedMs)
-  if (waterReceived <= 0) {
-    process.activeRecipeId = null
-    return
-  }
-
   const maxSteamByRate = liquidSteamBoilerSteamProductionLitresPerSecond * steamMsPerLitre * (elapsedMs / 1000)
   const maxSteamByFuel = (storedCreosote / liquidSteamBoilerCreosoteUseLitresPerSecond) * liquidSteamBoilerSteamProductionLitresPerSecond * steamMsPerLitre
-  const maxSteamByWater = (waterReceived / boilerSteamProductionLitresPerSecond) * liquidSteamBoilerSteamProductionLitresPerSecond * steamMsPerLitre
+  const maxSteamByWater = ((process.fluids.water ?? 0) / boilerSteamProductionLitresPerSecond) * liquidSteamBoilerSteamProductionLitresPerSecond * steamMsPerLitre
   const producedSteam = Math.min(freeSteamMs, maxSteamByRate, maxSteamByFuel, maxSteamByWater)
   if (producedSteam < 1) {
     process.activeRecipeId = null
@@ -3365,7 +3412,9 @@ function tickLiquidSteamBoiler(state: GameState, instance: MachineInstance, elap
   }
 
   const consumedCreosote = producedSteam / steamMsPerLitre / liquidSteamBoilerSteamProductionLitresPerSecond * liquidSteamBoilerCreosoteUseLitresPerSecond
+  const consumedWater = producedSteam / steamMsPerLitre / liquidSteamBoilerSteamProductionLitresPerSecond * boilerSteamProductionLitresPerSecond
   process.fluids.creosote = Math.max(0, storedCreosote - consumedCreosote)
+  process.fluids.water = Math.max(0, (process.fluids.water ?? 0) - consumedWater)
   process.steamStoredMs += producedSteam
   process.activeRecipeId = 'burn_creosote_steam'
   process.progressMs = 0
@@ -4056,7 +4105,6 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       instance.process.euCapacity = machineEuCapacity(instance.machineId)
       instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
       instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
-      enforceSingleFluidStore(instance.process)
     }
     if (isEuHatchMachine(instance.machineId)) {
       instance.process.euCapacity = machineEuCapacity(instance.machineId)
@@ -4256,6 +4304,7 @@ export function questObjectives(quest: Quest): QuestObjective[] {
     ...(quest.requirements.machines ?? []).map((amount): QuestObjective => ({ type: 'machine', id: amount.id, amount: amount.amount, progressMode: 'lifetime' })),
     ...(quest.requirements.surveyCards ?? []).map((amount): QuestObjective => ({ type: 'surveyCard', id: amount.id, amount: amount.amount })),
     ...(quest.requirements.recipes ?? []).map((amount): QuestObjective => ({ type: 'recipe', id: amount.id, amount: amount.amount })),
+    ...(quest.requirements.fluidTransfers ?? []).map((transfer): QuestObjective => ({ type: 'fluidTransfer', ...transfer })),
   ]
 }
 
@@ -4278,6 +4327,9 @@ function questObjectiveCurrent(state: GameState, objective: QuestObjective) {
     }
     return state.machineInstances.filter((instance) => instance.machineId === objective.id).length
   }
+  if (objective.type === 'fluidTransfer') {
+    return state.fluidTransferMilestones[fluidTransferMilestoneKey(objective.direction, objective.kind, objective.fluidId, objective.machineId)] ?? 0
+  }
   return state.factoryFoundationLevel
 }
 
@@ -4287,11 +4339,16 @@ export function questObjectiveLabel(objective: QuestObjective) {
   if (objective.type === 'surveyCard') return `${gatherTargets[objective.id].name} Survey Card`
   if (objective.type === 'recipe') return processRecipes.find((recipe) => recipe.id === objective.id)?.name ?? recipes.find((recipe) => recipe.id === objective.id)?.name ?? objective.id
   if (objective.type === 'factoryFoundation') return `Factory foundation level ${objective.level}`
+  if (objective.type === 'fluidTransfer') {
+    const container = objective.kind === 'bucket' ? 'Bucket' : 'Steel Cell'
+    const action = objective.direction === 'fill' ? 'Fill' : 'Drain'
+    return `${action} ${container} with ${objective.fluidId === 'liquidRubber' ? 'Liquid Rubber' : objective.fluidId[0].toUpperCase() + objective.fluidId.slice(1)}`
+  }
   return machines[objective.id].name
 }
 
 export function questObjectiveProgress(state: GameState, objective: QuestObjective): QuestObjectiveProgress {
-  const required = objective.type === 'factoryFoundation' ? objective.level : objective.amount
+  const required = objective.type === 'factoryFoundation' ? objective.level : objective.type === 'fluidTransfer' ? objective.amountLitres : objective.amount
   const current = questObjectiveCurrent(state, objective)
   return {
     objective,
@@ -4653,7 +4710,8 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     const legacyArcFurnaceSave = parsedVersion < 5
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
-    const migratedResources = migrateResources({ ...fresh.resources, ...parsed.resources })
+    const parsedResources = (parsed.resources ?? {}) as Partial<Record<string, number>>
+    const migratedResources = migrateResources({ ...fresh.resources, ...parsedResources })
     const machineInstances = migrateMachineInstances(
       machinesState,
       migratedResources,
@@ -4708,12 +4766,40 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       if (migratedInstalledCard) migrationNotices.push('survey-card-inventory')
     }
 
+    let fluidContainers = normalizeFluidContainers(parsed.fluidContainers)
+    if (parsedVersion < 9) {
+      const legacyCells: Array<{ resourceId: string; fluidId: FluidId }> = [
+        { resourceId: 'waterSteelCell', fluidId: 'water' },
+        { resourceId: 'creosoteSteelCell', fluidId: 'creosote' },
+        { resourceId: 'liquidRubberSteelCell', fluidId: 'liquidRubber' },
+      ]
+      for (const legacy of legacyCells) {
+        const count = Math.max(0, Math.floor(Number(parsedResources[legacy.resourceId]) || 0))
+        for (let index = 0; index < count; index += 1) {
+          fluidContainers.push({ uid: `cell-migrated-${legacy.fluidId}-${index + 1}`, kind: 'steelCell', fluidId: legacy.fluidId, amountLitres: fluidContainerCapacities.steelCell })
+        }
+        delete (migratedResources as Partial<Record<string, number>>)[legacy.resourceId]
+      }
+      const legacyBucket = parsed.bucketFluid as Partial<{ id: FluidId; amount: number }> | null | undefined
+      if (legacyBucket?.id && fluidIds.includes(legacyBucket.id) && Number(legacyBucket.amount) > 0) {
+        const bucketCount = Math.max(0, migratedResources.bucket)
+        if (bucketCount > 0) migratedResources.bucket -= 1
+        fluidContainers.push({ uid: 'bucket-migrated-1', kind: 'bucket', fluidId: legacyBucket.id, amountLitres: Math.min(1, normalizeLitres(legacyBucket.amount ?? 0)) })
+      }
+      fluidContainers = normalizeFluidContainers(fluidContainers)
+      if (fluidContainers.length > 0) migrationNotices.push('portable-fluid-containers')
+    }
+
     return {
       ...fresh,
       resources: migratedResources,
       machines: machinesState,
       machineInstances,
-      bucketFluid: normalizeBucketFluid(parsed.bucketFluid),
+      bucketFluid: null,
+      fluidContainers,
+      fluidTransferMilestones: Object.fromEntries(
+        Object.entries(parsed.fluidTransferMilestones ?? {}).map(([key, amount]) => [key, normalizeLitres(Number(amount) || 0)]),
+      ),
       factoryFoundationLevel,
       scrip: Math.max(0, Math.floor(parsed.scrip ?? 0)),
       shopCooldowns: normalizeShopCooldowns(parsed, now),

@@ -158,9 +158,6 @@ export const resourceRegistry = {
   sulfurDust: { id: 'sulfurDust', label: 'Sulfur Dust', category: 'dust', tier: 'lv' },
   surveyKit: { id: 'surveyKit', label: 'Survey Kit', category: 'component', tier: 'lv' },
   emptySteelCell: { id: 'emptySteelCell', label: 'Empty Steel Cell', category: 'component', tier: 'lv' },
-  waterSteelCell: { id: 'waterSteelCell', label: 'Water Steel Cell', category: 'component', tier: 'lv' },
-  creosoteSteelCell: { id: 'creosoteSteelCell', label: 'Creosote Steel Cell', category: 'component', tier: 'lv' },
-  liquidRubberSteelCell: { id: 'liquidRubberSteelCell', label: 'Liquid Rubber Steel Cell', category: 'component', tier: 'lv' },
 } satisfies Record<ResourceId, ResourceSpec>
 
 export const resourceLabels: Record<ResourceId, string> = Object.fromEntries(
@@ -447,6 +444,7 @@ export const machineRegistry = {
     processKind: 'waterSource',
     fluidCapacityLitres: 128,
     fluidOutputLitresPerSecond: 96,
+    fluidBuffers: [{ id: 'water', label: 'Water', capacityLitres: 128, access: 'output', fluidRule: ['water'] }],
   },
   steamBoiler: {
     id: 'steamBoiler',
@@ -457,6 +455,7 @@ export const machineRegistry = {
     processKind: 'steamBoiler',
     steamCapacityLitres: 128,
     fluidCapacityLitres: 128,
+    fluidBuffers: [{ id: 'water', label: 'Water feed', capacityLitres: 128, access: 'input', fluidRule: ['water'] }],
   },
   steamTank: {
     id: 'steamTank',
@@ -468,6 +467,7 @@ export const machineRegistry = {
     steamCapacityLitres: 512,
     fluidCapacityLitres: 512,
     fluidOutputLitresPerSecond: 96,
+    fluidBuffers: [{ id: 'storage', label: 'Tank storage', capacityLitres: 512, access: 'both', fluidRule: 'any' }],
   },
   standardChest: {
     id: 'standardChest',
@@ -679,6 +679,10 @@ export const machineRegistry = {
     processKind: 'liquidSteamBoiler',
     steamCapacityLitres: 256,
     fluidCapacityLitres: 256,
+    fluidBuffers: [
+      { id: 'water', label: 'Water feed', capacityLitres: 128, access: 'input', fluidRule: ['water'] },
+      { id: 'fuel', label: 'Liquid fuel', capacityLitres: 256, access: 'input', fluidRule: ['creosote'] },
+    ],
   },
   lvMacerator: {
     id: 'lvMacerator',
@@ -779,6 +783,7 @@ export const machineRegistry = {
     processKind: 'euProcess',
     euCapacity: 128,
     fluidCapacityLitres: 128,
+    fluidBuffers: [{ id: 'input', label: 'Recipe fluid', capacityLitres: 128, access: 'input', fluidRule: 'recipe-inputs' }],
   },
   lvCentrifuge: {
     id: 'lvCentrifuge',
@@ -817,6 +822,7 @@ export const machineRegistry = {
     euCapacity: 128,
     fluidCapacityLitres: 32,
     fluidOutputLitresPerSecond: 24,
+    fluidBuffers: [{ id: 'reaction', label: 'Reaction vessel', capacityLitres: 32, access: 'both', fluidRule: ['liquidRubber'] }],
   },
   reachGateCasing: {
     id: 'reachGateCasing',
@@ -876,6 +882,7 @@ export const machineRegistry = {
     placeable: true,
     processKind: 'fluidHatch',
     fluidCapacityLitres: 64,
+    fluidBuffers: [{ id: 'input', label: 'Input hatch', capacityLitres: 64, access: 'input', fluidRule: 'any' }],
   },
   lvFluidOutputHatch: {
     id: 'lvFluidOutputHatch',
@@ -886,6 +893,7 @@ export const machineRegistry = {
     processKind: 'fluidHatch',
     fluidCapacityLitres: 64,
     fluidOutputLitresPerSecond: 24,
+    fluidBuffers: [{ id: 'output', label: 'Output hatch', capacityLitres: 64, access: 'output', fluidRule: 'any' }],
   },
   cokeOvenPart: {
     id: 'cokeOvenPart',
@@ -904,6 +912,7 @@ export const machineRegistry = {
     processKind: 'cokeOven',
     fluidCapacityLitres: 128,
     fluidOutputLitresPerSecond: 24,
+    fluidBuffers: [{ id: 'creosote', label: 'Creosote tank', capacityLitres: 128, access: 'output', fluidRule: ['creosote'] }],
     multiblock: {
       width: 2,
       height: 2,
@@ -4720,36 +4729,6 @@ export const processRecipes: ProcessRecipe[] = [
     fluidInput: { id: 'liquidRubber', amount: fluidAmount },
     output: { id: outputId, amount: outputAmount },
   })),
-  ...([
-    ['water', 'waterSteelCell', 'Water'],
-    ['creosote', 'creosoteSteelCell', 'Creosote'],
-    ['liquidRubber', 'liquidRubberSteelCell', 'Liquid Rubber'],
-  ] as const).flatMap(([fluidId, cellId, fluidName]): ProcessRecipe[] => [
-    {
-      id: `lv_canner_fill_${fluidId}_steel_cell`,
-      name: `Fill ${fluidName} Steel Cell`,
-      description: `Seal 8L of ${fluidName.toLowerCase()} in a portable steel cell.`,
-      tier: 'lv',
-      machineId: 'lvCanner',
-      durationMs: 3000,
-      euCost: 32,
-      input: { id: 'emptySteelCell', amount: 1 },
-      fluidInput: { id: fluidId, amount: 8 },
-      output: { id: cellId, amount: 1 },
-    },
-    {
-      id: `lv_canner_drain_${fluidId}_steel_cell`,
-      name: `Drain ${fluidName} Steel Cell`,
-      description: `Recover 8L of ${fluidName.toLowerCase()} and return the empty steel cell.`,
-      tier: 'lv',
-      machineId: 'lvCanner',
-      durationMs: 2600,
-      euCost: 24,
-      input: { id: cellId, amount: 1 },
-      output: { id: 'emptySteelCell', amount: 1 },
-      fluidOutput: { id: fluidId, amount: 8 },
-    },
-  ]),
 ]
 
 export const questChapters: QuestChapter[] = [
@@ -5139,6 +5118,19 @@ export const quests: Quest[] = [
         { id: 'copperPipe', amount: 4 },
       ],
     },
+    rewards: {},
+  },
+  {
+    id: 'transferWaterBucketQuest',
+    chapterId: 'steamAge',
+    chapter: 'Steam Age',
+    title: 'Move water by hand',
+    description: 'Open the Well terminal, switch to Fluids, and fill a 1L bucket. Portable containers bridge the gap before pipe networks are ready.',
+    kind: 'optional',
+    position: { x: 70, y: 20 },
+    icon: { type: 'resource', id: 'bucket' },
+    prerequisites: ['buildWell'],
+    requirements: { fluidTransfers: [{ direction: 'fill', kind: 'bucket', fluidId: 'water', amountLitres: 1, machineId: 'well' }] },
     rewards: {},
   },
   {
@@ -5734,7 +5726,7 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Build the LV canner',
-    description: 'The canner seals chemistry into cells. It uses the new pump chain, so battery work now checks both item crafting and fluid-capable machine parts.',
+    description: 'The canner seals battery chemistry into dedicated power cells. Portable fluid handling now belongs to Buckets and Steel Cells in each machine terminal.',
     position: { x: 340, y: 140 },
     icon: { type: 'machine', id: 'lvCanner' },
     prerequisites: ['makeEmptyBatteryCellQuest'],
@@ -6213,9 +6205,22 @@ export const quests: Quest[] = [
     title: 'React liquid rubber',
     description: 'React two Sticky Resin with one Sulfur Dust into an 8L batch, then capture it in a cell or route it through a pipe.',
     position: { x: 1180, y: 140 },
-    icon: { type: 'resource', id: 'liquidRubberSteelCell' },
+    icon: { type: 'resource', id: 'emptySteelCell' },
     prerequisites: ['buildChemicalReactorQuest', 'craftSteelCellsQuest'],
     requirements: { recipes: [{ id: 'lv_reactor_liquid_rubber', amount: 1 }] },
+    rewards: {},
+  },
+  {
+    id: 'transferLiquidRubberCellQuest',
+    chapterId: 'shatteredReach',
+    chapter: 'Shattered Reach',
+    title: 'Capture liquid rubber',
+    description: 'Fill a Steel Cell directly from the Chemical Reactor. Its exact contents and fill level stay with the cell until drained.',
+    kind: 'optional',
+    position: { x: 1180, y: 300 },
+    icon: { type: 'resource', id: 'emptySteelCell' },
+    prerequisites: ['makeLiquidRubberQuest'],
+    requirements: { fluidTransfers: [{ direction: 'fill', kind: 'steelCell', fluidId: 'liquidRubber', amountLitres: 8, machineId: 'lvChemicalReactor' }] },
     rewards: {},
   },
   {
@@ -6267,11 +6272,13 @@ export const initialEquipment: EquipmentState = {
 
 export function createInitialState(now = Date.now()): GameState {
   return {
-    version: 7,
+    version: 9,
     resources: { ...initialResources },
     machines: { ...initialMachines },
     machineInstances: [],
     bucketFluid: null,
+    fluidContainers: [],
+    fluidTransferMilestones: {},
     factoryFoundationLevel: 0,
     scrip: 0,
     shopCooldowns: {},

@@ -137,9 +137,6 @@ export type ResourceId =
   | 'sulfurDust'
   | 'surveyKit'
   | 'emptySteelCell'
-  | 'waterSteelCell'
-  | 'creosoteSteelCell'
-  | 'liquidRubberSteelCell'
 
 export type MachineId =
   | 'furnace'
@@ -214,6 +211,7 @@ export type QuestId =
   | 'makeBricks'
   | 'buildFoundation'
   | 'buildWell'
+  | 'transferWaterBucketQuest'
   | 'craftSteamCasingQuest'
   | 'makeSteam'
   | 'pipeSteam'
@@ -292,6 +290,7 @@ export type QuestId =
   | 'encodeSulfurSurveyCardQuest'
   | 'makeSulfurDustQuest'
   | 'craftSteelCellsQuest'
+  | 'transferLiquidRubberCellQuest'
   | 'buildChemicalReactorQuest'
   | 'makeLiquidRubberQuest'
   | 'insulateWithLiquidRubberQuest'
@@ -386,6 +385,23 @@ export type GatherTargetId =
 
 export type FluidId = 'water' | 'creosote' | 'liquidRubber'
 
+export type FluidContainerKind = 'bucket' | 'steelCell'
+
+export type FluidContainerInstance = {
+  uid: string
+  kind: FluidContainerKind
+  fluidId: FluidId
+  amountLitres: number
+}
+
+export type MachineFluidBufferSpec = {
+  id: string
+  label: string
+  capacityLitres: number
+  access: 'input' | 'output' | 'both'
+  fluidRule: 'any' | 'recipe-inputs' | 'recipe-outputs' | FluidId[]
+}
+
 export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | 'axe' | 'shovel' | 'pickaxe' | 'weapon'
 
 export type EquipmentState = Record<EquipmentSlotId, ResourceId | null>
@@ -451,6 +467,7 @@ export type ProcessRecipe = {
   fluidInput?: {
     id: FluidId
     amount: number
+    bufferId?: string
   }
   minimumEuStored?: number
   startupEu?: number
@@ -459,6 +476,7 @@ export type ProcessRecipe = {
   fluidOutput?: {
     id: FluidId
     amount: number
+    bufferId?: string
   }
 }
 
@@ -481,6 +499,13 @@ export type Quest = {
     machines?: MachineAmount[]
     surveyCards?: Array<{ id: GatherTargetId; amount: number }>
     recipes?: Array<{ id: string; amount: number }>
+    fluidTransfers?: Array<{
+      direction: 'fill' | 'drain'
+      kind: FluidContainerKind
+      fluidId: FluidId
+      amountLitres: number
+      machineId?: MachineId
+    }>
   }
   rewards: {
     resources?: ResourceAmount[]
@@ -521,6 +546,7 @@ export type QuestObjective =
   | { type: 'recipe'; id: string; amount: number; label?: string }
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }
+  | { type: 'fluidTransfer'; direction: 'fill' | 'drain'; kind: FluidContainerKind; fluidId: FluidId; amountLitres: number; machineId?: MachineId; label?: string }
 
 export type Machine = {
   id: MachineId
@@ -541,6 +567,7 @@ export type MachineSpec = Machine & {
   steamCapacityLitres?: number
   fluidCapacityLitres?: number
   fluidOutputLitresPerSecond?: number
+  fluidBuffers?: MachineFluidBufferSpec[]
   euCapacity?: number
   euOutputPerSecond?: number
   euAmps?: number
@@ -579,6 +606,8 @@ export type GameState = {
   machines: Record<MachineId, number>
   machineInstances: MachineInstance[]
   bucketFluid: BucketFluidState | null
+  fluidContainers: FluidContainerInstance[]
+  fluidTransferMilestones: Record<string, number>
   factoryFoundationLevel: number
   scrip: number
   shopCooldowns: Partial<Record<ResourceId, number>>

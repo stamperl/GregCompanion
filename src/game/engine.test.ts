@@ -13,7 +13,8 @@ import {
   buyShopItem,
   boilerHasWater,
   boilerSteamCapacityMs,
-  bucketFluidTransferLitres,
+  fluidContainerCapacities,
+  fluidContainerGroups,
   canBuyShopItem,
   canCrowbarRemoveMachine,
   canExpandFactoryFloor,
@@ -35,8 +36,7 @@ import {
   equippedResourceCounts,
   expandFactoryFloor,
   factoryFoundationCost,
-  fillBucketFromMachine,
-  fillSteelCellFromMachine,
+  fillPortableFluidContainer,
   factoryGridForState,
   findGridRecipe,
   getBestToolForTarget,
@@ -50,8 +50,7 @@ import {
   isReachGateFormed,
   loadGame,
   loadGameWithOfflineProgress,
-  emptyBucketIntoMachine,
-  emptySteelCellIntoMachine,
+  drainPortableFluidContainer,
   liquidSteamBoilerCapacityMs,
   liquidSteamBoilerFluidCapacityLitres,
   lvItemAutomationStatus,
@@ -908,7 +907,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(8)
+    expect(state.version).toBe(9)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -929,7 +928,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(8)
+    expect(state.version).toBe(9)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -3133,15 +3132,17 @@ describe('game engine', () => {
     cokeOven.process.fluids.creosote = 20
     cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
 
-    state = fillBucketFromMachine(state, cokeOven.uid, 'creosote')
+    state = fillPortableFluidContainer(state, cokeOven.uid, 'bucket', { fluidId: 'creosote', bufferId: 'creosote' })
 
-    expect(state.bucketFluid).toEqual({ id: 'creosote', amount: bucketFluidTransferLitres })
-    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(4)
+    expect(state.fluidContainers).toEqual([{ uid: 'bucket-1', kind: 'bucket', fluidId: 'creosote', amountLitres: 1 }])
+    expect(state.resources.bucket).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(19)
 
-    state = emptyBucketIntoMachine(state, tank.uid)
+    state = drainPortableFluidContainer(state, tank.uid, state.fluidContainers[0].uid, 'storage')
 
-    expect(state.bucketFluid).toBeNull()
-    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote).toBe(bucketFluidTransferLitres)
+    expect(state.fluidContainers).toEqual([])
+    expect(state.resources.bucket).toBe(1)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote).toBe(1)
   })
 
   it('does not empty a bucket into a tank holding another liquid', () => {
@@ -3157,10 +3158,10 @@ describe('game engine', () => {
     tank.process.fluids.water = 20
     tank.process.fluidCapacityLitres = ironTankFluidCapacityLitres
 
-    state = fillBucketFromMachine(state, cokeOven.uid, 'creosote')
-    state = emptyBucketIntoMachine(state, tank.uid)
+    state = fillPortableFluidContainer(state, cokeOven.uid, 'bucket', { fluidId: 'creosote', bufferId: 'creosote' })
+    state = drainPortableFluidContainer(state, tank.uid, state.fluidContainers[0].uid, 'storage')
 
-    expect(state.bucketFluid).toEqual({ id: 'creosote', amount: bucketFluidTransferLitres })
+    expect(state.fluidContainers[0]).toMatchObject({ kind: 'bucket', fluidId: 'creosote', amountLitres: 1 })
     expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.water).toBe(20)
     expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote ?? 0).toBe(0)
   })
@@ -4700,7 +4701,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(8)
+    expect(state.version).toBe(9)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')
@@ -4787,12 +4788,81 @@ describe('game engine', () => {
     state.machineInstances[0].process.fluidCapacityLitres = 32
     state.machineInstances[0].process.fluids.liquidRubber = 8
 
-    state = fillSteelCellFromMachine(state, state.machineInstances[0].uid, 'liquidRubber')
-    expect(state.resources.liquidRubberSteelCell).toBe(1)
-    state = emptySteelCellIntoMachine(state, state.machineInstances[1].uid, 'liquidRubberSteelCell')
+    state = fillPortableFluidContainer(state, state.machineInstances[0].uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reaction' })
+    expect(state.fluidContainers[0]).toMatchObject({ kind: 'steelCell', fluidId: 'liquidRubber', amountLitres: 8 })
+    expect(fluidContainerGroups(state)[0].count).toBe(1)
+    state = drainPortableFluidContainer(state, state.machineInstances[1].uid, state.fluidContainers[0].uid, 'input')
 
     expect(state.resources.emptySteelCell).toBe(1)
     expect(state.machineInstances[1].process.fluids.liquidRubber).toBe(8)
+  })
+
+  it('feeds a liquid steam boiler from water and fuel drained into its named buffers', () => {
+    let state = createFactoryState()
+    state.machines.liquidSteamBoiler = 1
+    state = placeMachineInstance(state, 'liquidSteamBoiler', 0, 0)
+    const boiler = state.machineInstances[0]
+    boiler.process.fluids.water = 12
+    boiler.process.fluids.creosote = 1
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances[0].process.steamStoredMs).toBe(36000)
+    expect(state.machineInstances[0].process.fluids.water).toBe(0)
+    expect(state.machineInstances[0].process.fluids.creosote).toBe(0)
+  })
+
+  it('routes generic recipe fluids through pipes into a compatible machine buffer', () => {
+    let state = createFactoryState()
+    state.machines.lvChemicalReactor = 1
+    state.machines.copperPipe = 1
+    state.machines.lvAssembler = 1
+    state = placeMachineInstance(state, 'lvChemicalReactor', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'lvAssembler', 2, 0)
+    const reactor = state.machineInstances.find((instance) => instance.machineId === 'lvChemicalReactor')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    state = setFluidOutputDirection(state, reactor.uid, 'east')
+    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+    state.machineInstances.find((instance) => instance.uid === reactor.uid)!.process.fluids.liquidRubber = 16
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.machineId === 'lvAssembler')!.process.fluids.liquidRubber).toBeGreaterThan(0)
+    expect(state.machineInstances.find((instance) => instance.uid === reactor.uid)!.process.fluids.liquidRubber).toBeLessThan(16)
+  })
+
+  it('keeps partial portable containers as exact metadata and groups identical fills', () => {
+    let state = createFactoryState()
+    state.machines.lvChemicalReactor = 1
+    state = placeMachineInstance(state, 'lvChemicalReactor', 0, 0)
+    const reactor = state.machineInstances[0]
+    reactor.process.fluids.liquidRubber = 5
+    state.resources.emptySteelCell = 2
+
+    state = fillPortableFluidContainer(state, reactor.uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reaction' })
+    expect(state.fluidContainers[0].amountLitres).toBe(5)
+    expect(state.resources.emptySteelCell).toBe(1)
+
+    state.machineInstances[0].process.fluids.liquidRubber = 5
+    state = fillPortableFluidContainer(state, reactor.uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reaction' })
+    expect(fluidContainerGroups(state)).toHaveLength(1)
+    expect(fluidContainerGroups(state)[0]).toMatchObject({ amountLitres: 5, count: 2 })
+    expect(fluidContainerCapacities.steelCell).toBe(8)
+  })
+
+  it('migrates legacy filled cells and clamps an old bucket to 1L', () => {
+    const state = loadGame(JSON.stringify({
+      version: 8,
+      resources: { bucket: 1, waterSteelCell: 2, liquidRubberSteelCell: 1 },
+      bucketFluid: { id: 'creosote', amount: 16 },
+    }), 1000)
+
+    expect(state.resources.bucket).toBe(0)
+    expect(state.fluidContainers.filter((container) => container.kind === 'steelCell')).toHaveLength(3)
+    expect(state.fluidContainers.find((container) => container.kind === 'bucket')).toMatchObject({ fluidId: 'creosote', amountLitres: 1 })
+    expect(state.migrationNotices).toContain('portable-fluid-containers')
   })
 })
 
