@@ -386,6 +386,7 @@ function fluidLabel(fluidId: FluidId) {
 function fluidVisualColor(fluidId: FluidId | undefined) {
   if (fluidId === 'water') return '#55c8ec'
   if (fluidId === 'creosote') return '#a96a20'
+  if (fluidId === 'liquidRubber') return '#d8bc62'
   return '#73c6b8'
 }
 
@@ -1822,6 +1823,10 @@ function App() {
       if (isEuPoweredMachine(reviewMachineId) || isEuCableMachine(reviewMachineId) || reviewMachineId === 'steamTurbine') {
         instance.process.euCapacity = instance.process.euCapacity || machines[reviewMachineId].euCapacity || 128
         instance.process.euStored = instance.process.euCapacity / 2
+      }
+      if (reviewMachineId === 'lvChemicalReactor') {
+        instance.process.fluidCapacityLitres = 32
+        instance.process.fluids.liquidRubber = reviewState === 'active' ? 8 : 24
       }
       if (isEuCableMachine(reviewMachineId)) {
         const source = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'steamTurbine')
@@ -6005,6 +6010,9 @@ function App() {
                     const hmiRunningLabel = selectedMachineHmiConfig?.runningLabel ?? 'Running'
                     const hmiUsesSecondaryInput = Boolean(selectedMachineHmiConfig?.secondaryInput)
                     const hmiSystemLabel = isSteamHmi ? 'Pressure' : 'Power'
+                    const isChemicalReactor = selectedMachine.machineId === 'lvChemicalReactor'
+                    const chemicalFluidOutput = isChemicalReactor ? storedFluids(process)[0] : undefined
+                    const chemicalFluidCapacity = process.fluidCapacityLitres || 32
                     const progressPercent =
                       process.durationMs > 0 ? Math.min(100, Math.max(0, (process.progressMs / process.durationMs) * 100)) : 0
                     const bufferCurrent = isSteamHmi ? formatSteamLitres(process.steamStoredMs) : Math.floor(process.euStored)
@@ -6080,7 +6088,30 @@ function App() {
                         </div>
                         <div className="forge-io-slot forge-output-slot">
                           <span>Output</span>
-                          <ProcessItemSlot slot={process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                          {isChemicalReactor && !process.output ? (
+                            chemicalFluidOutput ? (
+                              <div
+                                className="chemical-fluid-output"
+                                aria-label={`${fluidLabel(chemicalFluidOutput.id)} output ${formatLitres(chemicalFluidOutput.amount)} of ${formatLitres(chemicalFluidCapacity)} litres`}
+                              >
+                                <span
+                                  className="chemical-fluid-swatch"
+                                  style={{ '--chemical-fluid-color': fluidVisualColor(chemicalFluidOutput.id) } as CSSProperties}
+                                  aria-hidden="true"
+                                />
+                                <strong>{fluidLabel(chemicalFluidOutput.id)}</strong>
+                                <em>{formatLitres(chemicalFluidOutput.amount)}L / {formatLitres(chemicalFluidCapacity)}L</em>
+                              </div>
+                            ) : (
+                              <div className="chemical-output-empty" aria-label="Empty item or fluid output">
+                                <span aria-hidden="true" />
+                                <strong>Item / fluid</strong>
+                                <em>{formatLitres(chemicalFluidCapacity)}L buffer</em>
+                              </div>
+                            )
+                          ) : (
+                            <ProcessItemSlot slot={process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                          )}
                         </div>
                         <div className="forge-action-rail" aria-label={`${machines[selectedMachine.machineId].name} progress ${Math.floor(progressPercent)} percent`}>
                           <span style={{ width: `${progressPercent}%` }} />

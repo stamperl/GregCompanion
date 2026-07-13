@@ -5664,6 +5664,58 @@ button.craft-output:disabled {
   width: 58px;
 }
 
+.chemical-fluid-output,
+.chemical-output-empty {
+  align-content: center;
+  background: #101817;
+  border: 2px solid #1b2423;
+  border-bottom-color: #687672;
+  border-right-color: #687672;
+  display: grid;
+  gap: 3px;
+  height: 68px;
+  justify-items: center;
+  min-width: 0;
+  padding: 4px 2px;
+  width: 68px;
+}
+
+.chemical-fluid-swatch,
+.chemical-output-empty > span {
+  background: var(--chemical-fluid-color, #51605c);
+  border: 2px solid rgba(232, 250, 246, 0.76);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  box-shadow: inset 4px 4px 0 rgba(255, 255, 255, 0.2), 0 0 8px color-mix(in srgb, var(--chemical-fluid-color, #51605c) 55%, transparent);
+  display: block;
+  height: 25px;
+  width: 25px;
+}
+
+.chemical-output-empty > span {
+  background: linear-gradient(135deg, #4d5754 0 48%, #18201f 50%);
+  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, 0.08);
+}
+
+.chemical-fluid-output strong,
+.chemical-output-empty strong {
+  color: #edf8f4;
+  font: 950 0.48rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.chemical-fluid-output em,
+.chemical-output-empty em {
+  color: #9ecac3;
+  font: 900 0.43rem "Courier New", ui-monospace, monospace;
+  font-style: normal;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .forge-io-slot.dual-inputs {
   gap: 3px;
   padding-block: 4px;

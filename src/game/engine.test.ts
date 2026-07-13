@@ -4749,6 +4749,8 @@ describe('game engine', () => {
     reactor.process.secondaryInput = { id: 'sulfurDust', amount: 1 }
     reactor.process.euStored = 128
 
+    expect(reactor.process.fluidCapacityLitres).toBe(32)
+
     state = tickGame(state, 8000).state
 
     expect(state.machineInstances[0].process.fluids.liquidRubber).toBe(8)

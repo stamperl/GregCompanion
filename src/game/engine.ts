@@ -2725,6 +2725,7 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   }
   if (machineId === 'standardChest') placed.process.storageSlots = Array.from({ length: 12 }, () => null)
   if (isEuStorageMachine(machineId)) placed.process.batterySlots = Array.from({ length: batteryBufferSlots(machineId) }, () => null)
+  if (machineId === 'lvChemicalReactor') placed.process.fluidCapacityLitres = machineFluidCapacityLitres(machineId)
   if (isEuHatchMachine(machineId)) {
     placed.process.euCapacity = machineEuCapacity(machineId)
     placed.process.euStored = 0
