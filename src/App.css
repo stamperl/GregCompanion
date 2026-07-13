@@ -15709,8 +15709,7 @@ button.button-primary:disabled,
   background: #101514;
 }
 
-.machine-terminal-tabs button,
-.fluid-buffer-tabs button {
+.machine-terminal-tabs button {
   min-width: 0;
   border: 0;
   border-radius: 0;
@@ -15727,131 +15726,12 @@ button.button-primary:disabled,
   gap: 6px;
 }
 
-.machine-terminal-tabs button.active,
-.fluid-buffer-tabs button.active {
+.machine-terminal-tabs button.active {
   background: #2d352f;
   color: #f2e9bd;
   box-shadow: inset 0 -3px #c5a85a;
 }
 
-.portable-fluid-console {
-  display: grid;
-  grid-template-columns: minmax(118px, 0.7fr) minmax(0, 1.3fr);
-  gap: 7px;
-  padding: 7px;
-  border: 2px solid #414c48;
-  background: rgba(7, 12, 12, 0.96);
-}
-
-.fluid-buffer-tabs {
-  grid-column: 1 / -1;
-  display: flex;
-  min-height: 32px;
-  overflow-x: auto;
-  border: 1px solid #59645f;
-}
-
-.fluid-buffer-tabs button {
-  flex: 1 0 112px;
-}
-
-.portable-fluid-buffer {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 104px;
-  padding: 7px;
-  border: 1px solid #68736d;
-  background: #111817;
-}
-
-.portable-fluid-buffer > div:last-child {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.portable-fluid-buffer small,
-.portable-fluid-buffer span,
-.portable-fluid-buffer em {
-  color: #9ba8a2;
-  font-size: 10px;
-  font-style: normal;
-}
-
-.portable-fluid-buffer strong {
-  color: #f3e9b9;
-  font-size: 14px;
-  overflow-wrap: anywhere;
-}
-
-.portable-fluid-vessel {
-  position: relative;
-  align-self: stretch;
-  overflow: hidden;
-  border: 2px solid #85918b;
-  background: repeating-linear-gradient(to top, transparent 0 16px, rgba(184, 203, 194, 0.22) 16px 17px), #09100f;
-}
-
-.portable-fluid-vessel > span {
-  position: absolute;
-  inset: auto 0 0;
-  min-height: 0;
-  background: var(--portable-fluid-color, #4eb7d4);
-  box-shadow: inset 0 8px rgba(255, 255, 255, 0.28), 0 0 10px var(--portable-fluid-color, #4eb7d4);
-  transition: height 420ms ease;
-}
-
-.portable-fluid-inventory {
-  display: flex;
-  gap: 5px;
-  min-width: 0;
-  min-height: 104px;
-  padding: 5px;
-  overflow-x: auto;
-  border: 1px solid #4e5a56;
-  background: #0c1110;
-  scroll-snap-type: x proximity;
-}
-
-.portable-container {
-  position: relative;
-  display: grid;
-  grid-template-rows: 46px auto auto;
-  flex: 0 0 92px;
-  align-items: center;
-  justify-items: center;
-  gap: 1px;
-  min-height: 92px;
-  padding: 4px;
-  border: 2px solid #626c67;
-  border-radius: 0;
-  background: #1b2220;
-  color: #f0e8c4;
-  scroll-snap-align: start;
-}
-
-.portable-container.selected {
-  border-color: #e6cf68;
-  box-shadow: inset 0 0 0 2px #6f5f24;
-}
-
-.portable-container strong,
-.portable-container small {
-  max-width: 100%;
-  text-align: center;
-  line-height: 1.1;
-}
-
-.portable-container strong { font-size: 10px; }
-.portable-container small { color: #aeb8b2; font-size: 8px; }
-
-.portable-container-icon {
-  position: relative;
-}
-
-.portable-container-icon i,
 .fluid-container-tint {
   position: absolute;
   right: 3px;
@@ -15861,30 +15741,6 @@ button.button-primary:disabled,
   border: 2px solid #e7eddf;
   background: var(--portable-fluid-color, #4eb7d4);
   box-shadow: inset 0 3px rgba(255, 255, 255, 0.32);
-}
-
-.portable-fluid-actions {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.portable-fluid-actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 38px;
-  border: 1px solid #8d9a94;
-  border-radius: 0;
-  background: #29332f;
-  color: #f4ebc3;
-  font-weight: 800;
-}
-
-.portable-fluid-actions button:disabled {
-  opacity: 0.35;
 }
 
 .fluid-container-slot {
@@ -15902,13 +15758,77 @@ button.button-primary:disabled,
   font-size: 8px;
 }
 
-@media (max-width: 420px) {
-  .portable-fluid-console {
-    grid-template-columns: 108px minmax(0, 1fr);
-    padding: 5px;
-  }
+.portable-fluid-storage {
+  min-height: 72px;
+}
 
-  .portable-fluid-buffer { min-height: 96px; padding: 5px; }
-  .portable-fluid-inventory { min-height: 96px; }
-  .portable-container { flex-basis: 84px; min-height: 84px; }
+.machine-fluid-port-strip {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px;
+  overflow-x: auto;
+  border: 2px solid #424c48;
+  background: #0b1110;
+}
+
+.machine-fluid-port {
+  display: grid;
+  grid-template-columns: 24px minmax(68px, 1fr);
+  grid-template-areas:
+    "swatch kind"
+    "swatch label"
+    "swatch amount";
+  flex: 1 0 132px;
+  align-items: center;
+  min-height: 54px;
+  padding: 5px;
+  border: 2px solid #4e5955;
+  border-radius: 0;
+  background: #161d1b;
+  color: #929d98;
+  text-align: left;
+}
+
+.machine-fluid-port.ready {
+  border-color: #e2cb67;
+  color: #f2e9bb;
+  box-shadow: inset 0 0 0 1px #77682b;
+}
+
+.machine-fluid-port:disabled {
+  opacity: 0.62;
+}
+
+.machine-fluid-port-swatch {
+  grid-area: swatch;
+  width: 16px;
+  height: 38px;
+  border: 2px solid #7f8c86;
+  background: var(--portable-fluid-color, #26302d);
+  box-shadow: inset 0 5px rgba(255, 255, 255, 0.18);
+}
+
+.machine-fluid-port small {
+  grid-area: kind;
+  color: #76d2df;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.machine-fluid-port.output small {
+  color: #e5a24a;
+}
+
+.machine-fluid-port strong {
+  grid-area: label;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+
+.machine-fluid-port em {
+  grid-area: amount;
+  color: #9aa6a0;
+  font-size: 8px;
+  font-style: normal;
 }

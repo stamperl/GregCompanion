@@ -262,6 +262,7 @@ function recipeOpensProcessView(recipe: Recipe) {
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'uses'
 type MachineTerminalMode = 'items' | 'fluids'
+type MachineFluidBufferView = ReturnType<typeof machineFluidBuffersForInstance>[number]
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
 type FactoryPointerPosition = { x: number; y: number; clientX: number; clientY: number }
@@ -393,7 +394,7 @@ function fluidLabel(fluidId: FluidId) {
 function fluidVisualColor(fluidId: FluidId | undefined) {
   if (fluidId === 'water') return '#55c8ec'
   if (fluidId === 'creosote') return '#a96a20'
-  if (fluidId === 'liquidRubber') return '#d8bc62'
+  if (fluidId === 'liquidRubber') return '#111514'
   return '#73c6b8'
 }
 
@@ -1920,7 +1921,6 @@ function App() {
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
   const [machineTerminalMode, setMachineTerminalMode] = useState<MachineTerminalMode>('items')
   const [selectedFluidContainerKey, setSelectedFluidContainerKey] = useState<string | null>(null)
-  const [selectedFluidBufferId, setSelectedFluidBufferId] = useState<string | null>(null)
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [showLockedQuests, setShowLockedQuests] = useState(false)
@@ -2350,36 +2350,29 @@ function App() {
     : ''
   const selectedMachineStoredFluids = selectedMachine ? storedFluids(selectedMachine.process) : []
   const selectedMachineFluidBuffers = selectedMachine ? machineFluidBuffersForInstance(state, selectedMachine) : []
-  const selectedMachineFluidBuffer = selectedMachineFluidBuffers.find((buffer) => buffer.id === selectedFluidBufferId) ?? selectedMachineFluidBuffers[0]
   const selectedFluidContainerGroup = portableFluidGroups.find((group) => group.key === selectedFluidContainerKey)
   const selectedEmptyFluidContainerKind = selectedFluidContainerKey?.startsWith('empty:')
     ? selectedFluidContainerKey.slice('empty:'.length) as FluidContainerKind
     : null
-  const selectedBufferFluidId = selectedMachineFluidBuffer?.acceptedFluids.find((id) => (selectedMachine?.process.fluids[id] ?? 0) > 0)
-  const selectedBufferStoredLitres = selectedBufferFluidId && selectedMachine ? selectedMachine.process.fluids[selectedBufferFluidId] ?? 0 : 0
   const selectedContainerKind = selectedEmptyFluidContainerKind ?? selectedFluidContainerGroup?.kind
-  const canFillSelectedContainer = Boolean(
-    selectedMachineFluidBuffer &&
-    selectedContainerKind &&
-    (selectedMachineFluidBuffer.access === 'output' || selectedMachineFluidBuffer.access === 'both') &&
-    selectedBufferFluidId &&
-    (!selectedFluidContainerGroup || (
-      selectedFluidContainerGroup.fluidId === selectedBufferFluidId &&
-      selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind]
-    )),
-  )
-  const canDrainSelectedContainer = Boolean(
-    selectedMachineFluidBuffer &&
-    selectedFluidContainerGroup &&
-    (selectedMachineFluidBuffer.access === 'input' || selectedMachineFluidBuffer.access === 'both') &&
-    selectedMachineFluidBuffer.acceptedFluids.includes(selectedFluidContainerGroup.fluidId) &&
-    (selectedMachine?.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) < selectedMachineFluidBuffer.capacityLitres,
-  )
+  const canUseFluidPort = (buffer: MachineFluidBufferView, direction: 'input' | 'output') => {
+    if (!selectedMachine) return false
+    if (direction === 'output') {
+      if (!selectedContainerKind || (buffer.access !== 'output' && buffer.access !== 'both')) return false
+      const fluidId = buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
+      return Boolean(fluidId && (!selectedFluidContainerGroup || (
+        selectedFluidContainerGroup.fluidId === fluidId &&
+        selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind]
+      )))
+    }
+    if (!selectedFluidContainerGroup || (buffer.access !== 'input' && buffer.access !== 'both')) return false
+    return buffer.acceptedFluids.includes(selectedFluidContainerGroup.fluidId) &&
+      (selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) < buffer.capacityLitres
+  }
 
   useEffect(() => {
     setMachineTerminalMode('items')
     setSelectedFluidContainerKey(null)
-    setSelectedFluidBufferId(null)
   }, [selectedMachineUid])
 
   useEffect(() => {
@@ -2880,24 +2873,21 @@ function App() {
     setState((current) => removeLvBatteryFromBuffer(current, uid, slotIndex))
   }
 
-  const handleFillPortableContainer = () => {
-    if (!selectedMachine || !selectedMachineFluidBuffer) return
+  const handleFluidPortPress = (buffer: MachineFluidBufferView, direction: 'input' | 'output') => {
+    if (!selectedMachine || !canUseFluidPort(buffer, direction)) return
+    if (direction === 'input') {
+      if (!selectedFluidContainerGroup) return
+      setState((current) => drainPortableFluidContainer(current, selectedMachine.uid, selectedFluidContainerGroup.containerUid, buffer.id))
+      return
+    }
     const kind = selectedEmptyFluidContainerKind ?? selectedFluidContainerGroup?.kind
     if (!kind) return
-    const fluidId = selectedFluidContainerGroup?.fluidId ?? selectedMachineFluidBuffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
-    const containerUid = selectedFluidContainerGroup?.containerUid
+    const fluidId = selectedFluidContainerGroup?.fluidId ?? buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
     setState((current) => fillPortableFluidContainer(current, selectedMachine.uid, kind, {
-      containerUid,
+      containerUid: selectedFluidContainerGroup?.containerUid,
       fluidId,
-      bufferId: selectedMachineFluidBuffer.id,
+      bufferId: buffer.id,
     }))
-    setSelectedFluidContainerKey(null)
-  }
-
-  const handleDrainPortableContainer = () => {
-    if (!selectedMachine || !selectedMachineFluidBuffer || !selectedFluidContainerGroup) return
-    setState((current) => drainPortableFluidContainer(current, selectedMachine.uid, selectedFluidContainerGroup.containerUid, selectedMachineFluidBuffer.id))
-    setSelectedFluidContainerKey(null)
   }
 
   const handleStorageSlotPress = (uid: string, slotIndex: number, slot: ProcessSlot) => {
@@ -5578,76 +5568,65 @@ function App() {
                   </div>
                 </>
                 )}
-                {machineTerminalMode === 'fluids' && selectedMachineFluidBuffer && (
-                  <div className="portable-fluid-console">
-                    {selectedMachineFluidBuffers.length > 1 && (
-                      <div className="fluid-buffer-tabs" role="tablist" aria-label="Machine fluid buffers">
-                        {selectedMachineFluidBuffers.map((buffer) => (
-                          <button
-                            type="button"
-                            role="tab"
-                            aria-selected={selectedMachineFluidBuffer.id === buffer.id}
-                            className={selectedMachineFluidBuffer.id === buffer.id ? 'active' : ''}
-                            onClick={() => {
-                              setSelectedFluidBufferId(buffer.id)
-                              setSelectedFluidContainerKey(null)
-                            }}
-                            key={buffer.id}
-                          >
-                            {buffer.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <div className="portable-fluid-buffer">
-                      <div className="portable-fluid-vessel" aria-label={`${selectedMachineFluidBuffer.label} ${formatLitres(selectedBufferStoredLitres)} of ${formatLitres(selectedMachineFluidBuffer.capacityLitres)} litres`}>
-                        <span
-                          style={{
-                            height: `${metricFill(selectedBufferStoredLitres, selectedMachineFluidBuffer.capacityLitres)}%`,
-                            '--portable-fluid-color': fluidVisualColor(selectedBufferFluidId),
-                          } as CSSProperties}
-                        />
-                      </div>
-                      <div>
-                        <small>{selectedMachineFluidBuffer.label}</small>
-                        <strong>{selectedBufferFluidId ? fluidLabel(selectedBufferFluidId) : 'Empty'}</strong>
-                        <em>{formatLitres(selectedBufferStoredLitres)}L / {formatLitres(selectedMachineFluidBuffer.capacityLitres)}L</em>
-                        <span>{selectedMachineFluidBuffer.access === 'both' ? 'Fill or drain' : selectedMachineFluidBuffer.access === 'input' ? 'Machine input' : 'Machine output'}</span>
-                      </div>
-                    </div>
-                    <div className="portable-fluid-inventory" aria-label="Portable fluid containers">
+                {machineTerminalMode === 'fluids' && (
+                  <>
+                    <div className="processing-storage furnace-storage portable-fluid-storage" aria-label="Portable fluid containers">
                       {(['bucket', 'steelCell'] as FluidContainerKind[]).map((kind) => {
                         const resourceId: ResourceId = kind === 'bucket' ? 'bucket' : 'emptySteelCell'
                         const amount = availableResourceAmount(state, resourceId)
                         if (amount < 1) return null
                         const key = `empty:${kind}`
                         return (
-                          <button type="button" className={selectedFluidContainerKey === key ? 'portable-container selected' : 'portable-container'} onClick={() => setSelectedFluidContainerKey(key)} key={key}>
+                          <button type="button" className={selectedFluidContainerKey === key ? 'item-slot fluid-container-slot selected' : 'item-slot fluid-container-slot'} aria-label={`Empty ${kind === 'bucket' ? 'Bucket' : 'Steel Cell'} ${fluidContainerCapacities[kind]}L, ${formatAmount(amount)} stored`} onClick={() => setSelectedFluidContainerKey(key)} key={key}>
                             <PixelIcon id={resourceId} />
-                            <strong>Empty {kind === 'bucket' ? 'Bucket' : 'Steel Cell'}</strong>
-                            <small>{fluidContainerCapacities[kind]}L | x{formatAmount(amount)}</small>
+                            <span className="fluid-container-level">{fluidContainerCapacities[kind]}L</span>
+                            <span className="item-count">{formatAmount(amount)}</span>
                           </button>
                         )
                       })}
                       {portableFluidGroups.map((group) => (
-                        <button type="button" className={selectedFluidContainerKey === group.key ? 'portable-container selected' : 'portable-container'} onClick={() => setSelectedFluidContainerKey(group.key)} key={group.key}>
-                          <span className="portable-container-icon">
-                            <PixelIcon id={group.kind === 'bucket' ? 'bucket' : 'emptySteelCell'} />
-                            <i style={{ '--portable-fluid-color': fluidVisualColor(group.fluidId) } as CSSProperties} />
-                          </span>
-                          <strong>{fluidLabel(group.fluidId)}</strong>
-                          <small>{formatLitres(group.amountLitres)}L / {fluidContainerCapacities[group.kind]}L | x{formatAmount(group.count)}</small>
+                        <button type="button" className={selectedFluidContainerKey === group.key ? 'item-slot fluid-container-slot selected' : 'item-slot fluid-container-slot'} aria-label={`${fluidLabel(group.fluidId)} ${group.kind === 'bucket' ? 'Bucket' : 'Steel Cell'} ${formatLitres(group.amountLitres)}L, ${formatAmount(group.count)} stored`} onClick={() => setSelectedFluidContainerKey(group.key)} key={group.key}>
+                          <PixelIcon id={group.kind === 'bucket' ? 'bucket' : 'emptySteelCell'} />
+                          <span className="fluid-container-tint" style={{ '--portable-fluid-color': fluidVisualColor(group.fluidId) } as CSSProperties} />
+                          <span className="fluid-container-level">{formatLitres(group.amountLitres)}L</span>
+                          <span className="item-count">{formatAmount(group.count)}</span>
                         </button>
                       ))}
                       {availableResourceAmount(state, 'bucket') < 1 && availableResourceAmount(state, 'emptySteelCell') < 1 && portableFluidGroups.length < 1 && (
                         <span className="empty-furnace-storage">No portable containers</span>
                       )}
                     </div>
-                    <div className="portable-fluid-actions">
-                      <button type="button" disabled={!canFillSelectedContainer} onClick={handleFillPortableContainer}><Download size={15} />Fill from machine</button>
-                      <button type="button" disabled={!canDrainSelectedContainer} onClick={handleDrainPortableContainer}><Upload size={15} />Drain into machine</button>
+                    <div className={selectedFluidContainerKey ? 'machine-selected-item active' : 'machine-selected-item'} aria-live="polite">
+                      <span>Selected</span>
+                      <strong>{selectedFluidContainerGroup
+                        ? `${fluidLabel(selectedFluidContainerGroup.fluidId)} ${selectedFluidContainerGroup.kind === 'bucket' ? 'Bucket' : 'Steel Cell'} | ${formatLitres(selectedFluidContainerGroup.amountLitres)}L`
+                        : selectedEmptyFluidContainerKind
+                          ? `Empty ${selectedEmptyFluidContainerKind === 'bucket' ? 'Bucket' : 'Steel Cell'}`
+                          : 'Tap a container above'}</strong>
                     </div>
-                  </div>
+                    <div className="machine-fluid-port-strip" aria-label="Machine fluid input and output ports">
+                      {selectedMachineFluidBuffers.flatMap((buffer) => {
+                        const fluidId = buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
+                        const stored = fluidId ? selectedMachine.process.fluids[fluidId] ?? 0 : 0
+                        const directions: Array<'input' | 'output'> = buffer.access === 'both' ? ['input', 'output'] : [buffer.access]
+                        return directions.map((direction) => (
+                          <button
+                            type="button"
+                            className={`machine-fluid-port ${direction} ${canUseFluidPort(buffer, direction) ? 'ready' : ''}`}
+                            disabled={!canUseFluidPort(buffer, direction)}
+                            aria-label={`${buffer.label} ${direction}, ${formatLitres(stored)} of ${formatLitres(buffer.capacityLitres)} litres`}
+                            onClick={() => handleFluidPortPress(buffer, direction)}
+                            key={`${buffer.id}-${direction}`}
+                          >
+                            <span className="machine-fluid-port-swatch" style={{ '--portable-fluid-color': fluidVisualColor(fluidId ?? selectedFluidContainerGroup?.fluidId) } as CSSProperties} />
+                            <small>{direction === 'input' ? 'Input' : 'Output'}</small>
+                            <strong>{buffer.label}</strong>
+                            <em>{formatLitres(stored)}L / {formatLitres(buffer.capacityLitres)}L</em>
+                          </button>
+                        ))
+                      })}
+                    </div>
+                  </>
                 )}
                 {!selectedMachineIsHmiTerminal && !selectedMachineUsesIntegratedStatus && (
                   <div className={selectedMachineMetrics.length > 0 ? 'machine-status-row has-metrics' : 'machine-status-row'}>
@@ -6402,7 +6381,7 @@ function App() {
                     </div>
                   </div>
                 )}
-                {machineUsesProcessStorage(selectedMachine.machineId) && (
+                {machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                   <p className="furnace-help">
                     {isItemHopperMachine(selectedMachine.machineId)
                       ? 'Tap storage, then a hopper slot to choose an amount.'
