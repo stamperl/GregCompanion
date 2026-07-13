@@ -1450,6 +1450,16 @@ export function machinesCanConnect(from: MachineInstance, to: MachineInstance) {
   return connectorAllowsDirection(from, direction) && connectorAllowsDirection(to, oppositePipeDirection[direction])
 }
 
+function machinesCanConnectEu(from: MachineInstance, to: MachineInstance) {
+  const direction = directionBetween(from, to)
+  if (!direction) return false
+  const allowsEuConnection = (instance: MachineInstance, side: PipeDirection) => {
+    if (isEuPoweredMachine(instance.machineId) && isFluidOutletConfigurableMachine(instance.machineId)) return true
+    return connectorAllowsDirection(instance, side)
+  }
+  return allowsEuConnection(from, direction) && allowsEuConnection(to, oppositePipeDirection[direction])
+}
+
 function machinesCanFlow(from: MachineInstance, to: MachineInstance) {
   const direction = directionBetween(from, to)
   if (!direction) return false
@@ -1949,7 +1959,7 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
     for (const position of adjacentPositions(state, current.instance.x, current.instance.y)) {
       const next = machineAt(state, position.x, position.y)
       if (!next || (!isEuNetworkMachine(next.machineId) && !isEuMultiblockBridge(next))) continue
-      if (!machinesCanConnect(current.instance, next)) continue
+      if (!machinesCanConnectEu(current.instance, next)) continue
       const nextDistance = current.cableDistance + (isEuCableMachine(next.machineId) ? 1 : 0)
       const knownDistance = visited.get(next.uid)
       if (typeof knownDistance !== 'number' || nextDistance < knownDistance) {

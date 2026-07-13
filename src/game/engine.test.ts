@@ -4755,6 +4755,26 @@ describe('game engine', () => {
     expect(state.recipeMilestones.lv_reactor_liquid_rubber).toBe(1)
   })
 
+  it('powers the Chemical Reactor independently of its closed fluid outlet faces', () => {
+    let state = createFactoryState()
+    state.machines.steamTurbine = 1
+    state.machines.tinCable = 1
+    state.machines.lvChemicalReactor = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    state = placeMachineInstance(state, 'lvChemicalReactor', 2, 0)
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    const reactor = state.machineInstances.find((instance) => instance.machineId === 'lvChemicalReactor')!
+    turbine.process.euStored = 256
+
+    expect(reactor.pipeSideModes).toEqual({ north: 'blocked', east: 'blocked', south: 'blocked', west: 'blocked' })
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === reactor.uid)?.process.euStored).toBeGreaterThan(0)
+    expect(state.machineInstances.find((instance) => instance.uid === turbine.uid)?.process.euStored).toBeLessThan(256)
+  })
+
   it('moves supported fluids through reusable 8L steel cells', () => {
     let state = createFactoryState()
     state.machines.lvChemicalReactor = 1
