@@ -234,7 +234,6 @@ import type {
   OfflineProgressResult,
   PipeDirection,
   PipeSideMode,
-  ProcessRecipe,
   ProcessSlot,
   ProcessSlotId,
   Quest,
@@ -915,7 +914,7 @@ function EnergyTank({ storedEu, capacityEu }: { storedEu: number; capacityEu: nu
 
 function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
   if (group.recipes[0]?.surveyCardOutput) return recipePrimaryOutput(group.recipes[0])
-  const recipeOutput = recipeGroupOutput(group.recipes[0])
+  const recipeOutput = group.recipes[0] ? recipeGroupOutput(group.recipes[0]) : undefined
   const output = recipeOutput ?? group.output
   if (output.kind === 'resource') {
     return {
@@ -939,96 +938,6 @@ function singleRecipeGroups(recipesToGroup: Recipe[]): RecipeGroup[] {
     const output = recipeGroupOutput(recipe) ?? { kind: 'machine' as const, id: 'furnace' as const, amount: 0 }
     return { key: `recipe:${recipe.id}`, output, recipes: [recipe] }
   })
-}
-
-function MachineRecipeCatalogModal({
-  machineId,
-  onClose,
-  onSelectRecipe,
-}: {
-  machineId: MachineId
-  onClose: () => void
-  onSelectRecipe: (recipe: ProcessRecipe) => void
-}) {
-  const machineRecipes = processRecipesForMachine(machineId, processRecipes)
-
-  return (
-    <div className="modal-backdrop machine-recipe-backdrop" role="presentation" onClick={onClose}>
-      <section
-        className="missing-modal machine-recipe-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${machines[machineId].name} recipes`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="modal-head">
-          <div>
-            <p className="eyebrow">{machines[machineId].tier} machine</p>
-            <h2>{machines[machineId].name} recipes</h2>
-          </div>
-          <button type="button" className="icon-button" aria-label="Close machine recipes" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <p className="machine-recipe-intro">
-          {machineRecipes.length > 0
-            ? `${machineRecipes.length} ${machineRecipes.length === 1 ? 'recipe' : 'recipes'} supported. Minimum shows the earliest machine tier for the same inputs and outputs.`
-            : 'This is a utility or transport machine and has no item-processing recipes.'}
-        </p>
-
-        {machineRecipes.length > 0 && (
-          <div className="machine-recipe-list">
-            {machineRecipes.map((recipe) => {
-              const minimumMachineId = minimumMachineForProcessRecipe(recipe, processRecipes, machines)
-              const inputAmounts = [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? []), ...(recipe.fuelInput ? [recipe.fuelInput] : [])]
-              const outputLabel = recipe.fluidOutput
-                ? fluidLabel(recipe.fluidOutput.id)
-                : recipe.machineOutput
-                  ? machines[recipe.machineOutput.id].name
-                  : resourceLabels[recipe.output.id]
-              const outputAmount = recipe.fluidOutput?.amount ?? recipe.machineOutput?.amount ?? recipe.output.amount
-              return (
-                <button type="button" className="machine-recipe-card" onClick={() => onSelectRecipe(recipe)} key={recipe.id}>
-                  <span className="machine-recipe-card-main">
-                    <span className="machine-recipe-output">
-                      {recipe.fluidOutput ? (
-                        <span className={`recipe-fluid-icon fluid-${recipe.fluidOutput.id}`} aria-hidden="true">L</span>
-                      ) : recipe.machineOutput ? (
-                        <MachineGlyph id={recipe.machineOutput.id} />
-                      ) : (
-                        <PixelIcon id={recipe.output.id} />
-                      )}
-                      <span><strong>{outputLabel}</strong><small>x{formatAmount(outputAmount)}</small></span>
-                    </span>
-                    <span className="machine-recipe-inputs" aria-label="Inputs">
-                      {inputAmounts.map((amount, index) => (
-                        <span title={`${resourceLabels[amount.id]} x${formatAmount(amount.amount)}`} key={`${amount.id}-${index}`}>
-                          <PixelIcon id={amount.id} />
-                          <small>{formatAmount(amount.amount)}</small>
-                        </span>
-                      ))}
-                      {recipe.fluidInput && (
-                        <span className="fluid-input" title={`${fluidLabel(recipe.fluidInput.id)} ${formatLitres(recipe.fluidInput.amount)}L`}>
-                          <span className={`recipe-fluid-icon fluid-${recipe.fluidInput.id}`} aria-hidden="true">L</span>
-                          <small>{formatLitres(recipe.fluidInput.amount)}L</small>
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                  <span className="machine-recipe-card-meta">
-                    <span><Clock size={12} />{formatDuration(recipe.durationMs)}</span>
-                    <span>{recipe.euCost ? `${formatAmount(recipe.euCost)} EU` : recipe.steamCostLitres ? `${formatLitres(recipe.steamCostLitres)}L Steam` : 'Fuel heat'}</span>
-                    <strong>Minimum: {machines[minimumMachineId].name} · {machines[minimumMachineId].tier}</strong>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </section>
-    </div>
-  )
 }
 
 function missingLine(state: GameState, recipe: Recipe) {
@@ -2024,7 +1933,6 @@ function App() {
   const [offlinePrompt, setOfflinePrompt] = useState('')
   const [migrationPrompt, setMigrationPrompt] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
-  const [recipeCatalogMachineId, setRecipeCatalogMachineId] = useState<MachineId | null>(null)
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(Boolean(reviewSetup))
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
@@ -2403,9 +2311,17 @@ function App() {
     () => (selectedResourceForRecipes ? recipesUsingInput(selectedResourceForRecipes, recipeCatalog) : []),
     [recipeCatalog, selectedResourceForRecipes],
   )
+  const machineRecipeGroups = useMemo(
+    () => recipeBrowserMachineIds.map((machineId): RecipeGroup => ({
+      key: `machine:${machineId}`,
+      output: { kind: 'machine', id: machineId, amount: 1 },
+      recipes: processRecipeCards.filter((recipe) => recipe.requiredMachine === machineId),
+    })),
+    [processRecipeCards, recipeBrowserMachineIds],
+  )
   const listedRecipeGroups = useMemo(
-    () => terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : terminalMode === 'uses' ? singleRecipeGroups(usageRecipes) : [],
-    [recipeCandidates, terminalMode, usageRecipes],
+    () => terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : terminalMode === 'uses' ? singleRecipeGroups(usageRecipes) : machineRecipeGroups,
+    [machineRecipeGroups, recipeCandidates, terminalMode, usageRecipes],
   )
   const selectedRecipeGroup = listedRecipeGroups.find((group) => group.key === selectedRecipeGroupKey) ?? listedRecipeGroups[0]
   const clampedSelectedRecipeIndex = selectedRecipeGroup
@@ -3647,23 +3563,17 @@ function App() {
     setSelectedRecipeIndex(0)
   }
 
-  const handleSelectMachineCatalogRecipe = (processRecipe: ProcessRecipe) => {
-    const targetGroup = groupRecipesByOutput(recipeCatalog).find((group) =>
-      group.recipes.some((recipe) => recipe.id === processRecipe.id),
-    )
-    if (!targetGroup) return
-
+  const handleOpenMachineRecipeBrowser = (machineId: MachineId) => {
     pushNavigationSnapshot()
-    setTerminalMode('recipes')
+    setTerminalMode('machines')
     setRecipeSearch('')
     setPage('terminal')
     setIsRecipeModalOpen(true)
-    setRecipeCatalogMachineId(null)
     setSelectedMachineUid(null)
     setPendingProcessInsert(null)
-    setSelectedRecipeGroupKey(targetGroup.key)
-    setSelectedRecipeIndex(targetGroup.recipes.findIndex((recipe) => recipe.id === processRecipe.id))
-    setTerminalNotice(`Showing ${processRecipe.name} in ${machines[processRecipe.machineId].name}.`)
+    setSelectedRecipeGroupKey(`machine:${machineId}`)
+    setSelectedRecipeIndex(0)
+    setTerminalNotice(`Showing recipes for ${machines[machineId].name}.`)
   }
 
   const handleCycleRecipeVariant = (direction: -1 | 1) => {
@@ -4788,28 +4698,14 @@ function App() {
                   </button>
                 </div>
 
-                <div className={terminalMode === 'machines' ? 'recipe-machine-directory' : 'recipe-modal-body'}>
-                  {terminalMode === 'machines' ? (
-                    <div className="recipe-machine-directory-grid" aria-label="Machine recipe catalogs">
-                      {recipeBrowserMachineIds.map((machineId) => {
-                        const recipeCount = processRecipesForMachine(machineId, processRecipes).length
-                        return (
-                          <button type="button" className="recipe-machine-directory-card" onClick={() => setRecipeCatalogMachineId(machineId)} key={machineId}>
-                            <MachineGlyph id={machineId} />
-                            <span><strong>{machines[machineId].name}</strong><small>{machines[machineId].tier} tier</small></span>
-                            <em>{recipeCount} {recipeCount === 1 ? 'recipe' : 'recipes'}</em>
-                          </button>
-                        )
-                      })}
-                      {recipeBrowserMachineIds.length === 0 && <p className="recipe-machine-directory-empty">No machines or machine recipes match this search.</p>}
-                    </div>
-                  ) : (
-                  <>
+                <div className="recipe-modal-body">
                   <div className="recipe-icon-grid" aria-label="Recipe results">
                   {listedRecipeGroups.map((group) => {
-                    const output = recipeGroupDisplayOutput(group)
-                    const locked = group.recipes.every((recipe) => lockedLine(state, recipe))
-                    const missing = !locked && group.recipes.every((recipe) => missingLine(state, recipe))
+                    const output = terminalMode === 'machines' && group.output.kind === 'machine'
+                      ? { ...group.output, label: machines[group.output.id].name }
+                      : recipeGroupDisplayOutput(group)
+                    const locked = group.recipes.length > 0 && group.recipes.every((recipe) => lockedLine(state, recipe))
+                    const missing = group.recipes.length > 0 && !locked && group.recipes.every((recipe) => missingLine(state, recipe))
                     return (
                       <button
                         type="button"
@@ -4825,7 +4721,7 @@ function App() {
                       >
                         {output.kind === 'resource' ? <PixelIcon id={output.id} /> : <MachineGlyph id={output.id} />}
                         <span className="item-count">{formatAmount(output.amount)}</span>
-                        {group.recipes.length > 1 && <span className="recipe-count-badge">{group.recipes.length}</span>}
+                        {(terminalMode === 'machines' || group.recipes.length > 1) && <span className="recipe-count-badge">{group.recipes.length}</span>}
                       </button>
                     )
                   })}
@@ -4835,7 +4731,11 @@ function App() {
                     <aside className="recipe-detail" aria-label={`${recipeDisplayName(selectedRecipe)} details`}>
                       <div className="recipe-detail-head">
                         <div>
-                          <p className="eyebrow">{selectedRecipe.tier}</p>
+                          <p className="eyebrow">
+                            {terminalMode === 'machines' && selectedRecipeMinimumMachineId
+                              ? `${selectedRecipe.tier} · minimum ${machines[selectedRecipeMinimumMachineId].name}`
+                              : selectedRecipe.tier}
+                          </p>
                           <h3>{recipeDisplayName(selectedRecipe)}</h3>
                         </div>
                         <div className="recipe-detail-actions">
@@ -5079,19 +4979,6 @@ function App() {
                             </div>
                           </div>
 
-                          {selectedRecipe.requiredMachine && selectedRecipeMinimumMachineId && (
-                            <div className="recipe-machine-capability">
-                              <span>
-                                <small>Minimum machine</small>
-                                <strong>{machines[selectedRecipeMinimumMachineId].name}</strong>
-                                <em>{machines[selectedRecipeMinimumMachineId].tier} tier</em>
-                              </span>
-                              <button type="button" onClick={() => setRecipeCatalogMachineId(selectedRecipe.requiredMachine!)}>
-                                <BookOpen size={14} />
-                                All {processRecipesForMachine(selectedRecipe.requiredMachine, processRecipes).length} {machines[selectedRecipe.requiredMachine].name} recipes
-                              </button>
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <div className="recipe-slot-section">
@@ -5184,19 +5071,19 @@ function App() {
                       {selectedRecipeLockedLine && <p className="missing-line recipe-detail-warning">Locked: {selectedRecipeLockedLine}</p>}
                     </aside>
                   )}
-                  </>
+                  {terminalMode === 'machines' && selectedRecipeGroup && !selectedRecipe && selectedRecipeGroup.output.kind === 'machine' && (
+                    <aside className="recipe-detail machine-recipe-empty" aria-label={`${machines[selectedRecipeGroup.output.id].name} recipe details`}>
+                      <MachineGlyph id={selectedRecipeGroup.output.id} />
+                      <div>
+                        <p className="eyebrow">{machines[selectedRecipeGroup.output.id].tier} machine</p>
+                        <h3>{machines[selectedRecipeGroup.output.id].name}</h3>
+                        <span>This utility or transport machine has no item-processing recipes.</span>
+                      </div>
+                    </aside>
                   )}
                 </div>
               </section>
             </div>
-          )}
-
-          {recipeCatalogMachineId && (
-            <MachineRecipeCatalogModal
-              machineId={recipeCatalogMachineId}
-              onClose={() => setRecipeCatalogMachineId(null)}
-              onSelectRecipe={handleSelectMachineCatalogRecipe}
-            />
           )}
 
           {missingBatch && (
@@ -5715,7 +5602,7 @@ function App() {
                       type="button"
                       className="machine-recipes-button"
                       aria-label={`Show ${machines[selectedMachine.machineId].name} recipes`}
-                      onClick={() => setRecipeCatalogMachineId(selectedMachine.machineId)}
+                      onClick={() => handleOpenMachineRecipeBrowser(selectedMachine.machineId)}
                     >
                       <BookOpen size={14} />
                       <span>Recipes</span>
