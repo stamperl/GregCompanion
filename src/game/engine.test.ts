@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { canAutoMinerTarget, createInitialState, fuelDefinitions, gatherTargets, machines, processRecipes, quests, recipes, sellItems, shopItems } from './content'
+import {
+  canAutoMinerTarget,
+  createInitialState,
+  fuelDefinitions,
+  gatherTargets,
+  isResourceBackedMachine,
+  machines,
+  processRecipes,
+  quests,
+  recipes,
+  sellItems,
+  shopItems,
+} from './content'
 import { processRecipesProducingResource, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
@@ -824,6 +836,27 @@ describe('game engine', () => {
     expect('firebrick' in state.durability).toBe(false)
   })
 
+  it('migrates legacy cable machine stock into the shared resource inventory', () => {
+    const state = loadGame(
+      JSON.stringify({
+        version: 9,
+        resources: { tinCable: 1 },
+        machines: { tinCable: 4, tinCable2A: 3 },
+        factoryFoundationLevel: 1,
+        machineInstances: [{ uid: 'legacy-cable', machineId: 'tinCable', x: 0, y: 0, level: 1 }],
+      }),
+      1000,
+    )
+
+    expect(state.resources.tinCable).toBe(4)
+    expect(state.resources.tinCable2A).toBe(3)
+    expect(state.machines.tinCable).toBe(0)
+    expect(state.machines.tinCable2A).toBe(0)
+    expect(state.resourceMilestones.tinCable).toBe(4)
+    expect(state.resourceMilestones.tinCable2A).toBe(3)
+    expect(state.machineInstances).toContainEqual(expect.objectContaining({ uid: 'legacy-cable', machineId: 'tinCable' }))
+  })
+
   it('migrates old furnace counts into placed factory instances', () => {
     const state = loadGame(
       JSON.stringify({
@@ -907,7 +940,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(9)
+    expect(state.version).toBe(10)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -928,7 +961,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(9)
+    expect(state.version).toBe(10)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1009,9 +1042,10 @@ describe('game engine', () => {
 
     expect(Object.values(state.resources).every((amount) => amount >= 32)).toBe(true)
     expect(
-      Object.entries(state.machines).every(([id, amount]) =>
-        id === 'cokeOven' || id === 'brickedBlastFurnace' || id === 'reachGate' ? amount === 0 : amount >= 32,
-      ),
+      Object.entries(state.machines).every(([id, amount]) => {
+        const staysEmpty = id === 'cokeOven' || id === 'brickedBlastFurnace' || id === 'reachGate' || isResourceBackedMachine(id as MachineId)
+        return staysEmpty ? amount === 0 : amount >= 32
+      }),
     ).toBe(true)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(32)
@@ -3533,7 +3567,7 @@ describe('game engine', () => {
   it('runs an LV Wiremill through tin cable and applies per-tile power loss', () => {
     let state = createFactoryState(1000)
     state.machines.steamTurbine = 1
-    state.machines.tinCable = 1
+    state.resources.tinCable = 1
     state.machines.lvWiremill = 1
     state.resources.tinIngot = 1
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
@@ -3558,7 +3592,7 @@ describe('game engine', () => {
   it('charges an LV battery buffer from turbine EU through lossy tin cable', () => {
     let state = createFactoryState(1000)
     state.machines.steamTurbine = 1
-    state.machines.tinCable = 1
+    state.resources.tinCable = 1
     state.machines.lvBatteryBuffer = 1
     state.machines.lvWiremill = 1
     state.resources.tinIngot = 1
@@ -3688,7 +3722,7 @@ describe('game engine', () => {
   it('treats LV cables as automatic non-directional networks', () => {
     let state = createFactoryState(1000)
     state.machines.steamTurbine = 1
-    state.machines.tinCable = 1
+    state.resources.tinCable = 1
     state.machines.lvWiremill = 1
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
     state = placeMachineInstance(state, 'tinCable', 1, 0)
@@ -3707,7 +3741,7 @@ describe('game engine', () => {
   it('caps ordinary LV machine EU input to one amp on higher amp cable', () => {
     let state = createFactoryState(1000)
     state.machines.lvBatteryBuffer4A = 1
-    state.machines.tinCable4A = 1
+    state.resources.tinCable4A = 1
     state.machines.lvWiremill = 1
     state.resources.sodiumBattery = 4
     state.resources.tinIngot = 1
@@ -3836,8 +3870,8 @@ describe('game engine', () => {
       lvInputBus: 1,
       lvOutputBus: 1,
       lvBatteryBuffer4A: 1,
-      tinCable4A: 2,
     })
+    state.resources.tinCable4A = 2
     state.resources.sodiumBattery = 4
     state.resources.aluminiumDust = 1
     for (const [id, x, y] of [
@@ -4019,6 +4053,38 @@ describe('game engine', () => {
     ])
     expect(eightAmpRecipe?.machineOutputs).toEqual([{ id: 'lvBatteryBuffer8A', amount: 1 }])
     expect(eightAmpRecipe && recipeFitsTerminalGrid(eightAmpRecipe)).toBe(true)
+  })
+
+  it('uses crafted tin cable for both recipes and factory placement', () => {
+    const cableRecipe = recipes.find((recipe) => recipe.id === 'build_tin_cable')!
+    const bufferRecipe = recipes.find((recipe) => recipe.id === 'build_lv_battery_buffer')!
+    let state = createFactoryState()
+    state.resources.tinWire = 5
+    state.resources.rubber = 4
+
+    state = craftRecipeInstant(state, cableRecipe, 1)
+
+    expect(state.resources.tinCable).toBe(4)
+    expect(state.machines.tinCable).toBe(0)
+    expect(availableUnplacedMachineCount(state, 'tinCable')).toBe(4)
+
+    state.resources.lvMachineHull = 1
+    state.resources.tinRod = 4
+    state.resources.redAlloyWire = 1
+    state.resources.primitiveCircuit = 1
+    state = craftRecipeInstant(state, bufferRecipe, 1)
+
+    expect(state.machines.lvBatteryBuffer).toBe(1)
+    expect(state.resources.tinCable).toBe(2)
+
+    state = placeMachineInstance(state, 'tinCable', 0, 0)
+    expect(state.resources.tinCable).toBe(1)
+    expect(availableUnplacedMachineCount(state, 'tinCable')).toBe(1)
+
+    const placedCable = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!
+    state = removeMachineInstance(state, placedCable.uid)
+    expect(state.resources.tinCable).toBe(2)
+    expect(availableUnplacedMachineCount(state, 'tinCable')).toBe(2)
   })
 
   it('crafts LV backbone components from shaped terminal recipes', () => {
@@ -4701,7 +4767,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(9)
+    expect(state.version).toBe(10)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')
@@ -4761,7 +4827,7 @@ describe('game engine', () => {
   it('powers the Chemical Reactor independently of its closed fluid outlet faces', () => {
     let state = createFactoryState()
     state.machines.steamTurbine = 1
-    state.machines.tinCable = 1
+    state.resources.tinCable = 1
     state.machines.lvChemicalReactor = 1
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
     state = placeMachineInstance(state, 'tinCable', 1, 0)

@@ -52,6 +52,7 @@ import {
   isItemStorageMachine,
   isLiquidSteamBoilerMachine,
   isPlaceableMachine,
+  isResourceBackedMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
   isSteamPoweredMachine,
@@ -385,6 +386,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
 
 const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach'])
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
+const inventoryMachineOrder = machineOrder.filter((id) => !isResourceBackedMachine(id))
 const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWrench']
 
 function fluidLabel(fluidId: FluidId) {
@@ -2245,7 +2247,7 @@ function App() {
   const selectedQuest = useMemo(() => guideQuests.find((quest) => quest.id === selectedQuestId) ?? null, [guideQuests, selectedQuestId])
   const claimableQuestRewardCount = guideQuests.filter((quest) => state.completedQuests.includes(quest.id) && !state.claimedQuests.includes(quest.id)).length
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
-  const totalMachines = machineOrder.reduce((sum, id) => sum + state.machines[id], 0)
+  const totalMachines = inventoryMachineOrder.reduce((sum, id) => sum + state.machines[id], 0)
   const processRecipeCards = useMemo(
     () =>
       processRecipes.map(
@@ -4588,7 +4590,7 @@ function App() {
               Machines x{totalMachines}
             </summary>
             <div className="machine-list compact-machines">
-              {machineOrder.map((id) => {
+              {inventoryMachineOrder.map((id) => {
                 const machine = machines[id]
                 const count = state.machines[id]
                 const progress = machine.intervalMs ? ((state.machineProgress[id] ?? 0) / machine.intervalMs) * 100 : 0

@@ -20,6 +20,7 @@ import {
   isItemHopperMachine,
   isItemStorageMachine,
   isLiquidSteamBoilerMachine,
+  isResourceBackedMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
   isSteamPoweredMachine,
@@ -37,6 +38,7 @@ import {
   quests,
   recipes,
   resourceRegistry,
+  resourceBackedMachineIds,
   resourceLabels,
   sellItems,
   shopItems,
@@ -82,7 +84,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 9
+export const currentSaveVersion = 10
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -995,7 +997,10 @@ export function createCreativeState(base: GameState, now = Date.now()): GameStat
     ...cloneState(base),
     resources: resourceIds.reduce((resources, id) => ({ ...resources, [id]: Math.max(32, base.resources[id] ?? 0) }), {} as Record<ResourceId, number>),
     machines: machineIds.reduce(
-      (builtMachines, id) => ({ ...builtMachines, [id]: machines[id].multiblock ? (base.machines[id] ?? 0) : Math.max(32, base.machines[id] ?? 0) }),
+      (builtMachines, id) => ({
+        ...builtMachines,
+        [id]: isResourceBackedMachine(id) ? 0 : machines[id].multiblock ? (base.machines[id] ?? 0) : Math.max(32, base.machines[id] ?? 0),
+      }),
       {} as Record<MachineId, number>,
     ),
     factoryFoundationLevel: maxFactoryFoundationLevel,
@@ -2691,6 +2696,7 @@ function decrementProcessSlot(slot: ProcessSlot, amount: number): ProcessSlot {
 }
 
 export function availableUnplacedMachineCount(state: GameState, machineId: MachineId) {
+  if (isResourceBackedMachine(machineId)) return Math.max(0, availableResourceAmount(state, machineId))
   const placed = state.machineInstances.filter((instance) => instance.machineId === machineId).length
   return Math.max(0, state.machines[machineId] - placed)
 }
@@ -2763,6 +2769,7 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   if (state.machineInstances.some((instance) => instance.x === x && instance.y === y)) return state
 
   const next = cloneState(state)
+  if (isResourceBackedMachine(machineId)) next.resources[machineId] -= 1
   const placed: MachineInstance = {
     uid: nextMachineUid(next, machineId),
     machineId,
@@ -3055,6 +3062,7 @@ export function removeMachineInstance(state: GameState, uid: string) {
   )
   next.machineInstances = next.machineInstances.filter((candidate) => candidate.uid !== uid)
   delete next.autoMinerAssignments[uid]
+  if (isResourceBackedMachine(instance.machineId)) next.resources[instance.machineId] += 1
   next.lastSavedAt = Date.now()
   if (returned.length > 0) next = addResources(next, returned)
   return next
@@ -4512,6 +4520,20 @@ function migrateMachines(parsedMachines?: Partial<Record<string, number>>): Reco
   return migrated
 }
 
+function migrateResourceBackedMachines(
+  parsedVersion: number,
+  machinesState: Record<MachineId, number>,
+  resourcesState: Record<ResourceId, number>,
+  instances: MachineInstance[],
+) {
+  if (parsedVersion >= 10) return
+  for (const machineId of resourceBackedMachineIds) {
+    const placed = instances.filter((instance) => instance.machineId === machineId).length
+    resourcesState[machineId] += Math.max(0, machinesState[machineId] - placed)
+    machinesState[machineId] = 0
+  }
+}
+
 function normalizeDurability(durability?: Partial<Record<ResourceId, number>>) {
   const normalized: Partial<Record<ResourceId, number>> = {}
   if (!durability) return normalized
@@ -4722,12 +4744,23 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       migrationNotices,
       parsed.machineInstances,
     )
+    migrateResourceBackedMachines(parsedVersion, machinesState, migratedResources, machineInstances)
     const craftedResources = normalizeCraftedResources(parsed)
     const discoveredResources = normalizeDiscoveredResources(parsed, migratedResources)
     const resourceMilestones = { ...(parsed.resourceMilestones ?? {}) }
     for (const resourceId of Object.keys(migratedResources) as ResourceId[]) {
       const legacyEvidence = craftedResources.includes(resourceId) || discoveredResources.includes(resourceId) ? 1 : 0
       resourceMilestones[resourceId] = Math.max(resourceMilestones[resourceId] ?? 0, migratedResources[resourceId], legacyEvidence)
+    }
+    if (parsedVersion < 10) {
+      for (const cableId of resourceBackedMachineIds) {
+        resourceMilestones[cableId] = Math.max(
+          resourceMilestones[cableId] ?? 0,
+          Number(parsed.machineMilestones?.[cableId]) || 0,
+          Number(parsed.machines?.[cableId]) || 0,
+          machineInstances.filter((instance) => instance.machineId === cableId).length,
+        )
+      }
     }
     const machineMilestones = { ...(parsed.machineMilestones ?? {}) }
     for (const machineId of Object.keys(machinesState) as MachineId[]) {

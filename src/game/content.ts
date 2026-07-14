@@ -967,6 +967,12 @@ export const machineRegistry = {
 
 export const machines: Record<MachineId, MachineSpec> = machineRegistry
 
+export const resourceBackedMachineIds = ['tinCable', 'tinCable2A', 'tinCable4A', 'tinCable8A'] as const
+
+export function isResourceBackedMachine(machineId: MachineId): machineId is (typeof resourceBackedMachineIds)[number] {
+  return resourceBackedMachineIds.includes(machineId as (typeof resourceBackedMachineIds)[number])
+}
+
 export function isPlaceableMachine(machineId: MachineId) {
   return machineRegistry[machineId].placeable
 }
@@ -1768,8 +1774,7 @@ export const recipes: Recipe[] = [
       { id: 'rubber', amount: 4 },
     ],
     pattern: ['tinWire', 'rubber', 'tinWire', 'rubber', 'tinWire', 'rubber', 'tinWire', 'rubber', 'tinWire'],
-    outputs: [],
-    machineOutputs: [{ id: 'tinCable', amount: 4 }],
+    outputs: [{ id: 'tinCable', amount: 4 }],
     unlockedBy: 'buildSteamTurbineQuest',
   },
   {
@@ -1783,8 +1788,7 @@ export const recipes: Recipe[] = [
       { id: 'rubber', amount: 3 },
     ],
     pattern: ['tinCable', 'rubber', 'tinCable', 'tinCable', 'rubber', 'tinCable', 'tinCable', 'rubber', 'tinCable'],
-    outputs: [],
-    machineOutputs: [{ id: 'tinCable2A', amount: 3 }],
+    outputs: [{ id: 'tinCable2A', amount: 3 }],
     unlockedBy: 'fillLvBatteryQuest',
   },
   {
@@ -1798,8 +1802,7 @@ export const recipes: Recipe[] = [
       { id: 'rubber', amount: 3 },
     ],
     pattern: ['tinCable2A', 'rubber', 'tinCable2A', 'tinCable2A', 'rubber', 'tinCable2A', 'tinCable2A', 'rubber', 'tinCable2A'],
-    outputs: [],
-    machineOutputs: [{ id: 'tinCable4A', amount: 3 }],
+    outputs: [{ id: 'tinCable4A', amount: 3 }],
     unlockedBy: 'buildTwoAmpCableQuest',
   },
   {
@@ -1814,8 +1817,7 @@ export const recipes: Recipe[] = [
       { id: 'aluminiumPlate', amount: 1 },
     ],
     pattern: ['tinCable4A', 'rubber', 'tinCable4A', 'tinCable4A', 'aluminiumPlate', 'tinCable4A', 'tinCable4A', 'rubber', 'tinCable4A'],
-    outputs: [],
-    machineOutputs: [{ id: 'tinCable8A', amount: 3 }],
+    outputs: [{ id: 'tinCable8A', amount: 3 }],
     unlockedBy: 'firstAluminiumQuest',
   },
   {
@@ -5561,10 +5563,10 @@ export const quests: Quest[] = [
     title: 'Make tin cable',
     description: 'Cut tin wire and wrap it in rubber so LV power can leave the turbine. A single tin cable carries 1A LV, or 32 EU/s before route losses, so keep early runs short.',
     position: { x: 1510, y: 140 },
-    icon: { type: 'machine', id: 'tinCable' },
+    icon: { type: 'resource', id: 'tinCable' },
     prerequisites: ['buildSteamTurbineQuest'],
     requirements: {
-      machines: [{ id: 'tinCable', amount: 4 }],
+      resources: [{ id: 'tinCable', amount: 4 }],
     },
     rewards: {},
   },
@@ -5757,10 +5759,10 @@ export const quests: Quest[] = [
     title: 'Bundle a 2A cable',
     description: 'One tin cable carries one LV amp. Bundling cable raises the route limit, which matters once several turbines or a blast furnace share the same line.',
     position: { x: 610, y: 140 },
-    icon: { type: 'machine', id: 'tinCable2A' },
+    icon: { type: 'resource', id: 'tinCable2A' },
     prerequisites: ['fillLvBatteryQuest'],
     requirements: {
-      machines: [{ id: 'tinCable2A', amount: 1 }],
+      resources: [{ id: 'tinCable2A', amount: 1 }],
     },
     rewards: {},
   },
@@ -5771,10 +5773,10 @@ export const quests: Quest[] = [
     title: 'Prepare a 4A feed',
     description: 'The arc furnace needs a full 4A route. A 1A or 2A cable may still connect, but the machine will refuse to start the heavy blast recipe.',
     position: { x: 790, y: 140 },
-    icon: { type: 'machine', id: 'tinCable4A' },
+    icon: { type: 'resource', id: 'tinCable4A' },
     prerequisites: ['buildTwoAmpCableQuest'],
     requirements: {
-      machines: [{ id: 'tinCable4A', amount: 1 }],
+      resources: [{ id: 'tinCable4A', amount: 1 }],
     },
     rewards: {},
   },
@@ -6272,7 +6274,7 @@ export const initialEquipment: EquipmentState = {
 
 export function createInitialState(now = Date.now()): GameState {
   return {
-    version: 9,
+    version: 10,
     resources: { ...initialResources },
     machines: { ...initialMachines },
     machineInstances: [],

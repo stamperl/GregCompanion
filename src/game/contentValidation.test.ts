@@ -15,6 +15,7 @@ import {
   questChapters,
   quests,
   recipes,
+  resourceBackedMachineIds,
   resourceLabels,
   resourceRegistry,
   tools,
@@ -209,6 +210,20 @@ describe('content validation', () => {
           resourceAmountCounts([...recipe.inputs, ...(recipe.catalysts ?? [])]),
         )
       }
+    }
+  })
+
+  it('uses one resource inventory item for every craftable, placeable cable', () => {
+    const overlappingItemIds = Object.keys(resourceRegistry).filter((id) => id in machineRegistry)
+    expect(overlappingItemIds, 'only explicitly resource-backed placeables may share resource and machine IDs').toEqual([...resourceBackedMachineIds])
+
+    for (const cableId of resourceBackedMachineIds) {
+      const producingRecipes = recipes.filter((recipe) => recipe.outputs.some((output) => output.id === cableId))
+      expect(producingRecipes.length, `${cableId} should have a resource recipe`).toBeGreaterThan(0)
+      expect(
+        recipes.some((recipe) => recipe.machineOutputs?.some((output) => output.id === cableId)),
+        `${cableId} should not have a separate machine-item recipe`,
+      ).toBe(false)
     }
   })
 
