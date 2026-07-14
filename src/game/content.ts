@@ -1527,7 +1527,7 @@ export const recipes: Recipe[] = [
   {
     id: 'build_hopper',
     name: 'Hopper',
-    description: 'An expensive early item feeder. Configure its output side with a wrench, then load items by hand.',
+    description: 'An expensive early item mover. Set its output side in the hopper terminal; the other sides can pull from adjacent machine outputs.',
     tier: 'steam',
     durationMs: 6200,
     inputs: [
@@ -5104,7 +5104,7 @@ export const quests: Quest[] = [
     chapterId: 'steamAge',
     chapter: 'Steam Age',
     title: 'Route steam into storage',
-    description: 'A tank and copper pipes turn one boiler into a small network. Pipes only move through sides you configure, so the wrench becomes part of the machine, not just a crafting ingredient.',
+    description: 'A tank and copper pipes turn one boiler into a small network. Open a pipe terminal to choose which sides connect or move flow.',
     position: { x: 430, y: 140 },
     icon: { type: 'machine', id: 'steamTank' },
     prerequisites: ['makeSteam'],
@@ -5133,8 +5133,8 @@ export const quests: Quest[] = [
     id: 'factoryToolsQuest',
     chapterId: 'steamAge',
     chapter: 'Steam Age',
-    title: 'Pack factory tools',
-    description: 'Factory tools change placed blocks: the wrench sets pipe, cable, hopper, and fluid-output sides, while the crowbar pulls machines back up. Keep both nearby before rebuilding a layout.',
+    title: 'Pack assembly tools',
+    description: 'Wrenches and crowbars remain useful crafting tools. Factory routing and removal now live directly in each placed machine terminal.',
     kind: 'optional',
     position: { x: 595, y: 340 },
     icon: { type: 'resource', id: 'bronzeWrench' },
@@ -5152,11 +5152,11 @@ export const quests: Quest[] = [
     chapterId: 'steamAge',
     chapter: 'Steam Age',
     title: 'Stage storage automation',
-    description: 'Chests hold factory-floor stock, while hoppers drip-feed a configured neighbor. Wrench the hopper face you want to push from, then load its slots like a small buffer.',
+    description: 'Chests hold factory-floor stock, while hoppers drip-feed a configured neighbor. Set the hopper output in its terminal; other sides can pull from adjacent machine outputs.',
     kind: 'optional',
     position: { x: 595, y: 500 },
     icon: { type: 'machine', id: 'hopper' },
-    prerequisites: ['factoryToolsQuest'],
+    prerequisites: ['pipeSteam'],
     requirements: {
       machines: [
         { id: 'standardChest', amount: 1 },
@@ -5272,10 +5272,10 @@ export const quests: Quest[] = [
     chapterId: 'cokeAndSteel',
     chapter: 'Coke & Steel',
     title: 'Choose a creosote drain',
-    description: 'Wrench the formed coke oven and pick one outside face for liquid output. Early on, drain into a tank or move creosote by bucket; pumps can automate it later.',
+    description: 'Open the formed coke oven terminal and pick one outside face for liquid output. Early on, drain into a tank or move creosote by bucket; pumps can automate it later.',
     position: { x: 340, y: 240 },
     icon: { type: 'machine', id: 'steamTank' },
-    prerequisites: ['cokeOvenQuest', 'factoryToolsQuest'],
+    prerequisites: ['cokeOvenQuest'],
     requirements: {
       machines: [
         { id: 'cokeOven', amount: 1 },

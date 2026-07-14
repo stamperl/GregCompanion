@@ -3677,48 +3677,9 @@ button.craft-output:disabled {
   align-items: center;
   display: grid;
   gap: 4px;
-  grid-template-columns: minmax(0, 1fr) minmax(72px, 128px) 30px;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 128px);
   min-height: 28px;
   min-width: 0;
-}
-
-.factory-toolbox-toggle {
-  align-items: center;
-  background: #4a4a4a;
-  border: 2px solid var(--bevel-light);
-  border-bottom-color: #1f1f1f;
-  border-radius: 0;
-  border-right-color: #1f1f1f;
-  color: #f7f7f7;
-  cursor: pointer;
-  display: grid;
-  height: 26px;
-  justify-items: center;
-  min-width: 30px;
-  padding: 2px;
-  position: relative;
-}
-
-.factory-toolbox-toggle.active,
-.factory-toolbox-toggle:focus-visible {
-  background: #6f5b22;
-  border-color: #fff8aa;
-  border-bottom-color: #806c22;
-  border-right-color: #806c22;
-  outline: none;
-}
-
-.factory-toolbox-toggle span {
-  background: #f7f0cf;
-  border: 1px solid #1f1f1f;
-  bottom: -4px;
-  color: #1f1f1f;
-  font: 950 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
-  line-height: 1;
-  min-width: 14px;
-  padding: 1px 2px;
-  position: absolute;
-  right: -4px;
 }
 
 .factory-machine-search {
@@ -3739,20 +3700,6 @@ button.craft-output:disabled {
 .factory-machine-search::placeholder {
   color: #666;
   opacity: 1;
-}
-
-.factory-tool-mode {
-  color: #1f1f1f;
-  font: 950 0.58rem "Courier New", ui-monospace, monospace;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.factory-tool-slot .pixel-icon {
-  height: 23px;
-  width: 23px;
 }
 
 .machine-placement-slots {
@@ -3788,10 +3735,6 @@ button.craft-output:disabled {
 
 .machine-placement-slots::-webkit-scrollbar-thumb {
   background: var(--bevel-dark);
-}
-
-.machine-placement-slots.factory-tool-slots {
-  align-content: start;
 }
 
 .factory-selection-name {
@@ -4175,6 +4118,9 @@ button.craft-output:disabled {
 }
 
 .factory-pan-content {
+  backface-visibility: hidden;
+  contain: layout style;
+  isolation: isolate;
   left: 0;
   position: absolute;
   top: 0;
@@ -4259,6 +4205,26 @@ button.craft-output:disabled {
   left: -1px;
   top: 50%;
   transform: translateY(-50%);
+}
+
+.cable-connection-mark {
+  background: #88908d;
+  border: 1px solid #d7ddda;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
+  display: block;
+  height: 7px;
+  width: 7px;
+}
+
+.pipe-polarity-side.connected .cable-connection-mark {
+  background: #f4c950;
+  border-color: #fff3b0;
+}
+
+.pipe-polarity-side.blocked .cable-connection-mark {
+  background: #292d2d;
+  border-color: #555d5b;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.72);
 }
 
 .pipe-flow-arrows {
@@ -4384,17 +4350,6 @@ button.craft-output:disabled {
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.18),
     inset 0 -6px 0 rgba(0, 0, 0, 0.12);
-}
-
-.factory-cell.occupied.active {
-  animation: factory-furnace-thrum 0.8s steps(2, end) infinite;
-  background:
-    linear-gradient(90deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
-    linear-gradient(180deg, rgba(45, 45, 45, 0.2) 0 2px, transparent 2px 38px, rgba(255, 255, 255, 0.16) 38px),
-    #7f7870;
-  border-color: #fff0a8;
-  border-bottom-color: #5f4a28;
-  border-right-color: #5f4a28;
 }
 
 .factory-cell.occupied::before {
@@ -9558,16 +9513,6 @@ button.craft-output:disabled {
   }
 }
 
-@keyframes factory-furnace-thrum {
-  0% {
-    box-shadow: inset 0 0 0 rgba(255, 176, 69, 0);
-  }
-
-  100% {
-    box-shadow: inset 0 -4px 0 rgba(255, 176, 69, 0.45);
-  }
-}
-
 @keyframes gather-resource-focus {
   0%,
   100% {
@@ -11162,6 +11107,104 @@ button.button-primary:disabled,
   top: 0;
 }
 
+.factory-pan-viewport.is-panning .factory-grid,
+.factory-pan-viewport.is-panning .factory-grid *,
+.factory-pan-viewport.is-panning .factory-grid *::before,
+.factory-pan-viewport.is-panning .factory-grid *::after {
+  animation-play-state: paused !important;
+}
+
+.factory-pan-viewport.is-panning .factory-pan-content {
+  pointer-events: none;
+}
+
+.factory-view-controls {
+  display: grid;
+  gap: 5px;
+}
+
+.factory-view-tabs {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+}
+
+.factory-view-tabs button {
+  align-items: center;
+  border: 0;
+  box-shadow: none;
+  box-sizing: border-box;
+  display: flex;
+  gap: 6px;
+  height: 30px;
+  justify-content: center;
+  margin: 0;
+  min-width: 0;
+}
+
+.factory-view-tabs button + button {
+  border-left: 1px solid var(--bevel-dark);
+}
+
+.factory-view-tabs button:not(:disabled):active {
+  box-shadow: none;
+  transform: none;
+}
+
+.factory-maintenance-legend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  min-height: 18px;
+}
+
+.factory-maintenance-legend span {
+  align-items: center;
+  color: #cbd2cf;
+  display: inline-flex;
+  font: 700 0.62rem "Courier New", ui-monospace, monospace;
+  gap: 4px;
+}
+
+.factory-maintenance-legend span::before {
+  background: #57d47b;
+  border: 1px solid #d7ffe1;
+  box-shadow: 0 0 4px rgba(87, 212, 123, 0.72);
+  content: "";
+  height: 5px;
+  width: 5px;
+}
+
+.factory-maintenance-legend .power-loss::before {
+  background: #ff5f52;
+  border-color: #ffd1cc;
+  box-shadow: 0 0 4px rgba(255, 95, 82, 0.8);
+}
+
+.factory-maintenance-legend .output-full::before {
+  background: #ffb347;
+  border-color: #ffe0ad;
+  box-shadow: 0 0 4px rgba(255, 179, 71, 0.78);
+}
+
+@keyframes maintenance-running-light {
+  50% { opacity: 0.55; }
+}
+
+@keyframes maintenance-power-loss-light {
+  0%, 22%, 48%, 100% { opacity: 1; }
+  23%, 47% { opacity: 0.18; }
+}
+
+@keyframes maintenance-output-full-light {
+  50% { box-shadow: 0 0 0 1px #563211, 0 0 2px rgba(255, 179, 71, 0.32); }
+}
+
 .factory-grid {
   gap: 5px;
 }
@@ -11198,16 +11241,6 @@ button.button-primary:disabled,
     inset 0 -8px 0 rgba(0, 0, 0, 0.16);
 }
 
-.factory-cell.occupied.active {
-  background:
-    linear-gradient(135deg, rgba(255, 240, 168, 0.12), transparent 35%),
-    linear-gradient(315deg, rgba(0, 0, 0, 0.2), transparent 44%),
-    #504f44;
-  border-color: #6a5f33;
-  border-bottom-color: #2d2918;
-  border-right-color: #2d2918;
-}
-
 .factory-cell.occupied[class*="machine-"]::before {
   background:
     radial-gradient(ellipse at 50% 58%, rgba(0, 0, 0, 0.36) 0 52%, transparent 54%),
@@ -11239,6 +11272,44 @@ button.button-primary:disabled,
   box-shadow:
     0 0 0 1px #4e3512,
     0 0 6px #ffd96a;
+}
+
+.factory-cell.occupied.connector-cell::after {
+  display: none;
+}
+
+.factory-view-maintenance .factory-cell.occupied.maintenance-idle[class*="machine-"]::after {
+  animation: none;
+  background: #171a1a;
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.factory-view-maintenance .factory-cell.occupied.maintenance-running[class*="machine-"]::after {
+  animation: maintenance-running-light 1.15s ease-in-out infinite;
+  background: #57d47b;
+  border-color: #d7ffe1;
+  box-shadow: 0 0 0 1px #173d22, 0 0 6px #57d47b;
+}
+
+.factory-view-maintenance .factory-cell.occupied.maintenance-power-loss[class*="machine-"]::after {
+  animation: maintenance-power-loss-light 900ms steps(1, end) infinite;
+  background: #ff5f52;
+  border-color: #ffd1cc;
+  box-shadow: 0 0 0 1px #521812, 0 0 7px #ff5f52;
+}
+
+.factory-view-maintenance .factory-cell.occupied.maintenance-output-full[class*="machine-"]::after {
+  animation: maintenance-output-full-light 1.4s ease-in-out infinite;
+  background: #ffb347;
+  border-color: #ffe0ad;
+  box-shadow: 0 0 0 1px #563211, 0 0 7px #ffb347;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .factory-view-maintenance .factory-cell.occupied[class*="machine-"]::after {
+    animation: none !important;
+  }
 }
 
 .factory-cell.occupied .machine-glyph.machine-sprite-glyph {
@@ -11834,15 +11905,6 @@ button.button-primary:disabled,
 .machine-tinCable8A.machine-connector-glyph .pipe-coupling,
 .machine-tinCable8A.machine-connector-glyph .pipe-cap {
   display: none;
-}
-
-.machine-connector-glyph.active .pipe-body {
-  filter: drop-shadow(0 0 3px rgba(255, 217, 106, 0.55));
-}
-
-.machine-connector-glyph.active .pipe-core,
-.machine-tinCable.machine-connector-glyph.active .pipe-body {
-  filter: drop-shadow(0 0 4px rgba(255, 232, 132, 0.72));
 }
 
 .equipment-label {
@@ -15925,7 +15987,51 @@ button.button-primary:disabled,
 }
 
 .furnace-modal.machine-terminal .steam-boiler-hmi .boiler-stage {
-  grid-template-columns: minmax(0, 1fr) 82px;
+  grid-template-columns: minmax(0, 1fr) 168px;
+}
+
+.furnace-modal.machine-terminal .boiler-buffer-bank {
+  align-self: stretch;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.furnace-modal.machine-terminal .boiler-buffer-bank > .steam-tank,
+.furnace-modal.machine-terminal .boiler-buffer-bank > .native-fluid-control,
+.furnace-modal.machine-terminal .boiler-buffer-bank > .native-fluid-control > .steam-tank {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.furnace-modal.machine-terminal .steam-boiler-hmi .boiler-firebox > .process-slot {
+  bottom: 8px;
+  position: absolute;
+  right: 8px;
+  z-index: 2;
+}
+
+.native-fluid-control {
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  margin: 0;
+  padding: 0;
+  text-align: inherit;
+}
+
+.native-fluid-control:disabled {
+  opacity: 1;
+}
+
+.native-fluid-control.ready {
+  box-shadow: 0 0 0 2px #e2cb67, 0 0 12px rgba(226, 203, 103, 0.3);
+  cursor: pointer;
 }
 
 .furnace-modal.machine-terminal .turbine-generator-stage {
@@ -16044,6 +16150,72 @@ button.button-primary:disabled,
   background: #101514;
 }
 
+.machine-terminal-actions {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+}
+
+.machine-terminal-actions button {
+  align-items: center;
+  background: #1b2321;
+  border: 2px solid #52615b;
+  border-bottom-color: #111615;
+  border-radius: 0;
+  border-right-color: #111615;
+  color: #e7efe8;
+  display: inline-flex;
+  font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 6px;
+  justify-content: center;
+  min-height: 34px;
+  min-width: 0;
+  padding: 5px 8px;
+}
+
+.machine-terminal-actions button.danger {
+  background: #3a1d1b;
+  border-color: #a0645d;
+  border-bottom-color: #1a0b0a;
+  border-right-color: #1a0b0a;
+  color: #ffd9d4;
+}
+
+.structure-only-terminal {
+  align-items: center;
+  background: #101514;
+  border: 2px solid #424c48;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  min-height: 96px;
+  padding: 10px;
+}
+
+.structure-only-terminal .machine-glyph {
+  height: 50px;
+  width: 50px;
+}
+
+.structure-only-terminal span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.structure-only-terminal small,
+.structure-only-terminal em {
+  color: #9aa6a0;
+  font-size: 0.56rem;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.structure-only-terminal strong {
+  color: #f2e9bd;
+  font-size: 0.82rem;
+}
+
 .machine-terminal-tabs button {
   min-width: 0;
   border: 0;
@@ -16097,75 +16269,8 @@ button.button-primary:disabled,
   min-height: 72px;
 }
 
-.machine-fluid-port-strip {
-  display: flex;
-  gap: 6px;
-  min-width: 0;
-  padding: 5px;
-  overflow-x: auto;
-  border: 2px solid #424c48;
-  background: #0b1110;
-}
-
-.machine-fluid-port {
-  display: grid;
-  grid-template-columns: 24px minmax(68px, 1fr);
-  grid-template-areas:
-    "swatch kind"
-    "swatch label"
-    "swatch amount";
-  flex: 1 0 132px;
-  align-items: center;
-  min-height: 54px;
-  padding: 5px;
-  border: 2px solid #4e5955;
-  border-radius: 0;
-  background: #161d1b;
-  color: #929d98;
-  text-align: left;
-}
-
-.machine-fluid-port.ready {
-  border-color: #e2cb67;
-  color: #f2e9bb;
-  box-shadow: inset 0 0 0 1px #77682b;
-}
-
-.machine-fluid-port:disabled {
-  opacity: 0.62;
-}
-
-.machine-fluid-port-swatch {
-  grid-area: swatch;
-  width: 16px;
-  height: 38px;
-  border: 2px solid #7f8c86;
-  background: var(--portable-fluid-color, #26302d);
-  box-shadow: inset 0 5px rgba(255, 255, 255, 0.18);
-}
-
-.machine-fluid-port small {
-  grid-area: kind;
-  color: #76d2df;
-  font-size: 8px;
-  text-transform: uppercase;
-}
-
-.machine-fluid-port.output small {
-  color: #e5a24a;
-}
-
-.machine-fluid-port strong {
-  grid-area: label;
-  overflow-wrap: anywhere;
-  font-size: 10px;
-}
-
-.machine-fluid-port em {
-  grid-area: amount;
-  color: #9aa6a0;
-  font-size: 8px;
-  font-style: normal;
+.fluid-capable-storage {
+  min-height: 72px;
 }
 
 @media (max-width: 430px) {

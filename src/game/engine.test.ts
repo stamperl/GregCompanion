@@ -37,6 +37,7 @@ import {
   claimQuestReward,
   collectProcessOutput,
   crowbarRemoveMachineInstance,
+  createCreativeFactoryState,
   createCreativeState,
   currentFluidOutputFlows,
   currentWellWaterFlowLitresPerSecond,
@@ -108,6 +109,7 @@ import {
   steamTurbineEuCapacity,
   terminalAvailableAmount,
   tickGame,
+  topUpCreativeState,
   offlineProgressCapMs,
   unequipSlot,
   unassignAutoMiner,
@@ -1075,6 +1077,96 @@ describe('game engine', () => {
     expect(state.machines.steamMacerator).toBe(32)
   })
 
+  it('tops up creative state without cloning when nothing changed', () => {
+    const creative = createCreativeState(createInitialState(1000), 2000)
+
+    expect(topUpCreativeState(creative, 3000)).toBe(creative)
+
+    const depleted = createCreativeState(createInitialState(1000), 2000)
+    depleted.resources.log = 0
+    depleted.machines.furnace = 0
+    const toppedUp = topUpCreativeState(depleted, 3000)
+
+    expect(toppedUp).not.toBe(depleted)
+    expect(toppedUp.resources.log).toBe(32)
+    expect(toppedUp.machines.furnace).toBe(32)
+    expect(toppedUp.lastSavedAt).toBe(3000)
+  })
+
+  it('creates a dev creative factory with current major machines and formed structures', () => {
+    const state = createCreativeFactoryState(createInitialState(1000), 2000)
+    const placedMachineIds = new Set(state.machineInstances.map((instance) => instance.machineId))
+
+    expect(state.factoryFoundationLevel).toBe(6)
+    expect(state.lastSavedAt).toBe(2000)
+    expect([...placedMachineIds]).toEqual(expect.arrayContaining([
+      'well',
+      'steamBoiler',
+      'steamTank',
+      'steamMacerator',
+      'steamForgeHammer',
+      'steamCompressor',
+      'steamExtractor',
+      'steamAlloySmelter',
+      'steamFurnace',
+      'steamAutoMiner',
+      'steamTurbine',
+      'liquidSteamBoiler',
+      'copperPipe',
+      'bronzePipe',
+      'ironPipe',
+      'tinCable',
+      'tinCable2A',
+      'tinCable4A',
+      'tinCable8A',
+      'lvMacerator',
+      'lvForgeHammer',
+      'lvCompressor',
+      'lvExtractor',
+      'lvAlloySmelter',
+      'lvFurnace',
+      'lvWiremill',
+      'lvBender',
+      'lvLathe',
+      'lvElectrolyzer',
+      'lvAssembler',
+      'lvCentrifuge',
+      'lvCanner',
+      'lvChemicalReactor',
+      'lvAutoMiner',
+      'cokeOven',
+      'brickedBlastFurnace',
+      'reachGate',
+      'arcBlastFurnace',
+    ]))
+    expect(isReachGateFormed(state)).toBe(true)
+    const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
+    expect(arcBlastFurnaceStructureForInstance(state, arc)?.formed).toBe(true)
+  })
+
+  it('preloads the dev creative factory with power, steam, fluids, and automation state', () => {
+    const state = createCreativeFactoryState(createInitialState(1000), 2000)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    const assembler = state.machineInstances.find((instance) => instance.machineId === 'lvAssembler')!
+    const reactor = state.machineInstances.find((instance) => instance.machineId === 'lvChemicalReactor')!
+    const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const lvMiner = state.machineInstances.find((instance) => instance.machineId === 'lvAutoMiner')!
+
+    expect(boiler.process.steamStoredMs).toBeGreaterThan(0)
+    expect(turbine.process.euStored).toBeGreaterThan(0)
+    expect(assembler.process.fluids.liquidRubber).toBeGreaterThan(0)
+    expect(reactor.process.fluids.liquidRubber).toBeGreaterThan(0)
+    expect(cokeOven.process.fluids.creosote).toBeGreaterThan(0)
+    expect(state.fluidContainers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'steelCell', fluidId: 'liquidRubber', amountLitres: 8 }),
+      expect.objectContaining({ kind: 'steelCell', fluidId: 'creosote', amountLitres: 8 }),
+      expect.objectContaining({ kind: 'bucket', fluidId: 'water', amountLitres: 1 }),
+    ]))
+    expect(lvMiner.surveyCardTarget).toBe('sulfurVent')
+    expect(state.autoMinerAssignments[lvMiner.uid]).toBe('sulfurVent')
+  })
+
   it('reserves equipped items from terminal storage and crafting', () => {
     let state = createFactoryState(1000)
     state.resources.woodenAxe = 1
@@ -1506,7 +1598,7 @@ describe('game engine', () => {
     expect(nextHopper.process.output).toEqual({ id: 'copperOre', amount: processStackLimit })
   })
 
-  it('wrench-configured hoppers drip feed accepted items into the chosen adjacent machine', () => {
+  it('configured hoppers drip feed accepted items into the chosen adjacent machine', () => {
     let state = createFactoryState(1000)
     state.machines.hopper = 1
     state.machines.furnace = 1
@@ -1526,6 +1618,27 @@ describe('game engine', () => {
 
     expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toEqual({ id: 'ironOre', amount: 1 })
     expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.input).toEqual({ id: 'ironOre', amount: 2 })
+  })
+
+  it('hoppers pull adjacent machine outputs and push them into chests', () => {
+    let state = createFactoryState(1000)
+    state.machines.furnace = 1
+    state.machines.hopper = 1
+    state.machines.standardChest = 1
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    state = placeMachineInstance(state, 'standardChest', 2, 0)
+    const furnace = state.machineInstances.find((instance) => instance.machineId === 'furnace')!
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output = { id: 'charcoal', amount: 3 }
+    state = setHopperOutputDirection(state, hopper.uid, 'east')
+
+    state = tickGame(state, 3000, 4000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots).toContainEqual({ id: 'charcoal', amount: 3 })
   })
 
   it('hoppers feed valid items from any internal storage slot', () => {
@@ -2713,6 +2826,33 @@ describe('game engine', () => {
     expect(availableConnectedSteam(state, macerator)).toBe(steamTankCapacityMs)
   })
 
+  it('invalidates warmed topology caches when pipe faces change between ticks', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.copperPipe = 1
+    state.machines.steamMacerator = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
+    const tankUid = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.uid
+    const pipeUid = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!.uid
+    const maceratorUid = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!.uid
+    state.machineInstances.find((instance) => instance.uid === tankUid)!.process.steamStoredMs = steamTankCapacityMs
+
+    state = tickGame(state, 250).state
+    expect(state.machineInstances.find((instance) => instance.uid === maceratorUid)!.process.steamStoredMs).toBeGreaterThan(0)
+
+    state = setPipeSideMode(state, pipeUid, 'east', 'blocked')
+    state.machineInstances.find((instance) => instance.uid === maceratorUid)!.process.steamStoredMs = 0
+    state = tickGame(state, 250).state
+    expect(state.machineInstances.find((instance) => instance.uid === maceratorUid)!.process.steamStoredMs).toBe(0)
+
+    state = setPipeSideMode(state, pipeUid, 'east', 'output')
+    state = tickGame(state, 250).state
+    expect(state.machineInstances.find((instance) => instance.uid === maceratorUid)!.process.steamStoredMs).toBeGreaterThan(0)
+  })
+
   it('records collected machine outputs as permanent production milestones', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1
@@ -3667,6 +3807,38 @@ describe('game engine', () => {
     expect(nextTurbine.process.euStored).toBe(31)
   })
 
+  it('invalidates warmed EU topology caches after cable removal and replacement', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTurbine = 1
+    state.machines.tinCable = 1
+    state.machines.lvWiremill = 1
+    state = placeMachineInstance(state, 'steamTurbine', 0, 0)
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    state = placeMachineInstance(state, 'lvWiremill', 2, 0)
+    const turbineUid = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.uid
+    const cableUid = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!.uid
+    const wiremillUid = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!.uid
+    state.machineInstances.find((instance) => instance.uid === turbineUid)!.process.euStored = 100
+    state = setPipeSideMode(state, cableUid, 'west', 'both')
+    state = setPipeSideMode(state, cableUid, 'east', 'both')
+
+    state = tickGame(state, 250).state
+    expect(state.machineInstances.find((instance) => instance.uid === wiremillUid)!.process.euStored).toBeGreaterThan(0)
+
+    state = removeMachineInstance(state, cableUid)
+    state.machineInstances.find((instance) => instance.uid === turbineUid)!.process.euStored = 100
+    state.machineInstances.find((instance) => instance.uid === wiremillUid)!.process.euStored = 0
+    state = tickGame(state, 250).state
+    expect(state.machineInstances.find((instance) => instance.uid === wiremillUid)!.process.euStored).toBe(0)
+
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    const replacementCableUid = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!.uid
+    state = setPipeSideMode(state, replacementCableUid, 'west', 'both')
+    state = setPipeSideMode(state, replacementCableUid, 'east', 'both')
+    state = tickGame(state, 250).state
+    expect(state.machineInstances.find((instance) => instance.uid === wiremillUid)!.process.euStored).toBeGreaterThan(0)
+  })
+
   it('charges an LV battery buffer from turbine EU through lossy tin cable', () => {
     let state = createFactoryState(1000)
     state.machines.steamTurbine = 1
@@ -3797,7 +3969,7 @@ describe('game engine', () => {
     expect(state.resources.log).toBe(3)
   })
 
-  it('treats LV cables as automatic non-directional networks', () => {
+  it('requires LV cable faces to connect while keeping power non-directional', () => {
     let state = createFactoryState(1000)
     state.machines.steamTurbine = 1
     state.resources.tinCable = 1
@@ -3806,14 +3978,24 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'tinCable', 1, 0)
     state = placeMachineInstance(state, 'lvWiremill', 2, 0)
     const cable = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!
-    state = setPipeSideMode(state, cable.uid, 'west', 'blocked')
-    state = setPipeSideMode(state, cable.uid, 'east', 'blocked')
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
     state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 100
 
+    expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === cable.uid)!, 'west')).toBe('blocked')
+    expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === cable.uid)!, 'east')).toBe('blocked')
+    expect(availableConnectedEu(state, wiremill)).toBe(0)
+
+    state = setPipeSideMode(state, cable.uid, 'west', 'output')
     expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === cable.uid)!, 'west')).toBe('both')
+    expect(availableConnectedEu(state, wiremill)).toBe(0)
+
+    state = setPipeSideMode(state, cable.uid, 'east', 'input')
+    expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === cable.uid)!, 'east')).toBe('both')
     expect(availableConnectedEu(state, wiremill)).toBe(100)
+
+    state = setPipeSideMode(state, cable.uid, 'east', 'blocked')
+    expect(availableConnectedEu(state, wiremill)).toBe(0)
   })
 
   it('caps ordinary LV machine EU input to one amp on higher amp cable', () => {
@@ -3958,6 +4140,11 @@ describe('game engine', () => {
       ['lvInputBus', 1, 2], ['arcBlastFurnace', 2, 2], ['lvOutputBus', 3, 2],
       ['arcBlastFurnacePart', 1, 3], ['arcBlastFurnacePart', 2, 3], ['arcBlastFurnacePart', 3, 3],
     ] as Array<[MachineId, number, number]>) state = placeMachineInstance(state, id, x, y)
+    const leftCable = state.machineInstances.find((instance) => instance.machineId === 'tinCable4A' && instance.x === 1)!
+    const rightCable = state.machineInstances.find((instance) => instance.machineId === 'tinCable4A' && instance.x === 2)!
+    state = setPipeSideMode(state, leftCable.uid, 'west', 'both')
+    state = setPipeSideMode(state, leftCable.uid, 'south', 'both')
+    state = setPipeSideMode(state, rightCable.uid, 'south', 'both')
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer4A')!
     for (let index = 0; index < 4; index += 1) state = installLvBatteryInBuffer(state, buffer.uid)
     state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
@@ -4939,8 +5126,11 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'tinCable', 1, 0)
     state = placeMachineInstance(state, 'lvChemicalReactor', 2, 0)
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!
     const reactor = state.machineInstances.find((instance) => instance.machineId === 'lvChemicalReactor')!
     turbine.process.euStored = 256
+    state = setPipeSideMode(state, cable.uid, 'west', 'both')
+    state = setPipeSideMode(state, cable.uid, 'east', 'both')
 
     expect(reactor.pipeSideModes).toEqual({ north: 'blocked', east: 'blocked', south: 'blocked', west: 'blocked' })
 

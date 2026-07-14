@@ -18,10 +18,12 @@ import {
   Trash2,
   Undo2,
   Upload,
+  Wrench,
   X,
   Zap,
 } from 'lucide-react'
 import {
+  memo,
   useEffect,
   useMemo,
   useRef,
@@ -81,11 +83,11 @@ import {
   canBuyShopItem,
   canSellShopItem,
   cokeOvenFluidCapacityLitres,
-  canCrowbarRemoveMachine,
   canCraft,
   claimAllQuestRewards,
   claimQuestReward,
   collectProcessOutput,
+  createCreativeFactoryState,
   createCreativeState,
   currentFluidOutputFlows,
   currentWellWaterFlowLitresPerSecond,
@@ -146,6 +148,7 @@ import {
   questStatus,
   recipeFitsTerminalGrid,
   removeProcessSlot,
+  removeMachineInstance,
   removeMachineStorageSlot,
   searchTerminalRecipes,
   sellShopItem,
@@ -186,6 +189,7 @@ import {
   canExpandFactoryFloor,
   terminalAvailableAmount,
   tickGame,
+  topUpCreativeState,
   removeLvBatteryFromBuffer,
   removeSurveyCardFromAutoMiner,
   unassignAutoMiner,
@@ -193,7 +197,6 @@ import {
   visibleQuests,
   visibleRecipes,
   durabilityRemaining,
-  crowbarRemoveMachineInstance,
 } from './game/engine'
 import {
   defaultSaveSlotId,
@@ -268,11 +271,12 @@ type MachineTerminalMode = 'items' | 'fluids'
 type MachineFluidBufferView = ReturnType<typeof machineFluidBuffersForInstance>[number]
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
+type FactoryFloorViewMode = 'production' | 'maintenance'
+type FactoryMaintenanceState = 'running' | 'power-loss' | 'output-full' | 'idle'
 type FactoryPointerPosition = { x: number; y: number; clientX: number; clientY: number }
 type FactoryGesture =
   | { mode: 'pan'; pointerId: number; startX: number; startY: number; originX: number; originY: number; dragged: boolean }
   | { mode: 'pinch'; startDistance: number; originZoom: number; contentX: number; contentY: number; dragged: boolean }
-type PipeSideState = 'connected' | 'open' | 'blocked'
 const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3', 'extraInput4'] as const
 const assemblerInputSlotIds = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds] as const
 type NavigationSnapshot = {
@@ -389,7 +393,6 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
 const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach'])
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
 const inventoryMachineOrder = machineOrder.filter((id) => !isResourceBackedMachine(id))
-const factoryToolOrder: ResourceId[] = ['ironCrowbar', 'bronzeWrench', 'ironWrench']
 
 function fluidLabel(fluidId: FluidId) {
   return fluidLabels[fluidId]
@@ -765,6 +768,269 @@ function RecipePatternPreview({
 function isFactoryFloorLayoutRecipe(recipe: Recipe) {
   return recipe.recipeType === 'machine'
 }
+
+type FactoryFloorGridProps = {
+  state: GameState
+  width: number
+  height: number
+  viewMode: FactoryFloorViewMode
+  placingMachineId: MachineId | null
+  cellPressRef: { current: (x: number, y: number, instance?: MachineInstance) => void }
+}
+
+const FactoryFloorGrid = memo(function FactoryFloorGrid({
+  state,
+  width,
+  height,
+  viewMode,
+  placingMachineId,
+  cellPressRef,
+}: FactoryFloorGridProps) {
+  const machineByCell = useMemo(
+    () => new Map(state.machineInstances.map((instance) => [`${instance.x},${instance.y}`, instance])),
+    [state.machineInstances],
+  )
+  const machineAtCell = (x: number, y: number) => machineByCell.get(`${x},${y}`)
+
+  const pipeConnectionsForInstance = (instance: MachineInstance): PipeConnections | undefined => {
+    const isSteamPipe = isSteamPipeMachine(instance.machineId)
+    const isEuCable = isEuCableMachine(instance.machineId)
+    if (!isSteamPipe && !isEuCable) return undefined
+    const isSteamPipeNeighbour = (machineId: MachineId) =>
+      isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
+    const connectsTo = (x: number, y: number) => {
+      const neighbour = machineAtCell(x, y)
+      if (!neighbour) return false
+      return machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
+    }
+    return {
+      up: connectsTo(instance.x, instance.y - 1),
+      right: connectsTo(instance.x + 1, instance.y),
+      down: connectsTo(instance.x, instance.y + 1),
+      left: connectsTo(instance.x - 1, instance.y),
+    }
+  }
+
+  const controllerForMultiblockPart = (instance: MachineInstance) => {
+    const controller = multiblockControllerForInstance(state, instance)
+    return controller ? machineAtCell(controller.x, controller.y) : null
+  }
+
+  const controllerForStructure = (instance: MachineInstance) => {
+    const tankStructure = steamTankStructureForInstance(state, instance)
+    if (tankStructure) return tankStructure.controller
+    const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
+    if (arcStructure) return arcStructure.controller
+    return controllerForMultiblockPart(instance)
+  }
+
+  const fluidOutputFacesForInstance = (instance: MachineInstance) => {
+    const controller = controllerForStructure(instance) ?? instance
+    const multiblock = multiblockControllerForInstance(state, controller)
+    if (!multiblock || !isFluidOutletConfigurableMachine(multiblock.spec.controller)) return []
+    const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+    const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+    const maxX = originX + multiblock.spec.width - 1
+    const maxY = originY + multiblock.spec.height - 1
+    return multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
+      .flatMap((position) => {
+        const cell = machineAtCell(position.x, position.y)
+        if (!cell) return []
+        const directions: PipeDirection[] = []
+        if (position.y === originY) directions.push('north')
+        if (position.x === maxX) directions.push('east')
+        if (position.y === maxY) directions.push('south')
+        if (position.x === originX) directions.push('west')
+        return directions.map((direction) => ({ cell, direction }))
+      })
+  }
+
+  const pipePolarityForInstance = (instance: MachineInstance) => {
+    const isSteamPipe = isSteamPipeMachine(instance.machineId)
+    const isEuCable = isEuCableMachine(instance.machineId)
+    const isHopper = isItemHopperMachine(instance.machineId)
+    const fluidFaces = isFluidOutletConfigurableMachine(instance.machineId)
+      ? fluidOutputFacesForInstance(instance).filter((face) => face.cell.uid === instance.uid)
+      : []
+    if (!isSteamPipe && !isEuCable && !isHopper && fluidFaces.length < 1) return null
+
+    if (fluidFaces.length > 0) {
+      const sides = fluidFaces.flatMap((face) => {
+        const offset = pipeDirectionOffsets[face.direction]
+        const mode = pipeSideMode(face.cell, face.direction)
+        if (mode !== 'output') return []
+        const neighbour = machineAtCell(face.cell.x + offset.dx, face.cell.y + offset.dy)
+        return [{
+          direction: face.direction,
+          mode,
+          state: neighbour && machinesCanConnect(face.cell, neighbour) ? 'connected' as const : 'open' as const,
+          label: `${offset.label} ${pipeSideModeLabels[mode]}`,
+        }]
+      })
+      return sides.length > 0 ? sides : null
+    }
+
+    return pipeDirections.map((direction) => {
+      const offset = pipeDirectionOffsets[direction]
+      const neighbour = machineAtCell(instance.x + offset.dx, instance.y + offset.dy)
+      const mode = pipeSideMode(instance, direction)
+      const blocked = mode === 'blocked'
+      const isSteamPipeNeighbour = (machineId: MachineId) =>
+        isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
+      const connected = Boolean(
+        !blocked &&
+          neighbour &&
+          (isHopper
+            ? mode === 'output' && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))
+            : machinesCanConnect(instance, neighbour) && (isEuCable ? isEuNetworkMachine(neighbour.machineId) : isSteamPipeNeighbour(neighbour.machineId))),
+      )
+      return {
+        direction,
+        mode,
+        state: blocked ? 'blocked' as const : connected ? 'connected' as const : 'open' as const,
+        label: `${offset.label} ${pipeSideModeLabels[mode]}`,
+      }
+    })
+  }
+
+  return (
+    <div className={`factory-grid factory-view-${viewMode}`} style={{ gridTemplateColumns: `repeat(${width}, ${factoryCellSize}px)` }} aria-label="Factory grid">
+      {Array.from({ length: width * height }, (_, index) => {
+        const x = index % width
+        const y = Math.floor(index / width)
+        const instance = machineAtCell(x, y)
+        const arcStructure = instance ? arcBlastFurnaceStructureForInstance(state, instance) : null
+        const isFormedArc = Boolean(arcStructure?.formed)
+        const isFormedArcController = Boolean(isFormedArc && arcStructure && instance?.uid === arcStructure.controller.uid)
+        const isFormedArcInspection = false
+        const showFormedArc = isFormedArcController && !isFormedArcInspection
+        const multiblockController = instance ? controllerForMultiblockPart(instance) : null
+        const tankStructure = instance?.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
+        const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
+        const isTankStructureController = Boolean(tankStructure && instance && tankStructure.controller.uid === instance.uid && tankStructure.area > 1)
+        const isTankStructureChild = Boolean(tankStructure && instance && tankStructure.controller.uid !== instance.uid)
+        const isStructureController = isMultiblockController || isTankStructureController
+        const isStructureCell = isStructureController || Boolean(multiblockController) || isTankStructureChild
+        const isConnector = Boolean(instance && (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId)))
+        const pipePolarity = viewMode === 'maintenance' && instance ? pipePolarityForInstance(instance) : null
+        const structureMachineId = tankStructure?.controller.machineId ?? multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
+        const tankStructureStyle =
+          tankStructure && isTankStructureController
+            ? ({
+                '--structure-width': `${tankStructure.width * factoryCellSize + Math.max(0, tankStructure.width - 1) * factoryCellGap}px`,
+                '--structure-height': `${tankStructure.height * factoryCellSize + Math.max(0, tankStructure.height - 1) * factoryCellGap}px`,
+              } as CSSProperties)
+            : undefined
+        const isMachineActive = Boolean(
+          instance &&
+            !isConnector &&
+            (instance.process.fuelRemainingMs > 0 ||
+              instance.process.activeRecipeId ||
+              (isSteamNetworkMachine(instance.machineId) && instance.process.steamStoredMs > 0) ||
+              (isEuNetworkMachine(instance.machineId) && instance.process.euStored > 0) ||
+              Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0)),
+        )
+        const statusLabel = viewMode === 'maintenance' && instance && !isConnector ? machineStatus(state, instance) : ''
+        const hasPowerFailure = Boolean(
+          viewMode === 'maintenance' &&
+            instance &&
+            !isConnector &&
+            ((isSteamPoweredMachine(instance.machineId) && availableConnectedSteam(state, instance) < 1) ||
+              (isEuPoweredMachine(instance.machineId) && availableConnectedEu(state, instance) < 1)),
+        )
+        const maintenanceState: FactoryMaintenanceState =
+          viewMode !== 'maintenance' || !instance || isConnector
+            ? 'idle'
+            : statusLabel === 'Output full' || (instance.process.output?.amount ?? 0) >= processStackLimit
+              ? 'output-full'
+              : hasPowerFailure ||
+                  statusLabel === 'No power' ||
+                  statusLabel === 'Underpowered' ||
+                  statusLabel === 'No steam' ||
+                  statusLabel === 'Waiting for buffer' ||
+                  /^Needs \d+A route$/.test(statusLabel)
+                ? 'power-loss'
+                : instance.process.activeRecipeId || instance.process.fuelRemainingMs > 0 || statusLabel === 'Supplying water'
+                  ? 'running'
+                  : 'idle'
+        const animateMachine = viewMode === 'maintenance' && maintenanceState === 'running'
+
+        return (
+          <button
+            type="button"
+            className={
+              instance
+                ? [
+                    'factory-cell',
+                    'occupied',
+                    `machine-${instance.machineId}-cell`,
+                    isConnector ? 'connector-cell' : '',
+                    isMachineActive ? 'active' : '',
+                    `maintenance-${maintenanceState}`,
+                    isMultiblockController ? 'multiblock-bbf-controller' : '',
+                    multiblockController ? 'multiblock-bbf-child' : '',
+                    isTankStructureController ? 'tank-structure-controller' : '',
+                    isTankStructureChild ? 'tank-structure-child' : '',
+                    isFormedArc ? 'formed-arc-cell' : '',
+                    isFormedArcController ? 'formed-arc-controller-cell' : '',
+                    isFormedArc && !isFormedArcController ? 'formed-arc-child-cell' : '',
+                    isFormedArcInspection ? 'formed-arc-inspection-cell' : '',
+                  ].filter(Boolean).join(' ')
+                : placingMachineId
+                  ? 'factory-cell placing'
+                  : 'factory-cell'
+            }
+            style={tankStructureStyle}
+            aria-label={
+              instance
+                ? `${isStructureCell && structureMachineId ? machines[structureMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}${statusLabel ? `, ${statusLabel}` : ''}`
+                : `Empty factory cell ${x + 1}, ${y + 1}`
+            }
+            onClick={() => cellPressRef.current(x, y, instance)}
+            key={`${x}-${y}`}
+          >
+            {showFormedArc && arcStructure ? (
+              <span className={animateMachine ? 'formed-arc-render active' : 'formed-arc-render'} aria-hidden="true">
+                <img src={`${import.meta.env.BASE_URL}game-art/formed-arc-blast-furnace.png`} alt="" draggable={false} />
+                <span className="formed-arc-core" />
+                {arcStructure.perimeter
+                  .filter((part) => part.machineId !== 'arcBlastFurnacePart')
+                  .map((part) => {
+                    const activeDirection = pipeDirections.find((direction) => pipeSideMode(part, direction) !== 'blocked') ?? 'east'
+                    return (
+                      <span
+                        className={`formed-arc-port formed-arc-port-${part.machineId} formed-arc-port-direction-${activeDirection}`}
+                        style={{
+                          left: `${(part.x - arcStructure.controller.x + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
+                          top: `${(part.y - arcStructure.controller.y + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
+                        }}
+                        key={part.uid}
+                      >
+                        <span className="formed-arc-port-mark" />
+                      </span>
+                    )
+                  })}
+              </span>
+            ) : instance && (!isFormedArc || isFormedArcInspection) && (!isStructureCell || isStructureController || isFormedArcInspection) ? (
+              <MachineGlyph id={instance.machineId} active={animateMachine} pipeConnections={pipeConnectionsForInstance(instance)} />
+            ) : (
+              <span />
+            )}
+            {pipePolarity && (
+              <span className="pipe-polarity-overlay" aria-label="Pipe polarity">
+                {pipePolarity.map((side) => (
+                  <span className={`pipe-polarity-side ${side.direction} ${side.state} mode-${side.mode}`} title={side.label} key={side.direction}>
+                    {instance && isEuCableMachine(instance.machineId) ? <span className="cable-connection-mark" /> : <PipeFlowArrows direction={side.direction} mode={side.mode} />}
+                  </span>
+                ))}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+})
 
 function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
   if (!isFactoryFloorLayoutRecipe(recipe)) return null
@@ -1898,6 +2164,7 @@ function App() {
     return { state: reviewGame, uid: instance.uid }
   }, [reviewMachineId, reviewState])
   const [state, setState] = useState<GameState>(() => reviewSetup?.state ?? loadGame(null))
+  const [factoryFloorSnapshot, setFactoryFloorSnapshot] = useState<GameState>(state)
   const [hasLoadedSave, setHasLoadedSave] = useState(Boolean(reviewSetup))
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
   const [achievementToasts, setAchievementToasts] = useState<AchievementToast[]>([])
@@ -1933,9 +2200,7 @@ function App() {
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(Boolean(reviewSetup))
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
-  const [isFactoryToolboxOpen, setIsFactoryToolboxOpen] = useState(false)
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
-  const [selectedFactoryTool, setSelectedFactoryTool] = useState<ResourceId | null>(null)
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(reviewSetup?.uid ?? null)
   const [isArcStructureOpen, setIsArcStructureOpen] = useState(false)
   const [isMachineAutomationOpen, setIsMachineAutomationOpen] = useState(false)
@@ -1953,6 +2218,7 @@ function App() {
   } | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const [factoryView, setFactoryView] = useState<FactoryView>({ x: factoryViewportPadding, y: factoryViewportPadding, zoom: factoryDefaultZoom })
+  const [factoryFloorViewMode, setFactoryFloorViewMode] = useState<FactoryFloorViewMode>('production')
   const [navigationStack, setNavigationStack] = useState<NavigationSnapshot[]>([])
   const [highlightedGatherTarget, setHighlightedGatherTarget] = useState<GatherTargetId | null>(null)
   const floatTextIdRef = useRef(0)
@@ -1967,14 +2233,17 @@ function App() {
   const gatherHighlightTimeoutRef = useRef<number | null>(null)
   const pointerDragRef = useRef<{ id: ResourceId; startX: number; startY: number; dragged: boolean } | null>(null)
   const factoryViewportRef = useRef<HTMLDivElement | null>(null)
+  const factoryPanContentRef = useRef<HTMLDivElement | null>(null)
+  const factoryViewPercentRef = useRef<HTMLSpanElement | null>(null)
   const factoryViewRef = useRef(factoryView)
+  const pendingFactoryViewRef = useRef<FactoryView | null>(null)
+  const factoryViewFrameRef = useRef<number | null>(null)
   const factoryPointersRef = useRef(new Map<number, FactoryPointerPosition>())
   const factoryGestureRef = useRef<FactoryGesture | null>(null)
+  const isFactoryPanningRef = useRef(false)
+  const factoryCellPressRef = useRef<(x: number, y: number, instance?: MachineInstance) => void>(() => {})
   const suppressFactoryCellClickRef = useRef(false)
   const suppressClickRef = useRef(false)
-  const isFactoryRemoveMode = selectedFactoryTool === 'ironCrowbar'
-  const isFactoryPipeConfigMode = selectedFactoryTool === 'bronzeWrench' || selectedFactoryTool === 'ironWrench'
-  factoryViewRef.current = factoryView
 
   const refreshSaveSlots = async () => {
     const slots = await listSaveSlots()
@@ -2133,11 +2402,16 @@ function App() {
   useEffect(() => {
     if (reviewSetup) return
     const interval = window.setInterval(() => {
-      setState((current) => {
-        if (page === 'home') return current
-        const ticked = tickGame(current, 250).state
-        return isCreativeMode ? createCreativeState(ticked) : ticked
-      })
+      if (page === 'home') return
+      const advanceState = (currentState: GameState) => {
+        const ticked = tickGame(currentState, 250).state
+        return isCreativeMode ? topUpCreativeState(ticked) : ticked
+      }
+      if (isFactoryPanningRef.current) {
+        stateRef.current = advanceState(stateRef.current)
+        return
+      }
+      setState(advanceState)
     }, 250)
 
     return () => window.clearInterval(interval)
@@ -2201,10 +2475,6 @@ function App() {
       setSelectedPipeConfigUid(null)
     }
   }, [selectedPipeConfigUid, state.machineInstances])
-
-  useEffect(() => {
-    if (isFactoryRemoveMode && !canCrowbarRemoveMachine(state)) setSelectedFactoryTool(null)
-  }, [isFactoryRemoveMode, state])
 
   useEffect(() => {
     if (!pendingProcessInsert) return
@@ -2578,6 +2848,15 @@ function App() {
   const selectedMachineStorageResource = selectedResource && furnaceStorageResources.includes(selectedResource) ? selectedResource : null
   const selectedMachineHmiConfig = selectedMachine ? machineHmiConfigs[selectedMachine.machineId] ?? null : null
   const selectedMachineCanAutomateItems = Boolean(selectedMachine && isLvItemAutomationMachine(selectedMachine.machineId))
+  const selectedMachineCanConfigureRouting = Boolean(
+    selectedMachine &&
+      (isSteamPipeMachine(selectedMachine.machineId) ||
+        isEuCableMachine(selectedMachine.machineId) ||
+        isItemHopperMachine(selectedMachine.machineId) ||
+        isFluidOutletConfigurableMachine(selectedMachine.machineId)),
+  )
+  const selectedMachineCanRemove = Boolean(selectedMachineSource && machines[selectedMachineSource.machineId].placeable)
+  const selectedMachineIsStructureOnly = Boolean(selectedMachine && machines[selectedMachine.machineId].processKind === 'none')
   const selectedMachineAutomationStatus = selectedMachine && selectedMachineCanAutomateItems ? lvItemAutomationStatus(state, selectedMachine) : null
   const selectedMachineHmiKind = selectedMachineHmiConfig?.kind ?? null
   const selectedMachineIsHmiTerminal = selectedMachineHmiConfig !== null
@@ -2670,24 +2949,26 @@ function App() {
     if (!query) return true
     return id.toLowerCase().includes(query) || machines[id].name.toLowerCase().includes(query)
   })
-  const factoryTools = factoryToolOrder.filter((id) => availableResourceAmount(state, id) > 0)
-  const factoryToolCount = factoryTools.reduce((total, id) => total + availableResourceAmount(state, id), 0)
-  const toggleFactoryToolbox = () => {
-    setIsFactoryToolboxOpen((current) => {
-      const next = !current
-      if (next) {
-        setPlacingMachineId(null)
-        setSelectedPipeConfigUid(null)
-      }
-      return next
-    })
-  }
-  const selectedFactoryItemLabel = placingMachineId
-    ? machines[placingMachineId].name
-    : selectedFactoryTool
-      ? resourceLabels[selectedFactoryTool]
-      : 'Select a factory part or tool'
+  const selectedFactoryItemLabel = placingMachineId ? machines[placingMachineId].name : 'Select a factory part'
   const factoryGridSize = factoryGridForState(state)
+  const factoryFloorStructureKey = `${state.factoryFoundationLevel}|${state.machineInstances
+    .map((instance) => [
+      instance.uid,
+      instance.machineId,
+      instance.x,
+      instance.y,
+      instance.level,
+      instance.itemOutputDirection ?? '',
+      ...pipeDirections.map((direction) => pipeSideMode(instance, direction)),
+    ].join(':'))
+    .join('|')}`
+  const factoryFloorActivityFrame = Math.floor(state.lastSavedAt / 1000)
+
+  useEffect(() => {
+    if (page !== 'processing' || isFactoryPanningRef.current) return
+    setFactoryFloorSnapshot(stateRef.current)
+  }, [factoryFloorActivityFrame, factoryFloorStructureKey, page])
+
   const factoryFloorUnlocked = hasFactoryFloor(state)
   const factoryExpansionCost = factoryFoundationCost(state)
   const canExpandFactory = canExpandFactoryFloor(state)
@@ -2717,6 +2998,37 @@ function App() {
       y,
       zoom,
     }
+  }
+
+  const paintFactoryView = (view: FactoryView) => {
+    if (factoryPanContentRef.current) {
+      factoryPanContentRef.current.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.zoom})`
+    }
+    if (factoryViewPercentRef.current) factoryViewPercentRef.current.textContent = `${Math.round(view.zoom * 100)}%`
+  }
+
+  const queueFactoryViewPaint = (view: FactoryView) => {
+    factoryViewRef.current = view
+    pendingFactoryViewRef.current = view
+    if (factoryViewFrameRef.current !== null) return
+    factoryViewFrameRef.current = window.requestAnimationFrame(() => {
+      factoryViewFrameRef.current = null
+      const pendingView = pendingFactoryViewRef.current
+      pendingFactoryViewRef.current = null
+      if (pendingView) paintFactoryView(pendingView)
+    })
+  }
+
+  const commitFactoryView = (view: FactoryView) => {
+    queueFactoryViewPaint(view)
+    setFactoryView((current) =>
+      current.x === view.x && current.y === view.y && current.zoom === view.zoom ? current : view,
+    )
+  }
+
+  const setFactoryPanActive = (active: boolean) => {
+    isFactoryPanningRef.current = active
+    factoryViewportRef.current?.classList.toggle('is-panning', active)
   }
 
   const factoryPointerFromEvent = (event: ReactPointerEvent<HTMLDivElement>): FactoryPointerPosition => {
@@ -2756,21 +3068,35 @@ function App() {
     const rect = viewport.getBoundingClientRect()
     const pointX = clientX - rect.left
     const pointY = clientY - rect.top
-    setFactoryView((current) => {
-      const zoom = Math.max(factoryMinZoom, Math.min(factoryMaxZoom, nextZoom))
-      const contentX = (pointX - current.x) / current.zoom
-      const contentY = (pointY - current.y) / current.zoom
-      const nextView = clampFactoryView({ x: pointX - contentX * zoom, y: pointY - contentY * zoom, zoom })
-      factoryViewRef.current = nextView
-      return nextView
-    })
+    const current = factoryViewRef.current
+    const zoom = Math.max(factoryMinZoom, Math.min(factoryMaxZoom, nextZoom))
+    const contentX = (pointX - current.x) / current.zoom
+    const contentY = (pointY - current.y) / current.zoom
+    commitFactoryView(clampFactoryView({ x: pointX - contentX * zoom, y: pointY - contentY * zoom, zoom }))
   }
 
   useEffect(() => {
-    setFactoryView((current) => clampFactoryView(current))
+    commitFactoryView(clampFactoryView(factoryViewRef.current))
   }, [factoryGridSize.width, factoryGridSize.height])
 
-  const machineAtFactoryCell = (x: number, y: number) => state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
+  useEffect(() => {
+    queueFactoryViewPaint(factoryView)
+  }, [factoryView])
+
+  useEffect(
+    () => () => {
+      if (factoryViewFrameRef.current !== null) window.cancelAnimationFrame(factoryViewFrameRef.current)
+      factoryViewFrameRef.current = null
+      pendingFactoryViewRef.current = null
+    },
+    [],
+  )
+
+  const factoryMachineByCell = useMemo(
+    () => new Map(state.machineInstances.map((instance) => [`${instance.x},${instance.y}`, instance])),
+    [state.machineInstances],
+  )
+  const machineAtFactoryCell = (x: number, y: number) => factoryMachineByCell.get(`${x},${y}`)
 
   const pipeConnectionsForInstance = (instance: MachineInstance): PipeConnections | undefined => {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
@@ -2925,6 +3251,19 @@ function App() {
     }))
   }
 
+  const handleNativeFluidControl = (bufferId: string, preferredDirection?: 'input' | 'output') => {
+    const buffer = selectedMachineFluidBuffers.find((candidate) => candidate.id === bufferId)
+    if (!buffer || machineTerminalMode !== 'fluids') return
+    const direction = preferredDirection ?? (canUseFluidPort(buffer, 'input') ? 'input' : 'output')
+    handleFluidPortPress(buffer, direction)
+  }
+
+  const nativeFluidControlReady = (bufferId: string, preferredDirection?: 'input' | 'output') => {
+    const buffer = selectedMachineFluidBuffers.find((candidate) => candidate.id === bufferId)
+    if (!buffer || machineTerminalMode !== 'fluids') return false
+    return preferredDirection ? canUseFluidPort(buffer, preferredDirection) : canUseFluidPort(buffer, 'input') || canUseFluidPort(buffer, 'output')
+  }
+
   const handleStorageSlotPress = (uid: string, slotIndex: number, slot: ProcessSlot) => {
     if (slot) {
       setState((current) => removeMachineStorageSlot(current, uid, slotIndex))
@@ -2973,8 +3312,11 @@ function App() {
     if (event.pointerType === 'mouse' && event.button !== 0) return
     const pointer = factoryPointerFromEvent(event)
     factoryPointersRef.current.set(event.pointerId, pointer)
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId)
     if (factoryPointersRef.current.size >= 2) {
+      setFactoryPanActive(true)
+      for (const pointerId of factoryPointersRef.current.keys()) {
+        if (!event.currentTarget.hasPointerCapture(pointerId)) event.currentTarget.setPointerCapture(pointerId)
+      }
       beginFactoryPinchGesture()
       return
     }
@@ -3003,8 +3345,7 @@ function App() {
       if (gesture.dragged) {
         suppressFactoryCellClickRef.current = true
         const nextView = clampFactoryView({ x: midpointX - gesture.contentX * nextZoom, y: midpointY - gesture.contentY * nextZoom, zoom: nextZoom })
-        factoryViewRef.current = nextView
-        setFactoryView(nextView)
+        queueFactoryViewPaint(nextView)
       }
       return
     }
@@ -3013,12 +3354,13 @@ function App() {
     const dy = event.clientY - gesture.startY
     if (!gesture.dragged && Math.hypot(dx, dy) >= factoryPanThreshold) {
       gesture.dragged = true
+      setFactoryPanActive(true)
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId)
     }
     if (gesture.dragged) {
       suppressFactoryCellClickRef.current = true
       const nextView = clampFactoryView({ x: gesture.originX + dx, y: gesture.originY + dy, zoom: factoryViewRef.current.zoom })
-      factoryViewRef.current = nextView
-      setFactoryView(nextView)
+      queueFactoryViewPaint(nextView)
     }
   }
 
@@ -3046,6 +3388,11 @@ function App() {
     }
     if (wasDragging) window.setTimeout(() => (suppressFactoryCellClickRef.current = false), 0)
     factoryGestureRef.current = null
+    setFactoryPanActive(false)
+    const latestState = stateRef.current
+    setState((current) => current === latestState ? current : latestState)
+    setFactoryFloorSnapshot(latestState)
+    commitFactoryView(factoryViewRef.current)
   }
 
   const handleFactoryWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
@@ -3056,46 +3403,16 @@ function App() {
 
   const handleFactoryFitView = () => {
     const nextView = factoryFitView()
-    factoryViewRef.current = nextView
-    setFactoryView(nextView)
+    commitFactoryView(nextView)
   }
 
   const handleFactoryCellPress = (x: number, y: number, instance?: MachineInstance) => {
     if (suppressFactoryCellClickRef.current) return
     if (instance) {
-      if (isFactoryRemoveMode) {
-        if (
-          (instance.machineId === 'lvFluidInputHatch' || instance.machineId === 'lvFluidOutputHatch') &&
-          storedFluids(instance.process).some((fluid) => fluid.amount > 0) &&
-          !window.confirm('This hatch still contains fluid. Remove it and discard the stored fluid?')
-        ) return
-        setState((current) => {
-          if (!canCrowbarRemoveMachine(current)) {
-            setFactoryNotice('Need an iron crowbar.')
-            setSelectedFactoryTool(null)
-            return current
-          }
-          const next = crowbarRemoveMachineInstance(current, instance.uid)
-          if (next !== current) setFactoryNotice('')
-          return next
-        })
-        return
-      }
-      if (isFactoryPipeConfigMode) {
-        const isArcPort = instance.machineId === 'lvEnergyHatch2A' || instance.machineId === 'lvInputBus' || instance.machineId === 'lvOutputBus' || instance.machineId === 'lvFluidInputHatch' || instance.machineId === 'lvFluidOutputHatch'
-        const configTarget = isArcPort ? instance : controllerForFactoryStructure(instance) ?? instance
-        if (isArcPort || isSteamPipeMachine(configTarget.machineId) || isItemHopperMachine(configTarget.machineId) || isFluidOutletConfigurableMachine(configTarget.machineId)) {
-          setSelectedMachineUid(null)
-          setSelectedPipeConfigUid(configTarget.uid)
-          return
-        }
-        setFactoryNotice('Wrench configures pipes, hoppers, multiblock ports, and fluid outputs.')
-        return
-      }
       const structureController = controllerForFactoryStructure(instance)
       if (structureController && structureController.uid !== instance.uid) {
         if (structureController.machineId === 'reachGate') {
-          setFactoryNotice('Reach Gate formed. Shattered Reach access is stable while all four casings remain placed.')
+          setSelectedMachineUid(structureController.uid)
           return
         }
         setSelectedMachineUid(structureController.uid)
@@ -3105,29 +3422,27 @@ function App() {
         !structureController &&
         (instance.machineId === 'arcBlastFurnacePart' || instance.machineId === 'lvEnergyHatch2A' || instance.machineId === 'lvInputBus' || instance.machineId === 'lvOutputBus' || instance.machineId === 'lvFluidInputHatch' || instance.machineId === 'lvFluidOutputHatch')
       ) {
-        setFactoryNotice('Place this component on the perimeter of an Arc Furnace Controller.')
+        setSelectedMachineUid(instance.uid)
         return
       }
       if (machines[instance.machineId].multiblock) {
         if (structureController) {
           if (structureController.machineId === 'reachGate') {
-            setFactoryNotice('Reach Gate formed. Shattered Reach access is stable while all four casings remain placed.')
+            setSelectedMachineUid(structureController.uid)
             return
           }
           setSelectedMachineUid(structureController.uid)
           return
         }
-        if (instance.machineId === 'cokeOvenPart') setFactoryNotice('Place Coke Oven Blocks in a full 2x2 to form the oven.')
-        if (instance.machineId === 'brickedBlastFurnacePart') setFactoryNotice('Place BBF casings in a full 2x2 to form the furnace.')
-        if (instance.machineId === 'arcBlastFurnacePart') setFactoryNotice('Fill every unused perimeter cell around an Arc Furnace Controller to complete its 3x3 structure.')
+        setSelectedMachineUid(instance.uid)
         return
       }
       if (instance.machineId === 'reachGateCasing') {
-        setFactoryNotice('Place four Reach Gate Casings in a full 2x2 to stabilize the breach.')
+        setSelectedMachineUid(instance.uid)
         return
       }
       if (machines[instance.machineId].processKind === 'none') {
-        setFactoryNotice('Structure casing selected. Use the crowbar to remove it or complete its multiblock structure.')
+        setSelectedMachineUid(instance.uid)
         return
       }
       setSelectedMachineUid(instance.uid)
@@ -3145,6 +3460,8 @@ function App() {
     })
   }
 
+  factoryCellPressRef.current = handleFactoryCellPress
+
   const handleTogglePipeSide = (uid: string, direction: PipeDirection) => {
     const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
     if (instance && isItemHopperMachine(instance.machineId)) {
@@ -3156,6 +3473,26 @@ function App() {
       return
     }
     setState((current) => cyclePipeSideMode(current, uid, direction))
+  }
+
+  const handleOpenSelectedMachineRouting = () => {
+    if (!selectedMachine || !selectedMachineCanConfigureRouting) return
+    setPendingProcessInsert(null)
+    setIsMachineAutomationOpen(false)
+    setSelectedPipeConfigUid(selectedMachine.uid)
+    setSelectedMachineUid(null)
+  }
+
+  const handleRemoveSelectedMachine = () => {
+    if (!selectedMachineSource || !selectedMachineCanRemove) return
+    if (storedFluids(selectedMachineSource.process).some((fluid) => fluid.amount > 0) && !window.confirm('This machine still contains fluid. Remove it and discard the stored fluid?')) return
+    const uid = selectedMachineSource.uid
+    setState((current) => removeMachineInstance(current, uid))
+    setPendingProcessInsert(null)
+    setIsArcStructureOpen(false)
+    setIsMachineAutomationOpen(false)
+    setSelectedMachineUid(null)
+    setSelectedPipeConfigUid(null)
   }
 
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
@@ -3479,54 +3816,6 @@ function App() {
     setPage('terminal')
   }
 
-  const pipePolarityForInstance = (instance: MachineInstance): Array<{ direction: PipeDirection; state: PipeSideState; mode: PipeSideMode; label: string }> | null => {
-    const isSteamPipe = isSteamPipeMachine(instance.machineId)
-    const isHopper = isItemHopperMachine(instance.machineId)
-    const fluidFaces = isFluidOutletConfigurableMachine(instance.machineId)
-      ? fluidOutputFacesForInstance(instance).filter((face) => face.cell.uid === instance.uid)
-      : []
-    if (!isSteamPipe && !isHopper && fluidFaces.length < 1) return null
-
-    if (fluidFaces.length > 0) {
-      const sides = fluidFaces.flatMap<{ direction: PipeDirection; state: PipeSideState; mode: PipeSideMode; label: string }>((face) => {
-        const offset = pipeDirectionOffsets[face.direction]
-        const mode = pipeSideMode(face.cell, face.direction)
-        if (mode !== 'output') return []
-        const neighbour = machineAtFactoryCell(face.cell.x + offset.dx, face.cell.y + offset.dy)
-        return [
-          {
-            direction: face.direction,
-            mode,
-            state: neighbour && machinesCanConnect(face.cell, neighbour) ? 'connected' as const : 'open' as const,
-            label: `${offset.label} ${pipeSideModeLabels[mode]}`,
-          },
-        ]
-      })
-      return sides.length > 0 ? sides : null
-    }
-
-    return pipeDirections.map((direction) => {
-      const offset = pipeDirectionOffsets[direction]
-      const neighbour = machineAtFactoryCell(instance.x + offset.dx, instance.y + offset.dy)
-      const mode = pipeSideMode(instance, direction)
-      const blocked = mode === 'blocked'
-      const isSteamPipeNeighbour = (machineId: MachineId) => isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
-      const connected = Boolean(
-        !blocked &&
-          neighbour &&
-          (isHopper
-            ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId)
-            : machinesCanConnect(instance, neighbour) && isSteamPipeNeighbour(neighbour.machineId)),
-      )
-      return {
-        direction,
-        mode,
-        state: blocked ? 'blocked' : connected ? 'connected' : 'open',
-        label: `${offset.label} ${pipeSideModeLabels[mode]}`,
-      }
-    })
-  }
-
   const handleOpenProcessRecipe = (recipe: Recipe) => {
     const matchingMachine = recipe.requiredMachine
       ? state.machineInstances.find((instance) => instance.machineId === recipe.requiredMachine)
@@ -3830,6 +4119,55 @@ function App() {
       setIsCreativeMode(false)
     }
     addFloatText(nextCreative ? 'creative on' : 'creative off')
+  }
+
+  const handleLoadCreativeFactory = async () => {
+    if (!import.meta.env.DEV || isEnteringGame) return
+    setEntryLoadingMessage('Loading creative factory')
+    setIsEnteringGame(true)
+    await waitForEntryLoadingPaint()
+    const minimumLoading = waitForEntryLoadingMinimum()
+    cancelPendingSave()
+    try {
+      const now = localTimeProvider.now()
+      const creativeFactory = createCreativeFactoryState(createInitialState(now), now)
+      setIsCreativeMode(true)
+      stateRef.current = creativeFactory
+      setState(creativeFactory)
+      knownCompletedQuestsRef.current = new Set(creativeFactory.completedQuests)
+      handleClearGrid()
+      setOfflineNotice('Dev creative factory loaded. It will not overwrite the selected save.')
+      setOfflinePrompt('')
+      setMigrationPrompt('')
+      setTerminalNotice('')
+      setFactoryNotice('')
+      setTerminalSearch('')
+      setRecipeSearch('')
+      setFactoryMachineSearch('')
+      setSelectedResource(null)
+      setBatchQuantity(1)
+      setPendingProcessInsert(null)
+      setMissingBatch(null)
+      setIsRecipeModalOpen(false)
+      setIsFactoryExpandModalOpen(false)
+      setAchievementToasts([])
+      setPlacingMachineId(null)
+      setSelectedMachineUid(null)
+      setSelectedPipeConfigUid(null)
+      setSelectedQuestId(null)
+      setSelectedRecipeGroupKey(null)
+      setSelectedRecipeIndex(0)
+      setNavigationStack([])
+      setHighlightedGatherTarget(null)
+      commitFactoryView({ x: factoryViewportPadding, y: factoryViewportPadding, zoom: factoryDefaultZoom })
+      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
+      setPage('processing')
+      addFloatText('creative factory')
+    } finally {
+      await minimumLoading
+      setIsEnteringGame(false)
+      setEntryLoadingMessage('Loading save')
+    }
   }
 
   const handleContinueFromHome = async () => {
@@ -4320,6 +4658,11 @@ function App() {
             <button type="button" className="home-action primary" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleContinueFromHome}>
               {isUpdateAvailable ? 'Update Required' : isEnteringGame ? 'Loading save...' : `Continue ${selectedSaveLabel}`}
             </button>
+            {import.meta.env.DEV && (
+              <button type="button" className="home-action" disabled={!hasLoadedSave || isEnteringGame} onClick={handleLoadCreativeFactory}>
+                {isEnteringGame ? 'Loading...' : 'Load Creative Factory'}
+              </button>
+            )}
             <button type="button" className="home-action danger" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleReset}>
               New Game In {selectedSaveLabel}
             </button>
@@ -5230,73 +5573,27 @@ function App() {
             </div>
           ) : (
             <>
-              <div className="factory-inventory-panel" aria-label="Factory inventory and tools">
-                <div className="processing-storage machine-placement-storage" aria-label={isFactoryToolboxOpen ? 'Factory toolbox' : 'Factory parts'}>
+              <div className="factory-inventory-panel" aria-label="Factory inventory">
+                <div className="processing-storage machine-placement-storage" aria-label="Factory parts">
                   <div className="factory-tray-head">
                     <div
-                      className={placingMachineId || selectedFactoryTool ? 'factory-selection-name active' : 'factory-selection-name'}
+                      className={placingMachineId ? 'factory-selection-name active' : 'factory-selection-name'}
                       aria-label={selectedFactoryItemLabel}
                       aria-live="polite"
                     >
                       <strong>{selectedFactoryItemLabel}</strong>
                     </div>
-                    {isFactoryToolboxOpen ? (
-                      <span className="factory-tool-mode">{selectedFactoryTool ? resourceLabels[selectedFactoryTool] : 'Select tool'}</span>
-                    ) : (
-                      <input
-                        className="factory-machine-search"
-                        type="search"
-                        placeholder="Find"
-                        value={factoryMachineSearch}
-                        onChange={(event) => setFactoryMachineSearch(event.target.value)}
-                        aria-label="Search factory parts"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      className={isFactoryToolboxOpen ? 'factory-toolbox-toggle active' : 'factory-toolbox-toggle'}
-                      aria-label={isFactoryToolboxOpen ? 'Close toolbox' : 'Open toolbox'}
-                      aria-controls="factory-inventory-view"
-                      aria-expanded={isFactoryToolboxOpen}
-                      title={isFactoryToolboxOpen ? 'Close toolbox' : 'Open toolbox'}
-                      onClick={toggleFactoryToolbox}
-                    >
-                      <Toolbox size={16} />
-                      {factoryToolCount > 0 && <span>{formatAmount(factoryToolCount)}</span>}
-                    </button>
+                    <input
+                      className="factory-machine-search"
+                      type="search"
+                      placeholder="Find"
+                      value={factoryMachineSearch}
+                      onChange={(event) => setFactoryMachineSearch(event.target.value)}
+                      aria-label="Search factory parts"
+                    />
                   </div>
-                  <div className={isFactoryToolboxOpen ? 'machine-placement-slots factory-tool-slots' : 'machine-placement-slots'} id="factory-inventory-view">
-                    {isFactoryToolboxOpen ? (
-                      factoryTools.length > 0 ? (
-                        factoryTools.map((id) => (
-                          <button
-                            type="button"
-                            className={selectedFactoryTool === id ? 'item-slot factory-tool-slot selected' : 'item-slot factory-tool-slot'}
-                            aria-label={`${resourceLabels[id]} ${formatAmount(availableResourceAmount(state, id))}`}
-                            aria-pressed={selectedFactoryTool === id}
-                            title={
-                              id === 'ironCrowbar'
-                                ? `${resourceLabels[id]} - remove floor machines and pipes (${formatAmount(durabilityRemaining(state, id))} uses)`
-                                : `${resourceLabels[id]} - configure pipe, hopper, and fluid output connections`
-                            }
-                            onClick={() => {
-                              setPlacingMachineId(null)
-                              setSelectedMachineUid(null)
-                              setSelectedPipeConfigUid(null)
-                              setIsFactoryToolboxOpen(true)
-                              setSelectedFactoryTool((current) => (current === id ? null : id))
-                            }}
-                            key={id}
-                          >
-                            <PixelIcon id={id} />
-                            <span className="item-count">{formatAmount(availableResourceAmount(state, id))}</span>
-                            <DurabilityBar state={state} id={id} />
-                          </button>
-                        ))
-                      ) : (
-                        <span className="empty-furnace-storage">No tools</span>
-                      )
-                    ) : unplacedMachines.length > 0 ? (
+                  <div className="machine-placement-slots" id="factory-inventory-view">
+                    {unplacedMachines.length > 0 ? (
                       unplacedMachines.map((id) => (
                         <button
                           type="button"
@@ -5304,9 +5601,7 @@ function App() {
                           aria-label={`${machines[id].name} ${formatAmount(unplacedMachineCounts[id])}`}
                           title={machines[id].name}
                           onClick={() => {
-                            setSelectedFactoryTool(null)
                             setSelectedPipeConfigUid(null)
-                            setIsFactoryToolboxOpen(false)
                             setFactoryNotice('')
                             setPlacingMachineId((current) => (current === id ? null : id))
                           }}
@@ -5321,6 +5616,38 @@ function App() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div className="factory-view-controls">
+                <div className="mode-tabs factory-view-tabs" role="tablist" aria-label="Factory floor view">
+                  <button
+                    type="button"
+                    className={factoryFloorViewMode === 'production' ? 'active' : ''}
+                    role="tab"
+                    aria-selected={factoryFloorViewMode === 'production'}
+                    onClick={() => setFactoryFloorViewMode('production')}
+                  >
+                    <LayoutGrid size={14} />
+                    Floor
+                  </button>
+                  <button
+                    type="button"
+                    className={factoryFloorViewMode === 'maintenance' ? 'active' : ''}
+                    role="tab"
+                    aria-selected={factoryFloorViewMode === 'maintenance'}
+                    onClick={() => setFactoryFloorViewMode('maintenance')}
+                  >
+                    <Wrench size={14} />
+                    Maintenance
+                  </button>
+                </div>
+                {factoryFloorViewMode === 'maintenance' && (
+                  <div className="factory-maintenance-legend" aria-label="Maintenance states">
+                    <span className="running">Running</span>
+                    <span className="power-loss">Power loss</span>
+                    <span className="output-full">Output full</span>
+                  </div>
+                )}
               </div>
 
               <div
@@ -5344,120 +5671,20 @@ function App() {
                   }}
                 >
                   <Maximize2 size={14} />
-                  <span className="factory-view-percent">{Math.round(factoryView.zoom * 100)}%</span>
+                  <span className="factory-view-percent" ref={factoryViewPercentRef} />
                 </button>
                 <div
                   className="factory-pan-content"
-                  style={{ transform: `translate(${factoryView.x}px, ${factoryView.y}px) scale(${factoryView.zoom})` }}
+                  ref={factoryPanContentRef}
                 >
-                  <div className="factory-grid" style={{ gridTemplateColumns: `repeat(${factoryGridSize.width}, ${factoryCellSize}px)` }} aria-label="Factory grid">
-                    {Array.from({ length: factoryGridSize.width * factoryGridSize.height }, (_, index) => {
-                      const x = index % factoryGridSize.width
-                      const y = Math.floor(index / factoryGridSize.width)
-                      const instance = state.machineInstances.find((candidate) => candidate.x === x && candidate.y === y)
-                      const arcStructure = instance ? arcBlastFurnaceStructureForInstance(state, instance) : null
-                      const isFormedArc = Boolean(arcStructure?.formed)
-                      const isFormedArcController = Boolean(isFormedArc && arcStructure && instance?.uid === arcStructure.controller.uid)
-                      const isFormedArcInspection = isFormedArc && (isFactoryPipeConfigMode || isFactoryRemoveMode)
-                      const showFormedArc = isFormedArcController && !isFormedArcInspection
-                      const multiblockController = instance ? controllerForMultiblockPart(instance) : null
-                      const tankStructure = instance?.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
-                      const pipePolarity = instance ? pipePolarityForInstance(instance) : null
-                      const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
-                      const isTankStructureController = Boolean(tankStructure && instance && tankStructure.controller.uid === instance.uid && tankStructure.area > 1)
-                      const isTankStructureChild = Boolean(tankStructure && instance && tankStructure.controller.uid !== instance.uid)
-                      const isStructureController = isMultiblockController || isTankStructureController
-                      const isStructureCell = isStructureController || Boolean(multiblockController) || isTankStructureChild
-                      const structureMachineId = tankStructure?.controller.machineId ?? multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
-                      const tankStructureStyle =
-                        tankStructure && isTankStructureController
-                          ? ({
-                              '--structure-width': `${tankStructure.width * factoryCellSize + Math.max(0, tankStructure.width - 1) * factoryCellGap}px`,
-                              '--structure-height': `${tankStructure.height * factoryCellSize + Math.max(0, tankStructure.height - 1) * factoryCellGap}px`,
-                            } as CSSProperties)
-                          : undefined
-                      const isMachineActive = Boolean(
-                        instance &&
-                          (instance.process.fuelRemainingMs > 0 ||
-                            instance.process.activeRecipeId ||
-                            (isSteamNetworkMachine(instance.machineId) && instance.process.steamStoredMs > 0) ||
-                            (isEuNetworkMachine(instance.machineId) && instance.process.euStored > 0) ||
-                            Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0) ||
-                            (isSteamPipeMachine(instance.machineId) && availableConnectedSteam(state, instance) > 0) ||
-                            (isSteamPipeMachine(instance.machineId) && currentFluidOutputFlows(state, instance).some((flow) => flow.litresPerSecond > 0)) ||
-                            (isEuCableMachine(instance.machineId) && availableConnectedEu(state, instance) > 0)),
-                      )
-                      return (
-                        <button
-                          type="button"
-                          className={
-                            instance
-                              ? [
-                                  'factory-cell',
-                                  'occupied',
-                                  `machine-${instance.machineId}-cell`,
-                                  isMachineActive ? 'active' : '',
-                                  isFactoryRemoveMode ? 'removing' : '',
-                                  isMultiblockController ? 'multiblock-bbf-controller' : '',
-                                  multiblockController ? 'multiblock-bbf-child' : '',
-                                  isTankStructureController ? 'tank-structure-controller' : '',
-                                  isTankStructureChild ? 'tank-structure-child' : '',
-                                  isFormedArc ? 'formed-arc-cell' : '',
-                                  isFormedArcController ? 'formed-arc-controller-cell' : '',
-                                  isFormedArc && !isFormedArcController ? 'formed-arc-child-cell' : '',
-                                  isFormedArcInspection ? 'formed-arc-inspection-cell' : '',
-                                ].filter(Boolean).join(' ')
-                              : placingMachineId
-                                ? 'factory-cell placing'
-                                : 'factory-cell'
-                          }
-                          style={tankStructureStyle}
-                          aria-label={
-                            instance
-                              ? `${isStructureCell && structureMachineId ? machines[structureMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}`
-                              : `Empty factory cell ${x + 1}, ${y + 1}`
-                          }
-                          onClick={() => handleFactoryCellPress(x, y, instance)}
-                          key={`${x}-${y}`}
-                        >
-                          {showFormedArc && arcStructure ? (
-                            <span className={isMachineActive ? 'formed-arc-render active' : 'formed-arc-render'} aria-hidden="true">
-                              <img src={`${import.meta.env.BASE_URL}game-art/formed-arc-blast-furnace.png`} alt="" draggable={false} />
-                              <span className="formed-arc-core" />
-                              {arcStructure.perimeter
-                                .filter((part) => part.machineId !== 'arcBlastFurnacePart')
-                                .map((part) => {
-                                  const activeDirection = pipeDirections.find((direction) => pipeSideMode(part, direction) !== 'blocked') ?? 'east'
-                                  return <span
-                                      className={`formed-arc-port formed-arc-port-${part.machineId} formed-arc-port-direction-${activeDirection}`}
-                                      style={{
-                                        left: `${(part.x - arcStructure.controller.x + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
-                                        top: `${(part.y - arcStructure.controller.y + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
-                                      }}
-                                      key={part.uid}
-                                    >
-                                      <span className="formed-arc-port-mark" />
-                                    </span>
-                                })}
-                            </span>
-                          ) : instance && (!isFormedArc || isFormedArcInspection) && (!isStructureCell || isStructureController || isFormedArcInspection) ? (
-                            <MachineGlyph id={instance.machineId} active={isMachineActive} pipeConnections={pipeConnectionsForInstance(instance)} />
-                          ) : (
-                            <span />
-                          )}
-                          {pipePolarity && (
-                            <span className="pipe-polarity-overlay" aria-label="Pipe polarity">
-                              {pipePolarity.map((side) => (
-                                <span className={`pipe-polarity-side ${side.direction} ${side.state} mode-${side.mode}`} title={side.label} key={side.direction}>
-                                  <PipeFlowArrows direction={side.direction} mode={side.mode} />
-                                </span>
-                              ))}
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
+                  <FactoryFloorGrid
+                    state={factoryFloorSnapshot}
+                    width={factoryGridSize.width}
+                    height={factoryGridSize.height}
+                    viewMode={factoryFloorViewMode}
+                    placingMachineId={placingMachineId}
+                    cellPressRef={factoryCellPressRef}
+                  />
                 </div>
               </div>
             </>
@@ -5494,7 +5721,7 @@ function App() {
             </div>
           )}
 
-          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
+          {selectedPipeConfig && (isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"
@@ -5508,17 +5735,23 @@ function App() {
                   <div>
                     <p className="eyebrow">
                       {isItemHopperMachine(selectedPipeConfig.machineId)
-                        ? 'Hopper Output'
+                        ? 'Hopper Routing'
                         : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
                           ? 'Fluid Output'
-                          : 'Pipe Routing'}
+                          : isEuCableMachine(selectedPipeConfig.machineId)
+                            ? 'Cable Connections'
+                            : 'Pipe Routing'}
                     </p>
                     <h2>{machines[selectedPipeConfig.machineId].name}</h2>
                   </div>
                   <button
                     type="button"
                     className="icon-button"
-                    aria-label={isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? 'Close output routing' : 'Close pipe routing'}
+                    aria-label={isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
+                      ? 'Close output routing'
+                      : isEuCableMachine(selectedPipeConfig.machineId)
+                        ? 'Close cable connections'
+                        : 'Close pipe routing'}
                     onClick={() => setSelectedPipeConfigUid(null)}
                   >
                     <X size={18} />
@@ -5572,7 +5805,7 @@ function App() {
                     )
                   })()
                 ) : (
-                  <div className="pipe-config-grid" aria-label={isItemHopperMachine(selectedPipeConfig.machineId) ? 'Output directions' : 'Pipe routing directions'}>
+                  <div className="pipe-config-grid" aria-label={isItemHopperMachine(selectedPipeConfig.machineId) ? 'Hopper routing directions' : isEuCableMachine(selectedPipeConfig.machineId) ? 'Cable connections' : 'Pipe routing directions'}>
                     {[-1, 0, 1].flatMap((dy) =>
                       [-1, 0, 1].map((dx) => {
                         const neighbour = machineAtFactoryCell(selectedPipeConfig.x + dx, selectedPipeConfig.y + dy)
@@ -5584,11 +5817,12 @@ function App() {
                         const mode = direction ? pipeSideMode(selectedPipeConfig, direction) : null
                         const disabled = mode === 'blocked'
                         const isHopperConfig = isItemHopperMachine(selectedPipeConfig.machineId)
+                        const isCableConfig = isEuCableMachine(selectedPipeConfig.machineId)
                         const connected = Boolean(
                           direction &&
                             neighbour &&
                             (isHopperConfig
-                              ? mode === 'output' && !isItemAutomationMachine(neighbour.machineId)
+                              ? mode === 'output' && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))
                               : machinesCanConnect(selectedPipeConfig, neighbour)),
                         )
                         const className = [
@@ -5617,14 +5851,16 @@ function App() {
                           <button
                             type="button"
                             className={className}
-                            aria-label={`${pipeDirectionOffsets[direction].label} ${isHopperConfig ? 'output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
+                            aria-label={isCableConfig
+                              ? `${pipeDirectionOffsets[direction].label} cable connection ${disabled ? 'off' : 'linked'}. Tap to toggle.`
+                              : `${pipeDirectionOffsets[direction].label} ${isHopperConfig ? 'output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
                             onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
                             key={`${dx},${dy}`}
                           >
                             {content}
-                            <PipeFlowArrows direction={direction} mode={mode ?? 'blocked'} />
+                            {isCableConfig ? <Zap size={14} /> : <PipeFlowArrows direction={direction} mode={mode ?? 'blocked'} />}
                             <strong>{pipeDirectionOffsets[direction].label}</strong>
-                            <span className="pipe-side-mode">{pipeSideModeLabels[mode ?? 'blocked']}</span>
+                            <span className="pipe-side-mode">{isCableConfig ? (disabled ? 'Off' : 'Linked') : pipeSideModeLabels[mode ?? 'blocked']}</span>
                           </button>
                         )
                       }),
@@ -5633,10 +5869,12 @@ function App() {
                 )}
                 <p className="pipe-config-note">
                   {isItemHopperMachine(selectedPipeConfig.machineId)
-                    ? 'Tap one side to choose where this hopper pushes items.'
+                    ? 'Tap one side to choose where this hopper pushes items. Other sides pull from adjacent machine outputs.'
                     : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
                       ? 'Tap any outside face to choose where this structure drains fluid.'
-                      : 'Tap a side to cycle flow: Closed, Out, In, Both.'}
+                      : isEuCableMachine(selectedPipeConfig.machineId)
+                        ? 'Tap a side to connect or disconnect that cable face. Power remains non-directional.'
+                        : 'Tap a side to cycle flow: Closed, Out, In, Both.'}
                 </p>
               </section>
             </div>
@@ -5694,6 +5932,22 @@ function App() {
                     </button>
                   </div>
                 </div>
+                {(selectedMachineCanConfigureRouting || selectedMachineCanRemove) && (
+                  <div className="machine-terminal-actions" aria-label="Machine actions">
+                    {selectedMachineCanConfigureRouting && (
+                      <button type="button" onClick={handleOpenSelectedMachineRouting}>
+                        <Route size={14} />
+                        Routing
+                      </button>
+                    )}
+                    {selectedMachineCanRemove && (
+                      <button type="button" className="danger" onClick={handleRemoveSelectedMachine}>
+                        <Trash2 size={14} />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )}
                 {selectedMachineFluidBuffers.length > 0 && (
                   <div className="machine-terminal-tabs" role="tablist" aria-label="Terminal inventory view">
                     <button type="button" role="tab" aria-selected={machineTerminalMode === 'items'} className={machineTerminalMode === 'items' ? 'active' : ''} onClick={() => setMachineTerminalMode('items')}>Items</button>
@@ -5702,7 +5956,7 @@ function App() {
                 )}
                 {machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                 <>
-                  <div className="processing-storage furnace-storage" aria-label={`${machines[selectedMachine.machineId].name} storage`}>
+                  <div className={`processing-storage furnace-storage ${selectedMachineFluidBuffers.length > 0 ? 'fluid-capable-storage' : ''}`} aria-label={`${machines[selectedMachine.machineId].name} storage`}>
                     {furnaceStorageResources.length > 0 ? (
                       furnaceStorageResources.map((id) => (
                         <button
@@ -5767,28 +6021,6 @@ function App() {
                         : selectedEmptyFluidContainerKind
                           ? `Empty ${selectedEmptyFluidContainerKind === 'bucket' ? 'Bucket' : 'Steel Cell'}`
                           : 'Tap a container above'}</strong>
-                    </div>
-                    <div className="machine-fluid-port-strip" aria-label="Machine fluid input and output ports">
-                      {selectedMachineFluidBuffers.flatMap((buffer) => {
-                        const fluidId = buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
-                        const stored = fluidId ? selectedMachine.process.fluids[fluidId] ?? 0 : 0
-                        const directions: Array<'input' | 'output'> = buffer.access === 'both' ? ['input', 'output'] : [buffer.access]
-                        return directions.map((direction) => (
-                          <button
-                            type="button"
-                            className={`machine-fluid-port ${direction} ${canUseFluidPort(buffer, direction) ? 'ready' : ''}`}
-                            disabled={!canUseFluidPort(buffer, direction)}
-                            aria-label={`${buffer.label} ${direction}, ${formatLitres(stored)} of ${formatLitres(buffer.capacityLitres)} litres`}
-                            onClick={() => handleFluidPortPress(buffer, direction)}
-                            key={`${buffer.id}-${direction}`}
-                          >
-                            <span className="machine-fluid-port-swatch" style={{ '--portable-fluid-color': fluidVisualColor(fluidId ?? selectedFluidContainerGroup?.fluidId) } as CSSProperties} />
-                            <small>{direction === 'input' ? 'Input' : 'Output'}</small>
-                            <strong>{buffer.label}</strong>
-                            <em>{formatLitres(stored)}L / {formatLitres(buffer.capacityLitres)}L</em>
-                          </button>
-                        ))
-                      })}
                     </div>
                   </>
                 )}
@@ -5872,16 +6104,16 @@ function App() {
                       <span className="hopper-direction-line">
                         Output: {pipeDirections.find((direction) => pipeSideMode(selectedMachine, direction) === 'output')
                           ? pipeDirectionOffsets[pipeDirections.find((direction) => pipeSideMode(selectedMachine, direction) === 'output')!].label
-                          : 'Configure with wrench'}
+                          : 'Closed'}
                       </span>
                     )}
                   </div>
                 ) : selectedMachine.machineId === 'well' ? (
                   <div className="well-interface water-source-interface utility-hmi">
-                    <div className="utility-vessel water-vessel" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
+                    <button type="button" className={`utility-vessel water-vessel native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
                       <span style={{ '--vessel-fill-scale': metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128) / 100 } as CSSProperties} />
                       <MachineGlyph id="well" active />
-                    </div>
+                    </button>
                     <div className="utility-readout-grid well-instrument-stack">
                       <div className="well-buffer-instrument" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
                         <div className="well-buffer-gauge"><span style={{ height: `${metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128)}%` }} /></div>
@@ -5899,9 +6131,22 @@ function App() {
                       <span><small>Pressure</small><strong>{Math.floor(metricFill(selectedMachine.process.steamStoredMs, boilerSteamCapacityMs))}%</strong></span>
                     </div>
                     <div className="boiler-stage">
-                      <div className={selectedMachine.process.fuelRemainingMs > 0 ? 'boiler-firebox active' : 'boiler-firebox'}><MachineGlyph id="steamBoiler" active={selectedMachine.process.fuelRemainingMs > 0} /></div>
-                      <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={boilerSteamCapacityMs} />
-                      <ProcessItemSlot slot={selectedMachine.process.fuel} label="Fuel" onClick={() => handleProcessSlotPress('fuel')} />
+                      <div className={selectedMachine.process.fuelRemainingMs > 0 ? 'boiler-firebox active' : 'boiler-firebox'}>
+                        <MachineGlyph id="steamBoiler" active={selectedMachine.process.fuelRemainingMs > 0} />
+                        <ProcessItemSlot slot={selectedMachine.process.fuel} label="Fuel" onClick={() => handleProcessSlotPress('fuel')} />
+                      </div>
+                      <div className="boiler-buffer-bank">
+                        <button
+                          type="button"
+                          className={`native-fluid-control ${nativeFluidControlReady('water', 'input') ? 'ready' : ''}`}
+                          disabled={!nativeFluidControlReady('water', 'input')}
+                          aria-label={`Transfer selected container into water feed, ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of 128 litres`}
+                          onClick={() => handleNativeFluidControl('water', 'input')}
+                        >
+                          <FluidTank label="Water feed" storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={128} />
+                        </button>
+                        <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={boilerSteamCapacityMs} />
+                      </div>
                     </div>
                     <div className="boiler-load-rail"><span style={{ width: `${selectedMachine.process.fuelDurationMs > 0 ? metricFill(selectedMachine.process.fuelRemainingMs, selectedMachine.process.fuelDurationMs) : 0}%` }} /><strong>Load</strong><em>{selectedMachine.process.activeRecipeId ? 'Making steam' : machineStatus(state, selectedMachine)}</em></div>
                   </div>
@@ -5915,11 +6160,11 @@ function App() {
                       const outputFaces = pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output').map((direction) => pipeDirectionOffsets[direction].label)
                       const fluidOutflow = currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0)
                       return <>
-                        <div className={`utility-vessel iron-tank-vessel ${isSteam ? 'steam-contents' : 'fluid-contents'}`}>
+                        <button type="button" className={`utility-vessel iron-tank-vessel native-fluid-control ${isSteam ? 'steam-contents' : 'fluid-contents'} ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
                           <span style={{ '--vessel-fill-scale': metricFill(amount, capacity) / 100 } as CSSProperties} />
                           <MachineGlyph id="steamTank" active={amount > 0} />
                           <strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong>
-                        </div>
+                        </button>
                         <div className="utility-readout-grid">
                           <span><small>Contents</small><strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong><em>Single fluid tank</em></span>
                           <span><small>Stored</small><strong>{formatLitres(amount)}L</strong><em>{formatLitres(capacity)}L max</em></span>
@@ -5980,7 +6225,9 @@ function App() {
                       <span><small>Steam out</small><strong>{formatAmount(liquidSteamBoilerSteamProductionLitresPerSecond)}L/s</strong></span>
                     </div>
                     <div className="dual-boiler-vessels">
-                      <FluidTank label={fluidLabel('creosote')} storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
+                      <button type="button" className={`native-fluid-control ${nativeFluidControlReady('creosote', 'input') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('creosote', 'input')} onClick={() => handleNativeFluidControl('creosote', 'input')}>
+                        <FluidTank label={fluidLabel('creosote')} storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
+                      </button>
                       <div className="liquid-boiler-core"><MachineGlyph id="liquidSteamBoiler" active={Boolean(selectedMachine.process.activeRecipeId)} /></div>
                       <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={liquidSteamBoilerCapacityMs} />
                     </div>
@@ -6060,8 +6307,11 @@ function App() {
                       <ProcessItemSlot slot={selectedMachine.process.extraInput2} label="Input 4" onClick={() => handleProcessSlotPress('extraInput2')} />
                       <ProcessItemSlot slot={selectedMachine.process.extraInput3} label="Input 5" onClick={() => handleProcessSlotPress('extraInput3')} />
                       <ProcessItemSlot slot={selectedMachine.process.extraInput4} label="Input 6" onClick={() => handleProcessSlotPress('extraInput4')} />
-                      <div
-                        className="assembler-fluid-lot"
+                      <button
+                        type="button"
+                        className={`assembler-fluid-lot native-fluid-control ${nativeFluidControlReady('input', 'input') ? 'ready' : ''}`}
+                        disabled={!nativeFluidControlReady('input', 'input')}
+                        onClick={() => handleNativeFluidControl('input', 'input')}
                         aria-label="Assembler fluid lot"
                         style={
                           {
@@ -6075,7 +6325,7 @@ function App() {
                         <span>Fluid</span>
                         <strong>{formatLitres(assemblerFluid?.amount ?? 0)}L</strong>
                         <small>{assemblerFluid ? fluidLabel(assemblerFluid.id) : `${assemblerFluidCapacityLitres}L`}</small>
-                      </div>
+                      </button>
                     </div>
                     <div className="assembler-stage-readouts" aria-label="Assembler process readouts">
                       <span>
@@ -6306,7 +6556,7 @@ function App() {
                         </div>
                         <div className="multiblock-core-state"><span className={process.activeRecipeId ? 'active' : ''} /></div>
                         <div className="multiblock-output-bank">
-                          {isCokeOven && <FluidTank label={fluidLabel('creosote')} storedLitres={process.fluids.creosote ?? 0} capacityLitres={process.fluidCapacityLitres || cokeOvenFluidCapacityLitres} />}
+                          {isCokeOven && <button type="button" className={`native-fluid-control ${nativeFluidControlReady('creosote', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('creosote', 'output')} onClick={() => handleNativeFluidControl('creosote', 'output')}><FluidTank label={fluidLabel('creosote')} storedLitres={process.fluids.creosote ?? 0} capacityLitres={process.fluidCapacityLitres || cokeOvenFluidCapacityLitres} /></button>}
                           {isArc && <EnergyTank storedEu={process.euStored} capacityEu={process.euCapacity || 256} />}
                           <ProcessItemSlot slot={process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
                         </div>
@@ -6401,8 +6651,11 @@ function App() {
                           <span>Output</span>
                           {isChemicalReactor && !process.output ? (
                             chemicalFluidOutput ? (
-                              <div
-                                className="chemical-fluid-output"
+                              <button
+                                type="button"
+                                className={`chemical-fluid-output native-fluid-control ${nativeFluidControlReady('reaction') ? 'ready' : ''}`}
+                                disabled={!nativeFluidControlReady('reaction')}
+                                onClick={() => handleNativeFluidControl('reaction')}
                                 aria-label={`${fluidLabel(chemicalFluidOutput.id)} output ${formatLitres(chemicalFluidOutput.amount)} of ${formatLitres(chemicalFluidCapacity)} litres`}
                               >
                                 <span
@@ -6412,13 +6665,13 @@ function App() {
                                 />
                                 <strong>{fluidLabel(chemicalFluidOutput.id)}</strong>
                                 <em>{formatLitres(chemicalFluidOutput.amount)}L / {formatLitres(chemicalFluidCapacity)}L</em>
-                              </div>
+                              </button>
                             ) : (
-                              <div className="chemical-output-empty" aria-label="Empty item or fluid output">
+                              <button type="button" className={`chemical-output-empty native-fluid-control ${nativeFluidControlReady('reaction') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('reaction')} onClick={() => handleNativeFluidControl('reaction')} aria-label="Empty item or fluid output">
                                 <span aria-hidden="true" />
                                 <strong>Item / fluid</strong>
                                 <em>{formatLitres(chemicalFluidCapacity)}L buffer</em>
-                              </div>
+                              </button>
                             )
                           ) : (
                             <ProcessItemSlot slot={process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
@@ -6432,6 +6685,15 @@ function App() {
                       </div>
                     )
                   })()
+                ) : selectedMachineIsStructureOnly ? (
+                <div className="structure-only-terminal">
+                  <MachineGlyph id={selectedMachine.machineId} />
+                  <span>
+                    <small>Factory structure</small>
+                    <strong>{machines[selectedMachine.machineId].name}</strong>
+                    <em>{machines[selectedMachine.machineId].multiblock ? 'Part of a larger structure.' : 'No internal processing.'}</em>
+                  </span>
+                </div>
                 ) : selectedMachine.machineId === 'furnace' ? (
                 <div className="primitive-furnace-hmi">
                   <div className="primitive-furnace-stat-strip">
@@ -6545,9 +6807,11 @@ function App() {
                     </div>
                   </div>
                 )}
-                {machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
+                {machineUsesProcessStorage(selectedMachine.machineId) && (machineTerminalMode === 'items' || selectedMachineFluidBuffers.length > 0) && (
                   <p className="furnace-help">
-                    {isItemHopperMachine(selectedMachine.machineId)
+                    {machineTerminalMode === 'fluids'
+                      ? 'Tap a container, then a highlighted vessel.'
+                      : isItemHopperMachine(selectedMachine.machineId)
                       ? 'Tap storage, then a hopper slot to choose an amount.'
                       : isEuStorageMachine(selectedMachine.machineId)
                         ? 'Select a battery above, then tap an empty cell. Tap an installed battery to remove it.'
