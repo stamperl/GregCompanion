@@ -2323,6 +2323,9 @@ function App() {
   const selectedRecipeMinimumMachineId = selectedProcessRecipe
     ? minimumMachineForProcessRecipe(selectedProcessRecipe, processRecipes, machines)
     : undefined
+  const selectedRecipeStationMachineId = terminalMode === 'machines'
+    ? selectedRecipeMinimumMachineId ?? selectedRecipe?.requiredMachine
+    : selectedRecipe?.requiredMachine
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachineSource = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
   const selectedArcStructure = selectedMachineSource?.machineId === 'arcBlastFurnace'
@@ -3840,11 +3843,16 @@ function App() {
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
   const terminalOutput = terminalMatch ? recipePrimaryOutput(terminalMatch) : undefined
   const selectedRecipeMissing = selectedRecipe ? missingForRecipe(state, selectedRecipe) : undefined
-  const selectedRecipeMissingLine = selectedRecipe ? missingLine(state, selectedRecipe) : ''
-  const selectedRecipeLockedLine = selectedRecipe ? lockedLine(state, selectedRecipe) : ''
+  const showSelectedRecipeAvailability = terminalMode !== 'machines'
+  const selectedRecipeMissingLine = selectedRecipe && showSelectedRecipeAvailability ? missingLine(state, selectedRecipe) : ''
+  const selectedRecipeLockedLine = selectedRecipe && showSelectedRecipeAvailability ? lockedLine(state, selectedRecipe) : ''
   const selectedRecipeOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
-  const missingResourceAmount = (id: ResourceId) => selectedRecipeMissing?.missingResources.find((amount) => amount.id === id)?.amount ?? 0
-  const missingCatalystAmount = (id: ResourceId) => selectedRecipeMissing?.missingCatalysts.find((amount) => amount.id === id)?.amount ?? 0
+  const missingResourceAmount = (id: ResourceId) => showSelectedRecipeAvailability
+    ? selectedRecipeMissing?.missingResources.find((amount) => amount.id === id)?.amount ?? 0
+    : 0
+  const missingCatalystAmount = (id: ResourceId) => showSelectedRecipeAvailability
+    ? selectedRecipeMissing?.missingCatalysts.find((amount) => amount.id === id)?.amount ?? 0
+    : 0
   const selectedRecipeProcessStats = selectedRecipe?.recipeType === 'processing'
     ? {
         duration: formatDuration(selectedRecipe.durationMs),
@@ -4890,18 +4898,18 @@ function App() {
                           <div className="recipe-flow-step">
                             <span>Station</span>
                             <div className="recipe-flow-items">
-                              {selectedRecipe.requiredMachine && (
+                              {selectedRecipeStationMachineId && (
                                 <button
                                   type="button"
                                   className="recipe-station-entry"
-                                  aria-label={`Find ${machines[selectedRecipe.requiredMachine].name}`}
-                                  onClick={() => handleJumpToMachineRecipe(selectedRecipe.requiredMachine!)}
+                                  aria-label={`Find ${machines[selectedRecipeStationMachineId].name}`}
+                                  onClick={() => handleJumpToMachineRecipe(selectedRecipeStationMachineId)}
                                 >
                                   <MachineSlot
-                                    id={selectedRecipe.requiredMachine}
-                                    muted={state.machines[selectedRecipe.requiredMachine] < 1}
+                                    id={selectedRecipeStationMachineId}
+                                    muted={showSelectedRecipeAvailability && state.machines[selectedRecipeStationMachineId] < 1}
                                   />
-                                  <span>{machines[selectedRecipe.requiredMachine].name}</span>
+                                  <span>{machines[selectedRecipeStationMachineId].name}</span>
                                 </button>
                               )}
                               {selectedRecipe.machineInputs?.map((amount) => (
@@ -4915,7 +4923,7 @@ function App() {
                                   <MachineSlot
                                     id={amount.id}
                                     amount={amount.amount}
-                                    muted={state.machines[amount.id] < amount.amount}
+                                    muted={showSelectedRecipeAvailability && state.machines[amount.id] < amount.amount}
                                   />
                                   <span>{machines[amount.id].name}</span>
                                 </button>

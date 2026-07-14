@@ -9905,8 +9905,12 @@ button.craft-output:disabled {
 }
 
 .recipe-icon-button.machine-off-floor .machine-glyph {
-  filter: grayscale(0.85) saturate(0.25);
-  opacity: 0.38;
+  filter: none;
+  opacity: 1;
+}
+
+.recipe-icon-button.machine-on-floor {
+  box-shadow: inset 0 0 0 2px #66d59a;
 }
 
 .recipe-icon-button.machine-on-floor .machine-glyph {
