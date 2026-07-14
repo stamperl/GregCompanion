@@ -1002,7 +1002,7 @@ button.craft-output:disabled {
   border-radius: 8px;
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 12px 0;
   padding: 4px;
 }

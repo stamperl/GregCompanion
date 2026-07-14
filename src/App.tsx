@@ -143,7 +143,6 @@ import {
   questScripReward,
   questStatus,
   recipeFitsTerminalGrid,
-  recipesUsingInput,
   removeProcessSlot,
   removeMachineStorageSlot,
   searchTerminalRecipes,
@@ -262,7 +261,7 @@ function recipeOpensProcessView(recipe: Recipe) {
 }
 
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
-type TerminalMode = 'recipes' | 'uses' | 'machines'
+type TerminalMode = 'recipes' | 'machines'
 type MachineTerminalMode = 'items' | 'fluids'
 type MachineFluidBufferView = ReturnType<typeof machineFluidBuffersForInstance>[number]
 type DragPreview = { id: ResourceId; x: number; y: number }
@@ -931,13 +930,6 @@ function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
     amount: output.amount,
     label: machines[output.id].name,
   }
-}
-
-function singleRecipeGroups(recipesToGroup: Recipe[]): RecipeGroup[] {
-  return recipesToGroup.map((recipe) => {
-    const output = recipeGroupOutput(recipe) ?? { kind: 'machine' as const, id: 'furnace' as const, amount: 0 }
-    return { key: `recipe:${recipe.id}`, output, recipes: [recipe] }
-  })
 }
 
 function missingLine(state: GameState, recipe: Recipe) {
@@ -2295,7 +2287,6 @@ function App() {
     if (!query) return true
     return id.toLowerCase().includes(query) || machines[id].name.toLowerCase().includes(query)
   })
-  const selectedResourceForRecipes = selectedResource
   const recipeCandidates = useMemo(() => (recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipeCatalog) : recipeCatalog), [recipeCatalog, recipeSearch])
   const recipeBrowserMachineIds = useMemo(() => {
     const query = recipeSearch.trim().toLowerCase()
@@ -2307,10 +2298,6 @@ function App() {
       )
     })
   }, [recipeSearch])
-  const usageRecipes = useMemo(
-    () => (selectedResourceForRecipes ? recipesUsingInput(selectedResourceForRecipes, recipeCatalog) : []),
-    [recipeCatalog, selectedResourceForRecipes],
-  )
   const machineRecipeGroups = useMemo(
     () => recipeBrowserMachineIds.map((machineId): RecipeGroup => ({
       key: `machine:${machineId}`,
@@ -2320,8 +2307,8 @@ function App() {
     [processRecipeCards, recipeBrowserMachineIds],
   )
   const listedRecipeGroups = useMemo(
-    () => terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : terminalMode === 'uses' ? singleRecipeGroups(usageRecipes) : machineRecipeGroups,
-    [machineRecipeGroups, recipeCandidates, terminalMode, usageRecipes],
+    () => terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : machineRecipeGroups,
+    [machineRecipeGroups, recipeCandidates, terminalMode],
   )
   const selectedRecipeGroup = listedRecipeGroups.find((group) => group.key === selectedRecipeGroupKey) ?? listedRecipeGroups[0]
   const clampedSelectedRecipeIndex = selectedRecipeGroup
@@ -2406,10 +2393,6 @@ function App() {
   }, [selectedMachineUid])
 
   useEffect(() => {
-    if (terminalMode === 'uses' && !selectedResourceForRecipes) {
-      setTerminalMode('recipes')
-      return
-    }
     if (listedRecipeGroups.length < 1) {
       if (selectedRecipeGroupKey !== null) setSelectedRecipeGroupKey(null)
       if (selectedRecipeIndex !== 0) setSelectedRecipeIndex(0)
@@ -2421,7 +2404,7 @@ function App() {
       return
     }
     if (selectedRecipeIndex !== clampedSelectedRecipeIndex) setSelectedRecipeIndex(clampedSelectedRecipeIndex)
-  }, [clampedSelectedRecipeIndex, listedRecipeGroups, selectedRecipeGroupKey, selectedRecipeIndex, selectedResourceForRecipes, terminalMode])
+  }, [clampedSelectedRecipeIndex, listedRecipeGroups, selectedRecipeGroupKey, selectedRecipeIndex])
   const selectedMachineMetrics: MachineMetric[] = []
   if (selectedMachine) {
     const process = selectedMachine.process
@@ -4666,7 +4649,7 @@ function App() {
                 <div className="modal-head">
                   <div>
                     <p className="eyebrow">Recipe browser</p>
-                    <h2>{terminalMode === 'recipes' ? 'Recipes' : terminalMode === 'machines' ? 'Machines' : selectedResourceForRecipes ? `Uses: ${resourceLabels[selectedResourceForRecipes]}` : 'Uses'}</h2>
+                    <h2>{terminalMode === 'recipes' ? 'Recipes' : 'Machines'}</h2>
                   </div>
                   <button type="button" className="icon-button" aria-label="Close recipes" onClick={() => setIsRecipeModalOpen(false)}>
                     <X size={18} />
@@ -4684,14 +4667,6 @@ function App() {
                 <div className="mode-tabs" aria-label="Recipe browser mode">
                   <button type="button" className={terminalMode === 'recipes' ? 'active' : ''} onClick={() => setTerminalMode('recipes')}>
                     Recipes
-                  </button>
-                  <button
-                    type="button"
-                    className={terminalMode === 'uses' ? 'active' : ''}
-                    disabled={!selectedResourceForRecipes}
-                    onClick={() => setTerminalMode('uses')}
-                  >
-                    Uses
                   </button>
                   <button type="button" className={terminalMode === 'machines' ? 'active' : ''} onClick={() => setTerminalMode('machines')}>
                     Machines
