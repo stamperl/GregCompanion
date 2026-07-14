@@ -423,6 +423,12 @@ export type MachineAmount = {
   amount: number
 }
 
+export type FluidAmount = {
+  id: FluidId
+  amount: number
+  bufferId?: string
+}
+
 export type Recipe = {
   id: string
   name: string
@@ -440,6 +446,8 @@ export type Recipe = {
   durabilityCosts?: ResourceAmount[]
   machineInputs?: MachineAmount[]
   machineOutputs?: MachineAmount[]
+  fluidInputs?: FluidAmount[]
+  fluidOutputs?: FluidAmount[]
   surveyCardOutput?: GatherTargetId
   requiredMachine?: MachineId
   unlockedBy?: QuestId
@@ -464,20 +472,12 @@ export type ProcessRecipe = {
   secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
   extraInputs?: ResourceAmount[]
-  fluidInput?: {
-    id: FluidId
-    amount: number
-    bufferId?: string
-  }
+  fluidInput?: FluidAmount
   minimumEuStored?: number
   startupEu?: number
   output: ResourceAmount
   machineOutput?: MachineAmount
-  fluidOutput?: {
-    id: FluidId
-    amount: number
-    bufferId?: string
-  }
+  fluidOutput?: FluidAmount
 }
 
 export type Quest = {

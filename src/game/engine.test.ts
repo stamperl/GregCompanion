@@ -4087,6 +4087,27 @@ describe('game engine', () => {
     expect(availableUnplacedMachineCount(state, 'tinCable')).toBe(2)
   })
 
+  it('assembles tin cable from tin wire and liquid rubber', () => {
+    const recipe = processRecipes.find((candidate) => candidate.id === 'lv_assembler_liquid_tin_cable')!
+    expect(recipe.input).toEqual({ id: 'tinWire', amount: 4 })
+    expect(recipe.fluidInput).toEqual({ id: 'liquidRubber', amount: 8 })
+    expect(recipe.output).toEqual({ id: 'tinCable', amount: 4 })
+
+    let state = createFactoryState()
+    state.machines.lvAssembler = 1
+    state = placeMachineInstance(state, 'lvAssembler', 0, 0)
+    const assembler = state.machineInstances[0]
+    assembler.process.input = { id: 'tinWire', amount: 4 }
+    assembler.process.fluids.liquidRubber = 8
+    assembler.process.euStored = recipe.euCost ?? 0
+
+    state = tickGame(state, recipe.durationMs).state
+
+    expect(state.machineInstances[0].process.input).toBeNull()
+    expect(state.machineInstances[0].process.fluids.liquidRubber).toBe(0)
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'tinCable', amount: 4 })
+  })
+
   it('crafts LV backbone components from shaped terminal recipes', () => {
     const expectations = [
       ['file_steel_ring', 'steelRing', ['steelRod'], ['ironFile']],

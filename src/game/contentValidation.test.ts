@@ -20,7 +20,7 @@ import {
   resourceRegistry,
   tools,
 } from './content'
-import type { MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount } from './types'
+import type { FluidAmount, MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount } from './types'
 
 const appCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../App.css'), 'utf8')
 const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../public')
@@ -42,6 +42,14 @@ function expectMachineAmountReferences(amounts: MachineAmount[], context: string
   for (const amount of amounts) {
     expect(machines, `${context} references unknown machine ${amount.id}`).toHaveProperty(amount.id)
     expect(Number.isInteger(amount.amount), `${context} ${amount.id} amount should be an integer`).toBe(true)
+    expect(amount.amount, `${context} ${amount.id} amount should be positive`).toBeGreaterThan(0)
+  }
+}
+
+function expectFluidAmountReferences(amounts: FluidAmount[], context: string) {
+  for (const amount of amounts) {
+    expect(fluidIds, `${context} references unknown fluid ${amount.id}`).toContain(amount.id)
+    expect(Number.isFinite(amount.amount), `${context} ${amount.id} amount should be finite`).toBe(true)
     expect(amount.amount, `${context} ${amount.id} amount should be positive`).toBeGreaterThan(0)
   }
 }
@@ -199,6 +207,8 @@ describe('content validation', () => {
       for (const bucket of recipeReferenceBuckets(recipe)) expectResourceAmountReferences(bucket.amounts, bucket.label)
       expectMachineAmountReferences(recipe.machineInputs ?? [], `${recipe.id} machine inputs`)
       expectMachineAmountReferences(recipe.machineOutputs ?? [], `${recipe.id} machine outputs`)
+      expectFluidAmountReferences(recipe.fluidInputs ?? [], `${recipe.id} fluid inputs`)
+      expectFluidAmountReferences(recipe.fluidOutputs ?? [], `${recipe.id} fluid outputs`)
       if (recipe.requiredMachine) expect(machines, `${recipe.id} requiredMachine should exist`).toHaveProperty(recipe.requiredMachine)
       if (recipe.unlockedBy) expect(quests.some((quest) => quest.id === recipe.unlockedBy), `${recipe.id} unlockedBy should reference a quest`).toBe(true)
       if (recipe.pattern) {
@@ -246,10 +256,8 @@ describe('content validation', () => {
           expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
         }
       }
-      if (recipe.fluidOutput) {
-        expect(recipe.fluidOutput.amount, `${recipe.id} fluid output amount should be positive`).toBeGreaterThan(0)
-        expect(fluidIds, `${recipe.id} fluid output should be known`).toContain(recipe.fluidOutput.id)
-      }
+      if (recipe.fluidInput) expectFluidAmountReferences([recipe.fluidInput], `${recipe.id} fluid input`)
+      if (recipe.fluidOutput) expectFluidAmountReferences([recipe.fluidOutput], `${recipe.id} fluid output`)
     }
   })
 

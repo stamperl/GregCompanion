@@ -2267,7 +2267,9 @@ function App() {
             ...(recipe.extraInputs ?? []),
             ...(recipe.fuelInput ? [recipe.fuelInput] : []),
           ],
+          fluidInputs: recipe.fluidInput ? [recipe.fluidInput] : undefined,
           outputs: [recipe.output],
+          fluidOutputs: recipe.fluidOutput ? [recipe.fluidOutput] : undefined,
           requiredMachine: recipe.machineId,
         }),
       ),
@@ -4842,6 +4844,15 @@ function App() {
                                   </div>
                                 )
                               })}
+                              {selectedRecipe.fluidInputs?.map((amount) => (
+                                <div className="recipe-flow-entry fluid" key={`fluid-${amount.id}`}>
+                                  <span className={`recipe-fluid-icon fluid-${amount.id}`} aria-hidden="true">L</span>
+                                  <span className="recipe-flow-label">
+                                    <span>{fluidLabel(amount.id)}</span>
+                                    <strong>{formatLitres(amount.amount)}L</strong>
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           </div>
 
@@ -4905,6 +4916,15 @@ function App() {
                                   <MachineSlot id={amount.id} amount={amount.amount} />
                                   <span className="recipe-flow-label">
                                     <span>{machines[amount.id].name}</span>
+                                  </span>
+                                </div>
+                              ))}
+                              {selectedRecipe.fluidOutputs?.map((amount) => (
+                                <div className="recipe-flow-entry fluid" key={`fluid-${amount.id}`}>
+                                  <span className={`recipe-fluid-icon fluid-${amount.id}`} aria-hidden="true">L</span>
+                                  <span className="recipe-flow-label">
+                                    <span>{fluidLabel(amount.id)}</span>
+                                    <strong>{formatLitres(amount.amount)}L</strong>
                                   </span>
                                 </div>
                               ))}
