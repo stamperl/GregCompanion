@@ -3149,6 +3149,86 @@ export function insertProcessSlot(state: GameState, uid: string, slotId: Process
   return next
 }
 
+export type ProcessRecipeInputLoadStatus = {
+  canLoad: boolean
+  ready: boolean
+  itemsToLoad: number
+  missingResources: ResourceAmount[]
+  blockedSlots: ProcessSlotId[]
+}
+
+function processRecipeItemAssignments(recipe: ProcessRecipe): Array<{ slotId: ProcessSlotId; amount: ResourceAmount }> {
+  return [
+    { slotId: 'input', amount: recipe.input },
+    ...(recipe.secondaryInput ? [{ slotId: 'secondaryInput' as ProcessSlotId, amount: recipe.secondaryInput }] : []),
+    ...(recipe.extraInputs ?? []).map((amount, index) => ({ slotId: assemblerExtraInputSlotIds[index], amount })),
+    ...(recipe.fuelInput ? [{ slotId: 'fuel' as ProcessSlotId, amount: recipe.fuelInput }] : []),
+  ].filter((assignment): assignment is { slotId: ProcessSlotId; amount: ResourceAmount } => Boolean(assignment.slotId))
+}
+
+export function processRecipeInputLoadStatus(state: GameState, uid: string, recipeId: string): ProcessRecipeInputLoadStatus {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  const recipe = instance
+    ? processRecipes.find((candidate) => candidate.id === recipeId && candidate.machineId === instance.machineId)
+    : undefined
+  if (!instance || !recipe) {
+    return { canLoad: false, ready: false, itemsToLoad: 0, missingResources: [], blockedSlots: [] }
+  }
+
+  const remainingAvailable = new Map<ResourceId, number>()
+  const missingByResource = new Map<ResourceId, number>()
+  const blockedSlots: ProcessSlotId[] = []
+  let itemsToLoad = 0
+
+  for (const { slotId, amount } of processRecipeItemAssignments(recipe)) {
+    const owner = arcProcessSlotOwner(state, instance, slotId)
+    const currentSlot = owner.process[slotId]
+    if ((currentSlot && currentSlot.id !== amount.id) || amount.amount > processStackLimit) {
+      blockedSlots.push(slotId)
+      continue
+    }
+
+    const needed = Math.max(0, amount.amount - (currentSlot?.amount ?? 0))
+    if (needed < 1) continue
+    const available = remainingAvailable.get(amount.id) ?? availableResourceAmount(state, amount.id)
+    const moved = Math.min(needed, available)
+    remainingAvailable.set(amount.id, available - moved)
+    itemsToLoad += needed
+    if (moved < needed) missingByResource.set(amount.id, (missingByResource.get(amount.id) ?? 0) + needed - moved)
+  }
+
+  const missingResources = Array.from(missingByResource, ([id, amount]) => ({ id, amount }))
+  const canLoad = blockedSlots.length === 0 && missingResources.length === 0
+  return {
+    canLoad,
+    ready: canLoad && itemsToLoad === 0,
+    itemsToLoad,
+    missingResources,
+    blockedSlots,
+  }
+}
+
+export function loadProcessRecipeInputs(state: GameState, uid: string, recipeId: string) {
+  const status = processRecipeInputLoadStatus(state, uid, recipeId)
+  if (!status.canLoad || status.ready) return state
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  const recipe = instance
+    ? processRecipes.find((candidate) => candidate.id === recipeId && candidate.machineId === instance.machineId)
+    : undefined
+  if (!instance || !recipe) return state
+
+  let next = state
+  for (const { slotId, amount } of processRecipeItemAssignments(recipe)) {
+    const currentInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+    if (!currentInstance) return state
+    const owner = arcProcessSlotOwner(next, currentInstance, slotId)
+    const currentAmount = owner.process[slotId]?.amount ?? 0
+    const needed = Math.max(0, amount.amount - currentAmount)
+    if (needed > 0) next = insertProcessSlot(next, uid, slotId, amount.id, needed)
+  }
+  return next
+}
+
 export function removeProcessSlot(state: GameState, uid: string, slotId: ProcessSlotId) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (slotId === 'output' && instance && !isItemHopperMachine(instance.machineId)) return collectProcessOutput(state, uid)

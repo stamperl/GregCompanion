@@ -117,6 +117,7 @@ import {
   isLvItemAutomationMachine,
   isResourceDiscovered,
   insertProcessSlot,
+  loadProcessRecipeInputs,
   insertMachineStorageSlot,
   installLvBatteryInBuffer,
   installSurveyCardInAutoMiner,
@@ -136,6 +137,7 @@ import {
   pipeSideMode,
   pipeSideModeLabels,
   processStackLimit,
+  processRecipeInputLoadStatus,
   questProgress,
   questObjectiveProgress,
   questObjectives,
@@ -1925,6 +1927,9 @@ function App() {
   const [offlinePrompt, setOfflinePrompt] = useState('')
   const [migrationPrompt, setMigrationPrompt] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
+  const [isMachineRecipePopupOpen, setIsMachineRecipePopupOpen] = useState(false)
+  const [selectedMachinePopupRecipeIndex, setSelectedMachinePopupRecipeIndex] = useState(0)
+  const [machineRecipeLoadNotice, setMachineRecipeLoadNotice] = useState('')
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
   const [isCreativeMode, setIsCreativeMode] = useState(Boolean(reviewSetup))
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
@@ -2352,7 +2357,16 @@ function App() {
     selectedMachine?.machineId === 'steamTank' ? steamTankFluidCapacityLitresForInstance(state, selectedMachine) || ironTankFluidCapacityLitres : ironTankFluidCapacityLitres
   const selectedPipeConfig = state.machineInstances.find((instance) => instance.uid === selectedPipeConfigUid) ?? null
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
-  const selectedMachineRecipeCount = selectedMachine ? processRecipesForMachine(selectedMachine.machineId, processRecipes).length : 0
+  const selectedMachinePopupRecipes = selectedMachine ? processRecipesForMachine(selectedMachine.machineId, processRecipes) : []
+  const selectedMachineRecipeCount = selectedMachinePopupRecipes.length
+  const clampedMachinePopupRecipeIndex = Math.min(
+    selectedMachinePopupRecipeIndex,
+    Math.max(0, selectedMachinePopupRecipes.length - 1),
+  )
+  const selectedMachinePopupRecipe = selectedMachinePopupRecipes[clampedMachinePopupRecipeIndex]
+  const selectedMachinePopupLoadStatus = selectedMachine && selectedMachinePopupRecipe
+    ? processRecipeInputLoadStatus(state, selectedMachine.uid, selectedMachinePopupRecipe.id)
+    : null
   const selectedMachineSteamCostLitres = selectedMachineRecipe?.steamCostLitres ?? null
   const selectedMachineEuCost = selectedMachineRecipe?.euCost ?? null
   const selectedMachineSteamUsagePerSecond = selectedMachineRecipe && selectedMachineSteamCostLitres !== null
@@ -2395,6 +2409,9 @@ function App() {
   useEffect(() => {
     setMachineTerminalMode('items')
     setSelectedFluidContainerKey(null)
+    setIsMachineRecipePopupOpen(false)
+    setSelectedMachinePopupRecipeIndex(0)
+    setMachineRecipeLoadNotice('')
   }, [selectedMachineUid])
 
   useEffect(() => {
@@ -3564,6 +3581,50 @@ function App() {
     setTerminalNotice(`Showing recipes for ${machines[machineId].name}.`)
   }
 
+  const handleOpenMachineRecipePopup = () => {
+    if (!selectedMachine || selectedMachinePopupRecipes.length < 1) return
+    const activeRecipeIndex = selectedMachine.process.activeRecipeId
+      ? selectedMachinePopupRecipes.findIndex((recipe) => recipe.id === selectedMachine.process.activeRecipeId)
+      : -1
+    setSelectedMachinePopupRecipeIndex(activeRecipeIndex >= 0 ? activeRecipeIndex : 0)
+    setMachineRecipeLoadNotice('')
+    setPendingProcessInsert(null)
+    setIsMachineRecipePopupOpen(true)
+  }
+
+  const handleCycleMachinePopupRecipe = (direction: -1 | 1) => {
+    if (selectedMachinePopupRecipes.length < 2) return
+    setSelectedMachinePopupRecipeIndex((current) => (
+      direction < 0
+        ? current <= 0 ? selectedMachinePopupRecipes.length - 1 : current - 1
+        : (current + 1) % selectedMachinePopupRecipes.length
+    ))
+    setMachineRecipeLoadNotice('')
+  }
+
+  const handleAutoLoadMachineRecipe = () => {
+    if (!selectedMachine || !selectedMachinePopupRecipe || !selectedMachinePopupLoadStatus) return
+    if (!selectedMachinePopupLoadStatus.canLoad) {
+      const missing = selectedMachinePopupLoadStatus.missingResources
+        .map((amount) => `${resourceLabels[amount.id]} x${formatAmount(amount.amount)}`)
+        .join(', ')
+      const blocked = selectedMachinePopupLoadStatus.blockedSlots.join(', ')
+      setMachineRecipeLoadNotice(missing ? `Missing ${missing}.` : `Clear the ${blocked} slot${selectedMachinePopupLoadStatus.blockedSlots.length === 1 ? '' : 's'} first.`)
+      return
+    }
+    if (selectedMachinePopupLoadStatus.ready) {
+      setMachineRecipeLoadNotice('All required items are already loaded.')
+      return
+    }
+
+    setState((current) => loadProcessRecipeInputs(current, selectedMachine.uid, selectedMachinePopupRecipe.id))
+    setMachineRecipeLoadNotice(
+      selectedMachinePopupRecipe.fluidInput
+        ? `Items loaded. Add ${formatLitres(selectedMachinePopupRecipe.fluidInput.amount)}L ${fluidLabels[selectedMachinePopupRecipe.fluidInput.id]} through the fluid input.`
+        : `Loaded items for ${resourceLabels[selectedMachinePopupRecipe.output.id]}.`,
+    )
+  }
+
   const handleOpenMachineOutputPage = (machineId: MachineId) => {
     if (processRecipesForMachine(machineId, processRecipes).length < 1) return
     handleOpenMachineRecipeBrowser(machineId)
@@ -3970,6 +4031,10 @@ function App() {
     }
     if (isRecipeModalOpen) {
       setIsRecipeModalOpen(false)
+      return
+    }
+    if (isMachineRecipePopupOpen) {
+      setIsMachineRecipePopupOpen(false)
       return
     }
     if (selectedMachineUid) {
@@ -5576,6 +5641,7 @@ function App() {
               onClick={() => {
                 setPendingProcessInsert(null)
                 setIsMachineAutomationOpen(false)
+                setIsMachineRecipePopupOpen(false)
                 setSelectedMachineUid(null)
               }}
             >
@@ -5597,7 +5663,8 @@ function App() {
                       type="button"
                       className="machine-recipes-button"
                       aria-label={`Show ${machines[selectedMachine.machineId].name} recipes`}
-                      onClick={() => handleOpenMachineRecipeBrowser(selectedMachine.machineId)}
+                      disabled={selectedMachineRecipeCount < 1}
+                      onClick={handleOpenMachineRecipePopup}
                     >
                       <BookOpen size={14} />
                       <span>Recipes</span>
@@ -5611,6 +5678,7 @@ function App() {
                         setPendingProcessInsert(null)
                         setIsArcStructureOpen(false)
                         setIsMachineAutomationOpen(false)
+                        setIsMachineRecipePopupOpen(false)
                         setSelectedMachineUid(null)
                       }}
                     >
@@ -6481,6 +6549,112 @@ function App() {
                   </p>
                 )}
               </section>
+              {isMachineRecipePopupOpen && selectedMachinePopupRecipe && selectedMachinePopupLoadStatus && (
+                <div
+                  className="machine-recipe-popup-backdrop"
+                  role="presentation"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setIsMachineRecipePopupOpen(false)
+                  }}
+                >
+                  <section
+                    className="machine-recipe-popup"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`${machines[selectedMachine.machineId].name} recipe picker`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="machine-recipe-popup-head">
+                      <div>
+                        <p className="eyebrow">{machines[selectedMachine.machineId].name}</p>
+                        <h2>{resourceLabels[selectedMachinePopupRecipe.output.id]}</h2>
+                      </div>
+                      <button type="button" className="icon-button" aria-label="Close recipe picker" onClick={() => setIsMachineRecipePopupOpen(false)}>
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <div className="machine-recipe-popup-cycle" aria-label="Choose machine recipe">
+                      <button type="button" aria-label="Previous recipe" disabled={selectedMachinePopupRecipes.length < 2} onClick={() => handleCycleMachinePopupRecipe(-1)}>
+                        <ChevronLeft size={18} />
+                      </button>
+                      <div>
+                        <strong>{selectedMachinePopupRecipe.name}</strong>
+                        <span>{clampedMachinePopupRecipeIndex + 1} / {selectedMachinePopupRecipes.length}</span>
+                      </div>
+                      <button type="button" aria-label="Next recipe" disabled={selectedMachinePopupRecipes.length < 2} onClick={() => handleCycleMachinePopupRecipe(1)}>
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+
+                    <div className="machine-recipe-popup-flow">
+                      <div className="machine-recipe-popup-step">
+                        <span>Required items</span>
+                        <div className="machine-recipe-popup-items">
+                          {[
+                            selectedMachinePopupRecipe.input,
+                            ...(selectedMachinePopupRecipe.secondaryInput ? [selectedMachinePopupRecipe.secondaryInput] : []),
+                            ...(selectedMachinePopupRecipe.extraInputs ?? []),
+                            ...(selectedMachinePopupRecipe.fuelInput ? [selectedMachinePopupRecipe.fuelInput] : []),
+                          ].map((amount, index) => (
+                            <ItemSlot
+                              amount={amount}
+                              disabled={availableResourceAmount(state, amount.id) < amount.amount}
+                              state={state}
+                              key={`${amount.id}-${index}`}
+                            />
+                          ))}
+                        </div>
+                        {selectedMachinePopupRecipe.fluidInput && (
+                          <div className="machine-recipe-popup-fluid">
+                            <Droplet size={15} />
+                            <strong>{fluidLabels[selectedMachinePopupRecipe.fluidInput.id]}</strong>
+                            <span>{formatLitres(selectedMachinePopupRecipe.fluidInput.amount)}L</span>
+                          </div>
+                        )}
+                      </div>
+                      <ChevronRight className="machine-recipe-popup-arrow" size={22} aria-hidden="true" />
+                      <div className="machine-recipe-popup-step output">
+                        <span>Output</span>
+                        <ItemSlot amount={selectedMachinePopupRecipe.output} state={state} />
+                        <strong>{resourceLabels[selectedMachinePopupRecipe.output.id]}</strong>
+                      </div>
+                    </div>
+
+                    <div className="machine-recipe-popup-metrics">
+                      <span><Clock size={13} />{formatDuration(selectedMachinePopupRecipe.durationMs)}</span>
+                      {selectedMachinePopupRecipe.steamCostLitres !== undefined && <span>{formatAmount(selectedMachinePopupRecipe.steamCostLitres)}L steam</span>}
+                      {selectedMachinePopupRecipe.euCost !== undefined && <span><Zap size={13} />{formatAmount(selectedMachinePopupRecipe.euCost)} EU</span>}
+                    </div>
+
+                    <p className={`machine-recipe-popup-status ${selectedMachinePopupLoadStatus.ready ? 'ready' : selectedMachinePopupLoadStatus.canLoad ? 'available' : 'blocked'}`} aria-live="polite">
+                      {machineRecipeLoadNotice || (
+                        selectedMachinePopupLoadStatus.ready
+                          ? 'All required items are loaded.'
+                          : selectedMachinePopupLoadStatus.missingResources.length > 0
+                            ? `Missing ${selectedMachinePopupLoadStatus.missingResources.map((amount) => `${resourceLabels[amount.id]} x${formatAmount(amount.amount)}`).join(', ')}.`
+                            : selectedMachinePopupLoadStatus.blockedSlots.length > 0
+                              ? `Clear the ${selectedMachinePopupLoadStatus.blockedSlots.join(', ')} slot${selectedMachinePopupLoadStatus.blockedSlots.length === 1 ? '' : 's'} first.`
+                              : `${formatAmount(selectedMachinePopupLoadStatus.itemsToLoad)} item${selectedMachinePopupLoadStatus.itemsToLoad === 1 ? '' : 's'} ready to load from inventory.`
+                      )}
+                    </p>
+
+                    <button
+                      type="button"
+                      className="machine-recipe-popup-action"
+                      disabled={selectedMachinePopupLoadStatus.ready}
+                      onClick={handleAutoLoadMachineRecipe}
+                    >
+                      {selectedMachinePopupLoadStatus.ready
+                        ? 'Inputs ready'
+                        : selectedMachinePopupLoadStatus.canLoad
+                          ? 'Auto-load items'
+                          : 'Check requirements'}
+                    </button>
+                  </section>
+                </div>
+              )}
             </div>
           )}
         </section>

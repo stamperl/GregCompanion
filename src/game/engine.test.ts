@@ -62,6 +62,7 @@ import {
   isReachGateFormed,
   loadGame,
   loadGameWithOfflineProgress,
+  loadProcessRecipeInputs,
   drainPortableFluidContainer,
   liquidSteamBoilerCapacityMs,
   liquidSteamBoilerFluidCapacityLitres,
@@ -72,6 +73,7 @@ import {
   missingForQuantity,
   missingForRecipe,
   placeMachineInstance,
+  processRecipeInputLoadStatus,
   processStackLimit,
   questKind,
   questObjectiveProgress,
@@ -3484,6 +3486,82 @@ describe('game engine', () => {
 
     expect(rejected).toBe(state)
     expect(accepted.machineInstances[0].process.input).toEqual({ id: 'copperDust', amount: 1 })
+  })
+
+  it('loads every item required by a selected machine recipe', () => {
+    let state = createFactoryState()
+    state.machines.steamAlloySmelter = 1
+    state.resources.copperDust = 2
+    state.resources.tinDust = 1
+    state = placeMachineInstance(state, 'steamAlloySmelter', 0, 0)
+    const alloySmelter = state.machineInstances.find((instance) => instance.machineId === 'steamAlloySmelter')!
+
+    expect(processRecipeInputLoadStatus(state, alloySmelter.uid, 'steam_alloy_bronze')).toMatchObject({
+      canLoad: true,
+      ready: false,
+      itemsToLoad: 3,
+      missingResources: [],
+      blockedSlots: [],
+    })
+
+    state = loadProcessRecipeInputs(state, alloySmelter.uid, 'steam_alloy_bronze')
+    const process = state.machineInstances.find((instance) => instance.uid === alloySmelter.uid)!.process
+    expect(process.input).toEqual({ id: 'copperDust', amount: 2 })
+    expect(process.secondaryInput).toEqual({ id: 'tinDust', amount: 1 })
+    expect(state.resources.copperDust).toBe(0)
+    expect(state.resources.tinDust).toBe(0)
+    expect(processRecipeInputLoadStatus(state, alloySmelter.uid, 'steam_alloy_bronze').ready).toBe(true)
+  })
+
+  it('does not partially load a recipe when an item is missing', () => {
+    let state = createFactoryState()
+    state.machines.steamAlloySmelter = 1
+    state.resources.copperDust = 2
+    state = placeMachineInstance(state, 'steamAlloySmelter', 0, 0)
+    const alloySmelter = state.machineInstances.find((instance) => instance.machineId === 'steamAlloySmelter')!
+    const status = processRecipeInputLoadStatus(state, alloySmelter.uid, 'steam_alloy_bronze')
+
+    expect(status.canLoad).toBe(false)
+    expect(status.missingResources).toEqual([{ id: 'tinDust', amount: 1 }])
+    expect(loadProcessRecipeInputs(state, alloySmelter.uid, 'steam_alloy_bronze')).toBe(state)
+    expect(alloySmelter.process.input).toBeNull()
+    expect(state.resources.copperDust).toBe(2)
+  })
+
+  it('does not replace conflicting contents when loading a recipe', () => {
+    let state = createFactoryState()
+    state.machines.steamAlloySmelter = 1
+    state.resources.copperDust = 2
+    state.resources.tinDust = 1
+    state.resources.copperIngot = 1
+    state = placeMachineInstance(state, 'steamAlloySmelter', 0, 0)
+    const alloySmelter = state.machineInstances.find((instance) => instance.machineId === 'steamAlloySmelter')!
+    state = insertProcessSlot(state, alloySmelter.uid, 'input', 'copperIngot', 1)
+    const status = processRecipeInputLoadStatus(state, alloySmelter.uid, 'steam_alloy_bronze')
+
+    expect(status.canLoad).toBe(false)
+    expect(status.blockedSlots).toEqual(['input'])
+    expect(loadProcessRecipeInputs(state, alloySmelter.uid, 'steam_alloy_bronze')).toBe(state)
+    expect(state.machineInstances.find((instance) => instance.uid === alloySmelter.uid)!.process.input).toEqual({ id: 'copperIngot', amount: 1 })
+  })
+
+  it('loads repeated assembler ingredients into all six item slots', () => {
+    let state = createFactoryState()
+    state.machines.lvAssembler = 1
+    state.resources.woodenBoardBlank = 1
+    state.resources.copperWire = 6
+    state = placeMachineInstance(state, 'lvAssembler', 0, 0)
+    const assembler = state.machineInstances.find((instance) => instance.machineId === 'lvAssembler')!
+
+    state = loadProcessRecipeInputs(state, assembler.uid, 'lv_assembler_printed_circuit_board')
+    const process = state.machineInstances.find((instance) => instance.uid === assembler.uid)!.process
+    expect(process.input).toEqual({ id: 'woodenBoardBlank', amount: 1 })
+    expect(process.secondaryInput).toEqual({ id: 'copperWire', amount: 2 })
+    expect(process.extraInput1).toEqual({ id: 'copperWire', amount: 1 })
+    expect(process.extraInput2).toEqual({ id: 'copperWire', amount: 1 })
+    expect(process.extraInput3).toEqual({ id: 'copperWire', amount: 1 })
+    expect(process.extraInput4).toEqual({ id: 'copperWire', amount: 1 })
+    expect(state.resources.copperWire).toBe(0)
   })
 
   it('defines alloy smelter recipes as ingot outputs only', () => {
