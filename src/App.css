@@ -9833,8 +9833,16 @@ button.craft-output:disabled {
 }
 
 .mode-tabs button {
+  align-items: center;
   border-radius: 0;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  margin: 0;
   min-height: 30px;
+  padding: 0 8px;
+  transform: none;
+  width: 100%;
 }
 
 .mode-tabs button.active {
@@ -10844,10 +10852,16 @@ button.recipe-jump-slot {
     padding: 8px;
   }
 
-  .recipe-search,
-  .mode-tabs {
+  .recipe-search {
     height: 30px;
     min-height: 30px;
+  }
+
+  .mode-tabs {
+    box-sizing: border-box;
+    height: auto;
+    margin: 0;
+    min-height: 34px;
   }
 
   .mode-tabs button {
@@ -11045,10 +11059,14 @@ button.button-primary:disabled,
 .gather-area-tabs button:not(:disabled):active,
 .batch-step-row button:not(:disabled):active,
 .batch-action-row button:not(:disabled):active,
-.compact-actions button:not(:disabled):active,
-.mode-tabs button:not(:disabled):active {
+.compact-actions button:not(:disabled):active {
   box-shadow: none;
   transform: translateY(2px);
+}
+
+.mode-tabs button:not(:disabled):active {
+  box-shadow: none;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
