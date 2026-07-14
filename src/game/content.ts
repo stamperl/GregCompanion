@@ -4542,13 +4542,7 @@ export const processRecipes: ProcessRecipe[] = [
     durationMs: 6000,
     euCost: 72,
     input: { id: 'woodenBoardBlank', amount: 1 },
-    secondaryInput: { id: 'copperWire', amount: 2 },
-    extraInputs: [
-      { id: 'copperWire', amount: 1 },
-      { id: 'copperWire', amount: 1 },
-      { id: 'copperWire', amount: 1 },
-      { id: 'copperWire', amount: 1 },
-    ],
+    secondaryInput: { id: 'copperWire', amount: 6 },
     output: { id: 'basicBoard', amount: 1 },
   },
   {

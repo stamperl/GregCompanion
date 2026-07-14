@@ -3545,7 +3545,7 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === alloySmelter.uid)!.process.input).toEqual({ id: 'copperIngot', amount: 1 })
   })
 
-  it('loads repeated assembler ingredients into all six item slots', () => {
+  it('loads an aggregated assembler ingredient amount without prescribing every bay', () => {
     let state = createFactoryState()
     state.machines.lvAssembler = 1
     state.resources.woodenBoardBlank = 1
@@ -3556,11 +3556,11 @@ describe('game engine', () => {
     state = loadProcessRecipeInputs(state, assembler.uid, 'lv_assembler_printed_circuit_board')
     const process = state.machineInstances.find((instance) => instance.uid === assembler.uid)!.process
     expect(process.input).toEqual({ id: 'woodenBoardBlank', amount: 1 })
-    expect(process.secondaryInput).toEqual({ id: 'copperWire', amount: 2 })
-    expect(process.extraInput1).toEqual({ id: 'copperWire', amount: 1 })
-    expect(process.extraInput2).toEqual({ id: 'copperWire', amount: 1 })
-    expect(process.extraInput3).toEqual({ id: 'copperWire', amount: 1 })
-    expect(process.extraInput4).toEqual({ id: 'copperWire', amount: 1 })
+    expect(process.secondaryInput).toEqual({ id: 'copperWire', amount: 6 })
+    expect(process.extraInput1).toBeNull()
+    expect(process.extraInput2).toBeNull()
+    expect(process.extraInput3).toBeNull()
+    expect(process.extraInput4).toBeNull()
     expect(state.resources.copperWire).toBe(0)
   })
 
@@ -4048,7 +4048,7 @@ describe('game engine', () => {
       ['lv_lathe_glass_tubes', 'lvLathe', { id: 'glass', amount: 1 }, undefined, { id: 'glassTube', amount: 3 }],
       ['lv_assembler_insulated_copper_wire', 'lvAssembler', { id: 'copperWire', amount: 2 }, { id: 'rubber', amount: 1 }, { id: 'conductiveWire', amount: 2 }],
       ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 3 }],
-      ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'basicBoard', amount: 1 }],
+      ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 6 }, { id: 'basicBoard', amount: 1 }],
       ['lv_alloy_cupronickel', 'lvAlloySmelter', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 5 }],
     ] as const
 
@@ -4057,14 +4057,7 @@ describe('game engine', () => {
       expect(recipe?.machineId, id).toBe(machineId)
       expect(recipe?.input, id).toEqual(input)
       expect(recipe?.secondaryInput, id).toEqual(secondaryInput)
-      if (id === 'lv_assembler_printed_circuit_board') {
-        expect(recipe?.extraInputs, id).toEqual([
-          { id: 'copperWire', amount: 1 },
-          { id: 'copperWire', amount: 1 },
-          { id: 'copperWire', amount: 1 },
-          { id: 'copperWire', amount: 1 },
-        ])
-      }
+      if (id === 'lv_assembler_printed_circuit_board') expect(recipe?.extraInputs, id).toBeUndefined()
       expect(recipe?.output, id).toEqual(output)
       expect(recipe?.euCost, id).toBeGreaterThan(0)
     }
