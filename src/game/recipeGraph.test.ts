@@ -20,6 +20,22 @@ describe('machine recipe catalog', () => {
     expect(minimumMachineForProcessRecipe(lvLead, processRecipes, machines)).toBe('lvFurnace')
   })
 
+  it('treats later-tier efficiency improvements as the same operation', () => {
+    const lvCrushedIron = processRecipes.find((recipe) => recipe.id === 'lv_macerate_iron_ore')!
+    const lvIronPlate = processRecipes.find((recipe) => recipe.id === 'lv_hammer_iron_plate')!
+    const lvBoardBlank = processRecipes.find((recipe) => recipe.id === 'lv_compress_wooden_board_blank')!
+
+    expect(minimumMachineForProcessRecipe(lvCrushedIron, processRecipes, machines)).toBe('steamMacerator')
+    expect(minimumMachineForProcessRecipe(lvIronPlate, processRecipes, machines)).toBe('steamForgeHammer')
+    expect(minimumMachineForProcessRecipe(lvBoardBlank, processRecipes, machines)).toBe('steamCompressor')
+  })
+
+  it('finds the earliest machine even when a later machine family performs the operation', () => {
+    const lvBenderIronPlate = processRecipes.find((recipe) => recipe.id === 'lv_bender_iron_plate')!
+
+    expect(minimumMachineForProcessRecipe(lvBenderIronPlate, processRecipes, machines)).toBe('steamForgeHammer')
+  })
+
   it('does not merge recipes that produce the same item from different inputs', () => {
     const lvIronOre = processRecipes.find((recipe) => recipe.id === 'lv_furnace_iron')!
     const lvIronDust = processRecipes.find((recipe) => recipe.id === 'lv_furnace_iron_dust')!

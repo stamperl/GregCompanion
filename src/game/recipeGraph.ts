@@ -7,24 +7,24 @@ const machineTierRank: Record<Tier, number> = {
   lv: 3,
 }
 
-function amountKey(amount: ResourceAmount | undefined) {
-  return amount ? `${amount.id}:${amount.amount}` : '-'
+function resourceKey(amount: ResourceAmount | undefined) {
+  return amount?.id ?? '-'
 }
 
 function machineAmountKey(amount: MachineAmount | undefined) {
-  return amount ? `${amount.id}:${amount.amount}` : '-'
+  return amount?.id ?? '-'
 }
 
 export function processRecipeOperationKey(recipe: ProcessRecipe) {
   return [
-    amountKey(recipe.input),
-    amountKey(recipe.secondaryInput),
-    (recipe.extraInputs ?? []).map(amountKey).join(','),
-    amountKey(recipe.fuelInput),
-    recipe.fluidInput ? `${recipe.fluidInput.id}:${recipe.fluidInput.amount}:${recipe.fluidInput.bufferId ?? '-'}` : '-',
-    amountKey(recipe.output),
+    resourceKey(recipe.input),
+    resourceKey(recipe.secondaryInput),
+    (recipe.extraInputs ?? []).map(resourceKey).join(','),
+    resourceKey(recipe.fuelInput),
+    recipe.fluidInput?.id ?? '-',
+    resourceKey(recipe.output),
     machineAmountKey(recipe.machineOutput),
-    recipe.fluidOutput ? `${recipe.fluidOutput.id}:${recipe.fluidOutput.amount}:${recipe.fluidOutput.bufferId ?? '-'}` : '-',
+    recipe.fluidOutput?.id ?? '-',
   ].join('|')
 }
 
