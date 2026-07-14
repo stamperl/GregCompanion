@@ -1,4 +1,61 @@
-import type { MachineAmount, ProcessRecipe, Recipe, ResourceAmount, ResourceId } from './types'
+import type { MachineAmount, MachineId, MachineSpec, ProcessRecipe, Recipe, ResourceAmount, ResourceId, Tier } from './types'
+
+const machineTierRank: Record<Tier, number> = {
+  manual: 0,
+  bronze: 1,
+  steam: 2,
+  lv: 3,
+}
+
+function amountKey(amount: ResourceAmount | undefined) {
+  return amount ? `${amount.id}:${amount.amount}` : '-'
+}
+
+function machineAmountKey(amount: MachineAmount | undefined) {
+  return amount ? `${amount.id}:${amount.amount}` : '-'
+}
+
+export function processRecipeOperationKey(recipe: ProcessRecipe) {
+  return [
+    amountKey(recipe.input),
+    amountKey(recipe.secondaryInput),
+    (recipe.extraInputs ?? []).map(amountKey).join(','),
+    amountKey(recipe.fuelInput),
+    recipe.fluidInput ? `${recipe.fluidInput.id}:${recipe.fluidInput.amount}:${recipe.fluidInput.bufferId ?? '-'}` : '-',
+    amountKey(recipe.output),
+    machineAmountKey(recipe.machineOutput),
+    recipe.fluidOutput ? `${recipe.fluidOutput.id}:${recipe.fluidOutput.amount}:${recipe.fluidOutput.bufferId ?? '-'}` : '-',
+  ].join('|')
+}
+
+export function equivalentProcessRecipes(recipe: ProcessRecipe, candidates: ProcessRecipe[]) {
+  const operationKey = processRecipeOperationKey(recipe)
+  return candidates.filter((candidate) => processRecipeOperationKey(candidate) === operationKey)
+}
+
+export function processRecipesForMachine(machineId: MachineId, candidates: ProcessRecipe[]) {
+  return candidates.filter((recipe) => recipe.machineId === machineId)
+}
+
+export function processRecipesInMachineTierOrder(candidates: ProcessRecipe[], machineSpecs: Record<MachineId, MachineSpec>) {
+  return [...candidates].sort(
+    (left, right) => machineTierRank[machineSpecs[left.machineId].tier] - machineTierRank[machineSpecs[right.machineId].tier],
+  )
+}
+
+export function minimumMachineForProcessRecipe(
+  recipe: ProcessRecipe,
+  candidates: ProcessRecipe[],
+  machineSpecs: Record<MachineId, MachineSpec>,
+) {
+  return equivalentProcessRecipes(recipe, candidates).reduce(
+    (minimumMachineId, candidate) =>
+      machineTierRank[machineSpecs[candidate.machineId].tier] < machineTierRank[machineSpecs[minimumMachineId].tier]
+        ? candidate.machineId
+        : minimumMachineId,
+    recipe.machineId,
+  )
+}
 
 export function recipeResourceInputs(recipe: Recipe): ResourceAmount[] {
   return [...recipe.inputs, ...(recipe.catalysts ?? []), ...(recipe.durabilityCosts ?? [])]
