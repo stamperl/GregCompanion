@@ -3564,6 +3564,11 @@ function App() {
     setTerminalNotice(`Showing recipes for ${machines[machineId].name}.`)
   }
 
+  const handleOpenMachineOutputPage = (machineId: MachineId) => {
+    if (processRecipesForMachine(machineId, processRecipes).length < 1) return
+    handleOpenMachineRecipeBrowser(machineId)
+  }
+
   const handleCycleRecipeVariant = (direction: -1 | 1) => {
     if (!selectedRecipeGroup || selectedRecipeGroup.recipes.length < 2) return
     const nextIndex =
@@ -4802,7 +4807,11 @@ function App() {
                                 ))}
                                 {selectedRecipe.machineOutputs?.map((amount) => (
                                   <div className="recipe-flow-entry" key={amount.id}>
-                                    <MachineSlot id={amount.id} amount={amount.amount} />
+                                    <MachineSlot
+                                      id={amount.id}
+                                      amount={amount.amount}
+                                      onClick={processRecipesForMachine(amount.id, processRecipes).length > 0 ? handleOpenMachineOutputPage : undefined}
+                                    />
                                     <span className="recipe-flow-label">
                                       <span>{machines[amount.id].name}</span>
                                     </span>
@@ -4948,7 +4957,11 @@ function App() {
                               ))}
                               {selectedRecipe.machineOutputs?.map((amount) => (
                                 <div className="recipe-flow-entry" key={amount.id}>
-                                  <MachineSlot id={amount.id} amount={amount.amount} />
+                                  <MachineSlot
+                                    id={amount.id}
+                                    amount={amount.amount}
+                                    onClick={processRecipesForMachine(amount.id, processRecipes).length > 0 ? handleOpenMachineOutputPage : undefined}
+                                  />
                                   <span className="recipe-flow-label">
                                     <span>{machines[amount.id].name}</span>
                                   </span>
@@ -5031,7 +5044,12 @@ function App() {
                               <ItemSlot amount={amount} state={state} onClick={handleJumpToResourceRecipe} key={amount.id} />
                             ))}
                             {selectedRecipe.machineOutputs?.map((amount) => (
-                              <MachineSlot id={amount.id} amount={amount.amount} key={amount.id} />
+                              <MachineSlot
+                                id={amount.id}
+                                amount={amount.amount}
+                                onClick={processRecipesForMachine(amount.id, processRecipes).length > 0 ? handleOpenMachineOutputPage : undefined}
+                                key={amount.id}
+                              />
                             ))}
                           </div>
                         </div>
