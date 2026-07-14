@@ -1044,7 +1044,7 @@ export function topUpCreativeState(base: GameState, now = Date.now()): GameState
   const resourceIds = Object.keys(initialResources) as ResourceId[]
   const machineIds = Object.keys(initialMachines) as MachineId[]
   const depletedResources = resourceIds.filter((id) => (base.resources[id] ?? 0) < 32)
-  const depletedMachines = machineIds.filter((id) => !machines[id].multiblock && (base.machines[id] ?? 0) < 32)
+  const depletedMachines = machineIds.filter((id) => !isResourceBackedMachine(id) && !machines[id].multiblock && (base.machines[id] ?? 0) < 32)
   const needsFoundation = base.factoryFoundationLevel < maxFactoryFoundationLevel
   const needsCraftedResources = resourceIds.some((id) => !base.craftedResources.includes(id))
 
@@ -1199,7 +1199,10 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     {} as Record<ResourceId, number>,
   )
   state.machines = machineIds.reduce(
-    (builtMachines, id) => ({ ...builtMachines, [id]: machines[id].placeable ? Math.max(32, state.machines[id] ?? 0) : 0 }),
+    (builtMachines, id) => ({
+      ...builtMachines,
+      [id]: isResourceBackedMachine(id) ? 0 : machines[id].placeable ? Math.max(32, state.machines[id] ?? 0) : 0,
+    }),
     {} as Record<MachineId, number>,
   )
 
