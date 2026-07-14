@@ -8498,7 +8498,8 @@ button.craft-output:disabled {
 }
 
 .mini-slot .pixel-icon,
-.mini-slot .machine-glyph {
+.mini-slot .machine-glyph,
+.mini-slot .fluid-icon {
   height: 26px;
   width: 26px;
 }
@@ -9833,7 +9834,8 @@ button.craft-output:disabled {
 }
 
 .recipe-icon-button .pixel-icon,
-.recipe-icon-button .machine-glyph {
+.recipe-icon-button .machine-glyph,
+.recipe-icon-button .fluid-icon {
   height: 28px;
   width: 28px;
 }
@@ -10194,29 +10196,51 @@ button.craft-output:disabled {
   color: #5b2118;
 }
 
-.recipe-fluid-icon {
-  align-items: center;
-  background: #3f82a8;
-  border: 2px solid #183847;
-  border-radius: 50% 50% 54% 46%;
-  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, 0.28), inset -3px -3px 0 rgba(0, 0, 0, 0.22);
-  color: #fff;
+.fluid-icon {
+  aspect-ratio: 1;
+  background-color: var(--fluid-color);
+  border: 2px solid #1d2525;
+  border-radius: 1px;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.22), inset -2px -2px 0 rgba(0, 0, 0, 0.48);
+  display: block;
+  height: 28px;
+  image-rendering: pixelated;
+  overflow: hidden;
+  position: relative;
+  width: 28px;
+}
+
+.fluid-icon::before {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, 0.09) 3px 5px, transparent 5px 8px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 4px, transparent 4px 9px);
+  content: "";
+  inset: 3px;
+  position: absolute;
+}
+
+.fluid-icon::after {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 8px 7px 0 rgba(255, 255, 255, 0.12), 15px 3px 0 rgba(0, 0, 0, 0.22), 3px 15px 0 rgba(0, 0, 0, 0.2);
+  content: "";
+  height: 3px;
+  left: 5px;
+  position: absolute;
+  top: 5px;
+  width: 5px;
+}
+
+.recipe-fluid-slot {
+  background: none;
+  border: 0;
+  cursor: pointer;
   display: grid;
-  font: 950 0.58rem "Courier New", ui-monospace, monospace;
-  height: 30px;
-  justify-items: center;
-  width: 30px;
+  padding: 0;
 }
 
-.recipe-fluid-icon.fluid-creosote {
-  background: #6d3f22;
-  border-color: #2f1b10;
-}
-
-.recipe-fluid-icon.fluid-liquidRubber {
-  background: #111514;
-  border-color: #020303;
-  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, 0.16), inset -3px -3px 0 rgba(0, 0, 0, 0.72);
+.recipe-fluid-slot:focus-visible {
+  outline: 2px solid #fff8aa;
+  outline-offset: 2px;
 }
 
 .recipe-flow-arrow {

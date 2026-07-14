@@ -1,4 +1,4 @@
-import type { MachineId, Recipe, ResourceId } from './types'
+import type { FluidId, MachineId, Recipe, ResourceId } from './types'
 
 export type RecipeGroupOutput =
   | {
@@ -11,6 +11,11 @@ export type RecipeGroupOutput =
       id: MachineId
       amount: number
     }
+  | {
+      kind: 'fluid'
+      id: FluidId
+      amount: number
+    }
 
 export type RecipeGroup = {
   key: string
@@ -19,11 +24,14 @@ export type RecipeGroup = {
 }
 
 export function recipeGroupOutput(recipe: Recipe): RecipeGroupOutput | undefined {
-  const resourceOutput = recipe.outputs[0]
+  const resourceOutput = recipe.outputs.find((amount) => amount.amount > 0)
   if (resourceOutput) return { kind: 'resource', id: resourceOutput.id, amount: resourceOutput.amount }
 
-  const machineOutput = recipe.machineOutputs?.[0]
+  const machineOutput = recipe.machineOutputs?.find((amount) => amount.amount > 0)
   if (machineOutput) return { kind: 'machine', id: machineOutput.id, amount: machineOutput.amount }
+
+  const fluidOutput = recipe.fluidOutputs?.find((amount) => amount.amount > 0)
+  if (fluidOutput) return { kind: 'fluid', id: fluidOutput.id, amount: fluidOutput.amount }
 
   return undefined
 }

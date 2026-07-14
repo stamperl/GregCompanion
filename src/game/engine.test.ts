@@ -12,7 +12,7 @@ import {
   sellItems,
   shopItems,
 } from './content'
-import { processRecipesProducingResource, recipesProducingResource, recipesUsingResource } from './recipeGraph'
+import { processRecipesProducingResource, processRecipeToCatalogRecipe, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableConnectedEu,
@@ -4620,6 +4620,32 @@ describe('game engine', () => {
     expect(groups).toHaveLength(1)
     expect(groups[0].key).toBe('resource:ironIngot')
     expect(groups[0].recipes.map((recipe) => recipe.id)).toEqual(['test_direct_iron', 'test_crushed_iron'])
+  })
+
+  it('separates fluid outputs and assembler machine outputs from zero-amount placeholders', () => {
+    const liquidRubberRecipe = processRecipes.find((recipe) => recipe.id === 'lv_reactor_liquid_rubber')!
+    const cureRubberRecipe = processRecipes.find((recipe) => recipe.id === 'lv_reactor_cure_rubber')!
+    const inputBusRecipe = processRecipes.find((recipe) => recipe.id === 'lv_assemble_input_bus')!
+    const liquidRubberCard = processRecipeToCatalogRecipe(liquidRubberRecipe, 'lv')
+    const cureRubberCard = processRecipeToCatalogRecipe(cureRubberRecipe, 'lv')
+    const inputBusCard = processRecipeToCatalogRecipe(inputBusRecipe, 'lv')
+
+    expect(liquidRubberCard.outputs).toEqual([])
+    expect(liquidRubberCard.fluidOutputs).toEqual([{ id: 'liquidRubber', amount: 8 }])
+    expect(cureRubberCard.outputs).toEqual([{ id: 'rubber', amount: 8 }])
+    expect(inputBusCard.outputs).toEqual([])
+    expect(inputBusCard.machineOutputs).toEqual([{ id: 'lvInputBus', amount: 1 }])
+
+    const groups = groupRecipesByOutput([liquidRubberCard, cureRubberCard, inputBusCard])
+    expect(groups.map((group) => group.key)).toEqual([
+      'fluid:liquidRubber',
+      'resource:rubber',
+      'machine:lvInputBus',
+    ])
+    expect(searchTerminalRecipes('liquid rubber', [liquidRubberCard, cureRubberCard]).map((recipe) => recipe.id)).toEqual([
+      'lv_reactor_liquid_rubber',
+      'lv_reactor_cure_rubber',
+    ])
   })
 
   it('keeps ingredient search matches inside the grouped recipe output', () => {

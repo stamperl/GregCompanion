@@ -37,6 +37,7 @@ import {
 import './App.css'
 import {
   fuelDefinitions,
+  fluidColors,
   fluidIds,
   fluidLabels,
   gatherTargets,
@@ -219,9 +220,10 @@ import {
   recipeGroupOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
-import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder } from './game/recipeGraph'
+import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './game/recipeGraph'
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
+import { FluidIcon } from './components/FluidIcon'
 import { preloadGeneratedIconImages, preloadGeneratedIconLinks } from './components/gameIconAssets'
 import { machineUiChamberSrc, machineUiPanelSrc, machineUiStageSrc, preloadMachineUiAssetLinks, preloadMachineUiImages } from './components/machineUiAssets'
 import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
@@ -303,6 +305,7 @@ type PendingProcessInsert = {
 type RecipeDisplayOutput =
   | { kind: 'resource'; id: ResourceId; amount: number; label: string }
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
+  | { kind: 'fluid'; id: FluidId; amount: number; label: string }
 
 type MachineHmiConfig = {
   kind: string
@@ -399,10 +402,7 @@ function fluidLabel(fluidId: FluidId) {
 }
 
 function fluidVisualColor(fluidId: FluidId | undefined) {
-  if (fluidId === 'water') return '#55c8ec'
-  if (fluidId === 'creosote') return '#a96a20'
-  if (fluidId === 'liquidRubber') return '#111514'
-  return '#73c6b8'
+  return fluidId ? fluidColors[fluidId] : '#73c6b8'
 }
 
 function storedFluids(process: MachineProcessState) {
@@ -1059,7 +1059,8 @@ function recipeOutputLabel(recipe: Recipe) {
   if (recipe.outputs.length > 0) {
     return recipe.outputs.map((amount) => `${amount.amount} ${resourceLabels[amount.id]}`).join(', ')
   }
-  return recipe.machineOutputs?.map((amount) => `${amount.amount} ${machines[amount.id].name}`).join(', ') ?? 'No output'
+  if (recipe.machineOutputs?.length) return recipe.machineOutputs.map((amount) => `${amount.amount} ${machines[amount.id].name}`).join(', ')
+  return recipe.fluidOutputs?.map((amount) => `${formatLitres(amount.amount)}L ${fluidLabel(amount.id)}`).join(', ') ?? 'No output'
 }
 
 function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
@@ -1071,7 +1072,7 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
       label: `${gatherTargets[recipe.surveyCardOutput].name} Survey Card`,
     }
   }
-  const resourceOutput = recipe.outputs[0]
+  const resourceOutput = recipe.outputs.find((amount) => amount.amount > 0)
   if (resourceOutput) {
     return {
       kind: 'resource',
@@ -1081,13 +1082,23 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
     }
   }
 
-  const machineOutput = recipe.machineOutputs?.[0]
+  const machineOutput = recipe.machineOutputs?.find((amount) => amount.amount > 0)
   if (machineOutput) {
     return {
       kind: 'machine',
       id: machineOutput.id,
       amount: machineOutput.amount,
       label: machines[machineOutput.id].name,
+    }
+  }
+
+  const fluidOutput = recipe.fluidOutputs?.find((amount) => amount.amount > 0)
+  if (fluidOutput) {
+    return {
+      kind: 'fluid',
+      id: fluidOutput.id,
+      amount: fluidOutput.amount,
+      label: fluidLabel(fluidOutput.id),
     }
   }
 
@@ -1192,12 +1203,31 @@ function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
     }
   }
 
+  if (output.kind === 'fluid') {
+    return {
+      kind: 'fluid',
+      id: output.id,
+      amount: output.amount,
+      label: fluidLabel(output.id),
+    }
+  }
+
   return {
     kind: 'machine',
     id: output.id,
     amount: output.amount,
     label: machines[output.id].name,
   }
+}
+
+function RecipeDisplayIcon({ output }: { output: RecipeDisplayOutput }) {
+  if (output.kind === 'resource') return <PixelIcon id={output.id} />
+  if (output.kind === 'machine') return <MachineGlyph id={output.id} />
+  return <FluidIcon id={output.id} />
+}
+
+function recipeDisplayAmount(output: RecipeDisplayOutput) {
+  return output.kind === 'fluid' ? `${formatLitres(output.amount)}L` : formatAmount(output.amount)
 }
 
 function missingLine(state: GameState, recipe: Recipe) {
@@ -2519,27 +2549,10 @@ function App() {
   const processRecipeCards = useMemo(
     () =>
       processRecipesInMachineTierOrder(processRecipes, machines).map(
-        (recipe): Recipe => ({
-          id: recipe.id,
-          name: recipe.name,
-          description: recipe.description,
-          tier: recipe.tier,
-          stationType: isEuPoweredMachine(recipe.machineId) ? 'lv' : recipe.machineId === 'furnace' ? 'furnace' : 'steam',
-          recipeType: 'processing',
-          durationMs: recipe.durationMs,
-          steamCostLitres: recipe.steamCostLitres,
-          euCost: recipe.euCost,
-          inputs: [
-            recipe.input,
-            ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
-            ...(recipe.extraInputs ?? []),
-            ...(recipe.fuelInput ? [recipe.fuelInput] : []),
-          ],
-          fluidInputs: recipe.fluidInput ? [recipe.fluidInput] : undefined,
-          outputs: [recipe.output],
-          fluidOutputs: recipe.fluidOutput ? [recipe.fluidOutput] : undefined,
-          requiredMachine: recipe.machineId,
-        }),
+        (recipe) => processRecipeToCatalogRecipe(
+          recipe,
+          isEuPoweredMachine(recipe.machineId) ? 'lv' : recipe.machineId === 'furnace' ? 'furnace' : 'steam',
+        ),
       ),
     [],
   )
@@ -2571,7 +2584,11 @@ function App() {
       if (!query) return true
       if (machineId.toLowerCase().includes(query) || machines[machineId].name.toLowerCase().includes(query)) return true
       return machineRecipes.some(
-        (recipe) => recipe.name.toLowerCase().includes(query) || resourceLabels[recipe.output.id].toLowerCase().includes(query),
+        (recipe) =>
+          recipe.name.toLowerCase().includes(query) ||
+          (recipe.output.amount > 0 && resourceLabels[recipe.output.id].toLowerCase().includes(query)) ||
+          (recipe.machineOutput && machines[recipe.machineOutput.id].name.toLowerCase().includes(query)) ||
+          (recipe.fluidOutput && fluidLabel(recipe.fluidOutput.id).toLowerCase().includes(query)),
       )
     })
   }, [recipeSearch])
@@ -3991,6 +4008,28 @@ function App() {
     setTerminalNotice(`Showing recipes for ${resourceLabels[resourceId]}.`)
   }
 
+  const handleJumpToFluidRecipe = (fluidId: FluidId) => {
+    const targetOutput = { kind: 'fluid' as const, id: fluidId, amount: 1 }
+    const targetKey = recipeGroupKeyForOutput(targetOutput)
+    const targetGroup = groupRecipesByOutput(recipeCatalog).find((group) => group.key === targetKey)
+    if (!targetGroup) {
+      setTerminalNotice(`No production recipe found for ${fluidLabel(fluidId)}.`)
+      return
+    }
+
+    pushNavigationSnapshot()
+    setTerminalMode('recipes')
+    setRecipeSearch('')
+    setPage('terminal')
+    setIsRecipeModalOpen(true)
+    setIsFactoryExpandModalOpen(false)
+    setMissingBatch(null)
+    setSelectedMachineUid(null)
+    setSelectedQuestId(null)
+    handleSelectRecipeGroup(targetKey)
+    setTerminalNotice(`Showing recipes for ${fluidLabel(fluidId)}.`)
+  }
+
   const handleJumpToMachineRecipe = (machineId: MachineId) => {
     const targetOutput = { kind: 'machine' as const, id: machineId, amount: 1 }
     const targetKey = recipeGroupKeyForOutput(targetOutput)
@@ -4952,17 +4991,17 @@ function App() {
                   onClick={handleCraftFromGrid}
                 >
                   {terminalOutput ? (
-                    terminalOutput.kind === 'resource' ? (
-                      <PixelIcon id={terminalOutput.id} />
-                    ) : (
+                    terminalOutput.kind === 'machine' ? (
                       <span className="output-machine-glyph">
                         <MachineGlyph id={terminalOutput.id} />
                       </span>
+                    ) : (
+                      <RecipeDisplayIcon output={terminalOutput} />
                     )
                   ) : (
                     <span className="empty-output" />
                   )}
-                  {terminalOutput && <span className="item-count output-count">{formatAmount(terminalOutput.amount)}</span>}
+                  {terminalOutput && <span className="item-count output-count">{recipeDisplayAmount(terminalOutput)}</span>}
                 </button>
               </div>
             </div>
@@ -5127,8 +5166,8 @@ function App() {
                         onClick={() => handleSelectRecipeGroup(group.key, true)}
                         key={group.key}
                       >
-                        {output.kind === 'resource' ? <PixelIcon id={output.id} /> : <MachineGlyph id={output.id} />}
-                        <span className="item-count">{formatAmount(output.amount)}</span>
+                        <RecipeDisplayIcon output={output} />
+                        <span className="item-count">{recipeDisplayAmount(output)}</span>
                         {(terminalMode === 'machines' || group.recipes.length > 1) && <span className="recipe-count-badge">{group.recipes.length}</span>}
                       </button>
                     )
@@ -5167,12 +5206,8 @@ function App() {
                             </div>
                           )}
                           <span className={selectedRecipeLockedLine || selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
-                            {selectedRecipeOutput.kind === 'resource' ? (
-                              <PixelIcon id={selectedRecipeOutput.id} />
-                            ) : (
-                              <MachineGlyph id={selectedRecipeOutput.id} />
-                            )}
-                            <span className="item-count">{formatAmount(selectedRecipeOutput.amount)}</span>
+                            <RecipeDisplayIcon output={selectedRecipeOutput} />
+                            <span className="item-count">{recipeDisplayAmount(selectedRecipeOutput)}</span>
                           </span>
                         </div>
                       </div>
@@ -5306,7 +5341,14 @@ function App() {
                               })}
                               {selectedRecipe.fluidInputs?.map((amount) => (
                                 <div className="recipe-flow-entry fluid" key={`fluid-${amount.id}`}>
-                                  <span className={`recipe-fluid-icon fluid-${amount.id}`} aria-hidden="true">L</span>
+                                  <button
+                                    type="button"
+                                    className="recipe-fluid-slot"
+                                    aria-label={`Show recipes for ${fluidLabel(amount.id)}`}
+                                    onClick={() => handleJumpToFluidRecipe(amount.id)}
+                                  >
+                                    <FluidIcon id={amount.id} />
+                                  </button>
                                   <span className="recipe-flow-label">
                                     <span>{fluidLabel(amount.id)}</span>
                                     <strong>{formatLitres(amount.amount)}L</strong>
@@ -5385,7 +5427,14 @@ function App() {
                               ))}
                               {selectedRecipe.fluidOutputs?.map((amount) => (
                                 <div className="recipe-flow-entry fluid" key={`fluid-${amount.id}`}>
-                                  <span className={`recipe-fluid-icon fluid-${amount.id}`} aria-hidden="true">L</span>
+                                  <button
+                                    type="button"
+                                    className="recipe-fluid-slot"
+                                    aria-label={`Show recipes for ${fluidLabel(amount.id)}`}
+                                    onClick={() => handleJumpToFluidRecipe(amount.id)}
+                                  >
+                                    <FluidIcon id={amount.id} />
+                                  </button>
                                   <span className="recipe-flow-label">
                                     <span>{fluidLabel(amount.id)}</span>
                                     <strong>{formatLitres(amount.amount)}L</strong>

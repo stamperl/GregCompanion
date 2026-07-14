@@ -1,6 +1,7 @@
 import {
   createInitialState,
   fuelDefinitions,
+  fluidLabels,
   fluidIds,
   gatherTargets,
   initialEquipment,
@@ -1550,6 +1551,10 @@ export function searchTerminalRecipes(query: string, candidates = recipes) {
       const machine = machines[amount.id]
       return amount.id.toLowerCase().includes(normalized) || machine.name.toLowerCase().includes(normalized)
     })
+    const fluidMatches = [...(recipe.fluidInputs ?? []), ...(recipe.fluidOutputs ?? [])].some((amount) => {
+      const label = fluidLabels[amount.id].toLowerCase()
+      return amount.id.toLowerCase().includes(normalized) || label.includes(normalized)
+    })
     const fuelMatches =
       recipe.stationType === 'furnace' &&
       Object.values(fuelDefinitions).some((fuel) => {
@@ -1562,6 +1567,7 @@ export function searchTerminalRecipes(query: string, candidates = recipes) {
       recipe.description.toLowerCase().includes(normalized) ||
       resourceMatches ||
       machineMatches ||
+      fluidMatches ||
       fuelMatches
     )
   })

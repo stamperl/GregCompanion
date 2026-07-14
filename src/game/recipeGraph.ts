@@ -43,6 +43,31 @@ export function processRecipesInMachineTierOrder(candidates: ProcessRecipe[], ma
   )
 }
 
+export function processRecipeToCatalogRecipe(recipe: ProcessRecipe, stationType: Recipe['stationType']): Recipe {
+  return {
+    id: recipe.id,
+    name: recipe.name,
+    description: recipe.description,
+    tier: recipe.tier,
+    stationType,
+    recipeType: 'processing',
+    durationMs: recipe.durationMs,
+    steamCostLitres: recipe.steamCostLitres,
+    euCost: recipe.euCost,
+    inputs: [
+      recipe.input,
+      ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
+      ...(recipe.extraInputs ?? []),
+      ...(recipe.fuelInput ? [recipe.fuelInput] : []),
+    ],
+    fluidInputs: recipe.fluidInput ? [recipe.fluidInput] : undefined,
+    outputs: recipe.output.amount > 0 ? [recipe.output] : [],
+    machineOutputs: recipe.machineOutput ? [recipe.machineOutput] : undefined,
+    fluidOutputs: recipe.fluidOutput ? [recipe.fluidOutput] : undefined,
+    requiredMachine: recipe.machineId,
+  }
+}
+
 export function minimumMachineForProcessRecipe(
   recipe: ProcessRecipe,
   candidates: ProcessRecipe[],

@@ -84,7 +84,7 @@ export const resourceRegistry = {
   sand: { id: 'sand', label: 'Silica Sand', category: 'raw', tier: 'bronze' },
   rubberSap: { id: 'rubberSap', label: 'Sticky Resin', category: 'raw', tier: 'steam' },
   pipeSealant: { id: 'pipeSealant', label: 'Pipe Sealant', category: 'component', tier: 'steam' },
-  rubber: { id: 'rubber', label: 'Rubber', category: 'component', tier: 'steam' },
+  rubber: { id: 'rubber', label: 'Rubber Bar', category: 'component', tier: 'steam' },
   water: { id: 'water', label: 'Water', category: 'fluid', tier: 'steam' },
   ironPlate: { id: 'ironPlate', label: 'Iron Plate', category: 'plate', tier: 'bronze' },
   copperPlate: { id: 'copperPlate', label: 'Copper Plate', category: 'plate', tier: 'bronze' },
@@ -165,13 +165,14 @@ export const resourceLabels: Record<ResourceId, string> = Object.fromEntries(
 ) as Record<ResourceId, string>
 
 export const fluidRegistry = {
-  water: { id: 'water', label: 'Water' },
-  creosote: { id: 'creosote', label: 'Creosote' },
-  liquidRubber: { id: 'liquidRubber', label: 'Liquid Rubber' },
-} satisfies Record<FluidId, { id: FluidId; label: string }>
+  water: { id: 'water', label: 'Water', color: '#55c8ec' },
+  creosote: { id: 'creosote', label: 'Creosote', color: '#a96a20' },
+  liquidRubber: { id: 'liquidRubber', label: 'Liquid Rubber', color: '#111514' },
+} satisfies Record<FluidId, { id: FluidId; label: string; color: string }>
 
 export const fluidIds = Object.keys(fluidRegistry) as FluidId[]
 export const fluidLabels = Object.fromEntries(Object.entries(fluidRegistry).map(([id, spec]) => [id, spec.label])) as Record<FluidId, string>
+export const fluidColors = Object.fromEntries(Object.entries(fluidRegistry).map(([id, spec]) => [id, spec.color])) as Record<FluidId, string>
 
 export const tools: Record<ToolId, Tool> = {
   bareHand: {
@@ -3458,8 +3459,8 @@ export const processRecipes: ProcessRecipe[] = [
   },
   {
     id: 'steam_extract_rubber',
-    name: 'Steam Extract Rubber',
-    description: 'Extract useful rubber from sticky resin.',
+    name: 'Steam Extract Rubber Bars',
+    description: 'Press sticky resin into solid rubber bars.',
     tier: 'steam',
     machineId: 'steamExtractor',
     durationMs: 5000,
@@ -3945,8 +3946,8 @@ export const processRecipes: ProcessRecipe[] = [
   },
   {
     id: 'lv_extract_rubber',
-    name: 'LV Extract Rubber',
-    description: 'Extract more useful rubber from sticky resin with electric rollers.',
+    name: 'LV Extract Rubber Bars',
+    description: 'Press more solid rubber bars from sticky resin with electric rollers.',
     tier: 'lv',
     machineId: 'lvExtractor',
     durationMs: 4000,
@@ -4698,8 +4699,8 @@ export const processRecipes: ProcessRecipe[] = [
   },
   {
     id: 'lv_reactor_cure_rubber',
-    name: 'Cure Liquid Rubber',
-    description: 'Cross-link a measured liquid-rubber batch with sulfur into solid industrial rubber.',
+    name: 'Cure Liquid Rubber into Bars',
+    description: 'Cross-link a measured liquid-rubber batch with sulfur into solid rubber bars.',
     tier: 'lv',
     machineId: 'lvChemicalReactor',
     durationMs: 8000,
@@ -5414,8 +5415,8 @@ export const quests: Quest[] = [
     id: 'extractRubberQuest',
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
-    title: 'Extract rubber',
-    description: 'Steam-extract a working reserve of rubber. Cables, pumps, conveyors, batteries, and insulated circuit wire will consume it throughout LV.',
+    title: 'Extract rubber bars',
+    description: 'Steam-extract a working reserve of rubber bars. Cables, pumps, conveyors, batteries, and insulated circuit wire will consume them throughout LV.',
     position: { x: 430, y: 20 },
     icon: { type: 'resource', id: 'rubber' },
     prerequisites: ['cutRedAlloyWireQuest'],
@@ -6223,7 +6224,7 @@ export const quests: Quest[] = [
     id: 'insulateWithLiquidRubberQuest',
     chapterId: 'shatteredReach',
     chapter: 'Shattered Reach',
-    title: 'Feed rubber into assembly',
+    title: 'Feed liquid rubber into assembly',
     description: 'Pipe or cell liquid rubber into an LV Assembler and complete one cable recipe through the new lower-waste route.',
     position: { x: 1370, y: 80 },
     icon: { type: 'machine', id: 'tinCable' },
@@ -6235,8 +6236,8 @@ export const quests: Quest[] = [
     id: 'cureLiquidRubberQuest',
     chapterId: 'shatteredReach',
     chapter: 'Shattered Reach',
-    title: 'Close the rubber loop',
-    description: 'Return liquid rubber to the reactor with sulfur to cure eight solid Rubber when components need sheet stock instead of fluid.',
+    title: 'Cure rubber bars',
+    description: 'Return liquid rubber to the reactor with sulfur to cure eight solid Rubber Bars when components need solid stock instead of fluid.',
     position: { x: 1370, y: 200 },
     icon: { type: 'resource', id: 'rubber' },
     prerequisites: ['makeLiquidRubberQuest'],
