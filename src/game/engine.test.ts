@@ -4090,7 +4090,7 @@ describe('game engine', () => {
   it('assembles tin cable from tin wire and liquid rubber', () => {
     const recipe = processRecipes.find((candidate) => candidate.id === 'lv_assembler_liquid_tin_cable')!
     expect(recipe.input).toEqual({ id: 'tinWire', amount: 4 })
-    expect(recipe.fluidInput).toEqual({ id: 'liquidRubber', amount: 8 })
+    expect(recipe.fluidInput).toEqual({ id: 'liquidRubber', amount: 4 })
     expect(recipe.output).toEqual({ id: 'tinCable', amount: 4 })
 
     let state = createFactoryState()
@@ -4098,7 +4098,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'lvAssembler', 0, 0)
     const assembler = state.machineInstances[0]
     assembler.process.input = { id: 'tinWire', amount: 4 }
-    assembler.process.fluids.liquidRubber = 8
+    assembler.process.fluids.liquidRubber = 4
     assembler.process.euStored = recipe.euCost ?? 0
 
     state = tickGame(state, recipe.durationMs).state
@@ -4106,6 +4106,20 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.input).toBeNull()
     expect(state.machineInstances[0].process.fluids.liquidRubber).toBe(0)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'tinCable', amount: 4 })
+  })
+
+  it('uses liquid rubber efficiently across the tin cable assembler recipes', () => {
+    const expectedFluidCosts = {
+      lv_assembler_liquid_tin_cable: 4,
+      lv_assembler_liquid_tin_cable_2a: 3,
+      lv_assembler_liquid_tin_cable_4a: 3,
+      lv_assembler_liquid_tin_cable_8a: 2,
+    }
+
+    for (const [recipeId, amount] of Object.entries(expectedFluidCosts)) {
+      const recipe = processRecipes.find((candidate) => candidate.id === recipeId)
+      expect(recipe?.fluidInput).toEqual({ id: 'liquidRubber', amount })
+    }
   })
 
   it('crafts LV backbone components from shaped terminal recipes', () => {

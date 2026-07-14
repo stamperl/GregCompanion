@@ -4715,10 +4715,10 @@ export const processRecipes: ProcessRecipe[] = [
     output: { id: 'rubber', amount: 8 },
   },
   ...([
-    ['lv_assembler_liquid_tin_cable', 'Insulate 1A Tin Cable', 'tinWire', 4, 'tinCable', 4, 8],
-    ['lv_assembler_liquid_tin_cable_2a', 'Insulate 2A Tin Cable', 'tinCable', 3, 'tinCable2A', 3, 8],
-    ['lv_assembler_liquid_tin_cable_4a', 'Insulate 4A Tin Cable', 'tinCable2A', 3, 'tinCable4A', 3, 8],
-    ['lv_assembler_liquid_tin_cable_8a', 'Insulate 8A Tin Cable', 'tinCable4A', 6, 'tinCable8A', 3, 8],
+    ['lv_assembler_liquid_tin_cable', 'Insulate 1A Tin Cable', 'tinWire', 4, 'tinCable', 4, 4],
+    ['lv_assembler_liquid_tin_cable_2a', 'Insulate 2A Tin Cable', 'tinCable', 3, 'tinCable2A', 3, 3],
+    ['lv_assembler_liquid_tin_cable_4a', 'Insulate 4A Tin Cable', 'tinCable2A', 3, 'tinCable4A', 3, 3],
+    ['lv_assembler_liquid_tin_cable_8a', 'Insulate 8A Tin Cable', 'tinCable4A', 6, 'tinCable8A', 3, 2],
   ] as const).map(([id, name, inputId, inputAmount, outputId, outputAmount, fluidAmount]): ProcessRecipe => ({
     id,
     name,
