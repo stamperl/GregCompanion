@@ -10261,8 +10261,9 @@ button.craft-output:disabled {
 }
 
 .recipe-fluid-icon.fluid-liquidRubber {
-  background: #c58a2e;
-  border-color: #563817;
+  background: #111514;
+  border-color: #020303;
+  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, 0.16), inset -3px -3px 0 rgba(0, 0, 0, 0.72);
 }
 
 .recipe-flow-arrow {
@@ -12243,6 +12244,18 @@ button.button-primary:disabled,
 
 .machine-recipe-popup-fluid span {
   margin-left: auto;
+}
+
+.machine-recipe-popup-fluid.fluid-liquidRubber {
+  background: #111514;
+  border-color: #020303;
+  color: #f1f4f2;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.12), inset -2px -2px 0 rgba(0, 0, 0, 0.62);
+}
+
+.machine-recipe-popup-fluid.fluid-liquidRubber svg {
+  color: #818a87;
+  fill: #050606;
 }
 
 .machine-recipe-popup-arrow {

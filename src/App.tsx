@@ -3581,6 +3581,14 @@ function App() {
     setTerminalNotice(`Showing recipes for ${machines[machineId].name}.`)
   }
 
+  const handleOpenRecipeBrowser = () => {
+    setTerminalMode('recipes')
+    setRecipeSearch('')
+    setSelectedRecipeGroupKey(null)
+    setSelectedRecipeIndex(0)
+    setIsRecipeModalOpen(true)
+  }
+
   const handleOpenMachineRecipePopup = () => {
     if (!selectedMachine || selectedMachinePopupRecipes.length < 1) return
     const activeRecipeIndex = selectedMachine.process.activeRecipeId
@@ -4585,7 +4593,7 @@ function App() {
                   </button>
                 ))}
               </div>
-              <button type="button" className="recipe-open-button" onClick={() => setIsRecipeModalOpen(true)}>
+              <button type="button" className="recipe-open-button" onClick={handleOpenRecipeBrowser}>
                 <BookOpen size={16} />
                 Recipes
               </button>
@@ -6607,7 +6615,7 @@ function App() {
                           ))}
                         </div>
                         {selectedMachinePopupRecipe.fluidInput && (
-                          <div className="machine-recipe-popup-fluid">
+                          <div className={`machine-recipe-popup-fluid fluid-${selectedMachinePopupRecipe.fluidInput.id}`}>
                             <Droplet size={15} />
                             <strong>{fluidLabels[selectedMachinePopupRecipe.fluidInput.id]}</strong>
                             <span>{formatLitres(selectedMachinePopupRecipe.fluidInput.amount)}L</span>
