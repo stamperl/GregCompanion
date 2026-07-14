@@ -9904,6 +9904,16 @@ button.craft-output:disabled {
   opacity: 1;
 }
 
+.recipe-icon-button.machine-off-floor .machine-glyph {
+  filter: grayscale(0.85) saturate(0.25);
+  opacity: 0.38;
+}
+
+.recipe-icon-button.machine-on-floor .machine-glyph {
+  filter: none;
+  opacity: 1;
+}
+
 .recipe-count-badge {
   align-items: center;
   background: #3f3f3f;
@@ -9931,34 +9941,6 @@ button.craft-output:disabled {
   min-width: 0;
   overflow: auto;
   padding: 7px;
-}
-
-.machine-recipe-empty {
-  align-content: center;
-  grid-template-columns: 52px minmax(0, 1fr);
-  min-height: 150px;
-}
-
-.machine-recipe-empty > .machine-glyph {
-  height: 48px;
-  width: 48px;
-}
-
-.machine-recipe-empty > div {
-  display: grid;
-  gap: 3px;
-}
-
-.machine-recipe-empty h3,
-.machine-recipe-empty p {
-  margin: 0;
-}
-
-.machine-recipe-empty span {
-  color: #505050;
-  font-size: 0.64rem;
-  font-weight: 800;
-  line-height: 1.25;
 }
 
 .recipe-detail-head {

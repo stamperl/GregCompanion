@@ -2291,9 +2291,11 @@ function App() {
   const recipeBrowserMachineIds = useMemo(() => {
     const query = recipeSearch.trim().toLowerCase()
     return machineOrder.filter((machineId) => {
+      const machineRecipes = processRecipesForMachine(machineId, processRecipes)
+      if (machineRecipes.length < 1) return false
       if (!query) return true
       if (machineId.toLowerCase().includes(query) || machines[machineId].name.toLowerCase().includes(query)) return true
-      return processRecipesForMachine(machineId, processRecipes).some(
+      return machineRecipes.some(
         (recipe) => recipe.name.toLowerCase().includes(query) || resourceLabels[recipe.output.id].toLowerCase().includes(query),
       )
     })
@@ -4679,18 +4681,20 @@ function App() {
                     const output = terminalMode === 'machines' && group.output.kind === 'machine'
                       ? { ...group.output, label: machines[group.output.id].name }
                       : recipeGroupDisplayOutput(group)
-                    const locked = group.recipes.length > 0 && group.recipes.every((recipe) => lockedLine(state, recipe))
-                    const missing = group.recipes.length > 0 && !locked && group.recipes.every((recipe) => missingLine(state, recipe))
+                    const isMachineResult = terminalMode === 'machines' && output.kind === 'machine'
+                    const machineIsOnFloor = isMachineResult && state.machineInstances.some((instance) => instance.machineId === output.id)
+                    const locked = !isMachineResult && group.recipes.every((recipe) => lockedLine(state, recipe))
+                    const missing = !isMachineResult && !locked && group.recipes.every((recipe) => missingLine(state, recipe))
                     return (
                       <button
                         type="button"
                         className={[
                           'recipe-icon-button',
                           group.key === selectedRecipeGroup?.key ? 'selected' : '',
-                          locked ? 'locked' : missing ? 'missing' : 'ready',
+                          isMachineResult ? machineIsOnFloor ? 'machine-on-floor' : 'machine-off-floor' : locked ? 'locked' : missing ? 'missing' : 'ready',
                         ].join(' ')}
-                        aria-label={output.label}
-                        title={recipeGroupDisplayOutput(group).label}
+                        aria-label={isMachineResult ? `${output.label}, ${machineIsOnFloor ? 'on factory floor' : 'not on factory floor'}` : output.label}
+                        title={isMachineResult ? `${output.label} · ${machineIsOnFloor ? 'On factory floor' : 'Not on factory floor'}` : recipeGroupDisplayOutput(group).label}
                         onClick={() => handleSelectRecipeGroup(group.key, true)}
                         key={group.key}
                       >
@@ -5044,16 +5048,6 @@ function App() {
                       )}
 
                       {selectedRecipeLockedLine && <p className="missing-line recipe-detail-warning">Locked: {selectedRecipeLockedLine}</p>}
-                    </aside>
-                  )}
-                  {terminalMode === 'machines' && selectedRecipeGroup && !selectedRecipe && selectedRecipeGroup.output.kind === 'machine' && (
-                    <aside className="recipe-detail machine-recipe-empty" aria-label={`${machines[selectedRecipeGroup.output.id].name} recipe details`}>
-                      <MachineGlyph id={selectedRecipeGroup.output.id} />
-                      <div>
-                        <p className="eyebrow">{machines[selectedRecipeGroup.output.id].tier} machine</p>
-                        <h3>{machines[selectedRecipeGroup.output.id].name}</h3>
-                        <span>This utility or transport machine has no item-processing recipes.</span>
-                      </div>
                     </aside>
                   )}
                 </div>
