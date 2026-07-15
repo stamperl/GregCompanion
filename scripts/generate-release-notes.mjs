@@ -62,31 +62,11 @@ function chromePath() {
 }
 
 function htmlFor(manifest, pdfName) {
-  const notes = manifest.notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('\n')
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Click Foundry r${escapeHtml(manifest.revision)} Patch Notes</title>
-    <style>
-      @page { size: A4; margin: 14mm; }
-      * { box-sizing: border-box; }
-      body { margin: 0; color: #2c2419; background: #c9bc95; font-family: Georgia, "Times New Roman", serif; font-size: 13px; line-height: 1.48; }
-      .page { min-height: 100vh; padding: 24px; border: 5px solid #2f271c; outline: 2px solid #efe7c6; background: linear-gradient(90deg, rgba(255,255,255,.12), transparent 18%, transparent 82%, rgba(0,0,0,.08)), #c7b98e; }
-      .hero { display: grid; grid-template-columns: 96px 1fr; gap: 18px; align-items: center; padding-bottom: 16px; border-bottom: 4px solid #4a3924; }
-      .logo { width: 96px; height: 96px; image-rendering: pixelated; border: 3px solid #4a3924; background: #b4a57e; }
-      .eyebrow { margin: 0 0 4px; color: #a95e25; font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-      h1, h2 { margin: 0; font-family: Arial, sans-serif; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
-      h1 { font-size: 28px; line-height: 1; }
-      .subtitle { margin: 8px 0 0; max-width: 650px; font-size: 14px; font-weight: 700; }
-      section { break-inside: avoid; margin-top: 16px; padding: 14px; border: 2px solid #6d6041; background: rgba(239,231,198,.45); }
-      h2 { margin-bottom: 8px; color: #3b3123; font-size: 15px; }
-      ul { margin: 0; padding-left: 20px; }
-      li { margin: 7px 0; }
-      .footer { margin-top: 18px; padding-top: 10px; border-top: 3px solid #4a3924; color: #55452f; font-family: Arial, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
-    </style>
-  </head>
-  <body>
+  const notePages = []
+  for (let index = 0; index < manifest.notes.length; index += 8) {
+    notePages.push(manifest.notes.slice(index, index + 8))
+  }
+  const pages = notePages.map((notes, pageIndex) => `
     <main class="page">
       <header class="hero">
         <img class="logo" src="assets/click-foundry-logo-512.png" alt="Click Foundry logo">
@@ -97,13 +77,39 @@ function htmlFor(manifest, pdfName) {
         </div>
       </header>
       <section>
-        <h2>Patch Notes</h2>
+        <h2>${pageIndex === 0 ? 'Patch Notes' : 'Patch Notes Continued'}</h2>
         <ul>
-          ${notes}
+          ${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join('\n')}
         </ul>
       </section>
-      <footer class="footer">Click Foundry r${escapeHtml(manifest.revision)} - ${escapeHtml(manifest.date)} - Public GitHub Pages build</footer>
-    </main>
+      <footer class="footer">Click Foundry r${escapeHtml(manifest.revision)} - ${escapeHtml(manifest.date)} - Page ${pageIndex + 1} of ${notePages.length} - Public GitHub Pages build</footer>
+    </main>`).join('\n')
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Click Foundry r${escapeHtml(manifest.revision)} Patch Notes</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #2c2419; background: #fff; font-family: Georgia, "Times New Roman", serif; font-size: 13px; line-height: 1.48; }
+      .page { min-height: calc(297mm - 28mm); padding: 24px; border: 5px solid #2f271c; outline: 2px solid #efe7c6; background: linear-gradient(90deg, rgba(255,255,255,.12), transparent 18%, transparent 82%, rgba(0,0,0,.08)), #c7b98e; break-after: page; }
+      .page:last-child { break-after: auto; }
+      .hero { display: grid; grid-template-columns: 96px 1fr; gap: 18px; align-items: center; padding-bottom: 16px; border-bottom: 4px solid #4a3924; }
+      .logo { width: 96px; height: 96px; image-rendering: pixelated; border: 3px solid #4a3924; background: #b4a57e; }
+      .eyebrow { margin: 0 0 4px; color: #a95e25; font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+      h1, h2 { margin: 0; font-family: Arial, sans-serif; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+      h1 { font-size: 28px; line-height: 1; }
+      .subtitle { margin: 8px 0 0; max-width: 650px; font-size: 14px; font-weight: 700; }
+      section { margin-top: 16px; padding: 14px; border: 2px solid #6d6041; background: rgba(239,231,198,.45); }
+      h2 { margin-bottom: 8px; color: #3b3123; font-size: 15px; }
+      ul { margin: 0; padding-left: 20px; }
+      li { break-inside: avoid; margin: 7px 0; }
+      .footer { margin-top: 18px; padding-top: 10px; border-top: 3px solid #4a3924; color: #55452f; font-family: Arial, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    ${pages}
   </body>
 </html>
 `
