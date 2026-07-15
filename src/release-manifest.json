@@ -1,10 +1,23 @@
 {
-  "revision": "0.2.0",
-  "date": "2026-07-10",
-  "title": "LV Power and Automation",
+  "revision": "1.0.0",
+  "date": "2026-07-15",
+  "title": "Foundry Launch",
   "notes": [
-    "Coke Oven multiblocks now use wrench-selected liquid output, clearer creosote handling, and better tank and pipe displays.",
-    "LV power now has amp-rated cables, battery buffers, sodium and lithium batteries, and a 4A Arc Furnace milestone.",
-    "Quest lines now teach the refreshed Steam, Coke and Steel, LV mechanics, battery, and aluminium progression paths."
+    "The complete mobile-first factory journey now runs from hand gathering and bronze work through Steam, low voltage, aluminium, multiblocks, and the Shattered Reach.",
+    "The Factory Floor expands to 18x16, remembers the player's zoom between views, keeps the current zoom when machines open, and includes dedicated production and maintenance views.",
+    "Every machine now opens a phone-fitted terminal with live inputs, outputs, storage, progress, power, Steam, fluids, routing, automation, and blocked-state feedback.",
+    "Factory tool modes have been removed; machine removal, routing, maintenance, and automation controls now live directly in each machine terminal.",
+    "Hoppers can pull finished items from machines and Auto Miners, buffer them, and feed chests or valid machine inputs for complete machine-to-storage and machine-to-machine lines.",
+    "The recipe browser now covers hand crafting, machine processing, machine blocks, and fluids, links inputs and outputs in both directions, and identifies the earliest valid processing machine.",
+    "Machine recipe pickers support recipe cycling and automatic item loading, show real item, machine, and fluid outputs, and clearly report missing or blocked inputs.",
+    "The Steam era now includes wells, boilers, tanks, fluid pipes, specialised processing machines, Coke Oven liquid routing, and Bricked Blast Furnace steel production.",
+    "Low-voltage power now uses amp-rated Tin Cables, battery buffers, sodium and lithium batteries, connected EU storage, and a multi-feed Arc Blast Furnace power milestone.",
+    "Steam and LV Auto Miners keep local outputs, work with hopper extraction, support common built-in targets, and use reusable Survey Cards for rarer deposits.",
+    "The Shattered Reach adds a formed Reach Gate, remote sulfur gathering, chemical processing, portable fluid cells, and a complete Liquid Rubber production chain.",
+    "Liquid Rubber is now a distinct black fluid in the Terminal and recipe system, with separate reactions for producing the liquid and curing it into solid Rubber Bars.",
+    "Quest chapters and layouts have been rebuilt to teach the intended progression order, keep optional branches optional, and guide players without preventing knowledgeable players from crafting ahead.",
+    "Late LV materials now have purposeful routes: nickel ingots alloy into cupronickel, lead plates improve battery-cell assembly, and aluminium fittings assemble lightweight pistons.",
+    "Save handling now includes three named slots, import and export, offline progress, migrations for older factories, update prompts, and a confirmation before New Game can replace a save.",
+    "A complete phone-interface pass keeps machine terminals and core workflows inside mobile bounds, adds compact scrolling only where required, and improves navigation, feedback, icons, and fluid presentation."
   ]
 }
