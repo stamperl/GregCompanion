@@ -125,4 +125,16 @@ function localSaveApi(): Plugin {
 export default defineConfig({
   base: process.env.GITHUB_PAGES === 'true' ? githubPagesBase : '/',
   plugins: [react(), localSaveApi()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('lucide-react')) return 'icons'
+          if (id.includes('react')) return 'react-vendor'
+          return 'vendor'
+        },
+      },
+    },
+  },
 })

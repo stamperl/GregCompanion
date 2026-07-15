@@ -336,6 +336,33 @@ describe('game engine', () => {
     expect(visibleRecipes(state).map((recipe) => recipe.id)).toContain('craft_planks')
   })
 
+  it('keeps a craftable iron pickaxe available before its guide quest completes', () => {
+    const state = createInitialState(1000)
+    state.resources.ironIngot = 3
+    state.resources.stick = 2
+    const ironPickaxe = recipes.find((recipe) => recipe.id === 'craft_iron_pickaxe')!
+
+    expect(state.completedQuests).not.toContain('buildFurnace')
+    expect(canCraft(state, ironPickaxe)).toBe(true)
+    expect(visibleRecipes(state).map((recipe) => recipe.id)).toContain('craft_iron_pickaxe')
+  })
+
+  it('guides the early factory and bronze steps in dependency order', () => {
+    const quest = (id: (typeof quests)[number]['id']) => quests.find((candidate) => candidate.id === id)!
+
+    expect(quest('buildFoundation').prerequisites).toEqual(['mineStone'])
+    expect(quest('buildFurnace').prerequisites).toEqual(['buildFoundation'])
+    expect(quest('firstDirt').prerequisites).toEqual(['buildFurnace'])
+    expect(quest('craftMortar').prerequisites).toEqual(['copperAndTin'])
+    expect(quest('bronzeAge').prerequisites).toEqual(['craftMortar'])
+    expect(quest('buildWell').prerequisites).toEqual(['buildFoundation', 'bronzeAge', 'makeBricks'])
+    expect(questKind(quest('craftMortar'))).toBe('main')
+    expect(questKind(quest('gatherClay'))).toBe('main')
+    expect(recipes.find((recipe) => recipe.id === 'build_furnace')?.unlockedBy).toBe('buildFoundation')
+    expect(recipes.find((recipe) => recipe.id === 'craft_mortar')?.unlockedBy).toBe('copperAndTin')
+    expect(recipes.find((recipe) => recipe.id === 'bronze_blend')?.unlockedBy).toBe('craftMortar')
+  })
+
   it('uses an equipped wooden axe to speed up tree gathering', () => {
     let state = createFactoryState(1000)
     expect(getBestToolForTarget(state, 'tree').id).toBe('bareHand')
@@ -2085,17 +2112,8 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
   })
 
-  it('smelts cobblestone back into stone in furnace and steam furnace', () => {
-    expect(processRecipes.find((recipe) => recipe.id === 'smelt_stone')).toMatchObject({
-      machineId: 'furnace',
-      input: { id: 'cobblestone', amount: 1 },
-      output: { id: 'stone', amount: 1 },
-    })
-    expect(processRecipes.find((recipe) => recipe.id === 'steam_furnace_stone')).toMatchObject({
-      machineId: 'steamFurnace',
-      input: { id: 'cobblestone', amount: 1 },
-      output: { id: 'stone', amount: 1 },
-    })
+  it('does not expose obsolete Stone recipes after Stone was folded into Cobblestone', () => {
+    expect(processRecipes.some((recipe) => recipe.output.id === 'stone' && recipe.output.amount > 0)).toBe(false)
   })
 
   it('continues furnace processing during offline progress and respects full outputs', () => {
@@ -4236,7 +4254,9 @@ describe('game engine', () => {
       ['lv_assembler_insulated_copper_wire', 'lvAssembler', { id: 'copperWire', amount: 2 }, { id: 'rubber', amount: 1 }, { id: 'conductiveWire', amount: 2 }],
       ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 3 }],
       ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 6 }, { id: 'basicBoard', amount: 1 }],
+      ['lv_assembler_aluminium_piston', 'lvAssembler', { id: 'lvMotor', amount: 1 }, { id: 'aluminiumGear', amount: 1 }, { id: 'lvPiston', amount: 1 }],
       ['lv_alloy_cupronickel', 'lvAlloySmelter', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 5 }],
+      ['lv_alloy_cupronickel_ingots', 'lvAlloySmelter', { id: 'copperIngot', amount: 2 }, { id: 'nickelIngot', amount: 2 }, { id: 'cupronickelIngot', amount: 4 }],
     ] as const
 
     for (const [id, machineId, input, secondaryInput, output] of expectations) {
@@ -4245,16 +4265,29 @@ describe('game engine', () => {
       expect(recipe?.input, id).toEqual(input)
       expect(recipe?.secondaryInput, id).toEqual(secondaryInput)
       if (id === 'lv_assembler_printed_circuit_board') expect(recipe?.extraInputs, id).toBeUndefined()
+      if (id === 'lv_assembler_aluminium_piston') {
+        expect(recipe?.extraInputs, id).toEqual([
+          { id: 'aluminiumRing', amount: 2 },
+          { id: 'aluminiumScrew', amount: 2 },
+          { id: 'aluminiumRod', amount: 1 },
+        ])
+      }
       expect(recipe?.output, id).toEqual(output)
       expect(recipe?.euCost, id).toBeGreaterThan(0)
     }
   })
 
-  it('crafts empty battery cells only from a shaped terminal recipe', () => {
+  it('crafts empty battery cells by hand or in an efficient LV Assembler batch', () => {
     const terminalRecipe = recipes.find((recipe) => recipe.id === 'craft_empty_battery_cell')
-    const processRecipe = processRecipes.find((recipe) => recipe.output.id === 'emptyBatteryCell')
+    const processRecipe = processRecipes.find((recipe) => recipe.id === 'lv_assembler_empty_battery_cells')
 
-    expect(processRecipe).toBeUndefined()
+    expect(processRecipe).toMatchObject({
+      machineId: 'lvAssembler',
+      input: { id: 'leadPlate', amount: 1 },
+      secondaryInput: { id: 'batteryAlloyPlate', amount: 2 },
+      extraInputs: [{ id: 'tinCable', amount: 1 }, { id: 'rubber', amount: 1 }],
+      output: { id: 'emptyBatteryCell', amount: 2 },
+    })
     expect(terminalRecipe?.inputs).toEqual([
       { id: 'batteryAlloyPlate', amount: 4 },
       { id: 'tinCable', amount: 1 },
@@ -5111,10 +5144,10 @@ describe('game engine', () => {
     let state = createFactoryState()
     state.machines.steamAutoMiner = 1
     state.machines.hopper = 1
-    state.machines.furnace = 1
+    state.machines.standardChest = 1
     state = placeMachineInstance(state, 'steamAutoMiner', 0, 0)
     state = placeMachineInstance(state, 'hopper', 1, 0)
-    state = placeMachineInstance(state, 'furnace', 2, 0)
+    state = placeMachineInstance(state, 'standardChest', 2, 0)
     const miner = state.machineInstances.find((instance) => instance.machineId === 'steamAutoMiner')!
     const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
     miner.process.output = { id: 'cobblestone', amount: 2 }
@@ -5123,7 +5156,7 @@ describe('game engine', () => {
     state = tickGame(state, 1000).state
 
     expect(state.machineInstances.find((instance) => instance.uid === miner.uid)?.process.output?.amount).toBe(1)
-    expect(state.machineInstances.find((instance) => instance.machineId === 'furnace')?.process.input).toEqual({ id: 'cobblestone', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.machineId === 'standardChest')?.process.storageSlots[0]).toEqual({ id: 'cobblestone', amount: 1 })
   })
 
   it('runs the Chemical Reactor fluid recipe and records engine truth', () => {

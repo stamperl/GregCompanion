@@ -5072,9 +5072,6 @@ export function questKind(quest: Quest): NonNullable<Quest['kind']> {
   if (
     [
       'chopFaster',
-      'craftMortar',
-      'gatherClay',
-      'treeTapQuest',
       'steamUtilityBranch',
       'creosoteBoilerQuest',
     ].includes(quest.id)

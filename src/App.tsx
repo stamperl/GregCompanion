@@ -224,8 +224,7 @@ import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipe
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
 import { FluidIcon } from './components/FluidIcon'
-import { preloadGeneratedIconImages, preloadGeneratedIconLinks } from './components/gameIconAssets'
-import { machineUiChamberSrc, machineUiPanelSrc, machineUiStageSrc, preloadMachineUiAssetLinks, preloadMachineUiImages } from './components/machineUiAssets'
+import { machineUiChamberSrc, machineUiPanelSrc, machineUiStageSrc } from './components/machineUiAssets'
 import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
 import type {
   CraftSlot,
@@ -240,6 +239,7 @@ import type {
   OfflineProgressResult,
   PipeDirection,
   PipeSideMode,
+  ProcessRecipe,
   ProcessSlot,
   ProcessSlotId,
   Quest,
@@ -270,6 +270,7 @@ function recipeOpensProcessView(recipe: Recipe) {
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'machines'
 type MachineTerminalMode = 'items' | 'fluids'
+type MachineReviewState = 'idle' | 'active' | 'filled' | 'blocked' | 'missing' | 'disconnected'
 type MachineFluidBufferView = ReturnType<typeof machineFluidBuffersForInstance>[number]
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
@@ -281,6 +282,7 @@ type FactoryGesture =
   | { mode: 'pinch'; startDistance: number; originZoom: number; contentX: number; contentY: number; dragged: boolean }
 const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3', 'extraInput4'] as const
 const assemblerInputSlotIds = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds] as const
+const machineReviewStates: MachineReviewState[] = ['idle', 'active', 'filled', 'blocked', 'missing', 'disconnected']
 type NavigationSnapshot = {
   page: Page
   gatherArea: GatherAreaId
@@ -510,14 +512,14 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   chopFaster: { x: 770, y: 70 },
   mineStone: { x: 595, y: 250 },
   craftShovelQuest: { x: 770, y: 390 },
-  buildFurnace: { x: 770, y: 210 },
-  craftMortar: { x: 770, y: 330 },
-  firstDirt: { x: 945, y: 270 },
-  copperAndTin: { x: 1120, y: 210 },
-  bronzeAge: { x: 1295, y: 210 },
-  gatherClay: { x: 945, y: 430 },
-  makeBricks: { x: 1120, y: 430 },
-  buildFoundation: { x: 1295, y: 430 },
+  buildFoundation: { x: 770, y: 210 },
+  buildFurnace: { x: 945, y: 210 },
+  firstDirt: { x: 1120, y: 210 },
+  copperAndTin: { x: 1295, y: 210 },
+  craftMortar: { x: 1470, y: 130 },
+  bronzeAge: { x: 1645, y: 210 },
+  gatherClay: { x: 1295, y: 430 },
+  makeBricks: { x: 1470, y: 430 },
   buildWell: { x: 70, y: 200 },
   craftSteamCasingQuest: { x: 245, y: 200 },
   makeSteam: { x: 420, y: 200 },
@@ -1105,6 +1107,34 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
   return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
 }
 
+function processRecipePrimaryOutput(recipe: ProcessRecipe): RecipeDisplayOutput {
+  if (recipe.output.amount > 0) {
+    return {
+      kind: 'resource',
+      id: recipe.output.id,
+      amount: recipe.output.amount,
+      label: resourceLabels[recipe.output.id],
+    }
+  }
+  if (recipe.machineOutput) {
+    return {
+      kind: 'machine',
+      id: recipe.machineOutput.id,
+      amount: recipe.machineOutput.amount,
+      label: machines[recipe.machineOutput.id].name,
+    }
+  }
+  if (recipe.fluidOutput) {
+    return {
+      kind: 'fluid',
+      id: recipe.fluidOutput.id,
+      amount: recipe.fluidOutput.amount,
+      label: fluidLabel(recipe.fluidOutput.id),
+    }
+  }
+  return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
+}
+
 function recipeDisplayName(recipe: Recipe) {
   return recipePrimaryOutput(recipe).label
 }
@@ -1241,7 +1271,6 @@ function missingLine(state: GameState, recipe: Recipe) {
 }
 
 function lockedLine(state: GameState, recipe: Recipe) {
-  if (recipe.unlockedBy && !state.completedQuests.includes(recipe.unlockedBy)) return 'Complete earlier quest'
   if (recipe.recipeType === 'processing' && recipe.requiredMachine && state.machines[recipe.requiredMachine] < 1) return `Place ${machines[recipe.requiredMachine].name}`
   return ''
 }
@@ -2021,7 +2050,8 @@ function QuestBook({
 function App() {
   const reviewParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const reviewMachineId = reviewParams.get('reviewMachine') as MachineId | null
-  const reviewState = reviewParams.get('reviewState') as 'idle' | 'active' | 'filled' | null
+  const reviewStateParam = reviewParams.get('reviewState') as MachineReviewState | null
+  const reviewState = reviewStateParam && machineReviewStates.includes(reviewStateParam) ? reviewStateParam : null
   const reviewSetup = useMemo(() => {
     if (!import.meta.env.DEV || !reviewMachineId || !(reviewMachineId in machines) || !reviewState) return null
     let reviewGame = createCreativeState(createInitialState())
@@ -2065,7 +2095,7 @@ function App() {
       instance.pipeSideModes = { west: 'both', east: 'both' }
       instance.pipeDisabledSides = {}
     }
-    if (reviewState !== 'idle') {
+    if (reviewState !== 'idle' && reviewState !== 'missing') {
       const recipe = processRecipes.find((candidate) => candidate.machineId === reviewMachineId)
       if (recipe) {
         instance.process.input = { ...recipe.input }
@@ -2191,6 +2221,24 @@ function App() {
         instance.process.activeRecipeId = reviewState === 'active' && target ? `auto_mine_${target.id}` : null
       }
     }
+    if (reviewState === 'blocked') {
+      const recipe = processRecipes.find((candidate) => candidate.machineId === reviewMachineId)
+      instance.process.output = { id: recipe?.output.id ?? instance.process.output?.id ?? 'ironIngot', amount: processStackLimit }
+      const structure = reviewMachineId === 'arcBlastFurnace' ? arcBlastFurnaceStructureForInstance(reviewGame, instance) : null
+      if (structure?.outputBus) structure.outputBus.process.output = { ...instance.process.output }
+    }
+    if (reviewState === 'disconnected') {
+      instance.process.activeRecipeId = null
+      instance.process.progressMs = 0
+      instance.process.steamStoredMs = 0
+      instance.process.euStored = 0
+      instance.pipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true]))
+      for (const candidate of reviewGame.machineInstances) {
+        if (candidate.uid === instance.uid) continue
+        candidate.process.steamStoredMs = 0
+        candidate.process.euStored = 0
+      }
+    }
     return { state: reviewGame, uid: instance.uid }
   }, [reviewMachineId, reviewState])
   const [state, setState] = useState<GameState>(() => reviewSetup?.state ?? loadGame(null))
@@ -2204,6 +2252,7 @@ function App() {
   const [saveNameDraft, setSaveNameDraft] = useState('')
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
   const [isEnteringGame, setIsEnteringGame] = useState(false)
+  const [isNewGameConfirmOpen, setIsNewGameConfirmOpen] = useState(false)
   const [entryLoadingMessage, setEntryLoadingMessage] = useState('Loading save')
   const [isMobileClient, setIsMobileClient] = useState(() => isMobileClientAllowed())
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
@@ -2358,13 +2407,6 @@ function App() {
   useEffect(() => {
     isCreativeModeRef.current = isCreativeMode
   }, [isCreativeMode])
-
-  useEffect(() => {
-    preloadGeneratedIconLinks()
-    preloadMachineUiAssetLinks()
-    void preloadGeneratedIconImages()
-    void preloadMachineUiImages()
-  }, [])
 
   useEffect(() => {
     const updateMobileGate = () => setIsMobileClient(isMobileClientAllowed())
@@ -2651,6 +2693,7 @@ function App() {
     Math.max(0, selectedMachinePopupRecipes.length - 1),
   )
   const selectedMachinePopupRecipe = selectedMachinePopupRecipes[clampedMachinePopupRecipeIndex]
+  const selectedMachinePopupOutput = selectedMachinePopupRecipe ? processRecipePrimaryOutput(selectedMachinePopupRecipe) : null
   const selectedMachinePopupLoadStatus = selectedMachine && selectedMachinePopupRecipe
     ? processRecipeInputLoadStatus(state, selectedMachine.uid, selectedMachinePopupRecipe.id)
     : null
@@ -2956,6 +2999,7 @@ function App() {
         selectedMachine.process.euStored > 0
           ? 'machine-terminal-active'
           : '',
+        reviewState ? `machine-review-${reviewState}` : '',
       ]
         .filter(Boolean)
         .join(' ')
@@ -3097,8 +3141,9 @@ function App() {
   }, [factoryGridSize.width, factoryGridSize.height])
 
   useEffect(() => {
+    if (page !== 'processing') return
     queueFactoryViewPaint(factoryView)
-  }, [factoryView])
+  }, [factoryView, page])
 
   useEffect(
     () => () => {
@@ -3805,8 +3850,10 @@ function App() {
 
     setState((current) => craftRecipeInstant(current, terminalMatch, requestedQuantity))
     handleClearGrid()
-    setTerminalNotice(`${recipeDisplayName(terminalMatch)} x${formatAmount(requestedQuantity)} crafted.`)
-    addFloatText(`crafted x${formatAmount(requestedQuantity)}`)
+    const craftedOutput = recipePrimaryOutput(terminalMatch)
+    const craftedAmount = recipeDisplayAmount({ ...craftedOutput, amount: craftedOutput.amount * requestedQuantity })
+    setTerminalNotice(`${craftedOutput.label} x${craftedAmount} crafted.`)
+    addFloatText(`crafted x${craftedAmount}`)
   }
 
   const handleCraftMax = () => {
@@ -3935,7 +3982,7 @@ function App() {
     setMachineRecipeLoadNotice(
       selectedMachinePopupRecipe.fluidInput
         ? `Items loaded. Add ${formatLitres(selectedMachinePopupRecipe.fluidInput.amount)}L ${fluidLabels[selectedMachinePopupRecipe.fluidInput.id]} through the fluid input.`
-        : `Loaded items for ${resourceLabels[selectedMachinePopupRecipe.output.id]}.`,
+        : `Loaded items for ${processRecipePrimaryOutput(selectedMachinePopupRecipe).label}.`,
     )
   }
 
@@ -4099,6 +4146,7 @@ function App() {
 
   const handleReset = async () => {
     if (isEnteringGame) return
+    setIsNewGameConfirmOpen(false)
     setEntryLoadingMessage(`Preparing ${selectedSaveLabel}`)
     setIsEnteringGame(true)
     await waitForEntryLoadingPaint()
@@ -4108,7 +4156,6 @@ function App() {
       await clearSavedGame(selectedSaveSlotId)
       setIsCreativeMode(false)
       await refreshSaveSlots()
-      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       const freshState = loadGame(null)
       setState(freshState)
       knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
@@ -4141,6 +4188,11 @@ function App() {
       setIsEnteringGame(false)
       setEntryLoadingMessage('Loading save')
     }
+  }
+
+  const handleRequestNewGame = () => {
+    if (isEnteringGame) return
+    setIsNewGameConfirmOpen(true)
   }
 
   const handleToggleCreativeMode = async () => {
@@ -4199,7 +4251,6 @@ function App() {
       setNavigationStack([])
       setHighlightedGatherTarget(null)
       commitFactoryView({ x: factoryViewportPadding, y: factoryViewportPadding, zoom: factoryDefaultZoom })
-      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       setPage('processing')
       addFloatText('creative factory')
     } finally {
@@ -4217,7 +4268,6 @@ function App() {
     const minimumLoading = waitForEntryLoadingMinimum()
     try {
       const savedState = await loadSlotIntoGame(selectedSaveSlotId)
-      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       setState(savedState)
       knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
       setIsCreativeMode(false)
@@ -4614,6 +4664,43 @@ function App() {
         </div>
       )}
 
+      {page === 'home' && isNewGameConfirmOpen && !isEnteringGame && (
+        <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setIsNewGameConfirmOpen(false)}>
+          <section
+            className="missing-modal new-game-confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm new game"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">{selectedSaveLabel}</p>
+                <h2>Start a new game?</h2>
+              </div>
+              <button type="button" className="icon-button" aria-label="Keep current save" onClick={() => setIsNewGameConfirmOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <p>
+              {selectedSaveSlot?.exists
+                ? `This permanently deletes the current ${selectedSaveLabel} and replaces it with a new factory.`
+                : `This starts a new factory in ${selectedSaveLabel}.`}
+            </p>
+            <div className="new-game-confirm-actions">
+              <button type="button" className="home-action" onClick={() => setIsNewGameConfirmOpen(false)}>
+                <X size={16} />
+                Keep Save
+              </button>
+              <button type="button" className="home-action danger" onClick={() => void handleReset()}>
+                <Trash2 size={16} />
+                {selectedSaveSlot?.exists ? 'Delete Save & Start' : 'Start New Game'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {page === 'home' && (
         <section className="home-panel" aria-label="Click Foundry home">
           <div className="home-hero">
@@ -4702,7 +4789,7 @@ function App() {
                 {isEnteringGame ? 'Loading...' : 'Load Creative Factory'}
               </button>
             )}
-            <button type="button" className="home-action danger" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleReset}>
+            <button type="button" className="home-action danger" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleRequestNewGame}>
               New Game In {selectedSaveLabel}
             </button>
           </div>
@@ -6003,6 +6090,7 @@ function App() {
                     <button type="button" role="tab" aria-selected={machineTerminalMode === 'fluids'} className={machineTerminalMode === 'fluids' ? 'active' : ''} onClick={() => setMachineTerminalMode('fluids')}><Droplet size={14} />Fluids</button>
                   </div>
                 )}
+                <div className="machine-terminal-body">
                 {machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                 <>
                   <div className={`processing-storage furnace-storage ${selectedMachineFluidBuffers.length > 0 ? 'fluid-capable-storage' : ''}`} aria-label={`${machines[selectedMachine.machineId].name} storage`}>
@@ -6869,8 +6957,9 @@ function App() {
                       : 'Tap storage, then a valid slot to choose an amount. Tap Output to collect.'}
                   </p>
                 )}
+                </div>
               </section>
-              {isMachineRecipePopupOpen && selectedMachinePopupRecipe && selectedMachinePopupLoadStatus && (
+              {isMachineRecipePopupOpen && selectedMachinePopupRecipe && selectedMachinePopupOutput && selectedMachinePopupLoadStatus && (
                 <div
                   className="machine-recipe-popup-backdrop"
                   role="presentation"
@@ -6889,13 +6978,14 @@ function App() {
                     <div className="machine-recipe-popup-head">
                       <div>
                         <p className="eyebrow">{machines[selectedMachine.machineId].name}</p>
-                        <h2>{resourceLabels[selectedMachinePopupRecipe.output.id]}</h2>
+                        <h2>{selectedMachinePopupOutput.label}</h2>
                       </div>
                       <button type="button" className="icon-button" aria-label="Close recipe picker" onClick={() => setIsMachineRecipePopupOpen(false)}>
                         <X size={18} />
                       </button>
                     </div>
 
+                    <div className="machine-recipe-popup-body">
                     <div className="machine-recipe-popup-cycle" aria-label="Choose machine recipe">
                       <button type="button" aria-label="Previous recipe" disabled={selectedMachinePopupRecipes.length < 2} onClick={() => handleCycleMachinePopupRecipe(-1)}>
                         <ChevronLeft size={18} />
@@ -6938,8 +7028,11 @@ function App() {
                       <ChevronRight className="machine-recipe-popup-arrow" size={22} aria-hidden="true" />
                       <div className="machine-recipe-popup-step output">
                         <span>Output</span>
-                        <ItemSlot amount={selectedMachinePopupRecipe.output} state={state} />
-                        <strong>{resourceLabels[selectedMachinePopupRecipe.output.id]}</strong>
+                        <div className="mini-slot">
+                          <RecipeDisplayIcon output={selectedMachinePopupOutput} />
+                          <span className="item-count">{recipeDisplayAmount(selectedMachinePopupOutput)}</span>
+                        </div>
+                        <strong>{selectedMachinePopupOutput.label}</strong>
                       </div>
                     </div>
 
@@ -6973,6 +7066,7 @@ function App() {
                           ? 'Auto-load items'
                           : 'Check requirements'}
                     </button>
+                    </div>
                   </section>
                 </div>
               )}

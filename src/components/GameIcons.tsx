@@ -85,7 +85,7 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
     'machine-glyph',
     isConnector && pipeConnections ? 'machine-connector-glyph' : failed ? '' : 'machine-sprite-glyph',
     `machine-${id}`,
-    active ? 'active' : '',
+    active && !isConnector ? 'active' : '',
     isConnector ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
   if (isConnector && pipeConnections) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { machines, processRecipes } from './content'
-import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder } from './recipeGraph'
+import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './recipeGraph'
 
 describe('machine recipe catalog', () => {
   it('lists every recipe assigned to a machine', () => {
@@ -53,5 +53,19 @@ describe('machine recipe catalog', () => {
       'steamFurnace',
       'lvFurnace',
     ])
+  })
+
+  it('preserves machine and fluid outputs without exposing placeholder items', () => {
+    const machineRecipe = processRecipes.find((recipe) => recipe.id === 'lv_assemble_energy_hatch_2a')!
+    const fluidRecipe = processRecipes.find((recipe) => recipe.id === 'lv_reactor_liquid_rubber')!
+
+    expect(processRecipeToCatalogRecipe(machineRecipe, 'lv')).toMatchObject({
+      outputs: [],
+      machineOutputs: [{ id: 'lvEnergyHatch2A', amount: 1 }],
+    })
+    expect(processRecipeToCatalogRecipe(fluidRecipe, 'lv')).toMatchObject({
+      outputs: [],
+      fluidOutputs: [{ id: 'liquidRubber', amount: 8 }],
+    })
   })
 })

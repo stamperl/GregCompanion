@@ -38,6 +38,11 @@ function pngInfo(filePath) {
 function checkSet(kind, ids, dir) {
   const failures = []
   const files = new Set(readdirSync(dir).filter((file) => file.endsWith('.png')))
+  const expectedFiles = new Set(ids.map((id) => `${id}.png`))
+
+  for (const file of files) {
+    if (!expectedFiles.has(file)) failures.push(`${kind} ${file}: unexpected runtime icon`)
+  }
 
   for (const id of ids) {
     const file = `${id}.png`

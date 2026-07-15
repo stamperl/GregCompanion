@@ -20,6 +20,7 @@ import {
   resourceRegistry,
   tools,
 } from './content'
+import { questKind } from './engine'
 import type { FluidAmount, MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount } from './types'
 
 const appCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../App.css'), 'utf8')
@@ -261,6 +262,26 @@ describe('content validation', () => {
     }
   })
 
+  it('gives refined LV materials an intentional recipe consumer', () => {
+    const consumedResources = new Set([
+      ...recipes.flatMap((recipe) => [
+        ...recipe.inputs,
+        ...(recipe.catalysts ?? []),
+        ...(recipe.durabilityCosts ?? []),
+      ]).map((amount) => amount.id),
+      ...processRecipes.flatMap((recipe) => [
+        recipe.input,
+        ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
+        ...(recipe.extraInputs ?? []),
+        ...(recipe.fuelInput ? [recipe.fuelInput] : []),
+      ]).map((amount) => amount.id),
+    ])
+
+    for (const id of ['nickelIngot', 'leadPlate', 'aluminiumRing', 'aluminiumScrew', 'aluminiumGear'] as const) {
+      expect(consumedResources, `${id} should be consumed by at least one recipe`).toContain(id)
+    }
+  })
+
   it('keeps fuel definitions valid', () => {
     for (const [id, fuel] of Object.entries(fuelDefinitions)) {
       expect(resourceLabels, `fuel ${id} should be a known resource`).toHaveProperty(id)
@@ -310,5 +331,15 @@ describe('content validation', () => {
       visited.add(questId)
     }
     for (const quest of quests) visit(quest.id)
+  })
+
+  it('does not place optional quests in the prerequisite chain of main quests', () => {
+    const questById = new Map(quests.map((quest) => [quest.id, quest]))
+    for (const quest of quests.filter((candidate) => questKind(candidate) !== 'optional')) {
+      for (const prerequisiteId of quest.prerequisites ?? []) {
+        const prerequisite = questById.get(prerequisiteId)!
+        expect(questKind(prerequisite), `${quest.id} should not depend on optional ${prerequisiteId}`).not.toBe('optional')
+      }
+    }
   })
 })
