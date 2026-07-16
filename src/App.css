@@ -16325,6 +16325,52 @@ button.button-primary:disabled,
   box-shadow: 0 0 10px rgba(61, 194, 218, 0.28);
 }
 
+/* Fluid identity follows the stored medium instead of using one generic blue fill. */
+.furnace-modal.machine-terminal .fluid-tank-gauge > span,
+.furnace-modal.machine-terminal .iron-tank-vessel.fluid-contents > span {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05), transparent 34%, rgba(0, 0, 0, 0.2)),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--fluid-color) 72%, white) 0 3%,
+      var(--fluid-color) 11%,
+      color-mix(in srgb, var(--fluid-color) 72%, black) 72%,
+      color-mix(in srgb, var(--fluid-color) 46%, black)
+    );
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--fluid-color) 42%, white),
+    0 0 9px color-mix(in srgb, var(--fluid-color) 38%, transparent);
+}
+
+.furnace-modal.machine-terminal .iron-tank-vessel.fluid-contents > span {
+  mix-blend-mode: normal;
+}
+
+.furnace-modal.machine-terminal .fluid-creosote .fluid-tank-gauge > span,
+.furnace-modal.machine-terminal .iron-tank-vessel.fluid-creosote > span {
+  background:
+    repeating-linear-gradient(105deg, transparent 0 9px, rgba(232, 170, 75, 0.07) 9px 12px, transparent 12px 21px),
+    linear-gradient(180deg, #aa7024 0 3%, #714014 10%, #3b1e09 72%, #1e0f07);
+  box-shadow: inset 0 2px 0 rgba(241, 183, 84, 0.54), 0 0 8px rgba(116, 64, 18, 0.32);
+}
+
+.furnace-modal.machine-terminal .fluid-liquidRubber .fluid-tank-gauge > span,
+.furnace-modal.machine-terminal .iron-tank-vessel.fluid-liquidRubber > span {
+  background:
+    linear-gradient(100deg, transparent 0 28%, rgba(199, 222, 215, 0.2) 34%, transparent 43%),
+    linear-gradient(180deg, #58625f 0 3%, #222927 11%, #101513 68%, #060807);
+  box-shadow: inset 0 2px 0 rgba(205, 225, 219, 0.38), 0 0 7px rgba(24, 36, 32, 0.42);
+}
+
+.furnace-modal.machine-terminal .gaseous-fluid .fluid-tank-gauge > span,
+.furnace-modal.machine-terminal .iron-tank-vessel.gaseous-fluid > span {
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, color-mix(in srgb, var(--fluid-color) 54%, white), color-mix(in srgb, var(--fluid-color) 68%, transparent));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.42), 0 0 10px color-mix(in srgb, var(--fluid-color) 42%, transparent);
+  opacity: 0.68;
+}
+
 .furnace-modal.machine-terminal .cokeOven-process-interface,
 .furnace-modal.machine-terminal .brickedBlastFurnace-process-interface,
 .furnace-modal.machine-terminal .arcBlastFurnace-process-interface {

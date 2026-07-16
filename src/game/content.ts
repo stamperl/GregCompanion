@@ -166,15 +166,15 @@ export const resourceLabels: Record<ResourceId, string> = Object.fromEntries(
 ) as Record<ResourceId, string>
 
 export const fluidRegistry = {
-  water: { id: 'water', label: 'Water', color: '#55c8ec' },
-  creosote: { id: 'creosote', label: 'Creosote', color: '#a96a20' },
-  liquidRubber: { id: 'liquidRubber', label: 'Liquid Rubber', color: '#111514' },
-  glue: { id: 'glue', label: 'Glue', color: '#d9a441' },
-  air: { id: 'air', label: 'Air', color: '#b9d8df' },
-  oxygen: { id: 'oxygen', label: 'Oxygen', color: '#78c9ff' },
-  nitrogen: { id: 'nitrogen', label: 'Nitrogen', color: '#8e9de8' },
-  sulfuricAcid: { id: 'sulfuricAcid', label: 'Sulfuric Acid', color: '#d6d77b' },
-  dilutedSulfuricAcid: { id: 'dilutedSulfuricAcid', label: 'Diluted Sulfuric Acid', color: '#c5cf8a' },
+  water: { id: 'water', label: 'Water', color: '#35acd3' },
+  creosote: { id: 'creosote', label: 'Creosote', color: '#6f3d12' },
+  liquidRubber: { id: 'liquidRubber', label: 'Liquid Rubber', color: '#171d1b' },
+  glue: { id: 'glue', label: 'Glue', color: '#d08b2d' },
+  air: { id: 'air', label: 'Air', color: '#b8d4da' },
+  oxygen: { id: 'oxygen', label: 'Oxygen', color: '#55c6ee' },
+  nitrogen: { id: 'nitrogen', label: 'Nitrogen', color: '#7989d5' },
+  sulfuricAcid: { id: 'sulfuricAcid', label: 'Sulfuric Acid', color: '#c9ce4f' },
+  dilutedSulfuricAcid: { id: 'dilutedSulfuricAcid', label: 'Diluted Sulfuric Acid', color: '#b8c978' },
 } satisfies Record<FluidId, { id: FluidId; label: string; color: string }>
 
 export const fluidIds = Object.keys(fluidRegistry) as FluidId[]

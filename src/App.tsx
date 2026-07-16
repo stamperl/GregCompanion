@@ -428,6 +428,8 @@ function fluidVisualColor(fluidId: FluidId | undefined) {
   return fluidId ? fluidColors[fluidId] : '#73c6b8'
 }
 
+const gaseousFluidIds = new Set<FluidId>(['air', 'oxygen', 'nitrogen'])
+
 function storedFluids(process: MachineProcessState) {
   return fluidIds
     .map((id) => ({ id, amount: process.fluids[id] ?? 0 }))
@@ -1238,16 +1240,16 @@ function SteamTank({ storedMs, capacityMs }: { storedMs: number; capacityMs: num
   )
 }
 
-function FluidTank({ label, storedLitres, capacityLitres }: { label: string; storedLitres: number; capacityLitres: number }) {
+function FluidTank({ fluidId, label, storedLitres, capacityLitres }: { fluidId: FluidId; label: string; storedLitres: number; capacityLitres: number }) {
   const fillPercent = capacityLitres > 0 ? Math.max(0, Math.min(100, (storedLitres / capacityLitres) * 100)) : 0
   return (
-    <div className="steam-tank fluid-tank" aria-label={`${label} ${storedLitres} of ${capacityLitres} litres`}>
+    <div className={`steam-tank fluid-tank fluid-${fluidId} ${gaseousFluidIds.has(fluidId) ? 'gaseous-fluid' : 'liquid-fluid'}`} aria-label={`${label} ${storedLitres} of ${capacityLitres} litres`}>
       <div className="steam-tank-readout">
         <span>{label}</span>
         <strong>{formatLitres(storedLitres)}L</strong>
       </div>
       <div className="steam-tank-gauge fluid-tank-gauge">
-        <span style={{ height: `${fillPercent}%` }} />
+        <span style={{ height: `${fillPercent}%`, '--fluid-color': fluidVisualColor(fluidId) } as CSSProperties} />
       </div>
       <small className="steam-tank-capacity">{formatLitres(capacityLitres)}L max</small>
     </div>
@@ -2242,7 +2244,13 @@ function App() {
       }
       if (reviewMachineId === 'steamTank') {
         instance.process.steamCapacityMs = steamTankCapacityMs
-        instance.process.steamStoredMs = reviewState === 'active' ? steamTankCapacityMs / 2 : steamTankCapacityMs * 0.85
+        if (reviewState === 'filled') {
+          instance.process.steamStoredMs = 0
+          instance.process.fluidCapacityLitres = steamTankFluidCapacityLitresForInstance(reviewGame, instance) || ironTankFluidCapacityLitres
+          instance.process.fluids.creosote = instance.process.fluidCapacityLitres * 0.85
+        } else {
+          instance.process.steamStoredMs = reviewState === 'active' ? steamTankCapacityMs / 2 : steamTankCapacityMs * 0.85
+        }
       }
       if (isSteamPoweredMachine(reviewMachineId) || reviewMachineId === 'steamTurbine') {
         instance.process.steamCapacityMs = instance.process.steamCapacityMs || steamMachineInternalCapacityMs
@@ -6631,7 +6639,7 @@ function App() {
                           aria-label={`Transfer selected container into water feed, ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of 128 litres`}
                           onClick={() => handleNativeFluidControl('water', 'input')}
                         >
-                          <FluidTank label="Water feed" storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={128} />
+                          <FluidTank fluidId="water" label="Water feed" storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={128} />
                         </button>
                         <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={boilerSteamCapacityMs} />
                       </div>
@@ -6648,8 +6656,8 @@ function App() {
                       const outputFaces = pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output').map((direction) => pipeDirectionOffsets[direction].label)
                       const fluidOutflow = currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0)
                       return <>
-                        <button type="button" className={`utility-vessel iron-tank-vessel native-fluid-control ${isSteam ? 'steam-contents' : 'fluid-contents'} ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
-                          <span style={{ '--vessel-fill-scale': metricFill(amount, capacity) / 100 } as CSSProperties} />
+                        <button type="button" className={`utility-vessel iron-tank-vessel native-fluid-control ${isSteam ? 'steam-contents' : `fluid-contents fluid-${fluid!.id} ${gaseousFluidIds.has(fluid!.id) ? 'gaseous-fluid' : 'liquid-fluid'}`} ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
+                          <span style={{ '--vessel-fill-scale': metricFill(amount, capacity) / 100, '--fluid-color': isSteam ? '#72c9d8' : fluidVisualColor(fluid!.id) } as CSSProperties} />
                           <MachineGlyph id="steamTank" active={amount > 0} />
                           <strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong>
                         </button>
@@ -6714,10 +6722,10 @@ function App() {
                     </div>
                     <div className="dual-boiler-vessels">
                       <button type="button" className={`native-fluid-control ${nativeFluidControlReady('water', 'input') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'input')} onClick={() => handleNativeFluidControl('water', 'input')}>
-                        <FluidTank label={fluidLabel('water')} storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={128} />
+                        <FluidTank fluidId="water" label={fluidLabel('water')} storedLitres={selectedMachine.process.fluids.water ?? 0} capacityLitres={128} />
                       </button>
                       <button type="button" className={`native-fluid-control ${nativeFluidControlReady('creosote', 'input') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('creosote', 'input')} onClick={() => handleNativeFluidControl('creosote', 'input')}>
-                        <FluidTank label={fluidLabel('creosote')} storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
+                        <FluidTank fluidId="creosote" label={fluidLabel('creosote')} storedLitres={selectedMachine.process.fluids.creosote ?? 0} capacityLitres={liquidSteamBoilerFluidCapacityLitres} />
                       </button>
                       <div className="liquid-boiler-core"><MachineGlyph id="liquidSteamBoiler" active={Boolean(selectedMachine.process.activeRecipeId)} /></div>
                       <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={liquidSteamBoilerCapacityMs} />
