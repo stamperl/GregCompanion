@@ -2035,6 +2035,40 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!.process.fluids.creosote).toBe(16)
   })
 
+  it('round-robins equal-priority conductor outputs and fills higher priorities first', () => {
+    let state = createFactoryState(1000)
+    state.machines.standardChest = 3
+    state.machines.itemConductor = 2
+    state = placeMachineInstance(state, 'standardChest', 0, 1)
+    state = placeMachineInstance(state, 'itemConductor', 1, 1)
+    state = placeMachineInstance(state, 'itemConductor', 2, 1)
+    state = placeMachineInstance(state, 'standardChest', 3, 1)
+    state = placeMachineInstance(state, 'standardChest', 2, 2)
+
+    const sourceChest = state.machineInstances.find((instance) => instance.machineId === 'standardChest' && instance.x === 0)!
+    const eastChest = state.machineInstances.find((instance) => instance.machineId === 'standardChest' && instance.x === 3)!
+    const southChest = state.machineInstances.find((instance) => instance.machineId === 'standardChest' && instance.y === 2)!
+    const sourceConductor = state.machineInstances.find((instance) => instance.machineId === 'itemConductor' && instance.x === 1)!
+    const outputConductor = state.machineInstances.find((instance) => instance.machineId === 'itemConductor' && instance.x === 2)!
+    sourceChest.process.storageSlots[0] = { id: 'log', amount: 4 }
+    state = setConductorFaceSettings(state, sourceConductor.uid, 'item', 'west', { mode: 'input', channel: 0, roundRobin: true })
+    state = setConductorFaceSettings(state, outputConductor.uid, 'item', 'east', { mode: 'output', channel: 0 })
+    state = setConductorFaceSettings(state, outputConductor.uid, 'item', 'south', { mode: 'output', channel: 0 })
+
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === eastChest.uid)!.process.storageSlots[0]).toEqual({ id: 'log', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === southChest.uid)!.process.storageSlots[0]).toEqual({ id: 'log', amount: 1 })
+
+    state.machineInstances.find((instance) => instance.uid === eastChest.uid)!.process.storageSlots[0] = null
+    state.machineInstances.find((instance) => instance.uid === southChest.uid)!.process.storageSlots[0] = null
+    state = setConductorFaceSettings(state, sourceConductor.uid, 'item', 'west', { roundRobin: false })
+    state = setConductorFaceSettings(state, outputConductor.uid, 'item', 'east', { priority: 4 })
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === eastChest.uid)!.process.storageSlots[0]).toEqual({ id: 'log', amount: 2 })
+    expect(state.machineInstances.find((instance) => instance.uid === southChest.uid)!.process.storageSlots[0]).toBeNull()
+  })
+
   it('automates both solid outputs from an LV Centrifuge', () => {
     let state = createFactoryState(1000)
     Object.assign(state.machines, { lvCentrifuge: 1, standardChest: 1 })
