@@ -1,7 +1,8 @@
-import { machines, resourceLabels } from '../game/content'
+import { fluidLabels, machines, resourceLabels } from '../game/content'
 import { durabilityRemaining, maxDurability } from '../game/engine'
-import { formatAmount } from '../game/format'
-import type { GameState, MachineId, ProcessSlot, ResourceAmount, ResourceId } from '../game/types'
+import { formatAmount, formatLitres } from '../game/format'
+import type { FluidId, GameState, MachineId, ProcessSlot, ResourceAmount, ResourceId } from '../game/types'
+import { FluidIcon } from './FluidIcon'
 import { MachineGlyph, PixelIcon } from './GameIcons'
 
 export function DurabilityBar({ state, id }: { state: GameState; id: ResourceId }) {
@@ -110,6 +111,39 @@ export function ProcessItemSlot({
         <>
           <PixelIcon id={slot.id} />
           <span className="item-count">{formatAmount(slot.amount)}</span>
+        </>
+      ) : (
+        <span className="process-slot-label">{label}</span>
+      )}
+    </button>
+  )
+}
+
+export function ProcessFluidSlot({
+  fluidId,
+  amount,
+  label,
+  onClick,
+  ready = false,
+}: {
+  fluidId?: FluidId
+  amount?: number
+  label: string
+  onClick: () => void
+  ready?: boolean
+}) {
+  const storedLitres = fluidId ? amount ?? 0 : 0
+  return (
+    <button
+      type="button"
+      className={['process-slot', 'fluid-process-slot', 'native-fluid-control', fluidId ? 'filled' : '', ready ? 'ready' : ''].filter(Boolean).join(' ')}
+      aria-label={fluidId ? `${label} ${fluidLabels[fluidId]} ${formatLitres(storedLitres)} litres` : label}
+      onClick={onClick}
+    >
+      {fluidId ? (
+        <>
+          <FluidIcon id={fluidId} />
+          <span className="item-count">{formatLitres(storedLitres)}L</span>
         </>
       ) : (
         <span className="process-slot-label">{label}</span>
