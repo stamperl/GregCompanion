@@ -3097,7 +3097,7 @@ describe('game engine', () => {
 
     expect(state.machineInstances.find((instance) => instance.uid === hammer.uid)!.process.output).toEqual({ id: 'ironPlate', amount: 1 })
     expect(state.machineInstances.find((instance) => instance.uid === compressor.uid)!.process.output).toEqual({ id: 'cokeOvenBrick', amount: 1 })
-    expect(state.machineInstances.find((instance) => instance.uid === extractor.uid)!.process.output).toEqual({ id: 'rubber', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === extractor.uid)!.process.output).toEqual({ id: 'rubberPulp', amount: 1 })
   })
 
   it('stress runs well to boiler to machine with every solid fuel through direct and piped routes', () => {
