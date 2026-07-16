@@ -2251,10 +2251,10 @@ button.craft-output:disabled {
 }
 
 .pixel-steelPlate {
-  --p1: #6f7b81;
-  --p2: #31383d;
-  --p3: #c5d0d5;
-  --p4: #1c2226;
+  --p1: #263340;
+  --p2: #080d13;
+  --p3: #8797aa;
+  --p4: #05080c;
 }
 
 .pixel-aluminiumPlate {
@@ -2364,9 +2364,9 @@ button.craft-output:disabled {
 }
 
 .pixel-steelRod {
-  --p1: #6f7b81;
-  --p2: #31383d;
-  --p3: #c5d0d5;
+  --p1: #263340;
+  --p2: #080d13;
+  --p3: #8797aa;
 }
 
 .pixel-aluminiumRod {
@@ -2677,9 +2677,9 @@ button.craft-output:disabled {
 }
 
 .pixel-steelIngot {
-  --p1: #6f7b81;
-  --p2: #31383d;
-  --p3: #c5d0d5;
+  --p1: #263340;
+  --p2: #080d13;
+  --p3: #8797aa;
 }
 
 .pixel-redAlloyIngot {
