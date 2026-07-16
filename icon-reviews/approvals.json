@@ -1,5 +1,8 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-10",
-  "approvals": []
+  "updatedAt": "2026-07-16",
+  "approvals": [
+    { "id": "rubberPulp", "review": "lv-chemistry-v1", "status": "approved" },
+    { "id": "lvAirCollector", "review": "lv-chemistry-v1", "status": "approved" }
+  ]
 }
