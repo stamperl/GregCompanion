@@ -3,6 +3,12 @@
   "updatedAt": "2026-07-16",
   "approvals": [
     { "id": "rubberPulp", "review": "lv-chemistry-v1", "status": "approved" },
-    { "id": "lvAirCollector", "review": "lv-chemistry-v1", "status": "approved" }
+    { "id": "lvAirCollector", "review": "lv-chemistry-v1", "status": "approved" },
+    { "id": "steelIngot", "review": "dark-steel-v1", "status": "approved" },
+    { "id": "steelPlate", "review": "dark-steel-v1", "status": "approved" },
+    { "id": "steelRod", "review": "dark-steel-v1", "status": "approved" },
+    { "id": "steelGear", "review": "dark-steel-v1", "status": "approved" },
+    { "id": "steelRing", "review": "dark-steel-v1", "status": "approved" },
+    { "id": "steelScrew", "review": "dark-steel-v1", "status": "approved" }
   ]
 }
