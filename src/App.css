@@ -8215,6 +8215,31 @@ button.craft-output:disabled {
 
 .quest-node.optional {
   border-style: dashed;
+  padding: 3px;
+}
+
+.quest-node.optional .quest-node-icon {
+  width: 34px;
+}
+
+.quest-node.gate {
+  border-width: 4px;
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.4),
+    0 0 0 2px rgba(215, 189, 100, 0.42);
+}
+
+.quest-node.gate .quest-node-icon {
+  width: 48px;
+}
+
+.quest-lines path.optional {
+  stroke-dasharray: 5 4;
+  stroke-width: 1.5px;
+}
+
+.quest-lines path.gate {
+  stroke-width: 4px;
 }
 
 .quest-node.selected {

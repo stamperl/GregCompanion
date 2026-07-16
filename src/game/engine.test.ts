@@ -118,7 +118,7 @@ import {
   visibleRecipes,
   wellWaterOutputLitresPerSecond,
 } from './engine'
-import type { CraftSlot, MachineId, PipeDirection, PipeSideMode, Recipe } from './types'
+import type { CraftSlot, MachineId, PipeDirection, PipeSideMode, QuestId, Recipe } from './types'
 
 describe('game engine', () => {
   function createFactoryState(now = 1000, level = 2) {
@@ -716,6 +716,21 @@ describe('game engine', () => {
     expect(aluminium.prerequisites).toEqual(['makeAluminiumDustQuest', 'bufferArcBlastFurnaceQuest'])
     expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 5 })
     expect(arcFurnace.objectives).toContainEqual({ type: 'placedMachine', id: 'arcBlastFurnace', amount: 1, label: 'Formed 3x3 Arc Furnace' })
+  })
+
+  it('branches LV separation, gases, and sulfur chemistry without optional gates', () => {
+    const quest = (id: QuestId) => quests.find((candidate) => candidate.id === id)!
+
+    expect(quest('buildLvCentrifugeQuest').prerequisites).toEqual(['makeLvMotionPartsQuest'])
+    expect(quest('separateStickyResinQuest').prerequisites).toEqual(['buildLvCentrifugeQuest', 'treeTapQuest'])
+    expect(quest('buildAirCollectorQuest').prerequisites).toEqual(['buildLvCentrifugeQuest', 'makeLvMotionPartsQuest'])
+    expect(quest('separateAirQuest').prerequisites).toEqual(['buildAirCollectorQuest'])
+    expect(quest('buildChemicalReactorQuest').prerequisites).toEqual(['makeSulfurDustQuest', 'makeLvMotionPartsQuest'])
+    expect(quest('makeLiquidRubberQuest').prerequisites).toEqual(['buildChemicalReactorQuest', 'separateStickyResinQuest'])
+    expect(quest('craftArcItemBusesQuest').prerequisites).toEqual(['buildLvAssemblerForPortsQuest'])
+    expect(questKind(quest('centrifugeByproductsQuest'))).toBe('optional')
+    expect(questKind(quest('routeSeparatedGasesQuest'))).toBe('optional')
+    expect(questKind(quest('craftSteelCellsQuest'))).toBe('optional')
   })
 
   it('completes an already-satisfied child quest when its parent completes', () => {
@@ -4742,6 +4757,23 @@ describe('game engine', () => {
       'lv_reactor_liquid_rubber',
       'furnace_rubber_pulp',
     ])
+  })
+
+  it('indexes autonomous fluids and every byproduct under its own recipe result', () => {
+    const collectAirCard = processRecipeToCatalogRecipe(processRecipes.find((recipe) => recipe.id === 'collect_air')!, 'lv')
+    const separateAirCard = processRecipeToCatalogRecipe(processRecipes.find((recipe) => recipe.id === 'lv_centrifuge_air')!, 'lv')
+    const separateGravelCard = processRecipeToCatalogRecipe(processRecipes.find((recipe) => recipe.id === 'lv_centrifuge_gravel_aluminium')!, 'lv')
+    const groups = groupRecipesByOutput([collectAirCard, separateAirCard, separateGravelCard])
+
+    expect(groups.map((group) => group.key)).toEqual([
+      'fluid:air',
+      'fluid:oxygen',
+      'fluid:nitrogen',
+      'resource:aluminiumDust',
+      'resource:flint',
+    ])
+    expect(groups.find((group) => group.key === 'fluid:nitrogen')?.recipes.map((recipe) => recipe.id)).toEqual(['lv_centrifuge_air'])
+    expect(groups.find((group) => group.key === 'resource:flint')?.recipes.map((recipe) => recipe.id)).toEqual(['lv_centrifuge_gravel_aluminium'])
   })
 
   it('keeps ingredient search matches inside the grouped recipe output', () => {

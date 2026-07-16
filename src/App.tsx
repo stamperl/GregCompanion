@@ -218,7 +218,6 @@ import { localTimeProvider } from './game/time'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
-  recipeGroupOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
 import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './game/recipeGraph'
@@ -498,6 +497,7 @@ const multiblockQuestIds = new Set<QuestId>([
   'makeHeatingCoilsQuest',
   'makeInvarQuest',
   'craftArcControllerQuest',
+  'buildLvAssemblerForPortsQuest',
   'craftArcItemBusesQuest',
   'craftArcEnergyHatchesQuest',
   'craftArcFluidHatchesQuest',
@@ -608,6 +608,7 @@ const multiblockQuestPositionOverrides: Partial<Record<QuestId, { x: number; y: 
   makeHeatingCoilsQuest: { x: 70, y: 80 },
   makeInvarQuest: { x: 245, y: 80 },
   craftArcControllerQuest: { x: 420, y: 145 },
+  buildLvAssemblerForPortsQuest: { x: 420, y: 290 },
   craftArcItemBusesQuest: { x: 595, y: 80 },
   craftArcEnergyHatchesQuest: { x: 595, y: 210 },
   craftArcFluidHatchesQuest: { x: 595, y: 290 },
@@ -1244,8 +1245,7 @@ function EnergyTank({ storedEu, capacityEu }: { storedEu: number; capacityEu: nu
 
 function recipeGroupDisplayOutput(group: RecipeGroup): RecipeDisplayOutput {
   if (group.recipes[0]?.surveyCardOutput) return recipePrimaryOutput(group.recipes[0])
-  const recipeOutput = group.recipes[0] ? recipeGroupOutput(group.recipes[0]) : undefined
-  const output = recipeOutput ?? group.output
+  const output = group.output
   if (output.kind === 'resource') {
     return {
       kind: 'resource',
@@ -1808,9 +1808,13 @@ function QuestBook({
   const questById = new Map(quests.map((quest) => [quest.id, quest]))
   const [mapView, setMapView] = useState({ x: 0, y: 0, zoom: 0.82 })
   const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null)
-  const nodeWidth = 58
-  const nodeHeight = 58
   const mapMargin = 24
+  const questNodeSize = (quest: Quest) => {
+    const kind = questKind(quest)
+    if (kind === 'gate') return 68
+    if (kind === 'optional') return 50
+    return 58
+  }
   const questPosition = (quest: Quest) => {
     const position =
       chapter.id === 'multiblocks'
@@ -1824,8 +1828,8 @@ function QuestBook({
   const offsetY = mapMargin - (questYs.length ? Math.min(...questYs) : 0)
   const questX = (quest: Quest) => questPosition(quest).x + offsetX
   const questY = (quest: Quest) => questPosition(quest).y + offsetY
-  const mapWidth = Math.max(360, ...chapterQuests.map((quest) => questX(quest) + nodeWidth + mapMargin))
-  const mapHeight = Math.max(160, ...chapterQuests.map((quest) => questY(quest) + nodeHeight + mapMargin))
+  const mapWidth = Math.max(360, ...chapterQuests.map((quest) => questX(quest) + questNodeSize(quest) + mapMargin))
+  const mapHeight = Math.max(160, ...chapterQuests.map((quest) => questY(quest) + questNodeSize(quest) + mapMargin))
   const clampZoom = (zoom: number) => Math.max(0.55, Math.min(1.35, zoom))
   const clampMapView = (view: { x: number; y: number; zoom: number }, viewport?: { width: number; height: number }) => {
     if (!viewport) return view
@@ -2036,18 +2040,20 @@ function QuestBook({
                 if (!parentInChapter) return null
                 const parentStatus = questStatus(state, parent)
                 const childStatus = questStatus(state, quest)
-                const className = parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'
-                const parentCenterX = questX(parent) + nodeWidth / 2
-                const parentCenterY = questY(parent) + nodeHeight / 2
-                const childCenterX = questX(quest) + nodeWidth / 2
-                const childCenterY = questY(quest) + nodeHeight / 2
+                const className = `${parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'} ${questKind(quest)}`
+                const parentSize = questNodeSize(parent)
+                const childSize = questNodeSize(quest)
+                const parentCenterX = questX(parent) + parentSize / 2
+                const parentCenterY = questY(parent) + parentSize / 2
+                const childCenterX = questX(quest) + childSize / 2
+                const childCenterY = questY(quest) + childSize / 2
                 const horizontal = Math.abs(childCenterX - parentCenterX) >= Math.abs(childCenterY - parentCenterY)
                 const movingRight = childCenterX >= parentCenterX
                 const movingDown = childCenterY >= parentCenterY
-                const startX = horizontal ? parentCenterX + (movingRight ? nodeWidth / 2 : -nodeWidth / 2) : parentCenterX
-                const startY = horizontal ? parentCenterY : parentCenterY + (movingDown ? nodeHeight / 2 : -nodeHeight / 2)
-                const endX = horizontal ? childCenterX - (movingRight ? nodeWidth / 2 : -nodeWidth / 2) : childCenterX
-                const endY = horizontal ? childCenterY : childCenterY - (movingDown ? nodeHeight / 2 : -nodeHeight / 2)
+                const startX = horizontal ? parentCenterX + (movingRight ? parentSize / 2 : -parentSize / 2) : parentCenterX
+                const startY = horizontal ? parentCenterY : parentCenterY + (movingDown ? parentSize / 2 : -parentSize / 2)
+                const endX = horizontal ? childCenterX - (movingRight ? childSize / 2 : -childSize / 2) : childCenterX
+                const endY = horizontal ? childCenterY : childCenterY - (movingDown ? childSize / 2 : -childSize / 2)
                 const path = horizontal
                   ? `M ${startX} ${startY} H ${(startX + endX) / 2} V ${endY} H ${endX}`
                   : `M ${startX} ${startY} V ${(startY + endY) / 2} H ${endX} V ${endY}`
@@ -2068,13 +2074,14 @@ function QuestBook({
                 const claimed = state.claimedQuests.includes(quest.id)
                 const claimState = status === 'completed' ? (claimed ? 'claimed' : 'claimable') : status === 'ready' ? 'claimable' : 'not-done'
                 const accessibleStatus = status === 'completed' ? (claimed ? 'done' : 'ready to claim') : questStatusText(status)
+                const nodeSize = questNodeSize(quest)
                 return (
                   <button
                     type="button"
                     aria-label={`${quest.title}. ${accessibleStatus}. ${kind}.`}
                     title={`${quest.title} - ${accessibleStatus}`}
                     className={`quest-node ${status} ${kind} ${claimState}${selected ? ' selected' : ''}`}
-                    style={{ left: questX(quest), minHeight: nodeHeight, top: questY(quest), width: nodeWidth }}
+                    style={{ left: questX(quest), minHeight: nodeSize, top: questY(quest), width: nodeSize }}
                     onClick={() => onSelectQuest(quest.id)}
                     key={quest.id}
                   >
@@ -4044,7 +4051,10 @@ function App() {
       return
     }
     if (selectedMachinePopupLoadStatus.ready) {
-      setMachineRecipeLoadNotice(selectedMachinePopupRecipe.fluidOnly ? 'This recipe only requires fluid inputs.' : 'All required items are already loaded.')
+      const fluidInputs = selectedMachinePopupRecipe.fluidInputs ?? (selectedMachinePopupRecipe.fluidInput ? [selectedMachinePopupRecipe.fluidInput] : [])
+      setMachineRecipeLoadNotice(selectedMachinePopupRecipe.fluidOnly
+        ? fluidInputs.length > 0 ? 'This recipe only requires fluid inputs.' : 'No manual inputs. Keep the machine powered.'
+        : 'All required items are already loaded.')
       return
     }
 
@@ -4416,7 +4426,11 @@ function App() {
   const showSelectedRecipeAvailability = terminalMode !== 'machines'
   const selectedRecipeMissingLine = selectedRecipe && showSelectedRecipeAvailability ? missingLine(state, selectedRecipe) : ''
   const selectedRecipeLockedLine = selectedRecipe && showSelectedRecipeAvailability ? lockedLine(state, selectedRecipe) : ''
-  const selectedRecipeOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
+  const selectedRecipeOutput = selectedRecipe
+    ? terminalMode === 'recipes' && selectedRecipeGroup
+      ? recipeGroupDisplayOutput(selectedRecipeGroup)
+      : recipePrimaryOutput(selectedRecipe)
+    : undefined
   const missingResourceAmount = (id: ResourceId) => showSelectedRecipeAvailability
     ? selectedRecipeMissing?.missingResources.find((amount) => amount.id === id)?.amount ?? 0
     : 0
@@ -5385,7 +5399,7 @@ function App() {
                               ? `${selectedRecipe.tier} · minimum ${machines[selectedRecipeMinimumMachineId].name}`
                               : selectedRecipe.tier}
                           </p>
-                          <h3>{recipeDisplayName(selectedRecipe)}</h3>
+                          <h3>{selectedRecipeOutput.label}</h3>
                         </div>
                         <div className="recipe-detail-actions">
                           {selectedRecipeGroup.recipes.length > 1 && (
@@ -7239,7 +7253,11 @@ function App() {
                     <p className={`machine-recipe-popup-status ${selectedMachinePopupLoadStatus.ready ? 'ready' : selectedMachinePopupLoadStatus.canLoad ? 'available' : 'blocked'}`} aria-live="polite">
                       {machineRecipeLoadNotice || (
                         selectedMachinePopupLoadStatus.ready
-                          ? selectedMachinePopupRecipe.fluidOnly ? 'Add the required fluids through the fluid input.' : 'All required items are loaded.'
+                          ? selectedMachinePopupRecipe.fluidOnly
+                            ? (selectedMachinePopupRecipe.fluidInputs?.length ?? (selectedMachinePopupRecipe.fluidInput ? 1 : 0)) > 0
+                              ? 'Add the required fluids through the fluid input.'
+                              : 'No manual inputs. Keep the machine powered.'
+                            : 'All required items are loaded.'
                           : selectedMachinePopupLoadStatus.missingResources.length > 0
                             ? `Missing ${selectedMachinePopupLoadStatus.missingResources.map((amount) => `${resourceLabels[amount.id]} x${formatAmount(amount.amount)}`).join(', ')}.`
                             : selectedMachinePopupLoadStatus.blockedSlots.length > 0
@@ -7255,7 +7273,7 @@ function App() {
                       onClick={handleAutoLoadMachineRecipe}
                     >
                       {selectedMachinePopupLoadStatus.ready
-                        ? 'Inputs ready'
+                        ? selectedMachinePopupRecipe.fluidOnly && !selectedMachinePopupRecipe.fluidInput && !selectedMachinePopupRecipe.fluidInputs?.length ? 'No inputs' : 'Inputs ready'
                         : selectedMachinePopupLoadStatus.canLoad
                           ? 'Auto-load items'
                           : 'Check requirements'}
