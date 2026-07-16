@@ -434,6 +434,15 @@ function storedFluids(process: MachineProcessState) {
     .filter((fluid) => fluid.amount > 0)
 }
 
+function machineHasAutomatableItemOutputs(machineId: MachineId) {
+  if (machineId === 'lvAutoMiner') return true
+  return processRecipes.some((recipe) =>
+    recipe.machineId === machineId &&
+    !recipe.fluidOnly &&
+    (recipe.output.amount > 0 || Boolean(recipe.secondaryOutput?.amount)),
+  )
+}
+
 function centrifugeFluidOutputChannelIndex(fluidId: FluidId) {
   for (const recipe of processRecipes) {
     if (recipe.machineId !== 'lvCentrifuge') continue
@@ -3104,7 +3113,23 @@ function App() {
     : []
   const selectedMachineStorageResource = selectedResource && furnaceStorageResources.includes(selectedResource) ? selectedResource : null
   const selectedMachineHmiConfig = selectedMachine ? machineHmiConfigs[selectedMachine.machineId] ?? null : null
-  const selectedMachineCanAutomateItems = Boolean(selectedMachine && isLvItemAutomationMachine(selectedMachine.machineId))
+  const selectedMachineCanAutomateItems = Boolean(
+    selectedMachine &&
+    isLvItemAutomationMachine(selectedMachine.machineId) &&
+    machineHasAutomatableItemOutputs(selectedMachine.machineId),
+  )
+  const selectedMachineCanAutomateFluids = Boolean(
+    selectedMachine &&
+    machines[selectedMachine.machineId].tier === 'lv' &&
+    isFluidOutletConfigurableMachine(selectedMachine.machineId),
+  )
+  const selectedMachineCanAutomate = selectedMachineCanAutomateItems || selectedMachineCanAutomateFluids
+  const selectedMachineFluidOutputDirections = selectedMachine && selectedMachineCanAutomateFluids
+    ? pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output')
+    : []
+  const showSelectedMachineFluidAutomation = selectedMachineCanAutomateFluids && (
+    !selectedMachineCanAutomateItems || machineTerminalMode === 'fluids'
+  )
   const selectedMachineCanConfigureRouting = Boolean(
     selectedMachine &&
       (isSteamPipeMachine(selectedMachine.machineId) ||
@@ -6440,19 +6465,66 @@ function App() {
                     )}
                   </div>
                 )}
-                {selectedMachineCanAutomateItems && (
+                {selectedMachineCanAutomate && (
                   <button
                     type="button"
                     className={isMachineAutomationOpen ? 'machine-automation-toggle active' : 'machine-automation-toggle'}
                     aria-pressed={isMachineAutomationOpen}
-                    onClick={() => setIsMachineAutomationOpen((current) => !current)}
+                    onClick={() => {
+                      if (!isMachineAutomationOpen && !selectedMachineCanAutomateItems && selectedMachineCanAutomateFluids) setMachineTerminalMode('fluids')
+                      setIsMachineAutomationOpen((current) => !current)
+                    }}
                   >
                     <Route size={14} />
                     <span>{isMachineAutomationOpen ? 'Back to machine' : 'Automation'}</span>
-                    <strong>{selectedMachineAutomationStatus?.label}</strong>
+                    <strong>{showSelectedMachineFluidAutomation
+                      ? selectedMachineFluidOutputDirections.length > 0 ? 'Ready' : 'Disabled'
+                      : selectedMachineAutomationStatus?.label}</strong>
                   </button>
                 )}
-                {isMachineAutomationOpen && selectedMachineCanAutomateItems ? (
+                {isMachineAutomationOpen && selectedMachineCanAutomate && showSelectedMachineFluidAutomation ? (
+                  <div className="lv-item-automation-hmi fluid-automation-hmi">
+                    <div className="lv-automation-head">
+                      <span><small>Fluid output</small><strong>{selectedMachineFluidOutputDirections.length > 0
+                        ? selectedMachineFluidOutputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')
+                        : 'Disabled'}</strong></span>
+                      <span className={`lv-automation-state state-${selectedMachineFluidOutputDirections.length > 0 ? 'ready' : 'disabled'}`}><small>State</small><strong>{selectedMachineFluidOutputDirections.length > 0 ? 'Ready' : 'Disabled'}</strong></span>
+                    </div>
+                    <div className="lv-automation-grid" aria-label="Automatic fluid output directions">
+                      {[-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => {
+                        const direction: PipeDirection | null = dx === 0 && dy === -1 ? 'north' : dx === 1 && dy === 0 ? 'east' : dx === 0 && dy === 1 ? 'south' : dx === -1 && dy === 0 ? 'west' : null
+                        const isCenter = dx === 0 && dy === 0
+                        if (!direction && !isCenter) return <span className="lv-automation-spacer" key={`${dx},${dy}`} />
+                        if (isCenter) return <span className="lv-automation-machine" key="center"><MachineGlyph id={selectedMachine.machineId} active={Boolean(selectedMachine.process.activeRecipeId)} /><strong>{machines[selectedMachine.machineId].name}</strong></span>
+                        const offset = pipeDirectionOffsets[direction!]
+                        const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
+                        const selected = pipeSideMode(selectedMachine, direction!) === 'output'
+                        return <button
+                            type="button"
+                            className={['lv-automation-face', 'fluid-face', direction, selected ? 'selected' : ''].filter(Boolean).join(' ')}
+                            aria-label={`${selected ? 'Disable' : 'Set'} automatic fluid output ${offset.label}`}
+                            aria-pressed={selected}
+                            onClick={() => setState((current) => setFluidOutputDirection(current, selectedMachine.uid, direction!))}
+                            key={direction}
+                          >
+                            {neighbour ? <MachineGlyph id={neighbour.machineId} /> : <span className="lv-automation-empty" />}
+                            <b>{offset.label}</b>
+                            {selected && <Droplet size={12} aria-hidden="true" />}
+                          </button>
+                      }))}
+                    </div>
+                    <div className="lv-automation-route-readout">
+                      <span><small>Destinations</small><strong>{selectedMachineFluidOutputDirections.length > 0
+                        ? Array.from(new Set(selectedMachineFluidOutputDirections.map((direction) => {
+                          const offset = pipeDirectionOffsets[direction]
+                          const target = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
+                          return target ? machines[target.machineId].name : 'No neighbour'
+                        }))).join(', ')
+                        : 'None'}</strong></span>
+                      <span><small>Route</small><strong>Fluid network</strong></span>
+                    </div>
+                  </div>
+                ) : isMachineAutomationOpen && selectedMachineCanAutomateItems ? (
                   <div className="lv-item-automation-hmi">
                     <div className="lv-automation-head">
                       <span><small>Item output</small><strong>{selectedMachine.itemOutputDirection ? pipeDirectionOffsets[selectedMachine.itemOutputDirection].label : 'Disabled'}</strong></span>

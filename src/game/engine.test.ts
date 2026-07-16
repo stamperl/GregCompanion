@@ -1952,6 +1952,35 @@ describe('game engine', () => {
     expect(chest.process.storageSlots).toContainEqual({ id: 'flint', amount: 2 })
   })
 
+  it('automates Centrifuge item and fluid outputs through independent faces', () => {
+    let state = createFactoryState(1000)
+    Object.assign(state.machines, { lvCentrifuge: 1, standardChest: 1, copperPipe: 1, steamTank: 1 })
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    state = placeMachineInstance(state, 'standardChest', 1, 0)
+    state = placeMachineInstance(state, 'copperPipe', 0, 1)
+    state = placeMachineInstance(state, 'steamTank', 0, 2)
+    const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+
+    state = setLvItemOutputDirection(state, centrifuge.uid, 'east')
+    state = setFluidOutputDirection(state, centrifuge.uid, 'south')
+    state = setPipeSideMode(state, pipe.uid, 'north', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'south', 'output')
+    const configured = state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!
+    configured.process.output = { id: 'rubberPulp', amount: 2 }
+    configured.process.fluids.glue = 8
+
+    expect(configured.itemOutputDirection).toBe('east')
+    expect(pipeSideMode(configured, 'south')).toBe('output')
+    expect(pipeSideMode(configured, 'east')).toBe('blocked')
+
+    state = tickGame(state, 2000).state
+
+    expect(state.machineInstances.find((instance) => instance.machineId === 'standardChest')!.process.storageSlots).toContainEqual({ id: 'rubberPulp', amount: 2 })
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.glue).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.process.fluids.glue).toBe(8)
+  })
+
   it('connects a configured cable to a Centrifuge without opening a fluid face', () => {
     let state = createFactoryState(1000)
     state.machines.lvCentrifuge = 1
