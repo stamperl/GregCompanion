@@ -1764,15 +1764,15 @@ export const recipes: Recipe[] = [
   {
     id: 'craft_lv_machine_hull',
     name: 'Craft LV Machine Hull',
-    description: 'Wrap the LV casing with tin wire and iron plate to make an electric machine hull.',
+    description: 'Wrap the LV casing with tin wire and steel plate to make an electric machine hull.',
     tier: 'lv',
     durationMs: 6500,
     inputs: [
       { id: 'lvMachineCasing', amount: 1 },
       { id: 'tinWire', amount: 4 },
-      { id: 'ironPlate', amount: 4 },
+      { id: 'steelPlate', amount: 4 },
     ],
-    pattern: ['ironPlate', 'tinWire', 'ironPlate', 'tinWire', 'lvMachineCasing', 'tinWire', 'ironPlate', 'tinWire', 'ironPlate'],
+    pattern: ['steelPlate', 'tinWire', 'steelPlate', 'tinWire', 'lvMachineCasing', 'tinWire', 'steelPlate', 'tinWire', 'steelPlate'],
     outputs: [{ id: 'lvMachineHull', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },

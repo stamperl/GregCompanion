@@ -2549,8 +2549,7 @@ describe('game engine', () => {
 
   it('crafts LV casing and hull before LV machines consume hulls', () => {
     let state = createFactoryState(1000)
-    state.resources.steelPlate = 13
-    state.resources.ironPlate = 4
+    state.resources.steelPlate = 17
     state.resources.tinWire = 8
     state.resources.bronzePlate = 1
     state.resources.bronzeRod = 2
@@ -2562,6 +2561,7 @@ describe('game engine', () => {
 
     expect(casing.pattern?.every(Boolean)).toBe(true)
     expect(hull.pattern?.every(Boolean)).toBe(true)
+    expect(hull.inputs).toContainEqual({ id: 'steelPlate', amount: 4 })
     expect(turbine.inputs).toContainEqual({ id: 'lvMachineHull', amount: 1 })
 
     state = craftRecipeInstant(state, casing, 1)
@@ -2571,6 +2571,14 @@ describe('game engine', () => {
     expect(state.resources.lvMachineCasing).toBe(0)
     expect(state.resources.lvMachineHull).toBe(0)
     expect(state.machines.steamTurbine).toBe(1)
+  })
+
+  it('uses steel rather than iron plates throughout LV crafting recipes', () => {
+    const lvRecipesWithIronPlate = recipes
+      .filter((recipe) => recipe.tier === 'lv')
+      .filter((recipe) => recipe.inputs.some((input) => input.id === 'ironPlate'))
+
+    expect(lvRecipesWithIronPlate.map((recipe) => recipe.id)).toEqual([])
   })
 
   it('crafts BBF casing items and assembles them into factory multiblock parts', () => {
