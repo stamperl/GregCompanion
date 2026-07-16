@@ -1727,6 +1727,23 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.input).toEqual({ id: 'ironOre', amount: 2 })
   })
 
+  it('hoppers pull from chests while waiting for an output route', () => {
+    let state = createFactoryState(1000)
+    Object.assign(state.machines, { standardChest: 1, hopper: 1 })
+    state.resources.ironOre = 2
+    state = placeMachineInstance(state, 'standardChest', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    state = insertMachineStorageSlot(state, chest.uid, 0, 'ironOre', 2)
+    state = setPipeSideMode(state, hopper.uid, 'west', 'input')
+
+    state = tickGame(state, 2000, 3000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots.every((slot) => !slot)).toBe(true)
+    expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toEqual({ id: 'ironOre', amount: 2 })
+  })
+
   it('hoppers collect output produced by a running furnace', () => {
     let state = createFactoryState(1000)
     Object.assign(state.machines, { furnace: 1, hopper: 1, standardChest: 1 })

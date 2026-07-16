@@ -52,6 +52,7 @@ import {
   isEuProducerMachine,
   isEuStorageMachine,
   isItemAutomationMachine,
+  isItemBusMachine,
   isItemHopperMachine,
   isItemStorageMachine,
   isLiquidSteamBoilerMachine,
@@ -905,7 +906,8 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
         !blocked &&
           neighbour &&
           (isHopper
-            ? mode === 'output' && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))
+            ? (((mode === 'input' || mode === 'both') && !isItemHopperMachine(neighbour.machineId) && !isItemBusMachine(neighbour.machineId)) ||
+                ((mode === 'output' || mode === 'both') && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))))
             : machinesCanConnect(instance, neighbour) && (isEuCable ? isEuNetworkMachine(neighbour.machineId) : isSteamPipeNeighbour(neighbour.machineId))),
       )
       return {
@@ -1045,6 +1047,9 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                 {pipePolarity.map((side) => (
                   <span className={`pipe-polarity-side ${side.direction} ${side.state} mode-${side.mode}`} title={side.label} key={side.direction}>
                     {instance && isEuCableMachine(instance.machineId) ? <span className="cable-connection-mark" /> : <PipeFlowArrows direction={side.direction} mode={side.mode} />}
+                    {instance && isItemHopperMachine(instance.machineId) && side.mode !== 'blocked' && (
+                      <span className="hopper-route-mark">{side.mode === 'input' ? 'IN' : side.mode === 'output' ? 'OUT' : 'I/O'}</span>
+                    )}
                   </span>
                 ))}
               </span>
@@ -1455,6 +1460,8 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     process.extraInput4,
     process.fuel,
     process.output,
+    process.output2,
+    ...process.storageSlots,
   ].reduce((sum, slot) => sum + (slot?.amount ?? 0), 0)
   if (instance.machineId === 'well') return 'Supplying water'
   if (isItemStorageMachine(instance.machineId)) return storedItemCount > 0 ? `Storing ${formatAmount(storedItemCount)} items` : 'Empty storage'
@@ -1468,7 +1475,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
       return mode === 'output' || mode === 'both'
     })
     if (inputDirections.length < 1 && outputDirections.length < 1) return 'No route set'
-    if (outputDirections.length < 1) return 'No output side'
+    if (outputDirections.length < 1) return storedItemCount > 0 ? `Holding ${formatAmount(storedItemCount)} items; no output side` : 'No output side'
     if (storedItemCount < 1) return 'Empty hopper'
     const outputLabel = outputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')
     return process.activeRecipeId ? `Feeding ${outputLabel}` : `Ready ${outputLabel}`
