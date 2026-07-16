@@ -689,8 +689,6 @@ export type ConductorFaceSettings = {
   priority: number
   roundRobin: boolean
   selfFeed: boolean
-  itemFilter?: ResourceId[]
-  fluidFilter?: FluidId[]
 }
 
 export type BucketFluidState = {

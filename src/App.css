@@ -16579,11 +16579,11 @@ button.button-primary:disabled,
 .conductor-face-summary span { background: #171a19; border: 1px solid #383c38; display: grid; padding: 5px; }
 .conductor-face-summary small, .conductor-setting-label { color: #b9a66f; font: 800 0.55rem Inter, ui-sans-serif, system-ui, sans-serif; text-transform: uppercase; }
 .conductor-face-summary strong { font: 900 0.7rem Inter, ui-sans-serif, system-ui, sans-serif; overflow-wrap: anywhere; }
-.conductor-setting-group, .conductor-setting-row, .conductor-filter-control { align-items: center; background: #101312; border: 1px solid rgba(255, 235, 176, 0.2); display: grid; gap: 6px; padding: 7px; }
+.conductor-setting-group, .conductor-setting-row { align-items: center; background: #101312; border: 1px solid rgba(255, 235, 176, 0.2); display: grid; gap: 6px; padding: 7px; }
 .conductor-mode-control { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .conductor-mode-control button { min-height: 32px; padding: 3px; }
 .conductor-mode-control button.active { background: #66552a; border-color: #f2d66d; color: #fff6bd; }
-.conductor-setting-row, .conductor-filter-control { grid-template-columns: 78px minmax(0, 1fr); }
+.conductor-setting-row { grid-template-columns: 78px minmax(0, 1fr); }
 .conductor-channel-control, .conductor-priority-control { display: grid; gap: 5px; grid-template-columns: repeat(4, 32px); justify-content: end; }
 .conductor-channel-control button { background: #171a19; border: 1px solid #444; height: 30px; padding: 5px; width: 32px; }
 .conductor-channel-control button span { background: var(--channel-color); display: block; height: 100%; width: 100%; }
@@ -16591,7 +16591,6 @@ button.button-primary:disabled,
 .channel-0 { --channel-color: #d9c75b; } .channel-1 { --channel-color: #5fc2d1; } .channel-2 { --channel-color: #c75f66; } .channel-3 { --channel-color: #85b86d; }
 .conductor-priority-control { align-items: center; grid-template-columns: 32px 46px 32px; }
 .conductor-priority-control strong { text-align: center; }
-.conductor-filter-control select { background: #e4e1d8; border: 1px solid #756e59; color: #171713; font: 700 0.72rem Inter, ui-sans-serif, system-ui, sans-serif; min-height: 34px; min-width: 0; width: 100%; }
 .conductor-toggle-grid { display: grid; gap: 5px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .conductor-toggle-grid label { align-items: center; background: #111413; border: 1px solid rgba(255, 235, 176, 0.2); display: flex; font: 750 0.64rem Inter, ui-sans-serif, system-ui, sans-serif; gap: 7px; min-height: 36px; padding: 6px; }
 .conductor-toggle-grid input { accent-color: #d9c75b; height: 18px; width: 18px; }
@@ -16667,7 +16666,7 @@ button.button-primary:disabled,
     max-height: calc(100dvh - var(--top-safe-clearance, 38px) - var(--bottom-nav-clearance, 0px) - 128px);
   }
   .conductor-face-layout { grid-template-columns: minmax(0, 1fr) 78px; }
-  .conductor-setting-row, .conductor-filter-control { grid-template-columns: 64px minmax(0, 1fr); }
+  .conductor-setting-row { grid-template-columns: 64px minmax(0, 1fr); }
 }
 
 /* Phone-safe machine terminal shell. Keep controls visible and confine fallback

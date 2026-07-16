@@ -506,16 +506,12 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
         const fallbackMode = fluidLane ? normalizedSideModes[direction] ?? 'blocked' : 'blocked'
         const mode = pipeSideModes.includes(face.mode) ? face.mode : fallbackMode
         const channel = Math.max(0, Math.min(3, Math.floor(Number(face.channel) || 0))) as ConductorChannel
-        const itemFilter = Array.isArray(face.itemFilter) ? [...new Set(face.itemFilter.filter((id): id is ResourceId => id in resourceRegistry))].slice(0, 5) : undefined
-        const fluidFilter = Array.isArray(face.fluidFilter) ? [...new Set(face.fluidFilter.filter((id): id is FluidId => fluidIds.includes(id)))].slice(0, 5) : undefined
         return [[direction, {
           mode,
           channel,
           priority: Math.max(-9, Math.min(9, Math.floor(Number(face.priority) || 0))),
           roundRobin: Boolean(face.roundRobin),
           selfFeed: Boolean(face.selfFeed),
-          ...(itemFilter?.length ? { itemFilter } : {}),
-          ...(fluidFilter?.length ? { fluidFilter } : {}),
         } satisfies ConductorFaceSettings]]
       }),
     ) as Partial<Record<PipeDirection, ConductorFaceSettings>>
@@ -592,8 +588,8 @@ export function cloneState(state: GameState): GameState {
       ...instance,
       pipeDisabledSides: { ...instance.pipeDisabledSides },
       pipeSideModes: { ...instance.pipeSideModes },
-      conductorItemFaces: Object.fromEntries(Object.entries(instance.conductorItemFaces ?? {}).map(([direction, face]) => [direction, face ? { ...face, itemFilter: face.itemFilter ? [...face.itemFilter] : undefined, fluidFilter: face.fluidFilter ? [...face.fluidFilter] : undefined } : face])),
-      conductorFluidFaces: Object.fromEntries(Object.entries(instance.conductorFluidFaces ?? {}).map(([direction, face]) => [direction, face ? { ...face, itemFilter: face.itemFilter ? [...face.itemFilter] : undefined, fluidFilter: face.fluidFilter ? [...face.fluidFilter] : undefined } : face])),
+      conductorItemFaces: Object.fromEntries(Object.entries(instance.conductorItemFaces ?? {}).map(([direction, face]) => [direction, face ? { mode: face.mode, channel: face.channel, priority: face.priority, roundRobin: face.roundRobin, selfFeed: face.selfFeed } : face])),
+      conductorFluidFaces: Object.fromEntries(Object.entries(instance.conductorFluidFaces ?? {}).map(([direction, face]) => [direction, face ? { mode: face.mode, channel: face.channel, priority: face.priority, roundRobin: face.roundRobin, selfFeed: face.selfFeed } : face])),
       process: cloneProcessState(instance.process),
     })),
     scrip: Math.max(0, Math.floor(state.scrip ?? 0)),
@@ -3400,13 +3396,11 @@ export function setConductorFaceSettings(state: GameState, uid: string, lane: 'i
   const mode = patch.mode && pipeSideModes.includes(patch.mode) ? patch.mode : current.mode
   const channel = patch.channel === undefined ? current.channel : Math.max(0, Math.min(3, Math.floor(patch.channel))) as ConductorChannel
   faces[direction] = {
-    ...current,
-    ...patch,
     mode,
     channel,
     priority: Math.max(-9, Math.min(9, Math.floor(patch.priority ?? current.priority))),
-    itemFilter: patch.itemFilter === undefined ? current.itemFilter : [...new Set(patch.itemFilter.filter((id) => id in resourceRegistry))].slice(0, 5),
-    fluidFilter: patch.fluidFilter === undefined ? current.fluidFilter : [...new Set(patch.fluidFilter.filter((id) => fluidIds.includes(id)))].slice(0, 5),
+    roundRobin: patch.roundRobin ?? current.roundRobin,
+    selfFeed: patch.selfFeed ?? current.selfFeed,
   }
   if (lane === 'item') target.conductorItemFaces = faces
   else {
@@ -4983,14 +4977,6 @@ function conductorEndpoints(state: GameState, network: MachineInstance[], lane: 
   }))
 }
 
-function endpointAllowsItem(endpoint: ConductorEndpoint, resourceId: ResourceId) {
-  return !endpoint.settings.itemFilter?.length || endpoint.settings.itemFilter.includes(resourceId)
-}
-
-function endpointAllowsFluid(endpoint: ConductorEndpoint, fluidId: FluidId) {
-  return !endpoint.settings.fluidFilter?.length || endpoint.settings.fluidFilter.includes(fluidId)
-}
-
 function orderedConductorTargets(source: ConductorEndpoint, targets: ConductorEndpoint[], cursor: number) {
   const eligible = targets.filter((target) => target.settings.channel === source.settings.channel && (source.settings.selfFeed || target.adjacent.uid !== source.adjacent.uid))
   if (eligible.length < 2) return eligible
@@ -5015,13 +5001,10 @@ function tickItemConductorNetwork(state: GameState, network: MachineInstance[], 
   while (controller.itemTransferProgressMs >= 500) {
     let transferred = false
     for (const source of sources) {
-      const sourceSlot = removableInventorySlots(source.adjacent).find((slot) => {
-        const stored = slot.get()
-        return Boolean(stored && endpointAllowsItem(source, stored.id))
-      })
+      const sourceSlot = removableInventorySlots(source.adjacent).find((slot) => Boolean(slot.get()))
       const stored = sourceSlot?.get()
       if (!sourceSlot || !stored) continue
-      const orderedTargets = orderedConductorTargets(source, targets.filter((target) => endpointAllowsItem(target, stored.id)), cursor)
+      const orderedTargets = orderedConductorTargets(source, targets, cursor)
       const target = orderedTargets.find((candidate) => insertOneIntoInventory(candidate.adjacent, stored.id))
       if (!target) continue
       sourceSlot.set(decrementProcessSlot(stored, 1))
@@ -5040,7 +5023,7 @@ function tickItemConductorNetwork(state: GameState, network: MachineInstance[], 
 function sourceFluidIds(state: GameState, endpoint: ConductorEndpoint) {
   const outputBuffers = machineFluidBuffersForInstance(state, endpoint.adjacent).filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
   const accepted = new Set(outputBuffers.flatMap((buffer) => buffer.acceptedFluids))
-  return storedFluidTypes(endpoint.adjacent.process).filter((fluidId) => accepted.has(fluidId) && endpointAllowsFluid(endpoint, fluidId))
+  return storedFluidTypes(endpoint.adjacent.process).filter((fluidId) => accepted.has(fluidId))
 }
 
 function tickFluidConductorNetwork(state: GameState, network: MachineInstance[], elapsedMs: number) {
@@ -5054,7 +5037,7 @@ function tickFluidConductorNetwork(state: GameState, network: MachineInstance[],
     let remaining = 64 * (elapsedMs / 1000)
     for (const fluidId of sourceFluidIds(state, source)) {
       if (remaining <= 0) break
-      const orderedTargets = orderedConductorTargets(source, targets.filter((target) => endpointAllowsFluid(target, fluidId)), cursor)
+      const orderedTargets = orderedConductorTargets(source, targets, cursor)
       for (const target of orderedTargets) {
         if (!canStoreFluid(state, target.adjacent, fluidId)) continue
         const transfer = normalizeLitres(Math.min(

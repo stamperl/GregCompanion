@@ -1984,14 +1984,16 @@ describe('game engine', () => {
 
     expect(state.machineInstances).toHaveLength(1)
     expect(state.machineInstances[0].machineId).toBe('conductorBundle')
-    expect(conductorFaceSettings(state.machineInstances[0], 'item', 'west')).toMatchObject({ mode: 'input', channel: 2, priority: 4, itemFilter: ['log'] })
-    expect(conductorFaceSettings(state.machineInstances[0], 'fluid', 'east')).toMatchObject({ mode: 'output', channel: 2, priority: 7, selfFeed: true, fluidFilter: ['creosote'] })
+    expect(conductorFaceSettings(state.machineInstances[0], 'item', 'west')).toMatchObject({ mode: 'input', channel: 2, priority: 4 })
+    expect(conductorFaceSettings(state.machineInstances[0], 'item', 'west')).not.toHaveProperty('itemFilter')
+    expect(conductorFaceSettings(state.machineInstances[0], 'fluid', 'east')).toMatchObject({ mode: 'output', channel: 2, priority: 7, selfFeed: true })
+    expect(conductorFaceSettings(state.machineInstances[0], 'fluid', 'east')).not.toHaveProperty('fluidFilter')
     expect(state.machines.itemConductor).toBe(1)
     expect(state.machines.fluidConductor).toBe(1)
     expect(loadGame(saveGame(state, 3000), 3000).machineInstances[0]).toMatchObject({ machineId: 'conductorBundle' })
   })
 
-  it('routes filtered items and fluids through conductor networks on matching channels', () => {
+  it('routes items and fluids through conductor networks on matching channels', () => {
     let state = createFactoryState(1000)
     state.machines.standardChest = 2
     state.machines.steamTank = 2
@@ -2011,9 +2013,9 @@ describe('game engine', () => {
     const [fluidSource, fluidTarget] = state.machineInstances.filter((instance) => instance.machineId === 'fluidConductor')
     sourceChest.process.storageSlots[0] = { id: 'log', amount: 3 }
     sourceTank.process.fluids.creosote = 64
-    state = setConductorFaceSettings(state, itemSource.uid, 'item', 'west', { mode: 'input', channel: 1, itemFilter: ['log'] })
+    state = setConductorFaceSettings(state, itemSource.uid, 'item', 'west', { mode: 'input', channel: 1 })
     state = setConductorFaceSettings(state, itemTarget.uid, 'item', 'east', { mode: 'output', channel: 1, priority: 3 })
-    state = setConductorFaceSettings(state, fluidSource.uid, 'fluid', 'west', { mode: 'input', channel: 2, fluidFilter: ['creosote'] })
+    state = setConductorFaceSettings(state, fluidSource.uid, 'fluid', 'west', { mode: 'input', channel: 2 })
     state = setConductorFaceSettings(state, fluidTarget.uid, 'fluid', 'east', { mode: 'output', channel: 2, priority: 3 })
     state = tickGame(state, 1000).state
 

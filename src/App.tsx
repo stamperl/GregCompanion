@@ -2246,11 +2246,11 @@ function App() {
     if (!instance) return null
     if (isConductorMachine(reviewMachineId)) {
       instance.conductorItemFaces = {
-        west: { mode: 'input', channel: 0, priority: 0, roundRobin: true, selfFeed: false, itemFilter: ['log'] },
+        west: { mode: 'input', channel: 0, priority: 0, roundRobin: true, selfFeed: false },
         east: { mode: 'output', channel: 0, priority: 4, roundRobin: false, selfFeed: false },
       }
       instance.conductorFluidFaces = {
-        north: { mode: 'input', channel: 1, priority: 0, roundRobin: false, selfFeed: false, fluidFilter: ['creosote'] },
+        north: { mode: 'input', channel: 1, priority: 0, roundRobin: false, selfFeed: false },
         south: { mode: 'output', channel: 1, priority: 2, roundRobin: false, selfFeed: false },
       }
     }
@@ -3325,7 +3325,7 @@ function App() {
         return (['item', 'fluid'] as const).flatMap((lane) => {
           if (lane === 'item' ? !isItemConductorMachine(instance.machineId) : !isFluidConductorMachine(instance.machineId)) return []
           const face = conductorFaceSettings(instance, lane, direction)
-          return [lane, direction, face.mode, face.channel, face.priority, Number(face.roundRobin), Number(face.selfFeed), ...(face.itemFilter ?? []), ...(face.fluidFilter ?? [])]
+          return [lane, direction, face.mode, face.channel, face.priority, Number(face.roundRobin), Number(face.selfFeed)]
         })
       }),
     ].join(':'))
@@ -6368,20 +6368,6 @@ function App() {
                         <button type="button" className="icon-button" aria-label="Increase priority" disabled={selectedConductorFace.priority >= 9} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { priority: selectedConductorFace.priority + 1 }))}><ChevronRight size={16} /></button>
                       </div>
                     </div>
-                    <label className="conductor-filter-control">
-                      <span className="conductor-setting-label">Whitelist</span>
-                      {selectedConductorLane === 'item' ? (
-                        <select value={selectedConductorFace.itemFilter?.[0] ?? ''} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, 'item', selectedConductorDirection, { itemFilter: event.target.value ? [event.target.value as ResourceId] : [] }))}>
-                          <option value="">Any item</option>
-                          {resourceOrder.map((id) => <option value={id} key={id}>{resourceLabels[id]}</option>)}
-                        </select>
-                      ) : (
-                        <select value={selectedConductorFace.fluidFilter?.[0] ?? ''} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, 'fluid', selectedConductorDirection, { fluidFilter: event.target.value ? [event.target.value as FluidId] : [] }))}>
-                          <option value="">Any fluid or gas</option>
-                          {fluidIds.map((id) => <option value={id} key={id}>{fluidLabel(id)}</option>)}
-                        </select>
-                      )}
-                    </label>
                     <div className="conductor-toggle-grid">
                       <label><input type="checkbox" checked={selectedConductorFace.roundRobin} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { roundRobin: event.target.checked }))} /><span>Round robin</span></label>
                       <label><input type="checkbox" checked={selectedConductorFace.selfFeed} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { selfFeed: event.target.checked }))} /><span>Allow self-feed</span></label>

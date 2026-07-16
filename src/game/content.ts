@@ -523,7 +523,7 @@ export const machineRegistry = {
   itemConductor: {
     id: 'itemConductor',
     name: 'Item Conductor',
-    description: 'A configurable late-LV item network with face filters, channels, priorities, and round-robin distribution.',
+    description: 'A configurable late-LV item network with channels, priorities, and round-robin distribution.',
     tier: 'lv',
     placeable: true,
     glyphKey: 'conductor',
@@ -532,7 +532,7 @@ export const machineRegistry = {
   fluidConductor: {
     id: 'fluidConductor',
     name: 'Fluid Conductor',
-    description: 'A configurable late-LV fluid network with face filters, channels, priorities, and round-robin distribution.',
+    description: 'A configurable late-LV fluid network with channels, priorities, and round-robin distribution.',
     tier: 'lv',
     placeable: true,
     glyphKey: 'conductor',
