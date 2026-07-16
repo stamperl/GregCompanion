@@ -119,7 +119,7 @@ import {
   visibleRecipes,
   wellWaterOutputLitresPerSecond,
 } from './engine'
-import type { CraftSlot, MachineId, PipeDirection, PipeSideMode, QuestId, Recipe } from './types'
+import type { CraftSlot, MachineId, PipeDirection, PipeSideMode, QuestId, Recipe, ResourceId } from './types'
 
 describe('game engine', () => {
   function createFactoryState(now = 1000, level = 2) {
@@ -3008,6 +3008,117 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === hammer.uid)!.process.output).toEqual({ id: 'ironPlate', amount: 1 })
     expect(state.machineInstances.find((instance) => instance.uid === compressor.uid)!.process.output).toEqual({ id: 'cokeOvenBrick', amount: 1 })
     expect(state.machineInstances.find((instance) => instance.uid === extractor.uid)!.process.output).toEqual({ id: 'rubber', amount: 1 })
+  })
+
+  it('stress runs well to boiler to machine with every solid fuel through direct and piped routes', () => {
+    const routeKinds = ['direct', 'piped'] as const
+    const fuelIds = Object.keys(fuelDefinitions) as ResourceId[]
+
+    for (const routeKind of routeKinds) {
+      for (const fuelId of fuelIds) {
+        let state = createFactoryState(1000)
+        state.machines.well = 1
+        state.machines.steamBoiler = 1
+        state.machines.steamMacerator = 1
+        state.resources[fuelId] = 8
+        state.resources.copperOre = 1
+        state = placeMachineInstance(state, 'well', 0, 0)
+
+        if (routeKind === 'piped') {
+          state.machines.copperPipe = 1
+          state.machines.bronzePipe = 1
+          state = placeMachineInstance(state, 'copperPipe', 1, 0)
+          state = placeMachineInstance(state, 'steamBoiler', 2, 0)
+          state = placeMachineInstance(state, 'bronzePipe', 3, 0)
+          state = placeMachineInstance(state, 'steamMacerator', 4, 0)
+          const waterPipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+          const steamPipe = state.machineInstances.find((instance) => instance.machineId === 'bronzePipe')!
+          state = setPipeSideMode(state, waterPipe.uid, 'west', 'input')
+          state = setPipeSideMode(state, waterPipe.uid, 'east', 'output')
+          state = setPipeSideMode(state, steamPipe.uid, 'west', 'input')
+          state = setPipeSideMode(state, steamPipe.uid, 'east', 'output')
+        } else {
+          state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+          state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+        }
+
+        const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+        const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+        state = insertProcessSlot(state, boiler.uid, 'fuel', fuelId, 8)
+        state = insertProcessSlot(state, macerator.uid, 'input', 'copperOre', 1)
+
+        for (let elapsed = 0; elapsed < 12_000; elapsed += 250) state = tickGame(state, 250).state
+
+        expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.output, `${routeKind} route using ${fuelId}`).toEqual({
+          id: 'crushedCopperOre',
+          amount: 2,
+        })
+        expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs, `${routeKind} route using ${fuelId}`).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('keeps a piped well boiler machine line running across save reload and sustained demand', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.copperPipe = 1
+    state.machines.steamBoiler = 1
+    state.machines.bronzePipe = 1
+    state.machines.steamMacerator = 1
+    state.resources.coalCoke = 8
+    state.resources.copperOre = 32
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 2, 0)
+    state = placeMachineInstance(state, 'bronzePipe', 3, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 4, 0)
+    const waterPipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const steamPipe = state.machineInstances.find((instance) => instance.machineId === 'bronzePipe')!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    state = setPipeSideMode(state, waterPipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, waterPipe.uid, 'east', 'output')
+    state = setPipeSideMode(state, steamPipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, steamPipe.uid, 'east', 'output')
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'coalCoke', 8)
+    state = insertProcessSlot(state, macerator.uid, 'input', 'copperOre', 32)
+
+    for (let elapsed = 0; elapsed < 30_000; elapsed += 250) state = tickGame(state, 250).state
+    state = loadGame(saveGame(state, 31_000, true), 31_000)
+    for (let elapsed = 0; elapsed < 210_000; elapsed += 250) {
+      state = tickGame(state, 250).state
+      const activeMacerator = state.machineInstances.find((instance) => instance.uid === macerator.uid)!
+      if (activeMacerator.process.output) state = collectProcessOutput(state, activeMacerator.uid)
+    }
+
+    expect(state.resources.crushedCopperOre).toBeGreaterThanOrEqual(60)
+    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.fuelRemainingMs).toBeGreaterThan(0)
+    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.input).toBeNull()
+  })
+
+  it('keeps a well boiler machine line running through offline simulation chunks', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.steamBoiler = 1
+    state.machines.steamMacerator = 1
+    state.resources.coal = 2
+    state.resources.copperOre = 10
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+    state = placeMachineInstance(state, 'steamMacerator', 2, 0)
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'coal', 2)
+    state = insertProcessSlot(state, macerator.uid, 'input', 'copperOre', 10)
+
+    const result = simulateOfflineProgress(state, 90_000, 91_000)
+    const activeBoiler = result.state.machineInstances.find((instance) => instance.uid === boiler.uid)!
+    const activeMacerator = result.state.machineInstances.find((instance) => instance.uid === macerator.uid)!
+
+    expect(result.offline.applied).toBe(true)
+    expect(activeMacerator.process.output).toEqual({ id: 'crushedCopperOre', amount: 20 })
+    expect(activeBoiler.process.steamStoredMs).toBeGreaterThan(0)
+    expect(activeBoiler.process.fluids.water).toBeGreaterThan(0)
   })
 
   it('lets pipe side configuration block and restore connected steam routing', () => {
