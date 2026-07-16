@@ -4082,10 +4082,10 @@ describe('game engine', () => {
     expect(alloyRecipes.every((recipe) => recipe.output.id.endsWith('Ingot'))).toBe(true)
     expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_bronze')?.output).toEqual({ id: 'bronzeIngot', amount: 3 })
     expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_bronze')?.secondaryInput).toEqual({ id: 'tinDust', amount: 1 })
-    expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy')?.output).toEqual({ id: 'redAlloyIngot', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy')?.output).toEqual({ id: 'redAlloyIngot', amount: 2 })
     expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy_ingot')?.input).toEqual({ id: 'copperIngot', amount: 1 })
     expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy_ingot')?.secondaryInput).toEqual({ id: 'redstoneDust', amount: 4 })
-    expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy_ingot')?.output).toEqual({ id: 'redAlloyIngot', amount: 1 })
+    expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy_ingot')?.output).toEqual({ id: 'redAlloyIngot', amount: 2 })
   })
 
   it('pauses a steam macerator without connected steam and resumes when steam is available', () => {
