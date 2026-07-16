@@ -66,6 +66,7 @@ import {
   loadProcessRecipeInputs,
   drainPortableFluidContainer,
   liquidSteamBoilerCapacityMs,
+  liquidSteamBoilerCreosoteUseLitresPerSecond,
   liquidSteamBoilerFluidCapacityLitres,
   lvItemAutomationStatus,
   lvAutoMinerActionMs,
@@ -4467,7 +4468,7 @@ describe('game engine', () => {
     expect(boiler.process.steamStoredMs).toBe(180000)
     expect(boiler.process.steamCapacityMs).toBe(liquidSteamBoilerCapacityMs)
     expect(boiler.process.fluidCapacityLitres).toBe(liquidSteamBoilerFluidCapacityLitres)
-    expect(boiler.process.fluids.creosote).toBe(15)
+    expect(boiler.process.fluids.creosote).toBe(20 - 5 * liquidSteamBoilerCreosoteUseLitresPerSecond)
   })
 
   it('limits liquid steam boiler creosote pulls by pipe transfer rate', () => {
@@ -5654,8 +5655,8 @@ describe('game engine', () => {
 
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances[0].process.steamStoredMs).toBe(36000)
-    expect(state.machineInstances[0].process.fluids.water).toBe(0)
+    expect(state.machineInstances[0].process.steamStoredMs).toBe(18000)
+    expect(state.machineInstances[0].process.fluids.water).toBe(6)
     expect(state.machineInstances[0].process.fluids.creosote).toBe(0)
   })
 
