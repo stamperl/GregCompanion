@@ -365,6 +365,7 @@ const machineOrder: MachineId[] = [
   'lvElectrolyzer',
   'lvAssembler',
   'lvChemicalReactor',
+  'lvAirCollector',
   'lvCentrifuge',
   'lvCanner',
   'lvAutoMiner',
