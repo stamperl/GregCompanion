@@ -706,6 +706,14 @@ describe('game engine', () => {
     expect(diamondPick.prerequisites).toEqual(['bufferLvPowerQuest'])
     expect(batteryMinerals.prerequisites).toEqual(['makeDiamondPickQuest'])
     expect(emptyCell.prerequisites).toEqual(['gatherBatteryMineralsQuest'])
+    expect(emptyCell.requirements.machines).toEqual([
+      { id: 'lvAlloySmelter', amount: 1 },
+      { id: 'lvBender', amount: 1 },
+    ])
+    expect(emptyCell.requirements.recipes).toEqual([
+      { id: 'lv_alloy_battery_alloy_ingots', amount: 1 },
+      { id: 'lv_bender_battery_alloy_plate', amount: 4 },
+    ])
     expect(canner.prerequisites).toEqual(['makeEmptyBatteryCellQuest'])
     expect(filledBattery.prerequisites).toEqual(['buildLvCannerQuest'])
     expect(fourAmpCable.prerequisites).toEqual(['buildTwoAmpCableQuest'])
