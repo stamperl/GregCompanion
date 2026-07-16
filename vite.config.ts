@@ -9,7 +9,8 @@ import type { Plugin, PreviewServer, ViteDevServer } from 'vite'
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const savesDir = path.join(rootDir, 'server', 'saves')
 const githubPagesPath = process.env.GITHUB_PAGES_PATH?.replace(/^\/+|\/+$/g, '')
-const githubPagesBase = githubPagesPath ? `/GregCompanion/${githubPagesPath}/` : '/GregCompanion/'
+const githubPagesRepo = (process.env.GITHUB_PAGES_REPO ?? process.env.GITHUB_REPOSITORY?.split('/').pop() ?? 'click-foundry').replace(/^\/+|\/+$/g, '')
+const githubPagesBase = githubPagesPath ? `/${githubPagesRepo}/${githubPagesPath}/` : `/${githubPagesRepo}/`
 
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json' })

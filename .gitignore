@@ -13,6 +13,11 @@ dist-ssr
 *.local
 server/saves/
 ClickFoundry-WhatsApp-group-logo*.png
+*.jks
+*.keystore
+android/keystore.properties
+android/app/release/
+android/app/build/outputs/
 
 # Editor directories and files
 .vscode/*

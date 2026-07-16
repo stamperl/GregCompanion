@@ -22,6 +22,7 @@ import {
   X,
   Zap,
 } from 'lucide-react'
+import { Capacitor } from '@capacitor/core'
 import {
   memo,
   useEffect,
@@ -154,7 +155,7 @@ import {
   searchTerminalRecipes,
   sellShopItem,
   setFluidOutputDirection,
-  setHopperOutputDirection,
+  setConfiguredProcessRecipe,
   setLvItemOutputDirection,
   setPipeSideMode,
   shopItemCooldownMs,
@@ -261,6 +262,15 @@ type AchievementToast = {
   id: number
   questId: QuestId
   title: string
+}
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
+type NavigatorWithStandalone = Navigator & {
+  standalone?: boolean
 }
 
 function recipeOpensProcessView(recipe: Recipe) {
@@ -524,8 +534,7 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   craftSteamCasingQuest: { x: 245, y: 200 },
   makeSteam: { x: 420, y: 200 },
   pipeSteam: { x: 595, y: 200 },
-  factoryToolsQuest: { x: 595, y: 380 },
-  storageAutomationQuest: { x: 770, y: 500 },
+  storageAutomationQuest: { x: 595, y: 380 },
   steamMaceratorQuest: { x: 770, y: 115 },
   steamForgeHammerQuest: { x: 945, y: 115 },
   steamOrePrepQuest: { x: 945, y: 20 },
@@ -692,6 +701,18 @@ function isMobileClientAllowed() {
   const compactScreen = Math.min(window.screen.width, window.screen.height) <= 900
 
   return compactScreen && (mobileUserAgent || iPadOs || (coarsePointer && maxTouchPoints > 0))
+}
+
+function isIosClient() {
+  if (typeof window === 'undefined') return false
+  const userAgent = window.navigator.userAgent
+  return /iPhone|iPad|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && (window.navigator.maxTouchPoints ?? 0) > 1)
+}
+
+function isStandaloneInstall() {
+  if (typeof window === 'undefined') return false
+  const navigatorWithStandalone = window.navigator as NavigatorWithStandalone
+  return Boolean(navigatorWithStandalone.standalone) || window.matchMedia('(display-mode: standalone)').matches
 }
 
 function gatherAreaForResource(resourceId: ResourceId) {
@@ -1108,7 +1129,7 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
 }
 
 function processRecipePrimaryOutput(recipe: ProcessRecipe): RecipeDisplayOutput {
-  if (recipe.output.amount > 0) {
+  if (!recipe.fluidOnly && recipe.output.amount > 0) {
     return {
       kind: 'resource',
       id: recipe.output.id,
@@ -1124,12 +1145,13 @@ function processRecipePrimaryOutput(recipe: ProcessRecipe): RecipeDisplayOutput 
       label: machines[recipe.machineOutput.id].name,
     }
   }
-  if (recipe.fluidOutput) {
+  const fluidOutput = recipe.fluidOutputs?.[0] ?? recipe.fluidOutput
+  if (fluidOutput) {
     return {
       kind: 'fluid',
-      id: recipe.fluidOutput.id,
-      amount: recipe.fluidOutput.amount,
-      label: fluidLabel(recipe.fluidOutput.id),
+      id: fluidOutput.id,
+      amount: fluidOutput.amount,
+      label: fluidLabel(fluidOutput.id),
     }
   }
   return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
@@ -1375,6 +1397,8 @@ function findSelectedProcessRecipe(instance: MachineInstance | null) {
   if (!instance) return undefined
   return processRecipes.find((recipe) => {
     if (recipe.machineId !== instance.machineId) return false
+    if (instance.process.configuredRecipeId ? recipe.id !== instance.process.configuredRecipeId : recipe.autoSelectable === false) return false
+    if (recipe.fluidOnly) return true
     if (instance.machineId === 'lvAssembler') {
       const slots = assemblerInputSlotIds.map((slotId) => instance.process[slotId])
       if (!slots.some(Boolean)) return false
@@ -1435,10 +1459,19 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   if (instance.machineId === 'well') return 'Supplying water'
   if (isItemStorageMachine(instance.machineId)) return storedItemCount > 0 ? `Storing ${formatAmount(storedItemCount)} items` : 'Empty storage'
   if (isItemHopperMachine(instance.machineId)) {
-    const outputDirection = pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'output')
-    if (!outputDirection) return 'No output side'
+    const inputDirections = pipeDirections.filter((direction) => {
+      const mode = pipeSideMode(instance, direction)
+      return mode === 'input' || mode === 'both'
+    })
+    const outputDirections = pipeDirections.filter((direction) => {
+      const mode = pipeSideMode(instance, direction)
+      return mode === 'output' || mode === 'both'
+    })
+    if (inputDirections.length < 1 && outputDirections.length < 1) return 'No route set'
+    if (outputDirections.length < 1) return 'No output side'
     if (storedItemCount < 1) return 'Empty hopper'
-    return process.activeRecipeId ? `Feeding ${pipeDirectionOffsets[outputDirection].label}` : `Ready ${pipeDirectionOffsets[outputDirection].label}`
+    const outputLabel = outputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')
+    return process.activeRecipeId ? `Feeding ${outputLabel}` : `Ready ${outputLabel}`
   }
   if (instance.machineId === 'steamTank') {
     const storedFluid = storedFluids(process)[0]
@@ -1461,6 +1494,11 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if ((process.fluids.creosote ?? 0) < 1) return 'No creosote'
     if (process.steamStoredMs >= liquidSteamBoilerCapacityMs) return 'Steam full'
     return process.activeRecipeId ? 'Burning creosote' : 'Ready'
+  }
+  if (instance.machineId === 'lvAirCollector') {
+    if ((process.fluids.air ?? 0) >= process.fluidCapacityLitres) return 'Air buffer full'
+    if (process.euStored + availableConnectedEu(state, instance) < 1) return 'No power'
+    return process.activeRecipeId ? 'Collecting air' : 'Ready'
   }
   if (isEuProducerMachine(instance.machineId)) {
     if (process.euStored >= steamTurbineEuCapacity) return 'EU full'
@@ -1513,6 +1551,8 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   if (instance.machineId === 'arcBlastFurnace') {
     if (!recipe) return 'No input'
     if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    const missingFluid = (recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])).find((fluid) => (process.fluids[fluid.id] ?? 0) < fluid.amount)
+    if (missingFluid) return `Needs ${fluidLabel(missingFluid.id)}`
     const minimumEuStored = recipe.minimumEuStored ?? 0
     if (minimumEuStored > 0 && process.progressMs === 0 && process.euStored + availableConnectedEuStorage(state, instance) < minimumEuStored) return 'Waiting for buffer'
     if (recipe.requiredEuAmps && availableConnectedEuAmps(state, instance) < recipe.requiredEuAmps) return `Needs ${recipe.requiredEuAmps}A route`
@@ -1528,6 +1568,9 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   if (isEuPoweredMachine(instance.machineId)) {
     if (!recipe) return 'No input'
     if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    if (recipe.secondaryOutput && process.output2 && (process.output2.id !== recipe.secondaryOutput.id || process.output2.amount + recipe.secondaryOutput.amount > processStackLimit)) return 'Output 2 full'
+    const missingFluid = (recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])).find((fluid) => (process.fluids[fluid.id] ?? 0) < fluid.amount)
+    if (missingFluid) return `Needs ${fluidLabel(missingFluid.id)}`
     if (process.euStored + availableConnectedEu(state, instance) < 1) return 'No power'
     return process.activeRecipeId ? 'Running' : 'Ready'
   }
@@ -2251,6 +2294,8 @@ function App() {
   const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
   const [saveNameDraft, setSaveNameDraft] = useState('')
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false)
+  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
+  const [isInstalledApp, setIsInstalledApp] = useState(() => isStandaloneInstall())
   const [isEnteringGame, setIsEnteringGame] = useState(false)
   const [isNewGameConfirmOpen, setIsNewGameConfirmOpen] = useState(false)
   const [entryLoadingMessage, setEntryLoadingMessage] = useState('Loading save')
@@ -2407,6 +2452,30 @@ function App() {
   useEffect(() => {
     isCreativeModeRef.current = isCreativeMode
   }, [isCreativeMode])
+
+  useEffect(() => {
+    const displayModeQuery = window.matchMedia('(display-mode: standalone)')
+    const updateInstalledState = () => setIsInstalledApp(isStandaloneInstall())
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault()
+      setInstallPromptEvent(event as BeforeInstallPromptEvent)
+    }
+    const handleAppInstalled = () => {
+      setInstallPromptEvent(null)
+      setIsInstalledApp(true)
+    }
+
+    updateInstalledState()
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+    displayModeQuery.addEventListener('change', updateInstalledState)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+      displayModeQuery.removeEventListener('change', updateInstalledState)
+    }
+  }, [])
 
   useEffect(() => {
     const updateMobileGate = () => setIsMobileClient(isMobileClientAllowed())
@@ -2626,11 +2695,16 @@ function App() {
       if (!query) return true
       if (machineId.toLowerCase().includes(query) || machines[machineId].name.toLowerCase().includes(query)) return true
       return machineRecipes.some(
-        (recipe) =>
-          recipe.name.toLowerCase().includes(query) ||
-          (recipe.output.amount > 0 && resourceLabels[recipe.output.id].toLowerCase().includes(query)) ||
-          (recipe.machineOutput && machines[recipe.machineOutput.id].name.toLowerCase().includes(query)) ||
-          (recipe.fluidOutput && fluidLabel(recipe.fluidOutput.id).toLowerCase().includes(query)),
+        (recipe) => {
+          const itemOutputs = recipe.fluidOnly
+            ? []
+            : [recipe.output, ...(recipe.secondaryOutput ? [recipe.secondaryOutput] : [])]
+          const fluidOutputs = recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
+          return recipe.name.toLowerCase().includes(query) ||
+            itemOutputs.some((output) => output.amount > 0 && resourceLabels[output.id].toLowerCase().includes(query)) ||
+            Boolean(recipe.machineOutput && machines[recipe.machineOutput.id].name.toLowerCase().includes(query)) ||
+            fluidOutputs.some((output) => fluidLabel(output.id).toLowerCase().includes(query))
+        },
       )
     })
   }, [recipeSearch])
@@ -3526,10 +3600,6 @@ function App() {
 
   const handleTogglePipeSide = (uid: string, direction: PipeDirection) => {
     const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
-    if (instance && isItemHopperMachine(instance.machineId)) {
-      setState((current) => setHopperOutputDirection(current, uid, direction))
-      return
-    }
     if (instance && isFluidOutletConfigurableMachine(instance.machineId)) {
       setState((current) => setFluidOutputDirection(current, uid, direction))
       return
@@ -3560,8 +3630,8 @@ function App() {
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
     if (!selectedMachine) return
     const slot = selectedMachine.process[slotId]
-    if (slotId === 'output' && !isItemHopperMachine(selectedMachine.machineId)) {
-      setState((current) => collectProcessOutput(current, selectedMachine.uid))
+    if ((slotId === 'output' || slotId === 'output2') && !isItemHopperMachine(selectedMachine.machineId)) {
+      setState((current) => collectProcessOutput(current, selectedMachine.uid, slotId === 'output2' ? 1 : 0))
       return
     }
     if (slot && slot.id === selectedResource) {
@@ -3974,16 +4044,15 @@ function App() {
       return
     }
     if (selectedMachinePopupLoadStatus.ready) {
-      setMachineRecipeLoadNotice('All required items are already loaded.')
+      setMachineRecipeLoadNotice(selectedMachinePopupRecipe.fluidOnly ? 'This recipe only requires fluid inputs.' : 'All required items are already loaded.')
       return
     }
 
     setState((current) => loadProcessRecipeInputs(current, selectedMachine.uid, selectedMachinePopupRecipe.id))
-    setMachineRecipeLoadNotice(
-      selectedMachinePopupRecipe.fluidInput
-        ? `Items loaded. Add ${formatLitres(selectedMachinePopupRecipe.fluidInput.amount)}L ${fluidLabels[selectedMachinePopupRecipe.fluidInput.id]} through the fluid input.`
-        : `Loaded items for ${processRecipePrimaryOutput(selectedMachinePopupRecipe).label}.`,
-    )
+    const fluidInputs = selectedMachinePopupRecipe.fluidInputs ?? (selectedMachinePopupRecipe.fluidInput ? [selectedMachinePopupRecipe.fluidInput] : [])
+    setMachineRecipeLoadNotice(fluidInputs.length > 0
+      ? `Items loaded. Add ${fluidInputs.map((amount) => `${formatLitres(amount.amount)}L ${fluidLabels[amount.id]}`).join(' and ')} through the fluid input.`
+      : `Loaded items for ${processRecipePrimaryOutput(selectedMachinePopupRecipe).label}.`)
   }
 
   const handleOpenMachineOutputPage = (machineId: MachineId) => {
@@ -4525,6 +4594,25 @@ function App() {
       : 'Home dev'
   const releaseRevisionLabel = deploymentInfo.channel === 'release' ? `r${deploymentInfo.revision}` : deploymentInfo.revision
   const releaseNotes = deploymentInfo.notes.slice(0, 3)
+  const androidApkUrl = String(import.meta.env.VITE_ANDROID_APK_URL ?? '').trim()
+  const isNativeClient = Capacitor.isNativePlatform()
+  const canPromptInstall = Boolean(installPromptEvent && !isInstalledApp && !isNativeClient)
+  const showIosInstallHelp = isIosClient() && !isInstalledApp && !canPromptInstall && !isNativeClient
+  const showAndroidApkDownload = Boolean(androidApkUrl && !isNativeClient)
+  const showInstallCard = canPromptInstall || showIosInstallHelp || showAndroidApkDownload
+
+  const handleInstallApp = async () => {
+    if (!installPromptEvent) return
+    try {
+      await installPromptEvent.prompt()
+      const choice = await installPromptEvent.userChoice
+      if (choice.outcome === 'accepted') setInstallPromptEvent(null)
+    } catch {
+      // Browser install prompts are best-effort; the APK and iOS paths remain available.
+    } finally {
+      setIsInstalledApp(isStandaloneInstall())
+    }
+  }
 
   if (!isMobileClient) {
     return (
@@ -4747,6 +4835,33 @@ function App() {
               <button type="button" className="home-action primary" onClick={reloadLatestDeployment}>
                 Update now
               </button>
+            </section>
+          )}
+          {showInstallCard && (
+            <section className="home-install-card" aria-label="Install Click Foundry">
+              <div>
+                <span>Install</span>
+                <strong>Free app build</strong>
+              </div>
+              {showIosInstallHelp ? (
+                <p>On iPhone, share this page and choose Add to Home Screen.</p>
+              ) : (
+                <p>Install the web app for full-screen play, or download the Android build.</p>
+              )}
+              <div className="home-install-actions">
+                {canPromptInstall && (
+                  <button type="button" className="home-action primary" onClick={() => void handleInstallApp()}>
+                    <Download size={16} />
+                    Install Web App
+                  </button>
+                )}
+                {showAndroidApkDownload && (
+                  <a className="home-action" href={androidApkUrl} download>
+                    <Download size={16} />
+                    Android APK
+                  </a>
+                )}
+              </div>
             </section>
           )}
           <div className="home-save-slots" aria-label="Save slots">
@@ -5958,7 +6073,8 @@ function App() {
                           direction &&
                             neighbour &&
                             (isHopperConfig
-                              ? mode === 'output' && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))
+                              ? ((mode === 'input' || mode === 'both') && !isItemAutomationMachine(neighbour.machineId)) ||
+                                ((mode === 'output' || mode === 'both') && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId)))
                               : machinesCanConnect(selectedPipeConfig, neighbour)),
                         )
                         const className = [
@@ -5989,7 +6105,7 @@ function App() {
                             className={className}
                             aria-label={isCableConfig
                               ? `${pipeDirectionOffsets[direction].label} cable connection ${disabled ? 'off' : 'linked'}. Tap to toggle.`
-                              : `${pipeDirectionOffsets[direction].label} ${isHopperConfig ? 'output' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
+                              : `${pipeDirectionOffsets[direction].label} ${isHopperConfig ? 'hopper route' : 'flow'} ${pipeSideModeLabels[mode ?? 'blocked']}. Tap to cycle mode.`}
                             onClick={() => handleTogglePipeSide(selectedPipeConfig.uid, direction)}
                             key={`${dx},${dy}`}
                           >
@@ -6005,7 +6121,7 @@ function App() {
                 )}
                 <p className="pipe-config-note">
                   {isItemHopperMachine(selectedPipeConfig.machineId)
-                    ? 'Tap one side to choose where this hopper pushes items. Other sides pull from adjacent machine outputs.'
+                    ? 'Set one side to In beside the machine output, and another side to Out beside the destination. Both can pull and push.'
                     : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
                       ? 'Tap any outside face to choose where this structure drains fluid.'
                       : isEuCableMachine(selectedPipeConfig.machineId)
@@ -6159,6 +6275,25 @@ function App() {
                           ? `Empty ${selectedEmptyFluidContainerKind === 'bucket' ? 'Bucket' : 'Steel Cell'}`
                           : 'Tap a container above'}</strong>
                     </div>
+                    <div className="generic-fluid-buffer-grid">
+                      {selectedMachineFluidBuffers.map((buffer) => {
+                        const storedFluidId = buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
+                        const preferredDirection = buffer.access === 'output' ? 'output' : 'input'
+                        return <button
+                          type="button"
+                          className={`native-fluid-control ${canUseFluidPort(buffer, preferredDirection) ? 'ready' : ''}`}
+                          disabled={!canUseFluidPort(buffer, preferredDirection)}
+                          onClick={() => handleFluidPortPress(buffer, preferredDirection)}
+                          key={buffer.id}
+                        >
+                          <FluidTank
+                            label={storedFluidId ? fluidLabel(storedFluidId) : buffer.label}
+                            storedLitres={storedFluidId ? selectedMachine.process.fluids[storedFluidId] ?? 0 : 0}
+                            capacityLitres={buffer.capacityLitres}
+                          />
+                        </button>
+                      })}
+                    </div>
                   </>
                 )}
                 {!selectedMachineIsHmiTerminal && !selectedMachineUsesIntegratedStatus && (
@@ -6239,9 +6374,21 @@ function App() {
                     <MachineGlyph id={selectedMachine.machineId} active={Boolean(selectedMachine.process.activeRecipeId || selectedMachine.process.storageSlots.some(Boolean) || selectedMachine.process.input)} />
                     {isItemHopperMachine(selectedMachine.machineId) && (
                       <span className="hopper-direction-line">
-                        Output: {pipeDirections.find((direction) => pipeSideMode(selectedMachine, direction) === 'output')
-                          ? pipeDirectionOffsets[pipeDirections.find((direction) => pipeSideMode(selectedMachine, direction) === 'output')!].label
-                          : 'Closed'}
+                        In: {pipeDirections
+                          .filter((direction) => {
+                            const mode = pipeSideMode(selectedMachine, direction)
+                            return mode === 'input' || mode === 'both'
+                          })
+                          .map((direction) => pipeDirectionOffsets[direction].label)
+                          .join(', ') || 'Closed'}
+                        {' / '}
+                        Out: {pipeDirections
+                          .filter((direction) => {
+                            const mode = pipeSideMode(selectedMachine, direction)
+                            return mode === 'output' || mode === 'both'
+                          })
+                          .map((direction) => pipeDirectionOffsets[direction].label)
+                          .join(', ') || 'Closed'}
                       </span>
                     )}
                   </div>
@@ -6675,6 +6822,25 @@ function App() {
                         <span><small>Time</small><strong>{selectedMachineProcessTimeLabel || '--'}</strong></span>
                         <span><small>{isArc ? 'Power' : isBbf ? 'Heat' : 'Byproduct'}</small><strong>{isArc ? `${formatAmount(selectedMachineEuUsagePerSecond)} EU/s` : isBbf ? (process.fuelRemainingMs > 0 ? 'Hot' : 'Cold') : `${formatLitres(process.fluids.creosote ?? 0)}L creosote`}</strong>{isCokeOven && <em>{formatAmount(fluidProductionRate)}L/s made · {formatAmount(fluidOutflow)}L/s out</em>}</span>
                       </div>
+                      {isArc && (
+                        <div className="arc-program-control" aria-label="Arc Furnace recipe program">
+                          {[
+                            { id: null, number: 0, label: 'Auto' },
+                            { id: 'arc_blast_oxygen_steel', number: 1, label: 'Oxygen Steel' },
+                            { id: 'arc_blast_nitrogen_aluminium', number: 2, label: 'Nitrogen Aluminium' },
+                          ].map((program) => {
+                            const selected = process.configuredRecipeId === program.id
+                            return <button
+                              type="button"
+                              className={selected ? 'selected' : ''}
+                              aria-pressed={selected}
+                              disabled={process.progressMs > 0}
+                              onClick={() => setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, program.id))}
+                              key={program.number}
+                            ><b>{program.number}</b><span>{program.label}</span></button>
+                          })}
+                        </div>
+                      )}
                       {isArc && selectedArcStructure && (
                         <div className="arc-hatch-strip" aria-label="Arc Furnace Energy Hatches">
                           {selectedArcStructure.energyHatches.map((hatch, index) => (
@@ -6811,7 +6977,10 @@ function App() {
                               </button>
                             )
                           ) : (
-                            <ProcessItemSlot slot={process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
+                            <div className={machines[selectedMachine.machineId].itemOutputSlots === 2 ? 'machine-dual-output' : ''}>
+                              <ProcessItemSlot slot={process.output} label="Output 1" onClick={() => handleProcessSlotPress('output')} />
+                              {machines[selectedMachine.machineId].itemOutputSlots === 2 && <ProcessItemSlot slot={process.output2} label="Output 2" onClick={() => handleProcessSlotPress('output2')} />}
+                            </div>
                           )}
                         </div>
                         <div className="forge-action-rail" aria-label={`${machines[selectedMachine.machineId].name} progress ${Math.floor(progressPercent)} percent`}>
@@ -7001,38 +7170,63 @@ function App() {
 
                     <div className="machine-recipe-popup-flow">
                       <div className="machine-recipe-popup-step">
-                        <span>Required items</span>
-                        <div className="machine-recipe-popup-items">
-                          {[
-                            selectedMachinePopupRecipe.input,
-                            ...(selectedMachinePopupRecipe.secondaryInput ? [selectedMachinePopupRecipe.secondaryInput] : []),
-                            ...(selectedMachinePopupRecipe.extraInputs ?? []),
-                            ...(selectedMachinePopupRecipe.fuelInput ? [selectedMachinePopupRecipe.fuelInput] : []),
-                          ].map((amount, index) => (
-                            <ItemSlot
-                              amount={amount}
-                              disabled={availableResourceAmount(state, amount.id) < amount.amount}
-                              state={state}
-                              key={`${amount.id}-${index}`}
-                            />
-                          ))}
-                        </div>
-                        {selectedMachinePopupRecipe.fluidInput && (
-                          <div className={`machine-recipe-popup-fluid fluid-${selectedMachinePopupRecipe.fluidInput.id}`}>
-                            <Droplet size={15} />
-                            <strong>{fluidLabels[selectedMachinePopupRecipe.fluidInput.id]}</strong>
-                            <span>{formatLitres(selectedMachinePopupRecipe.fluidInput.amount)}L</span>
+                        <span>Required inputs</span>
+                        {!selectedMachinePopupRecipe.fluidOnly && (
+                          <div className="machine-recipe-popup-items">
+                            {[
+                              selectedMachinePopupRecipe.input,
+                              ...(selectedMachinePopupRecipe.secondaryInput ? [selectedMachinePopupRecipe.secondaryInput] : []),
+                              ...(selectedMachinePopupRecipe.extraInputs ?? []),
+                              ...(selectedMachinePopupRecipe.fuelInput ? [selectedMachinePopupRecipe.fuelInput] : []),
+                            ].map((amount, index) => (
+                              <ItemSlot
+                                amount={amount}
+                                disabled={availableResourceAmount(state, amount.id) < amount.amount}
+                                state={state}
+                                key={`${amount.id}-${index}`}
+                              />
+                            ))}
                           </div>
                         )}
+                        {(selectedMachinePopupRecipe.fluidInputs ?? (selectedMachinePopupRecipe.fluidInput ? [selectedMachinePopupRecipe.fluidInput] : [])).map((amount) => (
+                          <div className={`machine-recipe-popup-fluid fluid-${amount.id}`} key={amount.id}>
+                            <Droplet size={15} />
+                            <strong>{fluidLabels[amount.id]}</strong>
+                            <span>{formatLitres(amount.amount)}L</span>
+                          </div>
+                        ))}
                       </div>
                       <ChevronRight className="machine-recipe-popup-arrow" size={22} aria-hidden="true" />
                       <div className="machine-recipe-popup-step output">
-                        <span>Output</span>
-                        <div className="mini-slot">
-                          <RecipeDisplayIcon output={selectedMachinePopupOutput} />
-                          <span className="item-count">{recipeDisplayAmount(selectedMachinePopupOutput)}</span>
-                        </div>
-                        <strong>{selectedMachinePopupOutput.label}</strong>
+                        <span>Outputs</span>
+                        {(!selectedMachinePopupRecipe.fluidOnly ? [
+                          selectedMachinePopupRecipe.output,
+                          ...(selectedMachinePopupRecipe.secondaryOutput ? [selectedMachinePopupRecipe.secondaryOutput] : []),
+                        ] : []).map((amount) => (
+                          <div className="machine-recipe-popup-product" key={amount.id}>
+                            <div className="mini-slot">
+                              <RecipeDisplayIcon output={{ kind: 'resource', id: amount.id, amount: amount.amount, label: resourceLabels[amount.id] }} />
+                              <span className="item-count">{formatAmount(amount.amount)}</span>
+                            </div>
+                            <strong>{resourceLabels[amount.id]}</strong>
+                          </div>
+                        ))}
+                        {selectedMachinePopupRecipe.machineOutput && (
+                          <div className="machine-recipe-popup-product">
+                            <div className="mini-slot">
+                              <RecipeDisplayIcon output={selectedMachinePopupOutput} />
+                              <span className="item-count">{recipeDisplayAmount(selectedMachinePopupOutput)}</span>
+                            </div>
+                            <strong>{selectedMachinePopupOutput.label}</strong>
+                          </div>
+                        )}
+                        {(selectedMachinePopupRecipe.fluidOutputs ?? (selectedMachinePopupRecipe.fluidOutput ? [selectedMachinePopupRecipe.fluidOutput] : [])).map((amount) => (
+                          <div className={`machine-recipe-popup-fluid fluid-${amount.id}`} key={amount.id}>
+                            <Droplet size={15} />
+                            <strong>{fluidLabels[amount.id]}</strong>
+                            <span>{formatLitres(amount.amount)}L</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -7045,7 +7239,7 @@ function App() {
                     <p className={`machine-recipe-popup-status ${selectedMachinePopupLoadStatus.ready ? 'ready' : selectedMachinePopupLoadStatus.canLoad ? 'available' : 'blocked'}`} aria-live="polite">
                       {machineRecipeLoadNotice || (
                         selectedMachinePopupLoadStatus.ready
-                          ? 'All required items are loaded.'
+                          ? selectedMachinePopupRecipe.fluidOnly ? 'Add the required fluids through the fluid input.' : 'All required items are loaded.'
                           : selectedMachinePopupLoadStatus.missingResources.length > 0
                             ? `Missing ${selectedMachinePopupLoadStatus.missingResources.map((amount) => `${resourceLabels[amount.id]} x${formatAmount(amount.amount)}`).join(', ')}.`
                             : selectedMachinePopupLoadStatus.blockedSlots.length > 0

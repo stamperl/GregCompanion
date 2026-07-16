@@ -38,7 +38,7 @@ npm run test:save
 
 `npm run icons:check` validates committed PNG assets against content IDs. `npm run icons:extract` and `npm run icons:lv` run the existing PowerShell extraction/recolor pipelines after icon candidates are approved.
 
-`npm run release:remote-dev` is the remote test lane. Run it from a clean committed worktree; it runs lint, tests, and build, then pushes the current commit to `origin/remote-dev` and watches the Pages workflow when the GitHub CLI is available. GitHub Pages publishes that build under `/GregCompanion/remote-dev/` without changing the public release.
+`npm run release:remote-dev` is the remote test lane. Run it from a clean committed worktree; it runs lint, tests, and build, then pushes the current commit to `origin/remote-dev` and watches the Pages workflow when the GitHub CLI is available. GitHub Pages publishes that build under the repository Pages site at `/remote-dev/` without changing the public release.
 
 `npm run release:notes` generates the in-game release manifest, branded HTML release notes, and a PDF/public PDF copy when Chrome or Edge is available.
 

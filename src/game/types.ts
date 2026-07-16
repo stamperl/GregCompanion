@@ -62,6 +62,7 @@ export type ResourceId =
   | 'clay'
   | 'sand'
   | 'rubberSap'
+  | 'rubberPulp'
   | 'pipeSealant'
   | 'rubber'
   | 'water'
@@ -180,6 +181,7 @@ export type MachineId =
   | 'lvCanner'
   | 'lvAutoMiner'
   | 'lvChemicalReactor'
+  | 'lvAirCollector'
   | 'reachGateCasing'
   | 'reachGate'
   | 'lvEnergyHatch2A'
@@ -215,7 +217,6 @@ export type QuestId =
   | 'craftSteamCasingQuest'
   | 'makeSteam'
   | 'pipeSteam'
-  | 'factoryToolsQuest'
   | 'storageAutomationQuest'
   | 'steamMaceratorQuest'
   | 'steamForgeHammerQuest'
@@ -295,6 +296,14 @@ export type QuestId =
   | 'makeLiquidRubberQuest'
   | 'insulateWithLiquidRubberQuest'
   | 'cureLiquidRubberQuest'
+  | 'separateStickyResinQuest'
+  | 'useGlueQuest'
+  | 'buildAirCollectorQuest'
+  | 'separateAirQuest'
+  | 'makeSulfuricAcidQuest'
+  | 'diluteSulfuricAcidQuest'
+  | 'etchCircuitBoardsQuest'
+  | 'runGasArcRecipesQuest'
 
 export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach'
 
@@ -383,7 +392,16 @@ export type GatherTargetId =
   | 'obsidianDeposit'
   | 'sulfurVent'
 
-export type FluidId = 'water' | 'creosote' | 'liquidRubber'
+export type FluidId =
+  | 'water'
+  | 'creosote'
+  | 'liquidRubber'
+  | 'glue'
+  | 'air'
+  | 'oxygen'
+  | 'nitrogen'
+  | 'sulfuricAcid'
+  | 'dilutedSulfuricAcid'
 
 export type FluidContainerKind = 'bucket' | 'steelCell'
 
@@ -473,11 +491,17 @@ export type ProcessRecipe = {
   fuelInput?: ResourceAmount
   extraInputs?: ResourceAmount[]
   fluidInput?: FluidAmount
+  fluidInputs?: FluidAmount[]
   minimumEuStored?: number
   startupEu?: number
   output: ResourceAmount
+  secondaryOutput?: ResourceAmount
   machineOutput?: MachineAmount
   fluidOutput?: FluidAmount
+  fluidOutputs?: FluidAmount[]
+  programNumber?: number
+  autoSelectable?: boolean
+  fluidOnly?: boolean
 }
 
 export type Quest = {
@@ -568,6 +592,7 @@ export type MachineSpec = Machine & {
   fluidCapacityLitres?: number
   fluidOutputLitresPerSecond?: number
   fluidBuffers?: MachineFluidBufferSpec[]
+  itemOutputSlots?: 1 | 2
   euCapacity?: number
   euOutputPerSecond?: number
   euAmps?: number
@@ -642,7 +667,7 @@ export type OfflineProgressResult = {
   questCompletions: QuestId[]
 }
 
-export type ProcessSlotId = 'input' | 'secondaryInput' | 'extraInput1' | 'extraInput2' | 'extraInput3' | 'extraInput4' | 'fuel' | 'output'
+export type ProcessSlotId = 'input' | 'secondaryInput' | 'extraInput1' | 'extraInput2' | 'extraInput3' | 'extraInput4' | 'fuel' | 'output' | 'output2'
 export type PipeDirection = 'north' | 'east' | 'south' | 'west'
 export type PipeSideMode = 'both' | 'input' | 'output' | 'blocked'
 
@@ -660,9 +685,11 @@ export type MachineProcessState = {
   extraInput4: ProcessSlot
   fuel: ProcessSlot
   output: ProcessSlot
+  output2: ProcessSlot
   storageSlots: ProcessSlot[]
   batterySlots: Array<ResourceId | null>
   activeRecipeId: string | null
+  configuredRecipeId: string | null
   progressMs: number
   durationMs: number
   fuelRemainingMs: number

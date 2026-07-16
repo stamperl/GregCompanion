@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LV Chemistry Icon Review</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #111513; color: #edf2e9; font-family: system-ui, sans-serif; }
+      main { display: grid; gap: 12px; max-width: 720px; margin: auto; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: 18px; }
+      p { color: #aeb9b1; font-size: 13px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+      article { display: grid; gap: 9px; padding: 10px; border: 2px solid #69756d; background: #242a27; }
+      .preview { display: flex; align-items: end; justify-content: space-around; min-height: 150px; background: #3e4742; }
+      .preview img { object-fit: contain; image-rendering: pixelated; }
+      .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      button { min-height: 38px; border: 1px solid #89958d; background: #171c19; color: inherit; font-weight: 800; }
+      button[data-decision="approve"] { border-color: #65b779; }
+      button[data-decision="reject"] { border-color: #bd6d67; }
+      output { min-height: 18px; color: #d6c875; font-size: 12px; font-weight: 800; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><h1>LV Chemistry Icon Candidates</h1><p>Inspect the transparent 128px source at both floor and slot sizes.</p></header>
+      <section class="grid">
+        <article data-id="rubberPulp"><h2>Rubber Pulp</h2><div class="preview"><img src="lv-chemistry-v1/rubberPulp.png" width="128" height="128" alt="Rubber Pulp candidate" /><img src="lv-chemistry-v1/rubberPulp.png" width="40" height="40" alt="Rubber Pulp slot preview" /></div><div class="actions"><button data-decision="approve">Approve</button><button data-decision="reject">Reject</button></div><output>Pending</output></article>
+        <article data-id="lvAirCollector"><h2>LV Air Collector</h2><div class="preview"><img src="lv-chemistry-v1/lvAirCollector.png" width="128" height="128" alt="LV Air Collector candidate" /><img src="lv-chemistry-v1/lvAirCollector.png" width="40" height="40" alt="LV Air Collector floor preview" /></div><div class="actions"><button data-decision="approve">Approve</button><button data-decision="reject">Reject</button></div><output>Pending</output></article>
+      </section>
+    </main>
+    <script>
+      const key = 'click-foundry-lv-chemistry-icon-review-v1'
+      const state = JSON.parse(localStorage.getItem(key) || '{}')
+      document.querySelectorAll('article').forEach((card) => {
+        const output = card.querySelector('output')
+        const render = () => { output.textContent = state[card.dataset.id] || 'Pending' }
+        card.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => {
+          state[card.dataset.id] = button.dataset.decision
+          localStorage.setItem(key, JSON.stringify(state))
+          render()
+        }))
+        render()
+      })
+    </script>
+  </body>
+</html>

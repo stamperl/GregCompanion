@@ -18,6 +18,9 @@
     "icons:check": "node scripts/validate-icon-assets.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
+    "android:add": "cap add android",
+    "android:apk": "cd android && gradlew assembleRelease",
+    "release:free-app": "node scripts/release-free-app.mjs",
     "release:home-dev": "node scripts/release-flow.mjs home-dev",
     "release:remote-dev": "node scripts/release-flow.mjs remote-dev",
     "release:full": "node scripts/release-flow.mjs full",
@@ -34,6 +37,7 @@
     "update:data": "tsx scripts/update-data.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
     "@capacitor/core": "^8.4.1",
     "@capacitor/ios": "^8.4.1",
     "@capacitor/preferences": "^8.0.1",
@@ -53,6 +57,7 @@
     "tsx": "^4.22.4",
     "typescript": "~6.0.2",
     "vite": "^8.1.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.111.0"
   }
 }

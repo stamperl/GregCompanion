@@ -246,12 +246,13 @@ describe('content validation', () => {
       expect(recipe.durationMs, `${recipe.id} duration should be positive`).toBeGreaterThan(0)
       expectResourceAmountReferences([recipe.input], `${recipe.id} input`)
       if (recipe.secondaryInput) expectResourceAmountReferences([recipe.secondaryInput], `${recipe.id} secondary input`)
+      if (recipe.secondaryOutput) expectResourceAmountReferences([recipe.secondaryOutput], `${recipe.id} secondary output`)
       if (recipe.fuelInput) expectResourceAmountReferences([recipe.fuelInput], `${recipe.id} fuel input`)
       if (recipe.machineOutput) {
         expect(machines, `${recipe.id} machine output should exist`).toHaveProperty(recipe.machineOutput.id)
         expect(recipe.machineOutput.amount, `${recipe.id} machine output amount should be positive`).toBeGreaterThan(0)
       } else {
-        if (recipe.output.amount === 0 && recipe.fluidOutput) {
+        if (recipe.output.amount === 0 && (recipe.fluidOutput || recipe.fluidOutputs?.length)) {
           expect(resourceLabels, `${recipe.id} placeholder output should reference a known resource`).toHaveProperty(recipe.output.id)
         } else {
           expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
@@ -259,6 +260,8 @@ describe('content validation', () => {
       }
       if (recipe.fluidInput) expectFluidAmountReferences([recipe.fluidInput], `${recipe.id} fluid input`)
       if (recipe.fluidOutput) expectFluidAmountReferences([recipe.fluidOutput], `${recipe.id} fluid output`)
+      if (recipe.fluidInputs) expectFluidAmountReferences(recipe.fluidInputs, `${recipe.id} fluid inputs`)
+      if (recipe.fluidOutputs) expectFluidAmountReferences(recipe.fluidOutputs, `${recipe.id} fluid outputs`)
     }
   })
 

@@ -85,7 +85,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 10
+export const currentSaveVersion = 12
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -305,9 +305,11 @@ function emptyProcessState(): MachineProcessState {
     extraInput4: null,
     fuel: null,
     output: null,
+    output2: null,
     storageSlots: [],
     batterySlots: [],
     activeRecipeId: null,
+    configuredRecipeId: null,
     progressMs: 0,
     durationMs: 0,
     fuelRemainingMs: 0,
@@ -336,9 +338,11 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     extraInput4: cloneProcessSlot(process.extraInput4),
     fuel: cloneProcessSlot(process.fuel),
     output: cloneProcessSlot(process.output),
+    output2: cloneProcessSlot(process.output2),
     storageSlots: process.storageSlots.map(cloneProcessSlot),
     batterySlots: [...process.batterySlots],
     activeRecipeId: process.activeRecipeId,
+    configuredRecipeId: process.configuredRecipeId,
     progressMs: process.progressMs,
     durationMs: process.durationMs,
     fuelRemainingMs: process.fuelRemainingMs,
@@ -403,11 +407,13 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     extraInput4: normalizeProcessSlot(process.extraInput4),
     fuel: normalizeProcessSlot(process.fuel),
     output: normalizeProcessSlot(process.output),
+    output2: normalizeProcessSlot(process.output2),
     storageSlots: Array.isArray(process.storageSlots) ? process.storageSlots.map(normalizeProcessSlot).slice(0, 12) : [],
     batterySlots: Array.isArray(process.batterySlots)
       ? process.batterySlots.map((id) => (id && isBufferBatteryId(id) ? id : null)).slice(0, 8)
       : [],
     activeRecipeId: process.activeRecipeId ?? null,
+    configuredRecipeId: process.configuredRecipeId ?? null,
     progressMs: Math.max(0, Math.floor(process.progressMs ?? 0)),
     durationMs: Math.max(0, Math.floor(process.durationMs ?? 0)),
     fuelRemainingMs: Math.max(0, Math.floor(process.fuelRemainingMs ?? 0)),
@@ -473,7 +479,7 @@ function isInsideGridSize(grid: { width: number; height: number }, x: number, y:
   return x >= 0 && x < grid.width && y >= 0 && y < grid.height
 }
 
-function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undefined, foundationLevel: number) {
+function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undefined, foundationLevel: number, legacyHopperImplicitInputs = false) {
   if (!instances) return []
   const grid = factoryFoundationSizes[clampFactoryFoundationLevel(foundationLevel)] ?? factoryFoundationSizes[0]
   const occupied = new Set<string>()
@@ -493,6 +499,16 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
     if (isFluidOutletConfigurableMachine(machineId) && Object.keys(pipeSideModes).length < 1 && Object.keys(pipeDisabledSides).length < 1) {
       pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
       normalizedPipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
+    }
+    if (legacyHopperImplicitInputs && isItemHopperMachine(machineId)) {
+      const outputDirections = pipeDirections.filter((direction) => pipeSideModes[direction] === 'output')
+      const explicitInputDirections = pipeDirections.filter((direction) => pipeSideModes[direction] === 'input' || pipeSideModes[direction] === 'both')
+      if (outputDirections.length === 1 && explicitInputDirections.length < 1) {
+        pipeSideModes = Object.fromEntries(
+          pipeDirections.map((direction) => [direction, direction === outputDirections[0] ? 'output' : 'input']),
+        ) as Partial<Record<PipeDirection, PipeSideMode>>
+        normalizedPipeDisabledSides = {}
+      }
     }
     const process = normalizeProcessState(instance.process)
     if (machineId === 'standardChest' && process.storageSlots.length < 1) {
@@ -1218,8 +1234,14 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
   const reactor = machineAtPosition(state, 13, 4)
   if (reactor) state = setFluidOutputDirection(state, reactor.uid, 'south')
   const hoppers = state.machineInstances.filter((instance) => instance.machineId === 'hopper')
-  if (hoppers[0]) state = setHopperOutputDirection(state, hoppers[0].uid, 'east')
-  if (hoppers[1]) state = setHopperOutputDirection(state, hoppers[1].uid, 'west')
+  if (hoppers[0]) {
+    state = setPipeSideMode(state, hoppers[0].uid, 'west', 'input')
+    state = setHopperOutputDirection(state, hoppers[0].uid, 'east')
+  }
+  if (hoppers[1]) {
+    state = setPipeSideMode(state, hoppers[1].uid, 'east', 'input')
+    state = setHopperOutputDirection(state, hoppers[1].uid, 'west')
+  }
 
   const batteryBuffers = state.machineInstances.filter((instance) => isEuStorageMachine(instance.machineId))
   for (const buffer of batteryBuffers) {
@@ -1674,10 +1696,25 @@ function isAlloySmelterOutput(resourceId: ResourceId) {
 }
 
 function processSlotCanPay(slot: ProcessSlot, cost: ResourceAmount) {
+  if (cost.amount <= 0) return true
   return Boolean(slot && slot.id === cost.id && slot.amount >= cost.amount)
 }
 
+function recipeItemOutputs(recipe: ProcessRecipe) {
+  if (recipe.fluidOnly) return []
+  return [recipe.output, recipe.secondaryOutput].filter((output): output is ResourceAmount => Boolean(output && output.amount > 0))
+}
+
+function recipeFluidInputs(recipe: ProcessRecipe) {
+  return recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])
+}
+
+function recipeFluidOutputs(recipe: ProcessRecipe) {
+  return recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
+}
+
 function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot, extraInputs: ProcessSlot[] = []): MatchedProcessRecipe | undefined {
+  if (recipe.fluidOnly) return { recipe, inputCost: recipe.input }
   if (recipe.machineId === 'lvAssembler') {
     const slots = [input, secondaryInput, ...extraInputs]
     const costs = [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])]
@@ -1735,9 +1772,10 @@ function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, sec
   return undefined
 }
 
-function findMatchedProcessRecipe(machineId: MachineId, input: ProcessSlot, secondaryInput: ProcessSlot = null, extraInputs: ProcessSlot[] = []) {
+function findMatchedProcessRecipe(machineId: MachineId, input: ProcessSlot, secondaryInput: ProcessSlot = null, extraInputs: ProcessSlot[] = [], configuredRecipeId: string | null = null) {
   return processRecipes
     .filter((recipe) => recipe.machineId === machineId)
+    .filter((recipe) => configuredRecipeId ? recipe.id === configuredRecipeId : recipe.autoSelectable !== false)
     .map((recipe) => matchProcessRecipeInputs(recipe, input, secondaryInput, extraInputs))
     .find((match): match is MatchedProcessRecipe => Boolean(match))
 }
@@ -1760,16 +1798,22 @@ function canOutputAccept(output: ProcessSlot, produced: ResourceAmount) {
   return output.id === produced.id && output.amount + produced.amount <= processStackLimit
 }
 
+function canRecipeItemOutputsAccept(process: MachineProcessState, recipe: ProcessRecipe) {
+  return recipeItemOutputs(recipe).every((produced, index) => canOutputAccept(index === 0 ? process.output : process.output2, produced))
+}
+
+function addRecipeItemOutputs(process: MachineProcessState, recipe: ProcessRecipe) {
+  const outputs = recipeItemOutputs(recipe)
+  if (outputs[0]) process.output = addToProcessOutput(process.output, outputs[0])
+  if (outputs[1]) process.output2 = addToProcessOutput(process.output2, outputs[1])
+}
+
 function canFluidOutputAccept(process: MachineProcessState, recipe: ProcessRecipe) {
-  if (!recipe.fluidOutput) return true
-  const otherStored = Object.entries(process.fluids).some(([id, amount]) => id !== recipe.fluidOutput?.id && (amount ?? 0) > 0)
-  if (otherStored) return false
-  return (process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount <= process.fluidCapacityLitres
+  return recipeFluidOutputs(recipe).every((output) => (process.fluids[output.id] ?? 0) + output.amount <= process.fluidCapacityLitres)
 }
 
 function addFluidOutput(process: MachineProcessState, recipe: ProcessRecipe) {
-  if (!recipe.fluidOutput) return
-  process.fluids[recipe.fluidOutput.id] = (process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount
+  for (const output of recipeFluidOutputs(recipe)) process.fluids[output.id] = (process.fluids[output.id] ?? 0) + output.amount
 }
 
 function machinePositionKey(x: number, y: number) {
@@ -1861,7 +1905,7 @@ function machineAt(state: GameState, x: number, y: number) {
 }
 
 export function isFluidOutletConfigurableMachine(machineId: MachineId) {
-  return machineId === 'cokeOven' || machineId === 'cokeOvenPart' || machineId === 'lvChemicalReactor'
+  return machineId === 'cokeOven' || machineId === 'cokeOvenPart' || machineId === 'lvChemicalReactor' || machineId === 'lvCentrifuge' || machineId === 'lvAirCollector'
 }
 
 function isConfigurableConnector(machineId: MachineId) {
@@ -2372,8 +2416,8 @@ export function fluidBufferAcceptedFluids(machineId: MachineId, buffer: MachineF
   if (buffer.fluidRule === 'any') return fluidIds
   const recipesForMachine = processRecipes.filter((recipe) => recipe.machineId === machineId)
   const accepted = buffer.fluidRule === 'recipe-inputs'
-    ? recipesForMachine.map((recipe) => recipe.fluidInput).filter((fluid): fluid is NonNullable<ProcessRecipe['fluidInput']> => Boolean(fluid && (!fluid.bufferId || fluid.bufferId === buffer.id))).map((fluid) => fluid.id)
-    : recipesForMachine.map((recipe) => recipe.fluidOutput).filter((fluid): fluid is NonNullable<ProcessRecipe['fluidOutput']> => Boolean(fluid && (!fluid.bufferId || fluid.bufferId === buffer.id))).map((fluid) => fluid.id)
+    ? recipesForMachine.flatMap(recipeFluidInputs).filter((fluid) => !fluid.bufferId || fluid.bufferId === buffer.id).map((fluid) => fluid.id)
+    : recipesForMachine.flatMap(recipeFluidOutputs).filter((fluid) => !fluid.bufferId || fluid.bufferId === buffer.id).map((fluid) => fluid.id)
   return [...new Set(accepted)]
 }
 
@@ -3510,18 +3554,7 @@ export function setFluidOutputDirection(state: GameState, uid: string, direction
 export function setHopperOutputDirection(state: GameState, uid: string, direction: PipeDirection) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isItemHopperMachine(instance.machineId)) return state
-
-  const nextMode: PipeSideMode = pipeSideMode(instance, direction) === 'output' ? 'blocked' : 'output'
-  const next = cloneState(state)
-  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!nextInstance) return state
-
-  nextInstance.pipeSideModes = Object.fromEntries(pipeDirections.map((candidate) => [candidate, candidate === direction ? nextMode : 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
-  nextInstance.pipeDisabledSides = Object.fromEntries(
-    pipeDirections.filter((candidate) => candidate !== direction || nextMode === 'blocked').map((candidate) => [candidate, true]),
-  ) as Partial<Record<PipeDirection, boolean>>
-  next.lastSavedAt = Date.now()
-  return next
+  return setPipeSideMode(state, uid, direction, pipeSideMode(instance, direction) === 'output' ? 'blocked' : 'output')
 }
 
 export function togglePipeSideDisabled(state: GameState, uid: string, direction: PipeDirection) {
@@ -3724,6 +3757,7 @@ export type ProcessRecipeInputLoadStatus = {
 }
 
 function processRecipeItemAssignments(recipe: ProcessRecipe): Array<{ slotId: ProcessSlotId; amount: ResourceAmount }> {
+  if (recipe.fluidOnly) return []
   return [
     { slotId: 'input', amount: recipe.input },
     ...(recipe.secondaryInput ? [{ slotId: 'secondaryInput' as ProcessSlotId, amount: recipe.secondaryInput }] : []),
@@ -3815,16 +3849,17 @@ export function removeProcessSlot(state: GameState, uid: string, slotId: Process
   return next
 }
 
-export function collectProcessOutput(state: GameState, uid: string) {
+export function collectProcessOutput(state: GameState, uid: string, outputIndex: 0 | 1 = 0) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
-  const owner = instance ? arcProcessSlotOwner(state, instance, 'output') : null
-  const output = owner?.process.output
+  const slotId: 'output' | 'output2' = outputIndex === 0 ? 'output' : 'output2'
+  const owner = instance ? arcProcessSlotOwner(state, instance, slotId) : null
+  const output = owner?.process[slotId]
   if (!instance || !output) return state
 
   const next = addResources(state, [output])
   const nextInstance = next.machineInstances.find((candidate) => candidate.uid === owner.uid)
   if (!nextInstance) return state
-  nextInstance.process.output = null
+  nextInstance.process[slotId] = null
   next.craftedResources = Array.from(new Set([...next.craftedResources, output.id]))
   next.discoveredResources = Array.from(new Set([...next.discoveredResources, output.id]))
   recordResourceMilestones(next, [output])
@@ -4103,7 +4138,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
     process.euCapacity = machineEuCapacity(instance.machineId)
     process.euStored = Math.min(process.euStored, process.euCapacity)
   }
-  const initialMatch = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process))
+  const initialMatch = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process), process.configuredRecipeId)
   if (!initialMatch && !arcStructure) fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   if (arcStructure && initialMatch) {
     const requiredPerHatch = ((recipeEuCost(initialMatch.recipe) / initialMatch.recipe.durationMs) * elapsedMs) / arcStructure.energyHatches.length
@@ -4122,9 +4157,9 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
-    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process))
+    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process), process.configuredRecipeId)
     const recipe = match?.recipe
-    if (!recipe || !canOutputAccept(process.output, recipe.output)) {
+    if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(process, recipe))) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
@@ -4135,36 +4170,37 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
     const requiredEuAmps = recipe.requiredEuAmps ?? 1
     if (!arcStructure) fillInternalEuFromConnectedStorage(state, instance, remainingMs, requiredEuAmps)
 
-    if (arcStructure && recipe.fluidOutput) {
+    if (arcStructure && recipeFluidOutputs(recipe).length > 0) {
       const hatch = arcStructure.fluidOutputHatch
-      const stored = hatch?.process.fluids[recipe.fluidOutput.id] ?? 0
-      const otherFluid = hatch ? storedFluidTypes(hatch.process).some((fluidId) => fluidId !== recipe.fluidOutput?.id) : false
-      if (!hatch || otherFluid || stored + recipe.fluidOutput.amount > hatch.process.fluidCapacityLitres) {
+      const outputsFit = hatch && recipeFluidOutputs(recipe).every((output) => {
+        const otherFluid = storedFluidTypes(hatch.process).some((fluidId) => fluidId !== output.id)
+        return !otherFluid && (hatch.process.fluids[output.id] ?? 0) + output.amount <= hatch.process.fluidCapacityLitres
+      })
+      if (!outputsFit) {
         process.activeRecipeId = null
         break
       }
     }
 
-    if (recipe.fluidInput) {
+    const requiredFluids = recipeFluidInputs(recipe)
+    if (requiredFluids.length > 0) {
       if (arcStructure && !arcStructure.fluidInputHatch) {
         process.activeRecipeId = null
         break
       }
-      const otherFluidStored = storedFluidTypes(process).some((fluidId) => fluidId !== recipe.fluidInput?.id)
-      if (otherFluidStored) {
-        process.activeRecipeId = null
-        break
+      for (const requiredFluid of requiredFluids) {
+        const storedFluid = process.fluids[requiredFluid.id] ?? 0
+        const fluidNeeded = Math.max(0, requiredFluid.amount - storedFluid)
+        if (fluidNeeded > 0) {
+          const fluidTarget = arcStructure?.fluidInputHatch ?? instance
+          process.fluids[requiredFluid.id] = storedFluid + pullFluidFromConnectedSources(state, fluidTarget, requiredFluid.id, fluidNeeded, remainingMs)
+        }
+        if ((process.fluids[requiredFluid.id] ?? 0) < requiredFluid.amount) {
+          process.activeRecipeId = null
+          break
+        }
       }
-      const storedFluid = process.fluids[recipe.fluidInput.id] ?? 0
-      const fluidNeeded = Math.max(0, recipe.fluidInput.amount - storedFluid)
-      if (fluidNeeded > 0) {
-        const fluidTarget = arcStructure?.fluidInputHatch ?? instance
-        process.fluids[recipe.fluidInput.id] = storedFluid + pullFluidFromConnectedSources(state, fluidTarget, recipe.fluidInput.id, fluidNeeded, remainingMs)
-      }
-      if ((process.fluids[recipe.fluidInput.id] ?? 0) < recipe.fluidInput.amount) {
-        process.activeRecipeId = null
-        break
-      }
+      if (requiredFluids.some((fluid) => (process.fluids[fluid.id] ?? 0) < fluid.amount)) break
     }
 
     if (process.euStored <= 0) {
@@ -4224,11 +4260,13 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
       state.machines[recipe.machineOutput.id] += recipe.machineOutput.amount
       recordMachineMilestones(state, [recipe.machineOutput])
     } else {
-      process.output = addToProcessOutput(process.output, recipe.output)
+      addRecipeItemOutputs(process, recipe)
     }
-    if (recipe.fluidInput) process.fluids[recipe.fluidInput.id] = Math.max(0, (process.fluids[recipe.fluidInput.id] ?? 0) - recipe.fluidInput.amount)
-    if (recipe.fluidOutput && arcStructure?.fluidOutputHatch) {
-      arcStructure.fluidOutputHatch.process.fluids[recipe.fluidOutput.id] = (arcStructure.fluidOutputHatch.process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount
+    for (const inputFluid of requiredFluids) process.fluids[inputFluid.id] = Math.max(0, (process.fluids[inputFluid.id] ?? 0) - inputFluid.amount)
+    if (recipeFluidOutputs(recipe).length > 0 && arcStructure?.fluidOutputHatch) {
+      for (const outputFluid of recipeFluidOutputs(recipe)) {
+        arcStructure.fluidOutputHatch.process.fluids[outputFluid.id] = (arcStructure.fluidOutputHatch.process.fluids[outputFluid.id] ?? 0) + outputFluid.amount
+      }
     } else {
       addFluidOutput(process, recipe)
     }
@@ -4440,8 +4478,38 @@ function hopperFeedCandidate(target: MachineInstance, hopperProcess: MachineProc
   return null
 }
 
-function hopperOutputDirection(instance: MachineInstance): PipeDirection | null {
-  return pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'output') ?? null
+function hopperInputDirections(instance: MachineInstance) {
+  return pipeDirections.filter((direction) => {
+    const mode = pipeSideMode(instance, direction)
+    return mode === 'input' || mode === 'both'
+  })
+}
+
+function tickAirCollector(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+  const capacity = machineFluidCapacityLitres(instance.machineId)
+  const freeAir = Math.max(0, capacity - (process.fluids.air ?? 0))
+  const collected = Math.min(elapsedMs / 1000, process.euStored / 8, freeAir)
+  if (collected <= 0) {
+    process.activeRecipeId = null
+    process.durationMs = 1000
+    process.progressMs = 0
+    return
+  }
+  process.euStored -= collected * 8
+  process.fluids.air = (process.fluids.air ?? 0) + collected
+  process.activeRecipeId = 'collect_air'
+  process.durationMs = 1000
+  process.progressMs = Math.min(999, process.progressMs + elapsedMs)
+  pushFluidToConnectedStorage(state, instance, 'air', elapsedMs)
+}
+
+function hopperOutputDirections(instance: MachineInstance) {
+  return pipeDirections.filter((direction) => {
+    const mode = pipeSideMode(instance, direction)
+    return mode === 'output' || mode === 'both'
+  })
 }
 
 function hopperFeedTarget(state: GameState, target: MachineInstance) {
@@ -4451,8 +4519,11 @@ function hopperFeedTarget(state: GameState, target: MachineInstance) {
 }
 
 function hopperPullFromMachineOutputs(state: GameState, instance: MachineInstance, elapsedMs: number) {
-  const outputDirection = hopperOutputDirection(instance)
-  const sourceDirections = pipeDirections.filter((direction) => direction !== outputDirection)
+  const sourceDirections = hopperInputDirections(instance)
+  if (sourceDirections.length < 1) {
+    instance.itemTransferProgressMs = 0
+    return
+  }
   instance.itemTransferProgressMs = (instance.itemTransferProgressMs ?? 0) + elapsedMs
   while (instance.itemTransferProgressMs >= 1000) {
     const source = sourceDirections
@@ -4479,25 +4550,32 @@ function hopperPullFromMachineOutputs(state: GameState, instance: MachineInstanc
 
 function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: number) {
   hopperPullFromMachineOutputs(state, instance, elapsedMs)
-  const direction = hopperOutputDirection(instance)
-  if (!hopperStorageSlotIds.some((slotId) => instance.process[slotId]) || !direction) {
+  const outputDirections = hopperOutputDirections(instance)
+  if (!hopperStorageSlotIds.some((slotId) => instance.process[slotId]) || outputDirections.length < 1) {
     instance.process.activeRecipeId = null
     instance.process.progressMs = 0
     instance.process.durationMs = 0
     return
   }
 
-  const offset = pipeDirectionOffsets[direction]
-  const adjacentTarget = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
-  const target = adjacentTarget ? hopperFeedTarget(state, adjacentTarget) : null
-  if (!target || isItemHopperMachine(target.machineId) || isItemBusMachine(target.machineId)) {
+  const targets = outputDirections
+    .map((direction) => {
+      const offset = pipeDirectionOffsets[direction]
+      const adjacentTarget = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+      const target = adjacentTarget ? hopperFeedTarget(state, adjacentTarget) : null
+      return target && !isItemHopperMachine(target.machineId) && !isItemBusMachine(target.machineId) ? target : null
+    })
+    .filter((target): target is MachineInstance => Boolean(target))
+
+  if (targets.length < 1) {
     instance.process.activeRecipeId = null
     instance.process.progressMs = 0
     instance.process.durationMs = 0
     return
   }
 
-  if (!hopperFeedCandidate(target, instance.process)) {
+  const nextFeedTarget = () => targets.find((target) => hopperFeedCandidate(target, instance.process))
+  if (!nextFeedTarget()) {
     instance.process.activeRecipeId = null
     instance.process.progressMs = 0
     instance.process.durationMs = 1000
@@ -4509,6 +4587,8 @@ function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: 
   let moved = 0
 
   while (instance.process.progressMs >= instance.process.durationMs) {
+    const target = nextFeedTarget()
+    if (!target) break
     const candidate = hopperFeedCandidate(target, instance.process)
     if (!candidate) break
 
@@ -4525,8 +4605,8 @@ function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: 
   }
 
   if (!hopperStorageSlotIds.some((slotId) => instance.process[slotId])) instance.process.progressMs = 0
-  if (moved < 1 && !hopperFeedCandidate(target, instance.process)) instance.process.progressMs = 0
-  instance.process.activeRecipeId = moved > 0 || (instance.process.progressMs > 0 && Boolean(hopperFeedCandidate(target, instance.process))) ? 'hopper_feed' : null
+  if (moved < 1 && !nextFeedTarget()) instance.process.progressMs = 0
+  instance.process.activeRecipeId = moved > 0 || (instance.process.progressMs > 0 && Boolean(nextFeedTarget())) ? 'hopper_feed' : null
 }
 
 export function isLvItemAutomationMachine(machineId: MachineId) {
@@ -4600,6 +4680,20 @@ export function setLvItemOutputDirection(state: GameState, uid: string, directio
   return next
 }
 
+export function setConfiguredProcessRecipe(state: GameState, uid: string, recipeId: string | null) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || instance.machineId !== 'arcBlastFurnace' || instance.process.progressMs > 0) return state
+  const validRecipe = recipeId === null || processRecipes.some((recipe) => recipe.id === recipeId && recipe.machineId === instance.machineId && recipe.autoSelectable === false)
+  if (!validRecipe) return state
+  const next = cloneState(state)
+  const target = next.machineInstances.find((candidate) => candidate.uid === uid)!
+  target.process.configuredRecipeId = recipeId
+  target.process.activeRecipeId = null
+  target.process.durationMs = 0
+  next.lastSavedAt = Date.now()
+  return next
+}
+
 function tickLvItemAutomation(state: GameState, source: MachineInstance, elapsedMs: number) {
   if (!isLvItemAutomationMachine(source.machineId) || !source.itemOutputDirection) {
     source.itemTransferProgressMs = 0
@@ -4649,6 +4743,7 @@ function removableInventorySlots(instance: MachineInstance) {
     for (const slotId of hopperStorageSlotIds) slots.push({ get: () => instance.process[slotId], set: (slot) => { instance.process[slotId] = slot } })
   } else if (!isItemBusMachine(instance.machineId)) {
     slots.push({ get: () => instance.process.output, set: (slot) => { instance.process.output = slot } })
+    if (machines[instance.machineId].itemOutputSlots === 2) slots.push({ get: () => instance.process.output2, set: (slot) => { instance.process.output2 = slot } })
   }
   return slots
 }
@@ -4811,10 +4906,11 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     if (isEuHatchMachine(instance.machineId)) fillInternalEuFromConnectedStorage(next, instance, elapsedMs, 2)
   }
   for (const instance of euConsumersByDistance) {
-    if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
+    if (instance.machineId === 'lvAirCollector') tickAirCollector(next, instance, elapsedMs)
+    else if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
-    if (instance.machineId !== 'lvChemicalReactor') continue
+    if (!isFluidOutletConfigurableMachine(instance.machineId)) continue
     for (const fluidId of storedFluidTypes(instance.process)) pushFluidToConnectedStorage(next, instance, fluidId, elapsedMs)
   }
   for (const instance of euConsumersByDistance) {
@@ -5278,6 +5374,7 @@ function addReturnedProcessSlots(resources: Record<ResourceId, number>, instance
     instance.process.extraInput4,
     instance.process.fuel,
     instance.process.output,
+    instance.process.output2,
     ...instance.process.storageSlots,
     ...instance.process.batterySlots.map((id) => (id ? { id, amount: 1 } : null)),
   ]) {
@@ -5293,10 +5390,11 @@ function migrateMachineInstances(
   legacyCokeOvenSave: boolean,
   legacyBatteryBufferSave: boolean,
   legacyArcFurnaceSave: boolean,
+  legacyHopperImplicitInputs: boolean,
   migrationNotices: string[],
   parsedInstances?: Partial<MachineInstance>[],
 ) {
-  const instances = normalizeMachineInstances(parsedInstances, foundationLevel)
+  const instances = normalizeMachineInstances(parsedInstances, foundationLevel, legacyHopperImplicitInputs)
   for (const instance of instances) {
     if (isEuStorageMachine(instance.machineId) && instance.process.input?.id === 'lvBattery') {
       instance.process.input = { id: 'sodiumBattery', amount: instance.process.input.amount }
@@ -5402,6 +5500,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     const legacyCokeOvenSave = parsedVersion < 2
     const legacyBatteryBufferSave = parsedVersion < 3
     const legacyArcFurnaceSave = parsedVersion < 5
+    const legacyHopperImplicitInputs = parsedVersion < 11
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
     const parsedResources = (parsed.resources ?? {}) as Partial<Record<string, number>>
@@ -5413,6 +5512,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       legacyCokeOvenSave,
       legacyBatteryBufferSave,
       legacyArcFurnaceSave,
+      legacyHopperImplicitInputs,
       migrationNotices,
       parsed.machineInstances,
     )

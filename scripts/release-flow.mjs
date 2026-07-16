@@ -95,7 +95,7 @@ function printHelp() {
   console.log('')
   console.log('  npm run release:remote-dev')
   console.log('    Runs checks and pushes the current clean commit to origin/remote-dev.')
-  console.log('    GitHub Pages publishes it at /GregCompanion/remote-dev/.')
+  console.log('    GitHub Pages publishes it under the repository Pages site at /remote-dev/.')
   console.log('')
   console.log('  npm run release:full -- --revision 0.2.0 --title "Steam balance" --note "Boilers retuned"')
   console.log('    Updates release notes, commits the manifest, pushes main, and lets Pages publish the public release.')

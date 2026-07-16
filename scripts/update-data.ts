@@ -60,7 +60,7 @@ const outputPath = join(rootDir, 'src', 'data', 'catalog.json')
 
 const githubHeaders = {
   Accept: 'application/vnd.github+json',
-  'User-Agent': 'GregCompanion-data-updater',
+  'User-Agent': 'ClickFoundry-data-updater',
 }
 
 async function getJson<T>(url: string, headers: Record<string, string> = {}) {
@@ -73,7 +73,7 @@ async function getJson<T>(url: string, headers: Record<string, string> = {}) {
 }
 
 async function getBuffer(url: string) {
-  const response = await fetch(url, { headers: { 'User-Agent': 'GregCompanion-data-updater' } })
+  const response = await fetch(url, { headers: { 'User-Agent': 'ClickFoundry-data-updater' } })
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText} while downloading ${url}`)
   }

@@ -21,10 +21,11 @@ export function processRecipeOperationKey(recipe: ProcessRecipe) {
     resourceKey(recipe.secondaryInput),
     (recipe.extraInputs ?? []).map(resourceKey).join(','),
     resourceKey(recipe.fuelInput),
-    recipe.fluidInput?.id ?? '-',
+    (recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])).map((fluid) => fluid.id).join(',') || '-',
     resourceKey(recipe.output),
+    resourceKey(recipe.secondaryOutput),
     machineAmountKey(recipe.machineOutput),
-    recipe.fluidOutput?.id ?? '-',
+    (recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])).map((fluid) => fluid.id).join(',') || '-',
   ].join('|')
 }
 
@@ -54,16 +55,16 @@ export function processRecipeToCatalogRecipe(recipe: ProcessRecipe, stationType:
     durationMs: recipe.durationMs,
     steamCostLitres: recipe.steamCostLitres,
     euCost: recipe.euCost,
-    inputs: [
+    inputs: recipe.fluidOnly ? [] : [
       recipe.input,
       ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
       ...(recipe.extraInputs ?? []),
       ...(recipe.fuelInput ? [recipe.fuelInput] : []),
     ],
-    fluidInputs: recipe.fluidInput ? [recipe.fluidInput] : undefined,
-    outputs: recipe.output.amount > 0 ? [recipe.output] : [],
+    fluidInputs: recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : undefined),
+    outputs: recipe.fluidOnly ? [] : [recipe.output, recipe.secondaryOutput].filter((output): output is ResourceAmount => Boolean(output && output.amount > 0)),
     machineOutputs: recipe.machineOutput ? [recipe.machineOutput] : undefined,
-    fluidOutputs: recipe.fluidOutput ? [recipe.fluidOutput] : undefined,
+    fluidOutputs: recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : undefined),
     requiredMachine: recipe.machineId,
   }
 }
@@ -115,7 +116,7 @@ export function recipesUsingResource(resourceId: ResourceId, candidates: Recipe[
 }
 
 export function processRecipeProducesResource(recipe: ProcessRecipe, resourceId: ResourceId) {
-  return recipe.output.id === resourceId
+  return !recipe.fluidOnly && [recipe.output, recipe.secondaryOutput].some((output) => output?.id === resourceId)
 }
 
 export function processRecipesProducingResource(resourceId: ResourceId, candidates: ProcessRecipe[]) {

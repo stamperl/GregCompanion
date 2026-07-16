@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Click Foundry</string>
+    <string name="title_activity_main">Click Foundry</string>
+    <string name="package_name">com.stamperl.clickfoundry</string>
+    <string name="custom_url_scheme">com.stamperl.clickfoundry</string>
+</resources>

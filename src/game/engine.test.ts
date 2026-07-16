@@ -91,6 +91,7 @@ import {
   searchTerminalRecipes,
   sellShopItem,
   setFluidOutputDirection,
+  setConfiguredProcessRecipe,
   setHopperOutputDirection,
   setLvItemOutputDirection,
   shopItemCooldownMs,
@@ -971,7 +972,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(10)
+    expect(state.version).toBe(12)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -992,7 +993,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(10)
+    expect(state.version).toBe(12)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1060,6 +1061,27 @@ describe('game engine', () => {
 
     expect(state.machineInstances[0].process.input).toEqual({ id: 'copperDust', amount: 2 })
     expect(state.machineInstances[0].process.secondaryInput).toBeNull()
+  })
+
+  it('adds multi-output and recipe-program fields when loading version 11 machines', () => {
+    const state = loadGame(JSON.stringify({
+      version: 11,
+      factoryFoundationLevel: 2,
+      machines: { lvCentrifuge: 1 },
+      machineInstances: [{
+        uid: 'old-centrifuge',
+        machineId: 'lvCentrifuge',
+        x: 0,
+        y: 0,
+        level: 1,
+        process: { input: null, output: { id: 'flint', amount: 2 } },
+      }],
+    }), 1000)
+
+    expect(state.version).toBe(12)
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
+    expect(state.machineInstances[0].process.output2).toBeNull()
+    expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
   })
 
   it('migrates old empty saves to locked factory and clamps saved factory foundation levels', () => {
@@ -1659,6 +1681,7 @@ describe('game engine', () => {
     const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
     const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
     state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output = { id: 'charcoal', amount: 3 }
+    state = setPipeSideMode(state, hopper.uid, 'west', 'input')
     state = setHopperOutputDirection(state, hopper.uid, 'east')
 
     state = tickGame(state, 3000, 4000).state
@@ -1666,6 +1689,45 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output).toBeNull()
     expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toBeNull()
     expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots).toContainEqual({ id: 'charcoal', amount: 3 })
+  })
+
+  it('only lets hoppers pull from explicitly configured input sides', () => {
+    let state = createFactoryState(1000)
+    state.machines.furnace = 1
+    state.machines.hopper = 1
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    const furnace = state.machineInstances.find((instance) => instance.machineId === 'furnace')!
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output = { id: 'charcoal', amount: 2 }
+    state = setHopperOutputDirection(state, hopper.uid, 'east')
+
+    state = tickGame(state, 1000, 2000).state
+    expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output).toEqual({ id: 'charcoal', amount: 2 })
+    expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toBeNull()
+
+    state = setPipeSideMode(state, hopper.uid, 'west', 'input')
+    state = tickGame(state, 1000, 3000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output).toEqual({ id: 'charcoal', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toEqual({ id: 'charcoal', amount: 1 })
+  })
+
+  it('migrates legacy output-only hoppers to explicit input sides', () => {
+    let state = createFactoryState(1000)
+    state.machines.hopper = 1
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    hopper.pipeSideModes = { north: 'blocked', east: 'output', south: 'blocked', west: 'blocked' }
+    hopper.pipeDisabledSides = { north: true, south: true, west: true }
+
+    const migrated = loadGame(JSON.stringify({ ...state, version: 10 }), 2000)
+    const migratedHopper = migrated.machineInstances.find((instance) => instance.machineId === 'hopper')!
+
+    expect(pipeSideMode(migratedHopper, 'east')).toBe('output')
+    expect(pipeSideMode(migratedHopper, 'west')).toBe('input')
+    expect(pipeSideMode(migratedHopper, 'north')).toBe('input')
+    expect(pipeSideMode(migratedHopper, 'south')).toBe('input')
   })
 
   it('hoppers feed valid items from any internal storage slot', () => {
@@ -4190,6 +4252,7 @@ describe('game engine', () => {
     const assembler = state.machineInstances[0]
     state = insertProcessSlot(state, assembler.uid, 'input', 'lvMachineHull', 1)
     state = insertProcessSlot(state, assembler.uid, 'secondaryInput', 'lvConveyor', 1)
+    state.machineInstances[0].process.fluids.glue = 2
     state.machineInstances[0].process.euStored = 128
 
     state = tickGame(state, 8000).state
@@ -4252,7 +4315,7 @@ describe('game engine', () => {
       ['lv_lathe_aluminium_screws', 'lvLathe', { id: 'aluminiumRod', amount: 1 }, undefined, { id: 'aluminiumScrew', amount: 2 }],
       ['lv_lathe_glass_tubes', 'lvLathe', { id: 'glass', amount: 1 }, undefined, { id: 'glassTube', amount: 3 }],
       ['lv_assembler_insulated_copper_wire', 'lvAssembler', { id: 'copperWire', amount: 2 }, { id: 'rubber', amount: 1 }, { id: 'conductiveWire', amount: 2 }],
-      ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 3 }],
+      ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 6 }],
       ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 6 }, { id: 'basicBoard', amount: 1 }],
       ['lv_assembler_aluminium_piston', 'lvAssembler', { id: 'lvMotor', amount: 1 }, { id: 'aluminiumGear', amount: 1 }, { id: 'lvPiston', amount: 1 }],
       ['lv_alloy_cupronickel', 'lvAlloySmelter', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 5 }],
@@ -4657,7 +4720,7 @@ describe('game engine', () => {
 
   it('separates fluid outputs and assembler machine outputs from zero-amount placeholders', () => {
     const liquidRubberRecipe = processRecipes.find((recipe) => recipe.id === 'lv_reactor_liquid_rubber')!
-    const cureRubberRecipe = processRecipes.find((recipe) => recipe.id === 'lv_reactor_cure_rubber')!
+    const cureRubberRecipe = processRecipes.find((recipe) => recipe.id === 'furnace_rubber_pulp')!
     const inputBusRecipe = processRecipes.find((recipe) => recipe.id === 'lv_assemble_input_bus')!
     const liquidRubberCard = processRecipeToCatalogRecipe(liquidRubberRecipe, 'lv')
     const cureRubberCard = processRecipeToCatalogRecipe(cureRubberRecipe, 'lv')
@@ -4665,7 +4728,7 @@ describe('game engine', () => {
 
     expect(liquidRubberCard.outputs).toEqual([])
     expect(liquidRubberCard.fluidOutputs).toEqual([{ id: 'liquidRubber', amount: 8 }])
-    expect(cureRubberCard.outputs).toEqual([{ id: 'rubber', amount: 8 }])
+    expect(cureRubberCard.outputs).toEqual([{ id: 'rubber', amount: 1 }])
     expect(inputBusCard.outputs).toEqual([])
     expect(inputBusCard.machineOutputs).toEqual([{ id: 'lvInputBus', amount: 1 }])
 
@@ -4675,9 +4738,9 @@ describe('game engine', () => {
       'resource:rubber',
       'machine:lvInputBus',
     ])
-    expect(searchTerminalRecipes('liquid rubber', [liquidRubberCard, cureRubberCard]).map((recipe) => recipe.id)).toEqual([
+    expect(searchTerminalRecipes('rubber', [liquidRubberCard, cureRubberCard]).map((recipe) => recipe.id)).toEqual([
       'lv_reactor_liquid_rubber',
-      'lv_reactor_cure_rubber',
+      'furnace_rubber_pulp',
     ])
   })
 
@@ -5119,7 +5182,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(10)
+    expect(state.version).toBe(12)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')
@@ -5151,6 +5214,7 @@ describe('game engine', () => {
     const miner = state.machineInstances.find((instance) => instance.machineId === 'steamAutoMiner')!
     const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
     miner.process.output = { id: 'cobblestone', amount: 2 }
+    state = setPipeSideMode(state, hopper.uid, 'west', 'input')
     state = setHopperOutputDirection(state, hopper.uid, 'east')
 
     state = tickGame(state, 1000).state
@@ -5164,7 +5228,7 @@ describe('game engine', () => {
     state.machines.lvChemicalReactor = 1
     state = placeMachineInstance(state, 'lvChemicalReactor', 0, 0)
     const reactor = state.machineInstances[0]
-    reactor.process.input = { id: 'rubberSap', amount: 2 }
+    reactor.process.input = { id: 'rubberPulp', amount: 2 }
     reactor.process.secondaryInput = { id: 'sulfurDust', amount: 1 }
     reactor.process.euStored = 128
 
@@ -5284,6 +5348,111 @@ describe('game engine', () => {
     expect(state.fluidContainers.filter((container) => container.kind === 'steelCell')).toHaveLength(3)
     expect(state.fluidContainers.find((container) => container.kind === 'bucket')).toMatchObject({ fluidId: 'creosote', amountLitres: 1 })
     expect(state.migrationNotices).toContain('portable-fluid-containers')
+  })
+
+  it('separates Sticky Resin into Rubber Pulp and Glue', () => {
+    let state = createFactoryState()
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    const centrifuge = state.machineInstances[0]
+    centrifuge.process.input = { id: 'rubberSap', amount: 1 }
+    centrifuge.process.euStored = 128
+
+    state = tickGame(state, 6000).state
+
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'rubberPulp', amount: 2 })
+    expect(state.machineInstances[0].process.fluids.glue).toBe(2)
+  })
+
+  it('blocks a Centrifuge recipe when its second item output is full', () => {
+    let state = createFactoryState()
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    const centrifuge = state.machineInstances[0]
+    centrifuge.process.input = { id: 'gravel', amount: 12 }
+    centrifuge.process.output2 = { id: 'flint', amount: processStackLimit }
+    centrifuge.process.euStored = 128
+
+    state = tickGame(state, 14000).state
+
+    expect(state.machineInstances[0].process.input).toEqual({ id: 'gravel', amount: 12 })
+    expect(state.machineInstances[0].process.output).toBeNull()
+  })
+
+  it('separates Air into two generic gas outputs without an item input', () => {
+    let state = createFactoryState()
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    const centrifuge = state.machineInstances[0]
+    centrifuge.process.fluids.air = 8
+    centrifuge.process.euStored = 128
+
+    state = tickGame(state, 8000).state
+
+    expect(state.machineInstances[0].process.fluids.air).toBe(0)
+    expect(state.machineInstances[0].process.fluids.oxygen).toBe(2)
+    expect(state.machineInstances[0].process.fluids.nitrogen).toBe(6)
+  })
+
+  it('collects Air autonomously while powered', () => {
+    let state = createFactoryState()
+    state.machines.lvAirCollector = 1
+    state = placeMachineInstance(state, 'lvAirCollector', 0, 0)
+    state.machineInstances[0].process.euStored = 64
+
+    state = tickGame(state, 8000).state
+
+    expect(state.machineInstances[0].process.fluids.air).toBe(8)
+    expect(state.machineInstances[0].process.euStored).toBe(0)
+  })
+
+  it('requires both acid and water before producing diluted sulfuric acid', () => {
+    let state = createFactoryState()
+    state.machines.lvChemicalReactor = 1
+    state = placeMachineInstance(state, 'lvChemicalReactor', 0, 0)
+    const reactor = state.machineInstances[0]
+    reactor.process.fluids.sulfuricAcid = 4
+    reactor.process.euStored = 192
+
+    state = tickGame(state, 6000).state
+    expect(state.machineInstances[0].process.fluids.sulfuricAcid).toBe(4)
+    expect(state.machineInstances[0].process.fluids.dilutedSulfuricAcid ?? 0).toBe(0)
+
+    state.machineInstances[0].process.fluids.water = 4
+    state = tickGame(state, 6000).state
+
+    expect(state.machineInstances[0].process.fluids.sulfuricAcid).toBe(0)
+    expect(state.machineInstances[0].process.fluids.water).toBe(0)
+    expect(state.machineInstances[0].process.fluids.dilutedSulfuricAcid).toBe(8)
+  })
+
+  it('consumes Glue for the improved resistor yield', () => {
+    let state = createFactoryState()
+    state.machines.lvAssembler = 1
+    state = placeMachineInstance(state, 'lvAssembler', 0, 0)
+    const assembler = state.machineInstances[0]
+    assembler.process.input = { id: 'carbonDust', amount: 1 }
+    assembler.process.secondaryInput = { id: 'copperWire', amount: 2 }
+    assembler.process.fluids.glue = 2
+    assembler.process.euStored = 48
+
+    state = tickGame(state, 4500).state
+
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'resistor', amount: 6 })
+    expect(state.machineInstances[0].process.fluids.glue).toBe(0)
+  })
+
+  it('persists an explicit Arc Furnace program and returns to Auto', () => {
+    let state = createFactoryState()
+    state.machines.arcBlastFurnace = 1
+    state = placeMachineInstance(state, 'arcBlastFurnace', 0, 0)
+    const controller = state.machineInstances[0]
+
+    state = setConfiguredProcessRecipe(state, controller.uid, 'arc_blast_oxygen_steel')
+    expect(state.machineInstances[0].process.configuredRecipeId).toBe('arc_blast_oxygen_steel')
+
+    state = setConfiguredProcessRecipe(state, controller.uid, null)
+    expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
   })
 })
 

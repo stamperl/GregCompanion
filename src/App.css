@@ -1463,6 +1463,7 @@ button.craft-output:disabled {
 .pixel-treeTap span,
 .pixel-coalCoke span,
 .pixel-pipeSealant span,
+.pixel-rubberPulp span,
 .pixel-rubber span,
 .pixel-steelIngot span,
 .pixel-steelPlate span,
@@ -7143,6 +7144,73 @@ button.craft-output:disabled {
   line-height: 1.25;
 }
 
+.pixel-rubberPulp {
+  --p1: #b68a58;
+  --p2: #60452f;
+  --p3: #ead6ae;
+  --p4: #332419;
+  background:
+    repeating-linear-gradient(32deg, transparent 0 5px, #ead6ae 5px 8px, transparent 8px 13px),
+    repeating-linear-gradient(142deg, #b68a58 0 6px, #60452f 6px 10px);
+  clip-path: polygon(16% 16%, 76% 8%, 94% 30%, 88% 82%, 62% 96%, 14% 84%, 4% 42%);
+}
+
+.home-install-card {
+  background: #304f49;
+  border: 2px solid #9fe6d4;
+  border-bottom-color: #1b2f2b;
+  border-radius: 0;
+  border-right-color: #1b2f2b;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.22), inset -2px -2px 0 rgba(0, 0, 0, 0.18);
+  color: #e7fff8;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
+.home-install-card div:first-child {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.home-install-card span,
+.home-install-card strong,
+.home-install-card p {
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.home-install-card span {
+  color: #a9fff0;
+  font: 950 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.home-install-card strong {
+  font: 950 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.home-install-card p {
+  font: 850 0.64rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.25;
+}
+
+.home-install-actions {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.home-install-actions .home-action {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+}
+
 .home-foundry-mark {
   align-self: stretch;
   background:
@@ -8816,6 +8884,7 @@ button.craft-output:disabled {
 .machine-lvAssembler,
 .machine-lvChemicalReactor,
 .machine-lvCentrifuge,
+.machine-lvAirCollector,
 .machine-liquidSteamBoiler {
   --m1: #8f9aa0;
   --m2: #3f474b;
@@ -8874,6 +8943,7 @@ button.craft-output:disabled {
 .machine-lvAssembler span,
 .machine-lvChemicalReactor span,
 .machine-lvCentrifuge span,
+.machine-lvAirCollector span,
 .machine-lvMacerator span,
 .machine-lvForgeHammer span,
 .machine-lvCompressor span,
@@ -10236,6 +10306,15 @@ button.craft-output:disabled {
   overflow: hidden;
   position: relative;
   width: 28px;
+}
+
+.machine-lvAirCollector span {
+  background: #151515;
+  box-shadow: 12px 0 0 #151515, 0 -9px 0 #aae8f6, 12px -9px 0 #aae8f6;
+  height: 16%;
+  left: 27%;
+  top: 54%;
+  width: 16%;
 }
 
 .fluid-icon::before {
@@ -12339,6 +12418,20 @@ button.button-primary:disabled,
 .machine-recipe-popup-step.output {
   justify-items: center;
   text-align: center;
+}
+
+.machine-recipe-popup-product {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.machine-recipe-popup-product > strong {
+  color: #fff1b9;
+  font-size: 0.62rem;
+  line-height: 1.1;
 }
 
 .machine-recipe-popup-step.output > strong {
@@ -16521,4 +16614,114 @@ button.button-primary:disabled,
   .primitive-furnace-stage {
     min-height: 150px;
   }
+}
+
+@media (max-width: 430px) {
+  .furnace-modal.machine-steamTank-terminal .iron-tank-hmi {
+    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) minmax(96px, 0.42fr);
+    padding: 6px;
+  }
+
+  .furnace-modal.machine-steamTank-terminal .iron-tank-vessel {
+    height: clamp(240px, 34svh, 300px);
+    min-height: 240px;
+  }
+
+  .furnace-modal.machine-steamTank-terminal .utility-readout-grid {
+    gap: 4px;
+  }
+
+  .furnace-modal.machine-steamTank-terminal .utility-readout-grid > span {
+    align-content: center;
+    min-height: 0;
+    padding: 5px;
+  }
+
+  .furnace-modal.machine-steamTank-terminal .utility-readout-grid small {
+    font-size: 0.43rem;
+  }
+
+  .furnace-modal.machine-steamTank-terminal .utility-readout-grid strong {
+    font-size: 0.58rem;
+    line-height: 1.05;
+  }
+
+  .furnace-modal.machine-steamTank-terminal .utility-readout-grid em {
+    font-size: 0.4rem;
+    line-height: 1.15;
+  }
+}
+
+@media (max-width: 430px) and (max-height: 800px) {
+  .furnace-modal.machine-steamTank-terminal .iron-tank-vessel {
+    height: clamp(215px, 32svh, 252px);
+    min-height: 215px;
+  }
+}
+.arc-program-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #4d514d;
+  background: #111513;
+}
+
+.arc-program-control button {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #555c57;
+  border-radius: 2px;
+  background: #202522;
+  color: #c8ceca;
+  font: inherit;
+}
+
+.arc-program-control button.selected {
+  border-color: #73c8d8;
+  background: #17333a;
+  color: #e4fbff;
+}
+
+.arc-program-control button b {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  background: #090c0b;
+  color: #9edfea;
+}
+
+.arc-program-control button span {
+  min-width: 0;
+  font-size: 9px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.machine-dual-output {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+}
+
+.generic-fluid-buffer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 5px;
+  min-height: 150px;
+}
+
+.generic-fluid-buffer-grid > button,
+.generic-fluid-buffer-grid .fluid-tank {
+  min-width: 0;
+  min-height: 150px;
+  height: 100%;
 }

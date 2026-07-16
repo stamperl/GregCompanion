@@ -46,10 +46,10 @@ Important recent decision:
 
 ## Current GitHub Repo
 
-Remote:
+Target remote:
 
 ```bash
-https://github.com/stamperl/GregCompanion.git
+https://github.com/stamperl/click-foundry.git
 ```
 
 Default branch:
@@ -61,8 +61,8 @@ main
 Laptop setup:
 
 ```bash
-git clone https://github.com/stamperl/GregCompanion.git
-cd GregCompanion
+git clone https://github.com/stamperl/click-foundry.git
+cd click-foundry
 npm install
 npm run dev
 ```
