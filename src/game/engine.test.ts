@@ -70,6 +70,7 @@ import {
   lvItemAutomationStatus,
   lvAutoMinerActionMs,
   makeGridForRecipe,
+  machinesCanConnectEu,
   maxDurability,
   missingForQuantity,
   missingForRecipe,
@@ -1003,7 +1004,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(12)
+    expect(state.version).toBe(13)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -1024,7 +1025,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(12)
+    expect(state.version).toBe(13)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1109,7 +1110,7 @@ describe('game engine', () => {
       }],
     }), 1000)
 
-    expect(state.version).toBe(12)
+    expect(state.version).toBe(13)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
     expect(state.machineInstances[0].process.output2).toBeNull()
     expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
@@ -1929,6 +1930,57 @@ describe('game engine', () => {
     expect(nextMacerator.process.output).toEqual({ id: 'crushedIronOre', amount: 2 })
     expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)?.process.input).toBeNull()
     expect(lvItemAutomationStatus(state, nextMacerator).code).toBe('output-conflict')
+  })
+
+  it('automates both solid outputs from an LV Centrifuge', () => {
+    let state = createFactoryState(1000)
+    Object.assign(state.machines, { lvCentrifuge: 1, standardChest: 1 })
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    state = placeMachineInstance(state, 'standardChest', 1, 0)
+    const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    centrifuge.process.output = { id: 'aluminiumDust', amount: 1 }
+    centrifuge.process.output2 = { id: 'flint', amount: 2 }
+    state = setLvItemOutputDirection(state, centrifuge.uid, 'east')
+
+    state = tickGame(state, 3000).state
+
+    const nextCentrifuge = state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    expect(nextCentrifuge.process.output).toBeNull()
+    expect(nextCentrifuge.process.output2).toBeNull()
+    expect(chest.process.storageSlots).toContainEqual({ id: 'aluminiumDust', amount: 1 })
+    expect(chest.process.storageSlots).toContainEqual({ id: 'flint', amount: 2 })
+  })
+
+  it('connects a configured cable to a Centrifuge without opening a fluid face', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvCentrifuge = 1
+    state.resources.tinCable = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 1, 0)
+    state = placeMachineInstance(state, 'tinCable', 0, 0)
+    const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!
+    state = setPipeSideMode(state, cable.uid, 'east', 'both')
+    const configuredCable = state.machineInstances.find((instance) => instance.uid === cable.uid)!
+    const configuredCentrifuge = state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!
+
+    expect(pipeSideMode(configuredCable, 'east')).toBe('both')
+    expect(pipeSideMode(configuredCentrifuge, 'west')).toBe('blocked')
+    expect(machinesCanConnectEu(configuredCable, configuredCentrifuge)).toBe(true)
+  })
+
+  it('returns a legacy Centrifuge second input during save migration', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    state.version = 12
+    state.machineInstances[0].process.secondaryInput = { id: 'sand', amount: 8 }
+
+    const migrated = loadGame(JSON.stringify(state), 2000)
+
+    expect(migrated.machineInstances[0].process.secondaryInput).toBeNull()
+    expect(migrated.resources.sand).toBe(8)
+    expect(migrated.migrationNotices).toContain('centrifuge-single-input')
   })
 
   it('hoppers feed formed coke ovens through adjacent multiblock parts', () => {
@@ -5455,7 +5507,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(12)
+    expect(state.version).toBe(13)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')

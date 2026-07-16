@@ -84,7 +84,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 12
+export const currentSaveVersion = 13
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -1338,7 +1338,6 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     }
     if (instance.machineId === 'lvCentrifuge') {
       instance.process.input = { id: 'clay', amount: 16 }
-      instance.process.secondaryInput = { id: 'sand', amount: 8 }
     }
     if (instance.machineId === 'lvCanner') {
       instance.process.input = { id: 'emptyBatteryCell', amount: 8 }
@@ -1974,7 +1973,7 @@ export function machinesCanConnect(from: MachineInstance, to: MachineInstance) {
   return connectorAllowsDirection(from, direction) && connectorAllowsDirection(to, oppositePipeDirection[direction])
 }
 
-function machinesCanConnectEu(from: MachineInstance, to: MachineInstance) {
+export function machinesCanConnectEu(from: MachineInstance, to: MachineInstance) {
   const direction = directionBetween(from, to)
   if (!direction) return false
   const allowsEuConnection = (instance: MachineInstance, side: PipeDirection) => {
@@ -4681,7 +4680,7 @@ export function lvItemAutomationStatus(state: GameState, source: MachineInstance
   if (isLvItemAutomationMachine(target.machineId) && target.itemOutputDirection === incomingDirection) {
     return { code: 'output-conflict', label: 'Output face conflict', target }
   }
-  const output = source.process.output
+  const output = source.process.output ?? source.process.output2
   if (!output) return { code: 'ready', label: 'Ready', target }
   if (target.machineId !== 'standardChest' && !isLvItemAutomationMachine(target.machineId)) return { code: 'invalid-item', label: 'Invalid destination', target }
   if (!lvAutomationCanReceive(target, incomingDirection, output.id)) {
@@ -4724,26 +4723,28 @@ function tickLvItemAutomation(state: GameState, source: MachineInstance, elapsed
     source.itemTransferProgressMs = 0
     return
   }
-  if (!source.process.output) {
+  if (!source.process.output && !source.process.output2) {
     source.itemTransferProgressMs = 0
     return
   }
   source.itemTransferProgressMs = (source.itemTransferProgressMs ?? 0) + elapsedMs
   const target = lvAutomationDestination(state, source)
   const incomingDirection = oppositePipeDirection[source.itemOutputDirection]
-  while (source.itemTransferProgressMs >= 1000 && source.process.output) {
-    if (!target || !lvAutomationCanReceive(target, incomingDirection, source.process.output.id)) {
+  while (source.itemTransferProgressMs >= 1000 && (source.process.output || source.process.output2)) {
+    const outputSlotId = source.process.output ? 'output' : 'output2'
+    const output = source.process[outputSlotId]!
+    if (!target || !lvAutomationCanReceive(target, incomingDirection, output.id)) {
       source.itemTransferProgressMs = 1000
       return
     }
-    if (!insertLvAutomationItem(target, source.process.output.id)) {
+    if (!insertLvAutomationItem(target, output.id)) {
       source.itemTransferProgressMs = 1000
       return
     }
-    source.process.output = decrementProcessSlot(source.process.output, 1)
+    source.process[outputSlotId] = decrementProcessSlot(output, 1)
     source.itemTransferProgressMs -= 1000
   }
-  if (!source.process.output) source.itemTransferProgressMs = 0
+  if (!source.process.output && !source.process.output2) source.itemTransferProgressMs = 0
 }
 
 function configuredArcPortNeighbour(state: GameState, structure: ArcBlastFurnaceStructure, port: MachineInstance) {
@@ -5541,6 +5542,20 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       migrationNotices,
       parsed.machineInstances,
     )
+    if (parsedVersion < 13) {
+      let returnedCentrifugeInput = false
+      for (const instance of machineInstances) {
+        if (instance.machineId !== 'lvCentrifuge' || !instance.process.secondaryInput) continue
+        const returned = instance.process.secondaryInput
+        migratedResources[returned.id] += returned.amount
+        instance.process.secondaryInput = null
+        instance.process.activeRecipeId = null
+        instance.process.progressMs = 0
+        instance.process.durationMs = 0
+        returnedCentrifugeInput = true
+      }
+      if (returnedCentrifugeInput) migrationNotices.push('centrifuge-single-input')
+    }
     migrateResourceBackedMachines(parsedVersion, machinesState, migratedResources, machineInstances)
     const craftedResources = normalizeCraftedResources(parsed)
     const discoveredResources = normalizeDiscoveredResources(parsed, migratedResources)

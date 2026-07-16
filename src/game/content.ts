@@ -4697,14 +4697,13 @@ export const processRecipes: ProcessRecipe[] = [
   },
   {
     id: 'lv_centrifuge_clay_aluminium',
-    name: 'LV Centrifuge Clay Slurry',
-    description: 'Spin clay and sand into a poor but renewable aluminium dust route.',
+    name: 'LV Centrifuge Clay',
+    description: 'Spin clay into a poor but renewable aluminium dust route.',
     tier: 'lv',
     machineId: 'lvCentrifuge',
     durationMs: 14000,
     euCost: 120,
     input: { id: 'clay', amount: 8 },
-    secondaryInput: { id: 'sand', amount: 2 },
     output: { id: 'aluminiumDust', amount: 1 },
   },
   {

@@ -5705,6 +5705,66 @@ button.craft-output:disabled {
   white-space: nowrap;
 }
 
+.centrifuge-hmi {
+  grid-template-columns: 72px minmax(0, 1fr) 116px;
+}
+
+.centrifuge-output-bank {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+}
+
+.centrifuge-output-bank .process-slot {
+  height: 48px;
+  width: 48px;
+}
+
+.centrifuge-fluid-outputs {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.centrifuge-fluid-output {
+  align-content: center;
+  background: #101817;
+  border: 2px solid #1b2423;
+  border-bottom-color: #687672;
+  border-right-color: #687672;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-height: 58px;
+  min-width: 0;
+  padding: 3px 1px;
+}
+
+.centrifuge-fluid-output > span {
+  background: var(--chemical-fluid-color, #51605c);
+  border: 2px solid rgba(232, 250, 246, 0.76);
+  border-bottom-color: rgba(0, 0, 0, 0.72);
+  border-right-color: rgba(0, 0, 0, 0.72);
+  box-shadow: inset 3px 3px 0 rgba(255, 255, 255, 0.2);
+  height: 20px;
+  width: 20px;
+}
+
+.centrifuge-fluid-output strong {
+  color: #edf8f4;
+  font: 950 0.4rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.centrifuge-fluid-output em {
+  color: #9ecac3;
+  font: 900 0.4rem "Courier New", ui-monospace, monospace;
+  font-style: normal;
+}
+
 .forge-io-slot.dual-inputs {
   gap: 3px;
   padding-block: 4px;

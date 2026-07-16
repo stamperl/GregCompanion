@@ -135,6 +135,7 @@ import {
   missingForQuantity,
   missingForRecipe,
   machinesCanConnect,
+  machinesCanConnectEu,
   multiblockControllerForInstance,
   multiblockPositions,
   placeMachineInstance,
@@ -403,7 +404,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   lvBender: { kind: 'bender', runningLabel: 'Bending' },
   lvLathe: { kind: 'lathe', runningLabel: 'Turning' },
   lvElectrolyzer: { kind: 'electrolyzer', runningLabel: 'Splitting' },
-  lvCentrifuge: { kind: 'centrifuge', runningLabel: 'Spinning', secondaryInput: true },
+  lvCentrifuge: { kind: 'centrifuge', runningLabel: 'Spinning' },
   lvCanner: { kind: 'canner', runningLabel: 'Canning', secondaryInput: true },
   lvChemicalReactor: { kind: 'chemicalReactor', runningLabel: 'Reacting', secondaryInput: true },
 }
@@ -689,6 +690,7 @@ function offlineProgressNotice(offline: OfflineProgressResult) {
 
 function migrationNoticeText(notices: string[]) {
   if (notices.includes('portable-fluid-containers')) return 'Buckets and Steel Cells now keep their exact fluid and fill level. Legacy filled cells were converted, and old overfilled buckets were safely limited to their new 1L capacity.'
+  if (notices.includes('centrifuge-single-input')) return 'LV Centrifuges now use one item input. Anything left in the old second input slot has been returned to storage.'
   if (notices.includes('arc-furnace-3x3')) return 'Arc Furnaces now use flexible 3x3 structures. Legacy furnaces were dismantled and their heatproof casings returned so you can build the new controller, buses, and Energy Hatches.'
   if (notices.includes('survey-card-inventory')) return 'Survey Cards are now physical LV Auto Miner inventory items. Cards assigned by an older save have been moved into their miner without losing the target or card.'
   if (!notices.includes('coke-oven-multiblock')) return ''
@@ -830,7 +832,8 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
     const connectsTo = (x: number, y: number) => {
       const neighbour = machineAtCell(x, y)
       if (!neighbour) return false
-      return machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
+      return (isEuCable ? machinesCanConnectEu(instance, neighbour) : machinesCanConnect(instance, neighbour)) &&
+        (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
     }
     return {
       up: connectsTo(instance.x, instance.y - 1),
@@ -912,7 +915,8 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
           (isHopper
             ? (((mode === 'input' || mode === 'both') && !isItemHopperMachine(neighbour.machineId) && !isItemBusMachine(neighbour.machineId)) ||
                 ((mode === 'output' || mode === 'both') && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))))
-            : machinesCanConnect(instance, neighbour) && (isEuCable ? isEuNetworkMachine(neighbour.machineId) : isSteamPipeNeighbour(neighbour.machineId))),
+            : (isEuCable ? machinesCanConnectEu(instance, neighbour) : machinesCanConnect(instance, neighbour)) &&
+              (isEuCable ? isEuNetworkMachine(neighbour.machineId) : isSteamPipeNeighbour(neighbour.machineId))),
       )
       return {
         direction,
@@ -2236,6 +2240,13 @@ function App() {
         instance.process.fluidCapacityLitres = 32
         instance.process.fluids.liquidRubber = reviewState === 'active' ? 8 : 24
       }
+      if (reviewMachineId === 'lvCentrifuge') {
+        instance.process.fluidCapacityLitres = 32
+        instance.process.output = { id: 'aluminiumDust', amount: 4 }
+        instance.process.output2 = { id: 'flint', amount: 8 }
+        instance.process.fluids.oxygen = reviewState === 'active' ? 8 : 20
+        instance.process.fluids.nitrogen = reviewState === 'active' ? 16 : 28
+      }
       if (isEuCableMachine(reviewMachineId)) {
         const source = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'steamTurbine')
         if (source) {
@@ -3313,7 +3324,8 @@ function App() {
     const connectsTo = (x: number, y: number) => {
       const neighbour = machineAtFactoryCell(x, y)
       if (!neighbour) return false
-      return machinesCanConnect(instance, neighbour) && (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
+      return (isEuCable ? machinesCanConnectEu(instance, neighbour) : machinesCanConnect(instance, neighbour)) &&
+        (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
     }
     return {
       up: connectsTo(instance.x, instance.y - 1),
@@ -6162,7 +6174,9 @@ function App() {
                             (isHopperConfig
                               ? ((mode === 'input' || mode === 'both') && !isItemAutomationMachine(neighbour.machineId)) ||
                                 ((mode === 'output' || mode === 'both') && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId)))
-                              : machinesCanConnect(selectedPipeConfig, neighbour)),
+                              : isCableConfig
+                                ? machinesCanConnectEu(selectedPipeConfig, neighbour)
+                                : machinesCanConnect(selectedPipeConfig, neighbour)),
                         )
                         const className = [
                           'pipe-config-cell',
@@ -6294,7 +6308,7 @@ function App() {
                   </div>
                 )}
                 <div className="machine-terminal-body">
-                {machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
+                {!isMachineAutomationOpen && machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                 <>
                   <div className={`processing-storage furnace-storage ${selectedMachineFluidBuffers.length > 0 ? 'fluid-capable-storage' : ''}`} aria-label={`${machines[selectedMachine.machineId].name} storage`}>
                     {furnaceStorageResources.length > 0 ? (
@@ -6326,7 +6340,7 @@ function App() {
                   </div>
                 </>
                 )}
-                {machineTerminalMode === 'fluids' && (
+                {!isMachineAutomationOpen && machineTerminalMode === 'fluids' && (
                   <>
                     <div className="processing-storage furnace-storage portable-fluid-storage" aria-label="Portable fluid containers">
                       {(['bucket', 'steelCell'] as FluidContainerKind[]).map((kind) => {
@@ -6403,7 +6417,7 @@ function App() {
                     onClick={() => setIsMachineAutomationOpen((current) => !current)}
                   >
                     <Route size={14} />
-                    <span>{isMachineAutomationOpen ? 'Operating HMI' : 'Automation'}</span>
+                    <span>{isMachineAutomationOpen ? 'Back to machine' : 'Automation'}</span>
                     <strong>{selectedMachineAutomationStatus?.label}</strong>
                   </button>
                 )}
@@ -6962,7 +6976,11 @@ function App() {
                     const hmiUsesSecondaryInput = Boolean(selectedMachineHmiConfig?.secondaryInput)
                     const hmiSystemLabel = isSteamHmi ? 'Pressure' : 'Power'
                     const isChemicalReactor = selectedMachine.machineId === 'lvChemicalReactor'
+                    const isCentrifuge = selectedMachine.machineId === 'lvCentrifuge'
                     const chemicalFluidOutput = isChemicalReactor ? storedFluids(process)[0] : undefined
+                    const centrifugeFluidOutputs = isCentrifuge
+                      ? selectedMachineFluidBuffers.filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
+                      : []
                     const chemicalFluidCapacity = process.fluidCapacityLitres || 32
                     const progressPercent =
                       process.durationMs > 0 ? Math.min(100, Math.max(0, (process.progressMs / process.durationMs) * 100)) : 0
@@ -7063,6 +7081,33 @@ function App() {
                                 <em>{formatLitres(chemicalFluidCapacity)}L buffer</em>
                               </button>
                             )
+                          ) : isCentrifuge ? (
+                            <div className="centrifuge-output-bank">
+                              <div className="machine-dual-output centrifuge-item-outputs">
+                                <ProcessItemSlot slot={process.output} label="Output 1" onClick={() => handleProcessSlotPress('output')} />
+                                <ProcessItemSlot slot={process.output2} label="Output 2" onClick={() => handleProcessSlotPress('output2')} />
+                              </div>
+                              <div className="centrifuge-fluid-outputs">
+                                {centrifugeFluidOutputs.map((buffer) => {
+                                  const storedFluidId = buffer.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
+                                  const storedLitres = storedFluidId ? process.fluids[storedFluidId] ?? 0 : 0
+                                  return (
+                                    <button
+                                      type="button"
+                                      className={`centrifuge-fluid-output native-fluid-control ${nativeFluidControlReady(buffer.id, 'output') ? 'ready' : ''}`}
+                                      disabled={!nativeFluidControlReady(buffer.id, 'output')}
+                                      onClick={() => handleNativeFluidControl(buffer.id, 'output')}
+                                      aria-label={`${storedFluidId ? fluidLabel(storedFluidId) : buffer.label} output ${formatLitres(storedLitres)} of ${formatLitres(buffer.capacityLitres)} litres`}
+                                      key={buffer.id}
+                                    >
+                                      <span style={{ '--chemical-fluid-color': fluidVisualColor(storedFluidId) } as CSSProperties} aria-hidden="true" />
+                                      <strong>{storedFluidId ? fluidLabel(storedFluidId) : buffer.label}</strong>
+                                      <em>{formatLitres(storedLitres)}L</em>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
                           ) : (
                             <div className={machines[selectedMachine.machineId].itemOutputSlots === 2 ? 'machine-dual-output' : ''}>
                               <ProcessItemSlot slot={process.output} label="Output 1" onClick={() => handleProcessSlotPress('output')} />
@@ -7118,7 +7163,6 @@ function App() {
                     <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
                     {(selectedMachine.machineId === 'steamAlloySmelter' ||
                       selectedMachine.machineId === 'lvAlloySmelter' ||
-                      selectedMachine.machineId === 'lvCentrifuge' ||
                       selectedMachine.machineId === 'lvCanner') && (
                       <ProcessItemSlot slot={selectedMachine.process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                     )}
