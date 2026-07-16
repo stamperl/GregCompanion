@@ -36,6 +36,7 @@ import {
   claimAllQuestRewards,
   claimQuestReward,
   collectProcessOutput,
+  conductorFaceSettings,
   crowbarRemoveMachineInstance,
   createCreativeFactoryState,
   createCreativeState,
@@ -86,6 +87,7 @@ import {
   recipeFitsTerminalGrid,
   recipesUsingInput,
   removeMachineInstance,
+  removeConductorLane,
   removeProcessSlot,
   removeMachineStorageSlot,
   removeLvBatteryFromBuffer,
@@ -95,6 +97,7 @@ import {
   sellShopItem,
   setFluidOutputDirection,
   setConfiguredProcessRecipe,
+  setConductorFaceSettings,
   setHopperOutputDirection,
   setLvItemOutputDirection,
   shopItemCooldownMs,
@@ -1013,7 +1016,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(13)
+    expect(state.version).toBe(14)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -1034,7 +1037,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(13)
+    expect(state.version).toBe(14)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1119,7 +1122,7 @@ describe('game engine', () => {
       }],
     }), 1000)
 
-    expect(state.version).toBe(13)
+    expect(state.version).toBe(14)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
     expect(state.machineInstances[0].process.output2).toBeNull()
     expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
@@ -1939,6 +1942,95 @@ describe('game engine', () => {
     expect(nextMacerator.process.output).toEqual({ id: 'crushedIronOre', amount: 2 })
     expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)?.process.input).toBeNull()
     expect(lvItemAutomationStatus(state, nextMacerator).code).toBe('output-conflict')
+  })
+
+  it('bundles item and fluid conductors in either placement order and releases individual lanes', () => {
+    for (const order of [['itemConductor', 'fluidConductor'], ['fluidConductor', 'itemConductor']] as const) {
+      let state = createFactoryState(1000)
+      state.machines.itemConductor = 1
+      state.machines.fluidConductor = 1
+      state = placeMachineInstance(state, order[0], 1, 1)
+      const originalUid = state.machineInstances[0].uid
+      state = placeMachineInstance(state, order[1], 1, 1)
+
+      expect(state.machineInstances).toHaveLength(1)
+      expect(state.machineInstances[0]).toMatchObject({ uid: originalUid, machineId: 'conductorBundle', x: 1, y: 1 })
+      expect(availableUnplacedMachineCount(state, 'itemConductor')).toBe(0)
+      expect(availableUnplacedMachineCount(state, 'fluidConductor')).toBe(0)
+
+      state = removeConductorLane(state, originalUid, 'item')
+      expect(state.machineInstances[0].machineId).toBe('fluidConductor')
+      expect(availableUnplacedMachineCount(state, 'itemConductor')).toBe(1)
+      expect(availableUnplacedMachineCount(state, 'fluidConductor')).toBe(0)
+    }
+  })
+
+  it('persists independent bundled conductor face settings and coalesces legacy same-cell lanes', () => {
+    const state = loadGame(JSON.stringify({
+      version: 13,
+      factoryFoundationLevel: 2,
+      machines: { itemConductor: 0, fluidConductor: 0 },
+      machineInstances: [
+        {
+          uid: 'legacy-item', machineId: 'itemConductor', x: 1, y: 1, level: 1,
+          conductorItemFaces: { west: { mode: 'input', channel: 2, priority: 4, roundRobin: true, selfFeed: false, itemFilter: ['log'] } },
+        },
+        {
+          uid: 'legacy-fluid', machineId: 'fluidConductor', x: 1, y: 1, level: 1,
+          conductorFluidFaces: { east: { mode: 'output', channel: 2, priority: 7, roundRobin: false, selfFeed: true, fluidFilter: ['creosote'] } },
+        },
+      ],
+    }), 2000)
+
+    expect(state.machineInstances).toHaveLength(1)
+    expect(state.machineInstances[0].machineId).toBe('conductorBundle')
+    expect(conductorFaceSettings(state.machineInstances[0], 'item', 'west')).toMatchObject({ mode: 'input', channel: 2, priority: 4, itemFilter: ['log'] })
+    expect(conductorFaceSettings(state.machineInstances[0], 'fluid', 'east')).toMatchObject({ mode: 'output', channel: 2, priority: 7, selfFeed: true, fluidFilter: ['creosote'] })
+    expect(state.machines.itemConductor).toBe(1)
+    expect(state.machines.fluidConductor).toBe(1)
+    expect(loadGame(saveGame(state, 3000), 3000).machineInstances[0]).toMatchObject({ machineId: 'conductorBundle' })
+  })
+
+  it('routes filtered items and fluids through conductor networks on matching channels', () => {
+    let state = createFactoryState(1000)
+    state.machines.standardChest = 2
+    state.machines.steamTank = 2
+    state.machines.itemConductor = 2
+    state.machines.fluidConductor = 2
+    state = placeMachineInstance(state, 'standardChest', 0, 0)
+    state = placeMachineInstance(state, 'itemConductor', 1, 0)
+    state = placeMachineInstance(state, 'itemConductor', 2, 0)
+    state = placeMachineInstance(state, 'standardChest', 3, 0)
+    state = placeMachineInstance(state, 'steamTank', 0, 1)
+    state = placeMachineInstance(state, 'fluidConductor', 1, 1)
+    state = placeMachineInstance(state, 'fluidConductor', 2, 1)
+    state = placeMachineInstance(state, 'steamTank', 3, 1)
+    const [sourceChest, targetChest] = state.machineInstances.filter((instance) => instance.machineId === 'standardChest')
+    const [itemSource, itemTarget] = state.machineInstances.filter((instance) => instance.machineId === 'itemConductor')
+    const [sourceTank, targetTank] = state.machineInstances.filter((instance) => instance.machineId === 'steamTank')
+    const [fluidSource, fluidTarget] = state.machineInstances.filter((instance) => instance.machineId === 'fluidConductor')
+    sourceChest.process.storageSlots[0] = { id: 'log', amount: 3 }
+    sourceTank.process.fluids.creosote = 64
+    state = setConductorFaceSettings(state, itemSource.uid, 'item', 'west', { mode: 'input', channel: 1, itemFilter: ['log'] })
+    state = setConductorFaceSettings(state, itemTarget.uid, 'item', 'east', { mode: 'output', channel: 1, priority: 3 })
+    state = setConductorFaceSettings(state, fluidSource.uid, 'fluid', 'west', { mode: 'input', channel: 2, fluidFilter: ['creosote'] })
+    state = setConductorFaceSettings(state, fluidTarget.uid, 'fluid', 'east', { mode: 'output', channel: 2, priority: 3 })
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === sourceChest.uid)!.process.storageSlots[0]).toEqual({ id: 'log', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === targetChest.uid)!.process.storageSlots[0]).toEqual({ id: 'log', amount: 2 })
+    expect(state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!.process.fluids.creosote).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === targetTank.uid)!.process.fluids.creosote).toBe(64)
+
+    const blockedSourceChest = state.machineInstances.find((instance) => instance.uid === sourceChest.uid)!
+    const blockedSourceTank = state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!
+    blockedSourceChest.process.storageSlots[0] = { id: 'log', amount: 1 }
+    blockedSourceTank.process.fluids.creosote = 16
+    state = setConductorFaceSettings(state, itemTarget.uid, 'item', 'east', { channel: 0 })
+    state = setConductorFaceSettings(state, fluidTarget.uid, 'fluid', 'east', { channel: 0 })
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === sourceChest.uid)!.process.storageSlots[0]).toEqual({ id: 'log', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!.process.fluids.creosote).toBe(16)
   })
 
   it('automates both solid outputs from an LV Centrifuge', () => {
@@ -5553,7 +5645,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(13)
+    expect(state.version).toBe(14)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')

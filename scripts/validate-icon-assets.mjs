@@ -63,9 +63,10 @@ function checkSet(kind, ids, dir) {
 const source = readFileSync(contentPath, 'utf8')
 const resourceIds = registryKeys(source, 'resourceRegistry')
 const machineIds = registryKeys(source, 'machineRegistry')
+const codeNativeMachineIds = new Set(['itemConductor', 'fluidConductor', 'conductorBundle'])
 const failures = [
   ...checkSet('resource', resourceIds, resourcesDir),
-  ...checkSet('machine', machineIds, machinesDir),
+  ...checkSet('machine', machineIds.filter((id) => !codeNativeMachineIds.has(id)), machinesDir),
 ]
 
 if (failures.length > 0) {

@@ -176,7 +176,8 @@ describe('content validation', () => {
       expect(statSync(iconPath).size, `resource ${id} icon should not be blank`).toBeGreaterThan(500)
     }
 
-    for (const id of Object.keys(machineRegistry)) {
+    for (const [id, machine] of Object.entries(machineRegistry)) {
+      if ('glyphKey' in machine && machine.glyphKey === 'conductor') continue
       const iconPath = resolve(publicDir, 'game-icons/machines', `${id}.png`)
       expect(existsSync(iconPath), `machine ${id} should have ${iconPath}`).toBe(true)
       expect(statSync(iconPath).size, `machine ${id} icon should not be blank`).toBeGreaterThan(500)

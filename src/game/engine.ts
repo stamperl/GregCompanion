@@ -17,6 +17,9 @@ import {
   isEuProducerMachine,
   isEuStorageMachine,
   isItemBusMachine,
+  isConductorMachine,
+  isFluidConductorMachine,
+  isItemConductorMachine,
   isItemHopperMachine,
   isItemStorageMachine,
   isLiquidSteamBoilerMachine,
@@ -54,6 +57,8 @@ import {
 } from './recipeGraph'
 import type {
   CraftSlot,
+  ConductorChannel,
+  ConductorFaceSettings,
   EquipmentSlotId,
   EquipmentState,
   FluidContainerInstance,
@@ -84,7 +89,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 13
+export const currentSaveVersion = 14
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -493,17 +498,37 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
     occupied.add(key)
     const pipeDisabledSides = normalizePipeDisabledSides(instance.pipeDisabledSides)
     const machineId = instance.machineId as MachineId
-    let pipeSideModes = normalizePipeSideModes(instance.pipeSideModes, pipeDisabledSides)
+    let normalizedSideModes = normalizePipeSideModes(instance.pipeSideModes, pipeDisabledSides)
+    const normalizeConductorFaces = (faces: Partial<Record<PipeDirection, ConductorFaceSettings>> | undefined, fluidLane: boolean) => Object.fromEntries(
+      pipeDirections.flatMap((direction) => {
+        const face = faces?.[direction]
+        if (!face) return []
+        const fallbackMode = fluidLane ? normalizedSideModes[direction] ?? 'blocked' : 'blocked'
+        const mode = pipeSideModes.includes(face.mode) ? face.mode : fallbackMode
+        const channel = Math.max(0, Math.min(3, Math.floor(Number(face.channel) || 0))) as ConductorChannel
+        const itemFilter = Array.isArray(face.itemFilter) ? [...new Set(face.itemFilter.filter((id): id is ResourceId => id in resourceRegistry))].slice(0, 5) : undefined
+        const fluidFilter = Array.isArray(face.fluidFilter) ? [...new Set(face.fluidFilter.filter((id): id is FluidId => fluidIds.includes(id)))].slice(0, 5) : undefined
+        return [[direction, {
+          mode,
+          channel,
+          priority: Math.max(-9, Math.min(9, Math.floor(Number(face.priority) || 0))),
+          roundRobin: Boolean(face.roundRobin),
+          selfFeed: Boolean(face.selfFeed),
+          ...(itemFilter?.length ? { itemFilter } : {}),
+          ...(fluidFilter?.length ? { fluidFilter } : {}),
+        } satisfies ConductorFaceSettings]]
+      }),
+    ) as Partial<Record<PipeDirection, ConductorFaceSettings>>
     let normalizedPipeDisabledSides = pipeDisabledSides
-    if (isFluidOutletConfigurableMachine(machineId) && Object.keys(pipeSideModes).length < 1 && Object.keys(pipeDisabledSides).length < 1) {
-      pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
+    if (isFluidOutletConfigurableMachine(machineId) && Object.keys(normalizedSideModes).length < 1 && Object.keys(pipeDisabledSides).length < 1) {
+      normalizedSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
       normalizedPipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
     }
     if (legacyHopperImplicitInputs && isItemHopperMachine(machineId)) {
-      const outputDirections = pipeDirections.filter((direction) => pipeSideModes[direction] === 'output')
-      const explicitInputDirections = pipeDirections.filter((direction) => pipeSideModes[direction] === 'input' || pipeSideModes[direction] === 'both')
+      const outputDirections = pipeDirections.filter((direction) => normalizedSideModes[direction] === 'output')
+      const explicitInputDirections = pipeDirections.filter((direction) => normalizedSideModes[direction] === 'input' || normalizedSideModes[direction] === 'both')
       if (outputDirections.length === 1 && explicitInputDirections.length < 1) {
-        pipeSideModes = Object.fromEntries(
+        normalizedSideModes = Object.fromEntries(
           pipeDirections.map((direction) => [direction, direction === outputDirections[0] ? 'output' : 'input']),
         ) as Partial<Record<PipeDirection, PipeSideMode>>
         normalizedPipeDisabledSides = {}
@@ -536,7 +561,11 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
           ? Math.max(0, Math.floor(instance.level ?? 1))
           : Math.max(1, Math.floor(instance.level ?? 1)),
       pipeDisabledSides: normalizedPipeDisabledSides,
-      pipeSideModes,
+      pipeSideModes: normalizedSideModes,
+      conductorItemFaces: isItemConductorMachine(machineId) ? normalizeConductorFaces(instance.conductorItemFaces, false) : {},
+      conductorFluidFaces: isFluidConductorMachine(machineId) ? normalizeConductorFaces(instance.conductorFluidFaces, true) : {},
+      conductorItemRoundRobinCursor: Math.max(0, Math.floor(Number(instance.conductorItemRoundRobinCursor) || 0)),
+      conductorFluidRoundRobinCursor: Math.max(0, Math.floor(Number(instance.conductorFluidRoundRobinCursor) || 0)),
       itemOutputDirection: pipeDirections.includes(instance.itemOutputDirection as PipeDirection)
         ? instance.itemOutputDirection as PipeDirection
         : undefined,
@@ -563,6 +592,8 @@ export function cloneState(state: GameState): GameState {
       ...instance,
       pipeDisabledSides: { ...instance.pipeDisabledSides },
       pipeSideModes: { ...instance.pipeSideModes },
+      conductorItemFaces: Object.fromEntries(Object.entries(instance.conductorItemFaces ?? {}).map(([direction, face]) => [direction, face ? { ...face, itemFilter: face.itemFilter ? [...face.itemFilter] : undefined, fluidFilter: face.fluidFilter ? [...face.fluidFilter] : undefined } : face])),
+      conductorFluidFaces: Object.fromEntries(Object.entries(instance.conductorFluidFaces ?? {}).map(([direction, face]) => [direction, face ? { ...face, itemFilter: face.itemFilter ? [...face.itemFilter] : undefined, fluidFilter: face.fluidFilter ? [...face.fluidFilter] : undefined } : face])),
       process: cloneProcessState(instance.process),
     })),
     scrip: Math.max(0, Math.floor(state.scrip ?? 0)),
@@ -1947,6 +1978,7 @@ export function isFluidOutletConfigurableMachine(machineId: MachineId) {
 function isConfigurableConnector(machineId: MachineId) {
   return (
     isSteamPipeMachine(machineId) ||
+    isItemConductorMachine(machineId) ||
     isEuCableMachine(machineId) ||
     isItemHopperMachine(machineId) ||
     isFluidOutletConfigurableMachine(machineId) ||
@@ -2008,6 +2040,7 @@ function connectorAllowsFlowIn(instance: MachineInstance, direction: PipeDirecti
 export function machinesCanConnect(from: MachineInstance, to: MachineInstance) {
   const direction = directionBetween(from, to)
   if (!direction) return false
+  if (isFluidConductorMachine(from.machineId) && isFluidConductorMachine(to.machineId)) return true
   return connectorAllowsDirection(from, direction) && connectorAllowsDirection(to, oppositePipeDirection[direction])
 }
 
@@ -2024,6 +2057,7 @@ export function machinesCanConnectEu(from: MachineInstance, to: MachineInstance)
 function machinesCanFlow(from: MachineInstance, to: MachineInstance) {
   const direction = directionBetween(from, to)
   if (!direction) return false
+  if (isFluidConductorMachine(from.machineId) && isFluidConductorMachine(to.machineId)) return true
   return connectorAllowsFlowOut(from, direction) && connectorAllowsFlowIn(to, oppositePipeDirection[direction])
 }
 
@@ -3343,8 +3377,44 @@ function decrementProcessSlot(slot: ProcessSlot, amount: number): ProcessSlot {
 
 export function availableUnplacedMachineCount(state: GameState, machineId: MachineId) {
   if (isResourceBackedMachine(machineId)) return Math.max(0, availableResourceAmount(state, machineId))
-  const placed = state.machineInstances.filter((instance) => instance.machineId === machineId).length
+  const placed = state.machineInstances.filter((instance) => instance.machineId === machineId || (instance.machineId === 'conductorBundle' && (machineId === 'itemConductor' || machineId === 'fluidConductor'))).length
   return Math.max(0, state.machines[machineId] - placed)
+}
+
+function defaultConductorFaceSettings(mode: PipeSideMode = 'blocked'): ConductorFaceSettings {
+  return { mode, channel: 0, priority: 0, roundRobin: false, selfFeed: false }
+}
+
+export function conductorFaceSettings(instance: MachineInstance, lane: 'item' | 'fluid', direction: PipeDirection) {
+  const stored = lane === 'item' ? instance.conductorItemFaces?.[direction] : instance.conductorFluidFaces?.[direction]
+  return stored ?? defaultConductorFaceSettings(lane === 'fluid' ? pipeSideMode(instance, direction) : 'blocked')
+}
+
+export function setConductorFaceSettings(state: GameState, uid: string, lane: 'item' | 'fluid', direction: PipeDirection, patch: Partial<ConductorFaceSettings>) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || (lane === 'item' ? !isItemConductorMachine(instance.machineId) : !isFluidConductorMachine(instance.machineId))) return state
+  const next = cloneState(state)
+  const target = next.machineInstances.find((candidate) => candidate.uid === uid)!
+  const faces = lane === 'item' ? { ...target.conductorItemFaces } : { ...target.conductorFluidFaces }
+  const current = conductorFaceSettings(target, lane, direction)
+  const mode = patch.mode && pipeSideModes.includes(patch.mode) ? patch.mode : current.mode
+  const channel = patch.channel === undefined ? current.channel : Math.max(0, Math.min(3, Math.floor(patch.channel))) as ConductorChannel
+  faces[direction] = {
+    ...current,
+    ...patch,
+    mode,
+    channel,
+    priority: Math.max(-9, Math.min(9, Math.floor(patch.priority ?? current.priority))),
+    itemFilter: patch.itemFilter === undefined ? current.itemFilter : [...new Set(patch.itemFilter.filter((id) => id in resourceRegistry))].slice(0, 5),
+    fluidFilter: patch.fluidFilter === undefined ? current.fluidFilter : [...new Set(patch.fluidFilter.filter((id) => fluidIds.includes(id)))].slice(0, 5),
+  }
+  if (lane === 'item') target.conductorItemFaces = faces
+  else {
+    target.conductorFluidFaces = faces
+    setConnectorSideModeInPlace(target, direction, mode)
+  }
+  next.lastSavedAt = Date.now()
+  return next
 }
 
 export function installLvBatteryInBuffer(state: GameState, uid: string, batteryId: BufferBatteryId = 'sodiumBattery') {
@@ -3412,7 +3482,18 @@ export function removeMachineStorageSlot(state: GameState, uid: string, slotInde
 export function placeMachineInstance(state: GameState, machineId: MachineId, x: number, y: number) {
   if (!isInsideFactoryGrid(state, x, y)) return state
   if (availableUnplacedMachineCount(state, machineId) < 1) return state
-  if (state.machineInstances.some((instance) => instance.x === x && instance.y === y)) return state
+  const occupied = state.machineInstances.find((instance) => instance.x === x && instance.y === y)
+  if (occupied) {
+    const combinesConductors =
+      (occupied.machineId === 'itemConductor' && machineId === 'fluidConductor') ||
+      (occupied.machineId === 'fluidConductor' && machineId === 'itemConductor')
+    if (!combinesConductors) return state
+    const next = cloneState(state)
+    const target = next.machineInstances.find((instance) => instance.uid === occupied.uid)!
+    target.machineId = 'conductorBundle'
+    next.lastSavedAt = Date.now()
+    return next
+  }
 
   const next = cloneState(state)
   if (isResourceBackedMachine(machineId)) next.resources[machineId] -= 1
@@ -3448,6 +3529,27 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   if (arcStructure) normalizeArcPortFaces(arcStructure)
   tryFormMultiblock(next, placed)
   tryFormSteamTankStructure(next, placed)
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function removeConductorLane(state: GameState, uid: string, lane: 'item' | 'fluid') {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || (lane === 'item' ? !isItemConductorMachine(instance.machineId) : !isFluidConductorMachine(instance.machineId))) return state
+  if (instance.machineId !== 'conductorBundle') return removeMachineInstance(state, uid)
+  const next = cloneState(state)
+  const target = next.machineInstances.find((candidate) => candidate.uid === uid)!
+  if (lane === 'item') {
+    target.machineId = 'fluidConductor'
+    target.conductorItemFaces = {}
+    target.conductorItemRoundRobinCursor = 0
+  } else {
+    target.machineId = 'itemConductor'
+    target.conductorFluidFaces = {}
+    target.conductorFluidRoundRobinCursor = 0
+    target.pipeSideModes = {}
+    target.pipeDisabledSides = {}
+  }
   next.lastSavedAt = Date.now()
   return next
 }
@@ -4840,6 +4942,151 @@ function insertOneIntoInventory(instance: MachineInstance, resourceId: ResourceI
   return false
 }
 
+type ConductorLane = 'item' | 'fluid'
+type ConductorEndpoint = {
+  conductor: MachineInstance
+  direction: PipeDirection
+  adjacent: MachineInstance
+  settings: ConductorFaceSettings
+}
+
+function conductorSupportsLane(instance: MachineInstance, lane: ConductorLane) {
+  return lane === 'item' ? isItemConductorMachine(instance.machineId) : isFluidConductorMachine(instance.machineId)
+}
+
+function connectedConductorNetwork(state: GameState, start: MachineInstance, lane: ConductorLane) {
+  const visited = new Set<string>()
+  const queue = [start]
+  const network: MachineInstance[] = []
+  for (let index = 0; index < queue.length; index += 1) {
+    const conductor = queue[index]
+    if (visited.has(conductor.uid) || !conductorSupportsLane(conductor, lane)) continue
+    visited.add(conductor.uid)
+    network.push(conductor)
+    for (const direction of pipeDirections) {
+      const offset = pipeDirectionOffsets[direction]
+      const neighbour = machineAt(state, conductor.x + offset.dx, conductor.y + offset.dy)
+      if (neighbour && conductorSupportsLane(neighbour, lane) && !visited.has(neighbour.uid)) queue.push(neighbour)
+    }
+  }
+  return network
+}
+
+function conductorEndpoints(state: GameState, network: MachineInstance[], lane: ConductorLane) {
+  return network.flatMap((conductor) => pipeDirections.flatMap((direction): ConductorEndpoint[] => {
+    const settings = conductorFaceSettings(conductor, lane, direction)
+    if (settings.mode === 'blocked') return []
+    const offset = pipeDirectionOffsets[direction]
+    const adjacent = machineAt(state, conductor.x + offset.dx, conductor.y + offset.dy)
+    if (!adjacent || isConductorMachine(adjacent.machineId)) return []
+    return [{ conductor, direction, adjacent: hopperFeedTarget(state, adjacent), settings }]
+  }))
+}
+
+function endpointAllowsItem(endpoint: ConductorEndpoint, resourceId: ResourceId) {
+  return !endpoint.settings.itemFilter?.length || endpoint.settings.itemFilter.includes(resourceId)
+}
+
+function endpointAllowsFluid(endpoint: ConductorEndpoint, fluidId: FluidId) {
+  return !endpoint.settings.fluidFilter?.length || endpoint.settings.fluidFilter.includes(fluidId)
+}
+
+function orderedConductorTargets(source: ConductorEndpoint, targets: ConductorEndpoint[], cursor: number) {
+  const eligible = targets.filter((target) => target.settings.channel === source.settings.channel && (source.settings.selfFeed || target.adjacent.uid !== source.adjacent.uid))
+  if (eligible.length < 2) return eligible
+  const priorities = [...new Set(eligible.map((target) => target.settings.priority))].sort((a, b) => b - a)
+  return priorities.flatMap((priority) => {
+    const tier = eligible.filter((target) => target.settings.priority === priority)
+    if (!source.settings.roundRobin || tier.length < 2) return tier
+    const start = cursor % tier.length
+    return [...tier.slice(start), ...tier.slice(0, start)]
+  })
+}
+
+function tickItemConductorNetwork(state: GameState, network: MachineInstance[], elapsedMs: number) {
+  const controller = [...network].sort((a, b) => a.uid.localeCompare(b.uid))[0]
+  if (!controller) return
+  controller.itemTransferProgressMs = (controller.itemTransferProgressMs ?? 0) + elapsedMs
+  const endpoints = conductorEndpoints(state, network, 'item')
+  const sources = endpoints.filter((endpoint) => endpoint.settings.mode === 'input' || endpoint.settings.mode === 'both')
+  const targets = endpoints.filter((endpoint) => endpoint.settings.mode === 'output' || endpoint.settings.mode === 'both')
+  let cursor = controller.conductorItemRoundRobinCursor ?? 0
+  let moved = false
+  while (controller.itemTransferProgressMs >= 500) {
+    let transferred = false
+    for (const source of sources) {
+      const sourceSlot = removableInventorySlots(source.adjacent).find((slot) => {
+        const stored = slot.get()
+        return Boolean(stored && endpointAllowsItem(source, stored.id))
+      })
+      const stored = sourceSlot?.get()
+      if (!sourceSlot || !stored) continue
+      const orderedTargets = orderedConductorTargets(source, targets.filter((target) => endpointAllowsItem(target, stored.id)), cursor)
+      const target = orderedTargets.find((candidate) => insertOneIntoInventory(candidate.adjacent, stored.id))
+      if (!target) continue
+      sourceSlot.set(decrementProcessSlot(stored, 1))
+      cursor += 1
+      controller.itemTransferProgressMs -= 500
+      transferred = true
+      moved = true
+      break
+    }
+    if (!transferred) break
+  }
+  controller.conductorItemRoundRobinCursor = cursor
+  if (!moved && controller.itemTransferProgressMs > 500) controller.itemTransferProgressMs = 500
+}
+
+function sourceFluidIds(state: GameState, endpoint: ConductorEndpoint) {
+  const outputBuffers = machineFluidBuffersForInstance(state, endpoint.adjacent).filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
+  const accepted = new Set(outputBuffers.flatMap((buffer) => buffer.acceptedFluids))
+  return storedFluidTypes(endpoint.adjacent.process).filter((fluidId) => accepted.has(fluidId) && endpointAllowsFluid(endpoint, fluidId))
+}
+
+function tickFluidConductorNetwork(state: GameState, network: MachineInstance[], elapsedMs: number) {
+  const controller = [...network].sort((a, b) => a.uid.localeCompare(b.uid))[0]
+  if (!controller) return
+  const endpoints = conductorEndpoints(state, network, 'fluid')
+  const sources = endpoints.filter((endpoint) => endpoint.settings.mode === 'input' || endpoint.settings.mode === 'both')
+  const targets = endpoints.filter((endpoint) => endpoint.settings.mode === 'output' || endpoint.settings.mode === 'both')
+  let cursor = controller.conductorFluidRoundRobinCursor ?? 0
+  for (const source of sources) {
+    let remaining = 64 * (elapsedMs / 1000)
+    for (const fluidId of sourceFluidIds(state, source)) {
+      if (remaining <= 0) break
+      const orderedTargets = orderedConductorTargets(source, targets.filter((target) => endpointAllowsFluid(target, fluidId)), cursor)
+      for (const target of orderedTargets) {
+        if (!canStoreFluid(state, target.adjacent, fluidId)) continue
+        const transfer = normalizeLitres(Math.min(
+          remaining,
+          source.adjacent.process.fluids[fluidId] ?? 0,
+          freeFluidCapacity(state, target.adjacent, fluidId),
+        ))
+        if (transfer <= 0) continue
+        source.adjacent.process.fluids[fluidId] = normalizeLitres((source.adjacent.process.fluids[fluidId] ?? 0) - transfer)
+        target.adjacent.process.fluids[fluidId] = normalizeLitres((target.adjacent.process.fluids[fluidId] ?? 0) + transfer)
+        remaining = normalizeLitres(remaining - transfer)
+        cursor += 1
+        if (source.settings.roundRobin) break
+      }
+    }
+  }
+  controller.conductorFluidRoundRobinCursor = cursor
+}
+
+function tickConductorNetworks(state: GameState, elapsedMs: number) {
+  for (const lane of ['item', 'fluid'] as const) {
+    const visited = new Set<string>()
+    for (const instance of state.machineInstances) {
+      if (visited.has(instance.uid) || !conductorSupportsLane(instance, lane)) continue
+      const network = connectedConductorNetwork(state, instance, lane)
+      for (const conductor of network) visited.add(conductor.uid)
+      if (lane === 'item') tickItemConductorNetwork(state, network, elapsedMs)
+      else tickFluidConductorNetwork(state, network, elapsedMs)
+    }
+  }
+}
+
 function tickArcInputBus(state: GameState, structure: ArcBlastFurnaceStructure, elapsedMs: number) {
   const bus = structure.inputBus
   if (!structure.formed || !bus) return
@@ -4995,6 +5242,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       }
     }
   }
+  tickConductorNetworks(next, elapsedMs)
   for (const instance of next.machineInstances) tickLvItemAutomation(next, instance, elapsedMs)
   tickPipeDisplayBuffers(next)
   next.lastSavedAt = now
@@ -5463,7 +5711,16 @@ function migrateMachineInstances(
   migrationNotices: string[],
   parsedInstances?: Partial<MachineInstance>[],
 ) {
-  const instances = normalizeMachineInstances(parsedInstances, foundationLevel, legacyHopperImplicitInputs)
+  const coalescedInstances = parsedInstances ? coalesceConductorInstances(parsedInstances) : undefined
+  const instances = normalizeMachineInstances(coalescedInstances, foundationLevel, legacyHopperImplicitInputs)
+  machinesState.itemConductor = Math.max(
+    machinesState.itemConductor,
+    instances.filter((instance) => isItemConductorMachine(instance.machineId)).length,
+  )
+  machinesState.fluidConductor = Math.max(
+    machinesState.fluidConductor,
+    instances.filter((instance) => isFluidConductorMachine(instance.machineId)).length,
+  )
   for (const instance of instances) {
     if (isEuStorageMachine(instance.machineId) && instance.process.input?.id === 'lvBattery') {
       instance.process.input = { id: 'sodiumBattery', amount: instance.process.input.amount }
@@ -5538,6 +5795,42 @@ function migrateMachineInstances(
     })
   }
   return migrated.filter((instance) => isInsideGridSize(grid, instance.x, instance.y))
+}
+
+function coalesceConductorInstances(instances: Partial<MachineInstance>[]) {
+  const coalesced: Partial<MachineInstance>[] = []
+  const conductorByPosition = new Map<string, number>()
+  for (const instance of instances) {
+    if (instance.machineId !== 'itemConductor' && instance.machineId !== 'fluidConductor') {
+      coalesced.push(instance)
+      continue
+    }
+    const key = `${Math.floor(instance.x ?? -1)},${Math.floor(instance.y ?? -1)}`
+    const existingIndex = conductorByPosition.get(key)
+    if (existingIndex === undefined) {
+      conductorByPosition.set(key, coalesced.length)
+      coalesced.push(instance)
+      continue
+    }
+    const existing = coalesced[existingIndex]
+    if (existing.machineId === instance.machineId || existing.machineId === 'conductorBundle') {
+      coalesced.push(instance)
+      continue
+    }
+    const itemLane = existing.machineId === 'itemConductor' ? existing : instance
+    const fluidLane = existing.machineId === 'fluidConductor' ? existing : instance
+    coalesced[existingIndex] = {
+      ...existing,
+      machineId: 'conductorBundle',
+      pipeDisabledSides: fluidLane.pipeDisabledSides,
+      pipeSideModes: fluidLane.pipeSideModes,
+      conductorItemFaces: itemLane.conductorItemFaces,
+      conductorFluidFaces: fluidLane.conductorFluidFaces,
+      conductorItemRoundRobinCursor: itemLane.conductorItemRoundRobinCursor,
+      conductorFluidRoundRobinCursor: fluidLane.conductorFluidRoundRobinCursor,
+    }
+  }
+  return coalesced
 }
 
 function normalizeAutoMinerAssignments(parsed: Partial<GameState>, instances: MachineInstance[]) {

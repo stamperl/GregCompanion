@@ -149,6 +149,9 @@ export type MachineId =
   | 'copperPipe'
   | 'bronzePipe'
   | 'ironPipe'
+  | 'itemConductor'
+  | 'fluidConductor'
+  | 'conductorBundle'
   | 'steamMacerator'
   | 'steamForgeHammer'
   | 'steamCompressor'
@@ -283,6 +286,7 @@ export type QuestId =
   | 'buildArcBlastFurnaceQuest'
   | 'bufferArcBlastFurnaceQuest'
   | 'firstAluminiumQuest'
+  | 'buildConductorsQuest'
   | 'buildLvAutoMinerQuest'
   | 'craftSurveyKitQuest'
   | 'encodeCoalSurveyCardQuest'
@@ -360,6 +364,9 @@ export type MachineProcessKind =
   | 'euHatch'
   | 'itemBus'
   | 'fluidHatch'
+  | 'itemConductor'
+  | 'fluidConductor'
+  | 'conductorBundle'
 
 export type ToolId =
   | 'bareHand'
@@ -674,6 +681,17 @@ export type OfflineProgressResult = {
 export type ProcessSlotId = 'input' | 'secondaryInput' | 'extraInput1' | 'extraInput2' | 'extraInput3' | 'extraInput4' | 'fuel' | 'output' | 'output2'
 export type PipeDirection = 'north' | 'east' | 'south' | 'west'
 export type PipeSideMode = 'both' | 'input' | 'output' | 'blocked'
+export type ConductorChannel = 0 | 1 | 2 | 3
+
+export type ConductorFaceSettings = {
+  mode: PipeSideMode
+  channel: ConductorChannel
+  priority: number
+  roundRobin: boolean
+  selfFeed: boolean
+  itemFilter?: ResourceId[]
+  fluidFilter?: FluidId[]
+}
 
 export type BucketFluidState = {
   id: FluidId
@@ -715,6 +733,10 @@ export type MachineInstance = {
   level: number
   pipeDisabledSides?: Partial<Record<PipeDirection, boolean>>
   pipeSideModes?: Partial<Record<PipeDirection, PipeSideMode>>
+  conductorItemFaces?: Partial<Record<PipeDirection, ConductorFaceSettings>>
+  conductorFluidFaces?: Partial<Record<PipeDirection, ConductorFaceSettings>>
+  conductorItemRoundRobinCursor?: number
+  conductorFluidRoundRobinCursor?: number
   itemOutputDirection?: PipeDirection
   itemTransferProgressMs?: number
   surveyCardTarget?: GatherTargetId

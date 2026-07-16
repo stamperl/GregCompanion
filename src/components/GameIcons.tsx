@@ -1,4 +1,4 @@
-import { isEuCableMachine, isSteamPipeMachine } from '../game/content'
+import { isConductorMachine, isEuCableMachine, isFluidConductorMachine, isItemConductorMachine, isSteamPipeMachine } from '../game/content'
 import type { MachineId, ResourceId } from '../game/types'
 import { machineIconSrc, resourceIconSrc } from './gameIconAssets'
 import { useState } from 'react'
@@ -80,17 +80,33 @@ function loosePipeCapPoints(connections?: PipeConnections) {
 
 export function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
   const [failed, setFailed] = useState(false)
-  const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id)
+  const isConductor = isConductorMachine(id)
+  const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id) || isConductor
   const className = [
     'machine-glyph',
-    isConnector && pipeConnections ? 'machine-connector-glyph' : failed ? '' : 'machine-sprite-glyph',
+    isConnector && (pipeConnections || isConductor) ? 'machine-connector-glyph' : failed ? '' : 'machine-sprite-glyph',
     `machine-${id}`,
     active && !isConnector ? 'active' : '',
     isConnector ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
-  if (isConnector && pipeConnections) {
+  if ((isConnector && pipeConnections) || isConductor) {
     const path = pipePath(pipeConnections)
     const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]
+    if (isConductor) {
+      return (
+        <span className={className} aria-hidden="true">
+          <svg className="pipe-svg conductor-svg" viewBox="0 0 40 40" shapeRendering="crispEdges" focusable="false">
+            <path className="conductor-bundle-shadow" d={path} />
+            {isItemConductorMachine(id) && <path className="conductor-lane conductor-item-lane" d={path} />}
+            {isFluidConductorMachine(id) && <path className="conductor-lane conductor-fluid-lane" d={path} />}
+            <rect className="conductor-hub" x="14" y="14" width="12" height="12" />
+            {capPoints.map((point) => (
+              <rect className="conductor-cap" x={point.x} y={point.y} width={point.width} height={point.height} key={`${point.x}-${point.y}`} />
+            ))}
+          </svg>
+        </span>
+      )
+    }
     return (
       <span className={className} aria-hidden="true">
         <svg className="pipe-svg" viewBox="0 0 40 40" shapeRendering="crispEdges" focusable="false">

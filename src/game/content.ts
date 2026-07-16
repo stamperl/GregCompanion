@@ -520,6 +520,35 @@ export const machineRegistry = {
     processKind: 'steamPipe',
     pipeTransferLitresPerSecond: 96,
   },
+  itemConductor: {
+    id: 'itemConductor',
+    name: 'Item Conductor',
+    description: 'A configurable late-LV item network with face filters, channels, priorities, and round-robin distribution.',
+    tier: 'lv',
+    placeable: true,
+    glyphKey: 'conductor',
+    processKind: 'itemConductor',
+  },
+  fluidConductor: {
+    id: 'fluidConductor',
+    name: 'Fluid Conductor',
+    description: 'A configurable late-LV fluid network with face filters, channels, priorities, and round-robin distribution.',
+    tier: 'lv',
+    placeable: true,
+    glyphKey: 'conductor',
+    processKind: 'fluidConductor',
+    pipeTransferLitresPerSecond: 64,
+  },
+  conductorBundle: {
+    id: 'conductorBundle',
+    name: 'Bundled Conductors',
+    description: 'Item and fluid conductor lanes sharing one factory floor cell while retaining independent routing.',
+    tier: 'lv',
+    placeable: false,
+    glyphKey: 'conductor',
+    processKind: 'conductorBundle',
+    pipeTransferLitresPerSecond: 64,
+  },
   steamMacerator: {
     id: 'steamMacerator',
     name: 'Steam Macerator',
@@ -1011,6 +1040,18 @@ export function isPlaceableMachine(machineId: MachineId) {
 
 export function isSteamPipeMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'steamPipe'
+}
+
+export function isItemConductorMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'itemConductor' || machineRegistry[machineId].processKind === 'conductorBundle'
+}
+
+export function isFluidConductorMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'fluidConductor' || machineRegistry[machineId].processKind === 'conductorBundle'
+}
+
+export function isConductorMachine(machineId: MachineId) {
+  return isItemConductorMachine(machineId) || isFluidConductorMachine(machineId)
 }
 
 export function isSteamPoweredMachine(machineId: MachineId) {
@@ -4532,6 +4573,44 @@ export const processRecipes: ProcessRecipe[] = [
     input: { id: 'invarIngot', amount: 1 },
     output: { id: 'invarPlate', amount: 1 },
   },
+  {
+    id: 'lv_assemble_item_conductors',
+    name: 'Assemble Item Conductors',
+    description: 'Build two dense item-routing lanes from aluminium framing, powered conveyors, and LV control parts.',
+    tier: 'lv',
+    machineId: 'lvAssembler',
+    durationMs: 12000,
+    euCost: 192,
+    input: { id: 'aluminiumPlate', amount: 4 },
+    secondaryInput: { id: 'steelRod', amount: 4 },
+    extraInputs: [
+      { id: 'tinCable', amount: 2 },
+      { id: 'lvConveyor', amount: 2 },
+      { id: 'primitiveCircuit', amount: 2 },
+      { id: 'rubber', amount: 2 },
+    ],
+    output: { id: 'aluminiumPlate', amount: 0 },
+    machineOutput: { id: 'itemConductor', amount: 2 },
+  },
+  {
+    id: 'lv_assemble_fluid_conductors',
+    name: 'Assemble Fluid Conductors',
+    description: 'Build two sealed fluid-routing lanes from aluminium framing, LV pumps, and chemical-resistant seals.',
+    tier: 'lv',
+    machineId: 'lvAssembler',
+    durationMs: 12000,
+    euCost: 192,
+    input: { id: 'aluminiumPlate', amount: 4 },
+    secondaryInput: { id: 'steelRing', amount: 4 },
+    extraInputs: [
+      { id: 'tinCable', amount: 2 },
+      { id: 'lvPump', amount: 2 },
+      { id: 'primitiveCircuit', amount: 2 },
+      { id: 'pipeSealant', amount: 2 },
+    ],
+    output: { id: 'aluminiumPlate', amount: 0 },
+    machineOutput: { id: 'fluidConductor', amount: 2 },
+  },
   ...([
     ['lv_assemble_energy_hatch_2a', 'Assemble 2A LV Energy Hatch', 'lvEnergyHatch2A', 'tinCable2A'],
     ['lv_assemble_input_bus', 'Assemble LV Input Bus', 'lvInputBus', 'lvConveyor'],
@@ -6290,6 +6369,25 @@ export const quests: Quest[] = [
     rewards: {},
   },
   {
+    id: 'buildConductorsQuest',
+    chapterId: 'blastPrep',
+    chapter: 'Blast Prep',
+    title: 'Bundle conductor lanes',
+    description: 'Craft both late-LV conductors. Place one lane, then place the other onto the same floor cell to form a bundle. Item and fluid faces remain independently configurable.',
+    kind: 'optional',
+    position: { x: 2590, y: 180 },
+    icon: { type: 'machine', id: 'conductorBundle' },
+    prerequisites: ['firstAluminiumQuest'],
+    objectives: [{ type: 'placedMachine', id: 'conductorBundle', amount: 1, label: 'Bundled item and fluid conductors' }],
+    requirements: {
+      machines: [
+        { id: 'itemConductor', amount: 1 },
+        { id: 'fluidConductor', amount: 1 },
+      ],
+    },
+    rewards: {},
+  },
+  {
     id: 'buildLvAutoMinerQuest',
     chapterId: 'lvAge',
     chapter: 'LV Age',
@@ -6609,7 +6707,7 @@ export const initialEquipment: EquipmentState = {
 
 export function createInitialState(now = Date.now()): GameState {
   return {
-    version: 12,
+    version: 14,
     resources: { ...initialResources },
     machines: { ...initialMachines },
     machineInstances: [],
