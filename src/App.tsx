@@ -225,7 +225,8 @@ import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipe
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
 import { FluidIcon } from './components/FluidIcon'
-import { machineUiChamberSrc, machineUiPanelSrc, machineUiStageSrc } from './components/machineUiAssets'
+import { preloadGeneratedIconImages, preloadGeneratedIconLinks } from './components/gameIconAssets'
+import { machineUiChamberSrc, machineUiPanelSrc, machineUiStageSrc, preloadMachineUiAssetLinks, preloadMachineUiImages } from './components/machineUiAssets'
 import { DurabilityBar, ItemSlot, MachineSlot, ProcessItemSlot } from './components/InventorySlots'
 import type {
   CraftSlot,
@@ -2469,6 +2470,13 @@ function App() {
   }, [isCreativeMode])
 
   useEffect(() => {
+    preloadGeneratedIconLinks()
+    preloadMachineUiAssetLinks()
+    void preloadGeneratedIconImages()
+    void preloadMachineUiImages()
+  }, [])
+
+  useEffect(() => {
     const displayModeQuery = window.matchMedia('(display-mode: standalone)')
     const updateInstalledState = () => setIsInstalledApp(isStandaloneInstall())
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -4243,6 +4251,7 @@ function App() {
       await clearSavedGame(selectedSaveSlotId)
       setIsCreativeMode(false)
       await refreshSaveSlots()
+      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       const freshState = loadGame(null)
       setState(freshState)
       knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
@@ -4338,6 +4347,7 @@ function App() {
       setNavigationStack([])
       setHighlightedGatherTarget(null)
       commitFactoryView({ x: factoryViewportPadding, y: factoryViewportPadding, zoom: factoryDefaultZoom })
+      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       setPage('processing')
       addFloatText('creative factory')
     } finally {
@@ -4355,6 +4365,7 @@ function App() {
     const minimumLoading = waitForEntryLoadingMinimum()
     try {
       const savedState = await loadSlotIntoGame(selectedSaveSlotId)
+      await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
       setState(savedState)
       knownCompletedQuestsRef.current = new Set(savedState.completedQuests)
       setIsCreativeMode(false)
