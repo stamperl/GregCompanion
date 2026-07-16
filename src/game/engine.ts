@@ -3658,6 +3658,9 @@ export function removeMachineInstance(state: GameState, uid: string) {
   ].filter(
     (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
   )
+  if (instance.surveyCardTarget) {
+    next.surveyCards[instance.surveyCardTarget] = (next.surveyCards[instance.surveyCardTarget] ?? 0) + 1
+  }
   next.machineInstances = next.machineInstances.filter((candidate) => candidate.uid !== uid)
   delete next.autoMinerAssignments[uid]
   if (isResourceBackedMachine(instance.machineId)) next.resources[instance.machineId] += 1

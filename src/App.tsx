@@ -2759,6 +2759,7 @@ function App() {
     : selectedRecipe?.requiredMachine
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachineSource = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const selectedMachineMultiblock = selectedMachineSource ? multiblockControllerForInstance(state, selectedMachineSource) : null
   const selectedArcStructure = selectedMachineSource?.machineId === 'arcBlastFurnace'
     ? arcBlastFurnaceStructureForInstance(state, selectedMachineSource)
     : null
@@ -3012,7 +3013,7 @@ function App() {
         isItemHopperMachine(selectedMachine.machineId) ||
         isFluidOutletConfigurableMachine(selectedMachine.machineId)),
   )
-  const selectedMachineCanRemove = Boolean(selectedMachineSource && machines[selectedMachineSource.machineId].placeable)
+  const selectedMachineCanRemove = Boolean(selectedMachineSource && (machines[selectedMachineSource.machineId].placeable || selectedMachineMultiblock))
   const selectedMachineIsStructureOnly = Boolean(selectedMachine && machines[selectedMachine.machineId].processKind === 'none')
   const selectedMachineAutomationStatus = selectedMachine && selectedMachineCanAutomateItems ? lvItemAutomationStatus(state, selectedMachine) : null
   const selectedMachineHmiKind = selectedMachineHmiConfig?.kind ?? null
@@ -3640,7 +3641,11 @@ function App() {
 
   const handleRemoveSelectedMachine = () => {
     if (!selectedMachineSource || !selectedMachineCanRemove) return
-    if (storedFluids(selectedMachineSource.process).some((fluid) => fluid.amount > 0) && !window.confirm('This machine still contains fluid. Remove it and discard the stored fluid?')) return
+    const warnings = []
+    if (selectedMachineMultiblock) warnings.push(`This will disassemble the entire ${machines[selectedMachineMultiblock.spec.controller].name} structure and return its blocks.`)
+    if (storedFluids(selectedMachineSource.process).some((fluid) => fluid.amount > 0)) warnings.push('Stored fluid will be discarded.')
+    if (selectedMachineSource.surveyCardTarget) warnings.push(`The installed ${gatherTargets[selectedMachineSource.surveyCardTarget].name} Survey Card will be returned to inventory.`)
+    if (warnings.length > 0 && !window.confirm(`${warnings.join('\n\n')}\n\nContinue?`)) return
     const uid = selectedMachineSource.uid
     setState((current) => removeMachineInstance(current, uid))
     setPendingProcessInsert(null)
@@ -6228,7 +6233,7 @@ function App() {
                     {selectedMachineCanRemove && (
                       <button type="button" className="danger" onClick={handleRemoveSelectedMachine}>
                         <Trash2 size={14} />
-                        Remove
+                        {selectedMachineMultiblock ? 'Disassemble' : 'Remove'}
                       </button>
                     )}
                   </div>

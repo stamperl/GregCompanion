@@ -5295,6 +5295,22 @@ describe('game engine', () => {
     expect(state.surveyCards.coalSeam).toBe(1)
   })
 
+  it('returns an installed Survey Card when an LV Auto Miner is removed', () => {
+    let state = createFactoryState()
+    state.machines.lvAutoMiner = 1
+    state.surveyCards.coalSeam = 1
+    state = placeMachineInstance(state, 'lvAutoMiner', 0, 0)
+    const miner = state.machineInstances[0]
+    state = installSurveyCardInAutoMiner(state, miner.uid, 'coalSeam')
+    state = assignAutoMiner(state, miner.uid, 'coalSeam')
+
+    state = removeMachineInstance(state, miner.uid)
+
+    expect(state.machineInstances).toHaveLength(0)
+    expect(state.autoMinerAssignments[miner.uid]).toBeUndefined()
+    expect(state.surveyCards.coalSeam).toBe(1)
+  })
+
   it('migrates legacy duplicated Survey Cards into the miner inventory', () => {
     const state = loadGame(JSON.stringify({
       version: 7,
