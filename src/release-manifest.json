@@ -1,23 +1,16 @@
 {
-  "revision": "1.0.0",
-  "date": "2026-07-15",
-  "title": "Foundry Launch",
+  "revision": "1.0.1",
+  "date": "2026-07-16",
+  "title": "Factory Flow",
   "notes": [
-    "The complete mobile-first factory journey now runs from hand gathering and bronze work through Steam, low voltage, aluminium, multiblocks, and the Shattered Reach.",
-    "The Factory Floor expands to 18x16, remembers the player's zoom between views, keeps the current zoom when machines open, and includes dedicated production and maintenance views.",
-    "Every machine now opens a phone-fitted terminal with live inputs, outputs, storage, progress, power, Steam, fluids, routing, automation, and blocked-state feedback.",
-    "Factory tool modes have been removed; machine removal, routing, maintenance, and automation controls now live directly in each machine terminal.",
-    "Hoppers can pull finished items from machines and Auto Miners, buffer them, and feed chests or valid machine inputs for complete machine-to-storage and machine-to-machine lines.",
-    "The recipe browser now covers hand crafting, machine processing, machine blocks, and fluids, links inputs and outputs in both directions, and identifies the earliest valid processing machine.",
-    "Machine recipe pickers support recipe cycling and automatic item loading, show real item, machine, and fluid outputs, and clearly report missing or blocked inputs.",
-    "The Steam era now includes wells, boilers, tanks, fluid pipes, specialised processing machines, Coke Oven liquid routing, and Bricked Blast Furnace steel production.",
-    "Low-voltage power now uses amp-rated Tin Cables, battery buffers, sodium and lithium batteries, connected EU storage, and a multi-feed Arc Blast Furnace power milestone.",
-    "Steam and LV Auto Miners keep local outputs, work with hopper extraction, support common built-in targets, and use reusable Survey Cards for rarer deposits.",
-    "The Shattered Reach adds a formed Reach Gate, remote sulfur gathering, chemical processing, portable fluid cells, and a complete Liquid Rubber production chain.",
-    "Liquid Rubber is now a distinct black fluid in the Terminal and recipe system, with separate reactions for producing the liquid and curing it into solid Rubber Bars.",
-    "Quest chapters and layouts have been rebuilt to teach the intended progression order, keep optional branches optional, and guide players without preventing knowledgeable players from crafting ahead.",
-    "Late LV materials now have purposeful routes: nickel ingots alloy into cupronickel, lead plates improve battery-cell assembly, and aluminium fittings assemble lightweight pistons.",
-    "Save handling now includes three named slots, import and export, offline progress, migrations for older factories, update prompts, and a confirmation before New Game can replace a save.",
-    "A complete phone-interface pass keeps machine terminals and core workflows inside mobile bounds, adds compact scrolling only where required, and improves navigation, feedback, icons, and fluid presentation."
+    "LV chemistry now begins with the Air Collector and Centrifuge, producing Oxygen and Nitrogen for advanced processing and improved steel and aluminium programs.",
+    "Sulfur chemistry now progresses through Sulfuric Acid and Diluted Sulfuric Acid, supporting circuit-board production and future chemical processing.",
+    "Sticky Resin now separates into Rubber Pulp and Glue. Rubber Pulp supports Liquid Rubber and direct Rubber Bar production, while Glue improves resistor and multiblock-component assembly.",
+    "The recipe browser now lists autonomous fluids, gases, and every byproduct as obtainable outputs, including Air and Nitrogen, with clearer machine and ingredient navigation.",
+    "The LV quest book now branches through separation, gases, sulfur chemistry, and useful optional guidance instead of presenting one narrow route.",
+    "Hoppers now reliably pull from chests, furnaces, Auto Miners, and machine outputs, preserve transfer progress, and clearly distinguish input and output faces.",
+    "Factory maintenance now shows configured machine-automation directions, the LV Air Collector appears in placement and machine views, and startup artwork is preloaded again.",
+    "Formed multiblocks can be disassembled from their controllers, and removing an LV Auto Miner safely returns its installed Survey Card.",
+    "Offline progress now uses verified network time, preventing device-clock changes from granting extra simulation while retaining normal active play if verification is unavailable."
   ]
 }
