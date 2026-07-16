@@ -96,12 +96,26 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
       return (
         <span className={className} aria-hidden="true">
           <svg className="pipe-svg conductor-svg" viewBox="0 0 40 40" shapeRendering="crispEdges" focusable="false">
-            <path className="conductor-bundle-shadow" d={path} />
+            <path className="conductor-drop-shadow" d={path} />
+            <path className="conductor-shell-outline" d={path} />
+            <path className="conductor-shell" d={path} />
+            <path className="conductor-trench" d={path} />
             {isItemConductorMachine(id) && <path className="conductor-lane conductor-item-lane" d={path} />}
             {isFluidConductorMachine(id) && <path className="conductor-lane conductor-fluid-lane" d={path} />}
-            <rect className="conductor-hub" x="14" y="14" width="12" height="12" />
+            <rect className="conductor-hub-shadow" x="12" y="13" width="17" height="17" />
+            <rect className="conductor-hub-frame" x="12" y="12" width="16" height="16" />
+            <rect className="conductor-hub-face" x="15" y="15" width="10" height="10" />
+            {isItemConductorMachine(id) && <rect className="conductor-hub-indicator conductor-item-indicator" x="16" y="18" width="8" height="2" />}
+            {isFluidConductorMachine(id) && <rect className="conductor-hub-indicator conductor-fluid-indicator" x="16" y="21" width="8" height="2" />}
+            <rect className="conductor-rivet" x="13" y="13" width="2" height="2" />
+            <rect className="conductor-rivet" x="25" y="13" width="2" height="2" />
+            <rect className="conductor-rivet" x="13" y="25" width="2" height="2" />
+            <rect className="conductor-rivet" x="25" y="25" width="2" height="2" />
             {capPoints.map((point) => (
-              <rect className="conductor-cap" x={point.x} y={point.y} width={point.width} height={point.height} key={`${point.x}-${point.y}`} />
+              <g key={`${point.x}-${point.y}`}>
+                <rect className="conductor-cap-frame" x={point.x} y={point.y} width={point.width} height={point.height} />
+                <rect className="conductor-cap-face" x={point.x + 1} y={point.y + 1} width={point.width - 2} height={point.height - 2} />
+              </g>
             ))}
           </svg>
         </span>
