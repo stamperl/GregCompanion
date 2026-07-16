@@ -4164,7 +4164,8 @@ button.craft-output:disabled {
   width: 16px;
 }
 
-.factory-cell > .pipe-polarity-overlay {
+.factory-cell > .pipe-polarity-overlay,
+.factory-cell > .machine-automation-direction-overlay {
   background: transparent;
   inset: 0;
   pointer-events: none;
@@ -4172,6 +4173,14 @@ button.craft-output:disabled {
   width: auto;
   height: auto;
   z-index: 4;
+}
+
+.pipe-polarity-side.machine-automation-output {
+  background: rgba(25, 29, 28, 0.94);
+  border: 1px solid #ee8b32;
+  box-shadow: 0 0 0 1px rgba(45, 24, 7, 0.88), 0 0 5px rgba(238, 139, 50, 0.52);
+  height: 18px;
+  width: 18px;
 }
 
 .pipe-polarity-side {

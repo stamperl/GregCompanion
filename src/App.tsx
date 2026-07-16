@@ -941,6 +941,11 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
         const isStructureCell = isStructureController || Boolean(multiblockController) || isTankStructureChild
         const isConnector = Boolean(instance && (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId)))
         const pipePolarity = viewMode === 'maintenance' && instance ? pipePolarityForInstance(instance) : null
+        const itemAutomationDirection =
+          viewMode === 'maintenance' && instance && isLvItemAutomationMachine(instance.machineId)
+            ? instance.itemOutputDirection
+            : undefined
+        const itemAutomationStatus = itemAutomationDirection && instance ? lvItemAutomationStatus(state, instance) : null
         const structureMachineId = tankStructure?.controller.machineId ?? multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
         const tankStructureStyle =
           tankStructure && isTankStructureController
@@ -1054,6 +1059,16 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                     )}
                   </span>
                 ))}
+              </span>
+            )}
+            {itemAutomationDirection && (
+              <span className="machine-automation-direction-overlay" aria-label={`Automatic item output ${pipeDirectionOffsets[itemAutomationDirection].label}`}>
+                <span
+                  className={`pipe-polarity-side machine-automation-output ${itemAutomationDirection} mode-output`}
+                  title={`${pipeDirectionOffsets[itemAutomationDirection].label} automatic item output: ${itemAutomationStatus?.label ?? 'Ready'}`}
+                >
+                  <PipeFlowArrows direction={itemAutomationDirection} mode="output" />
+                </span>
               </span>
             )}
           </button>
