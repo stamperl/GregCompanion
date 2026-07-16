@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { Preferences } from '@capacitor/preferences'
 import { loadGame, loadGameWithOfflineProgress, saveGame, saveKey } from './engine'
-import { localTimeProvider } from './time'
+import { localTimeProvider, networkTimeProvider } from './time'
 import type { GameState } from './types'
 
 export type SaveSlotId = 'slot-1' | 'slot-2' | 'slot-3'
@@ -123,10 +123,10 @@ export async function readRawSave(slotId: SaveSlotId = defaultSaveSlotId) {
   return readStorageKey(slotSaveKey(slotId))
 }
 
-export async function writeRawSave(raw: string, slotId: SaveSlotId = defaultSaveSlotId) {
+export async function writeRawSave(raw: string, slotId: SaveSlotId = defaultSaveSlotId, updatedAt = localTimeProvider.now()) {
   await writeStorageKey(slotSaveKey(slotId), raw)
   const index = await readSaveIndex()
-  index[slotId] = { ...index[slotId], updatedAt: new Date().toISOString() }
+  index[slotId] = { ...index[slotId], updatedAt: new Date(updatedAt).toISOString() }
   await writeSaveIndex(index)
 }
 
@@ -163,12 +163,24 @@ export async function loadSavedGameWithOfflineProgress(slotId: SaveSlotId = defa
   return loadGameWithOfflineProgress(await readRawSave(slotId), now)
 }
 
+export async function loadSavedGamePreservingSaveTime(slotId: SaveSlotId = defaultSaveSlotId, fallbackNow = localTimeProvider.now()) {
+  const raw = await readRawSave(slotId)
+  if (!raw) return loadGame(null, fallbackNow)
+  try {
+    const parsed = JSON.parse(raw) as Partial<GameState>
+    const savedAt = typeof parsed.lastSavedAt === 'number' && Number.isFinite(parsed.lastSavedAt) ? parsed.lastSavedAt : fallbackNow
+    return loadGame(raw, savedAt)
+  } catch {
+    return loadGame(raw, fallbackNow)
+  }
+}
+
 export async function hasSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {
   return (await readRawSave(slotId)) !== null
 }
 
-export async function persistGameState(state: GameState, slotId: SaveSlotId = defaultSaveSlotId) {
-  await writeRawSave(saveGame(state), slotId)
+export async function persistGameState(state: GameState, slotId: SaveSlotId = defaultSaveSlotId, now = networkTimeProvider.now() ?? state.lastSavedAt) {
+  await writeRawSave(saveGame(state, now, networkTimeProvider.isVerified()), slotId, now)
 }
 
 export async function clearSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {
@@ -188,7 +200,7 @@ export async function exportSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {
   return readRawSave(slotId)
 }
 
-export async function importSavedGame(raw: string, slotId: SaveSlotId = defaultSaveSlotId, now = localTimeProvider.now()) {
+export async function importSavedGame(raw: string, slotId: SaveSlotId = defaultSaveSlotId, now = networkTimeProvider.now() ?? localTimeProvider.now()) {
   if (!looksLikeGameSave(raw)) throw new Error('That file does not look like a Click Foundry save.')
-  await writeRawSave(saveGame(loadGame(raw, now), now), slotId)
+  await writeRawSave(saveGame(loadGame(raw, now), now, networkTimeProvider.isVerified()), slotId, now)
 }

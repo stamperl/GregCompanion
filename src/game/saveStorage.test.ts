@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInitialState } from './content'
 import { saveGame } from './engine'
-import { clearRawSave, exportSavedGame, importSavedGame, listSaveSlots, loadSavedGameWithOfflineProgress, renameSaveSlot, writeRawSave } from './saveStorage'
+import { clearRawSave, exportSavedGame, importSavedGame, listSaveSlots, loadSavedGamePreservingSaveTime, loadSavedGameWithOfflineProgress, persistGameState, renameSaveSlot, writeRawSave } from './saveStorage'
 
 function installLocalStorage() {
   const storage = new Map<string, string>()
@@ -54,7 +54,7 @@ describe('save storage', () => {
   it('exports and imports save slots as normalized game saves', async () => {
     const state = createInitialState(1000)
     state.resources.log = 3
-    await writeRawSave(saveGame(state, 1000), 'slot-1')
+    await writeRawSave(saveGame(state, 1000, true), 'slot-1')
 
     const exported = await exportSavedGame('slot-1')
     expect(exported).toContain('"log":3')
@@ -72,12 +72,31 @@ describe('save storage', () => {
   it('loads saves through the offline progress path', async () => {
     const state = createInitialState(1000)
     state.resources.log = 1
-    await writeRawSave(saveGame(state, 1000), 'slot-1')
+    await writeRawSave(saveGame(state, 1000, true), 'slot-1')
 
     const loaded = await loadSavedGameWithOfflineProgress('slot-1', 61_000)
 
     expect(loaded.offline.applied).toBe(true)
     expect(loaded.offline.questCompletions).toEqual(['punchTree'])
     expect(loaded.state.completedQuests).toContain('punchTree')
+  })
+
+  it('preserves the trusted timestamp when offline time cannot be verified', async () => {
+    const state = createInitialState(5000)
+    await writeRawSave(saveGame(state, 5000, true), 'slot-1')
+
+    const loaded = await loadSavedGamePreservingSaveTime('slot-1', 999_999)
+
+    expect(loaded.lastSavedAt).toBe(5000)
+  })
+
+  it('persists an explicitly supplied trusted timestamp', async () => {
+    const state = createInitialState(5000)
+
+    await persistGameState(state, 'slot-1', 7000)
+
+    const persisted = JSON.parse((await exportSavedGame('slot-1'))!)
+    expect(persisted.lastSavedAt).toBe(7000)
+    expect((await listSaveSlots()).find((slot) => slot.id === 'slot-1')?.updatedAt).toBe(new Date(7000).toISOString())
   })
 })

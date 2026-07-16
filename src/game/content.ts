@@ -6628,5 +6628,6 @@ export function createInitialState(now = Date.now()): GameState {
     machineProgress: {},
     migrationNotices: [],
     lastSavedAt: now,
+    lastSavedAtVerified: false,
   }
 }

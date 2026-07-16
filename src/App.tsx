@@ -208,6 +208,7 @@ import {
   exportSavedGame,
   importSavedGame,
   loadSavedGame,
+  loadSavedGamePreservingSaveTime,
   loadSavedGameWithOfflineProgress,
   persistGameState,
   renameSaveSlot,
@@ -215,7 +216,7 @@ import {
   type SaveSlotSummary,
 } from './game/saveStorage'
 import { deploymentInfo, hasNewerDeployment, reloadLatestDeployment } from './game/deployment'
-import { localTimeProvider } from './game/time'
+import { localTimeProvider, networkTimeProvider } from './game/time'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
@@ -663,6 +664,7 @@ function formatOfflineDuration(ms: number) {
 function offlineProgressNotice(offline: OfflineProgressResult) {
   if (offline.reason === 'new-save' || offline.reason === 'no-elapsed-time') return ''
   if (offline.reason === 'missing-save-time') return 'Offline progress will start from now for this older save.'
+  if (offline.reason === 'unverified-save-time') return 'Offline progress starts from verified network time after this load.'
   if (offline.suspicious) return 'Offline progress skipped because the device clock changed unexpectedly.'
   if (!offline.applied || offline.simulatedMs < 60_000) return ''
 
@@ -2424,19 +2426,38 @@ function App() {
     void persistGameState(pending.state, pending.slotId).then(refreshSaveSlots)
   }
 
-  const applyOfflineNotice = (offline: OfflineProgressResult) => {
+  const applyOfflineNotice = (offline: OfflineProgressResult, deviceClockMismatch = false) => {
     const notice = offlineProgressNotice(offline)
-    if (notice) setOfflinePrompt(notice)
+    const clockWarning = deviceClockMismatch
+      ? 'Nice try, time traveller. Your device clock does not match network time, so the factory ignored it.'
+      : ''
+    const message = [clockWarning, notice].filter(Boolean).join('\n\n')
+    if (message) setOfflinePrompt(message)
   }
 
   const loadSlotIntoGame = async (slotId: SaveSlotId, applyOffline = true, showMigrationNotice = applyOffline) => {
-    const now = localTimeProvider.now()
+    const verifiedNow = await networkTimeProvider.sync()
+    const now = verifiedNow ?? networkTimeProvider.now() ?? localTimeProvider.now()
     if (!applyOffline) {
-      const loadedState = await loadSavedGame(slotId, now)
+      const loadedState = verifiedNow === null
+        ? await loadSavedGamePreservingSaveTime(slotId, now)
+        : await loadSavedGame(slotId, now)
+      if (verifiedNow === null) networkTimeProvider.seed(loadedState.lastSavedAt, loadedState.lastSavedAtVerified)
       stateRef.current = loadedState
       setState(loadedState)
       knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
       if (showMigrationNotice) setMigrationPrompt(migrationNoticeText(loadedState.migrationNotices ?? []))
+      return loadedState
+    }
+
+    if (verifiedNow === null) {
+      const loadedState = await loadSavedGamePreservingSaveTime(slotId, now)
+      networkTimeProvider.seed(loadedState.lastSavedAt, loadedState.lastSavedAtVerified)
+      stateRef.current = loadedState
+      setState(loadedState)
+      knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
+      if (showMigrationNotice) setMigrationPrompt(migrationNoticeText(loadedState.migrationNotices ?? []))
+      setOfflinePrompt('Offline progress was skipped because secure network time could not be verified. Your save can still be played normally.')
       return loadedState
     }
 
@@ -2445,27 +2466,38 @@ function App() {
     setState(loadedState)
     knownCompletedQuestsRef.current = new Set(loadedState.completedQuests)
     if (showMigrationNotice) setMigrationPrompt(migrationNoticeText(loadedState.migrationNotices ?? []))
-    applyOfflineNotice(offline)
-    if (offline.reason !== 'new-save' && (offline.applied || offline.suspicious || offline.reason === 'missing-save-time')) {
-      await persistGameState(loadedState, slotId)
+    applyOfflineNotice(offline, networkTimeProvider.deviceClockMismatch())
+    if (
+      offline.reason !== 'new-save' &&
+      (offline.applied || offline.suspicious || offline.reason === 'missing-save-time' || offline.reason === 'unverified-save-time')
+    ) {
+      await persistGameState(loadedState, slotId, now)
       await refreshSaveSlots()
     }
     return loadedState
   }
 
-  const applyOfflineToCurrentState = () => {
+  const applyOfflineToCurrentState = async () => {
     if (!hasLoadedSaveRef.current || isCreativeModeRef.current) return
-    const now = localTimeProvider.now()
-    const elapsedMs = now - stateRef.current.lastSavedAt
+    const backgroundedAt = backgroundedAtRef.current
+    backgroundedAtRef.current = null
+    if (backgroundedAt === null) return
+
+    const now = await networkTimeProvider.sync()
+    if (now === null) {
+      setOfflinePrompt('Background progress was skipped because secure network time could not be verified. Your save can still be played normally.')
+      return
+    }
+    const elapsedMs = now - backgroundedAt
     if (elapsedMs < 60_000) return
 
-    const { state: nextState, offline } = simulateOfflineProgress(stateRef.current, elapsedMs, now)
+    const { state: nextState, offline } = simulateOfflineProgress({ ...stateRef.current, lastSavedAt: backgroundedAt }, elapsedMs, now)
     if (!offline.applied && !offline.suspicious) return
 
     setState(nextState)
     stateRef.current = nextState
-    applyOfflineNotice(offline)
-    void persistGameState(nextState, selectedSaveSlotIdRef.current).then(refreshSaveSlots)
+    applyOfflineNotice(offline, networkTimeProvider.deviceClockMismatch())
+    void persistGameState(nextState, selectedSaveSlotIdRef.current, now).then(refreshSaveSlots)
   }
 
   useEffect(() => {
@@ -2583,7 +2615,8 @@ function App() {
     const interval = window.setInterval(() => {
       if (page === 'home') return
       const advanceState = (currentState: GameState) => {
-        const ticked = tickGame(currentState, 250).state
+        const now = networkTimeProvider.now() ?? currentState.lastSavedAt + 250
+        const ticked = tickGame(currentState, 250, now).state
         return isCreativeMode ? topUpCreativeState(ticked) : ticked
       }
       if (isFactoryPanningRef.current) {
@@ -2615,13 +2648,12 @@ function App() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        backgroundedAtRef.current = localTimeProvider.now()
+        backgroundedAtRef.current = networkTimeProvider.now() ?? stateRef.current.lastSavedAt
         flushPendingSave()
         return
       }
       if (document.visibilityState === 'visible' && backgroundedAtRef.current !== null) {
-        backgroundedAtRef.current = null
-        applyOfflineToCurrentState()
+        void applyOfflineToCurrentState()
       }
     }
     window.addEventListener('pagehide', flushPendingSave)
@@ -4272,7 +4304,8 @@ function App() {
       setIsCreativeMode(false)
       await refreshSaveSlots()
       await Promise.all([preloadGeneratedIconImages(), preloadMachineUiImages()])
-      const freshState = loadGame(null)
+      const now = await networkTimeProvider.sync() ?? networkTimeProvider.now() ?? localTimeProvider.now()
+      const freshState = { ...loadGame(null, now), lastSavedAtVerified: networkTimeProvider.isVerified() }
       setState(freshState)
       knownCompletedQuestsRef.current = new Set(freshState.completedQuests)
       handleClearGrid()
@@ -4434,7 +4467,8 @@ function App() {
     if (!file) return
     try {
       const raw = await file.text()
-      await importSavedGame(raw, selectedSaveSlotId)
+      const now = await networkTimeProvider.sync() ?? networkTimeProvider.now() ?? localTimeProvider.now()
+      await importSavedGame(raw, selectedSaveSlotId, now)
       await loadSlotIntoGame(selectedSaveSlotId, false)
       await refreshSaveSlots()
       setOfflineNotice(`Imported save into ${selectedSaveLabel}. Offline progress starts from now.`)

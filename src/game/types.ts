@@ -655,9 +655,10 @@ export type GameState = {
   machineProgress: Partial<Record<MachineId, number>>
   migrationNotices: string[]
   lastSavedAt: number
+  lastSavedAtVerified: boolean
 }
 
-export type OfflineProgressReason = 'new-save' | 'missing-save-time' | 'negative-clock' | 'clock-jump' | 'no-elapsed-time' | 'applied'
+export type OfflineProgressReason = 'new-save' | 'missing-save-time' | 'unverified-save-time' | 'negative-clock' | 'clock-jump' | 'no-elapsed-time' | 'applied'
 
 export type OfflineProgressResult = {
   applied: boolean

@@ -89,6 +89,7 @@ import {
   removeLvBatteryFromBuffer,
   removeSurveyCardFromAutoMiner,
   searchTerminalRecipes,
+  saveGame,
   sellShopItem,
   setFluidOutputDirection,
   setConfiguredProcessRecipe,
@@ -716,6 +717,21 @@ describe('game engine', () => {
     expect(aluminium.prerequisites).toEqual(['makeAluminiumDustQuest', 'bufferArcBlastFurnaceQuest'])
     expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 5 })
     expect(arcFurnace.objectives).toContainEqual({ type: 'placedMachine', id: 'arcBlastFurnace', amount: 1, label: 'Formed 3x3 Arc Furnace' })
+  })
+
+  it('does not award offline progress from an unverified save timestamp', () => {
+    const state = createInitialState(1000)
+    const raw = saveGame(state, 1000, false)
+
+    const result = loadGameWithOfflineProgress(raw, 8 * 60 * 60 * 1000 + 1000)
+
+    expect(result.offline).toMatchObject({
+      applied: false,
+      reason: 'unverified-save-time',
+      suspicious: false,
+    })
+    expect(result.state.lastSavedAt).toBe(8 * 60 * 60 * 1000 + 1000)
+    expect(result.state.lastSavedAtVerified).toBe(true)
   })
 
   it('branches LV separation, gases, and sulfur chemistry without optional gates', () => {

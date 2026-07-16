@@ -5651,6 +5651,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       machineProgress: parsed.machineProgress ?? {},
       migrationNotices,
       lastSavedAt: now,
+      lastSavedAtVerified: Boolean(parsed.lastSavedAtVerified),
       version: currentSaveVersion,
     }
   } catch {
@@ -5660,14 +5661,20 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
 
 export function loadGameWithOfflineProgress(raw: string | null, now = Date.now()): { state: GameState; offline: OfflineProgressResult } {
   const state = loadGame(raw, now)
-  if (!raw) return { state, offline: emptyOfflineProgress('new-save') }
+  if (!raw) return { state: { ...state, lastSavedAtVerified: true }, offline: emptyOfflineProgress('new-save') }
 
   const savedAt = savedLastSavedAt(raw)
-  if (savedAt === null) return { state, offline: emptyOfflineProgress('missing-save-time') }
+  if (savedAt === null) return { state: { ...state, lastSavedAtVerified: true }, offline: emptyOfflineProgress('missing-save-time') }
+  if (!state.lastSavedAtVerified) {
+    return {
+      state: { ...state, lastSavedAt: now, lastSavedAtVerified: true },
+      offline: emptyOfflineProgress('unverified-save-time', now - savedAt),
+    }
+  }
 
   return simulateOfflineProgress({ ...state, lastSavedAt: savedAt }, now - savedAt, now)
 }
 
-export function saveGame(state: GameState, now = Date.now()) {
-  return JSON.stringify({ ...state, migrationNotices: [], version: currentSaveVersion, lastSavedAt: now })
+export function saveGame(state: GameState, now = Date.now(), lastSavedAtVerified = state.lastSavedAtVerified) {
+  return JSON.stringify({ ...state, migrationNotices: [], version: currentSaveVersion, lastSavedAt: now, lastSavedAtVerified })
 }
