@@ -225,6 +225,18 @@ describe('content validation', () => {
     }
   })
 
+  it('keeps conductor assembly focused on powered transport components', () => {
+    const itemRecipe = processRecipes.find((recipe) => recipe.id === 'lv_assemble_item_conductors')
+    const fluidRecipe = processRecipes.find((recipe) => recipe.id === 'lv_assemble_fluid_conductors')
+    expect(itemRecipe?.extraInputs).toContainEqual({ id: 'lvConveyor', amount: 2 })
+    expect(fluidRecipe?.extraInputs).toContainEqual({ id: 'lvPump', amount: 2 })
+    for (const recipe of [itemRecipe, fluidRecipe]) {
+      const inputs = recipe ? [recipe.input, recipe.secondaryInput, ...(recipe.extraInputs ?? [])].filter(Boolean) : []
+      expect(inputs.some((input) => input?.id === 'primitiveCircuit')).toBe(false)
+      expect(inputs.some((input) => input?.id === 'aluminiumPlate')).toBe(false)
+    }
+  })
+
   it('uses one resource inventory item for every craftable, placeable cable', () => {
     const overlappingItemIds = Object.keys(resourceRegistry).filter((id) => id in machineRegistry)
     expect(overlappingItemIds, 'only explicitly resource-backed placeables may share resource and machine IDs').toEqual([...resourceBackedMachineIds])
