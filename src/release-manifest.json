@@ -1,16 +1,18 @@
 {
-  "revision": "1.0.1",
+  "revision": "1.0.2",
   "date": "2026-07-16",
-  "title": "Factory Flow",
+  "title": "Industrial Routing",
   "notes": [
-    "LV chemistry now begins with the Air Collector and Centrifuge, producing Oxygen and Nitrogen for advanced processing and improved steel and aluminium programs.",
-    "Sulfur chemistry now progresses through Sulfuric Acid and Diluted Sulfuric Acid, supporting circuit-board production and future chemical processing.",
-    "Sticky Resin now separates into Rubber Pulp and Glue. Rubber Pulp supports Liquid Rubber and direct Rubber Bar production, while Glue improves resistor and multiblock-component assembly.",
-    "The recipe browser now lists autonomous fluids, gases, and every byproduct as obtainable outputs, including Air and Nitrogen, with clearer machine and ingredient navigation.",
-    "The LV quest book now branches through separation, gases, sulfur chemistry, and useful optional guidance instead of presenting one narrow route.",
-    "Hoppers now reliably pull from chests, furnaces, Auto Miners, and machine outputs, preserve transfer progress, and clearly distinguish input and output faces.",
-    "Factory maintenance now shows configured machine-automation directions, the LV Air Collector appears in placement and machine views, and startup artwork is preloaded again.",
-    "Formed multiblocks can be disassembled from their controllers, and removing an LV Auto Miner safely returns its installed Survey Card.",
-    "Offline progress now uses verified network time, preventing device-clock changes from granting extra simulation while retaining normal active play if verification is unavailable."
+    "Late-LV Item and Fluid Conductors now move resources through configurable extract and insert faces, four colour channels, priorities, round-robin distribution, and optional self-feeding.",
+    "Item and fluid conductor lanes can share one factory floor cell as a bundled route while keeping independent face settings, and either lane can be removed without dismantling the other.",
+    "Conductor assembly now produces two lanes at a time from steel transport parts, tin cable, conveyors or pumps, and sealing materials without requiring circuits or aluminium.",
+    "The LV Centrifuge now uses one universal input for either items or fluids and two universal output channels that clearly display the actual item, liquid, or gas held in each channel.",
+    "LV machines with mixed outputs now expose independent item and fluid automation directions, while power cables connect to the Centrifuge without opening unintended fluid faces.",
+    "Sticky Resin now becomes Rubber Pulp in the Steam Extractor. Smelt the pulp into Rubber Bars or process it later through the LV rubber and glue line.",
+    "LV machine hulls now use Steel Plates instead of Iron Plates, supported by darker and more distinct steel ingot, plate, rod, ring, screw, and gear artwork.",
+    "Red Alloy Smelter recipes now yield two ingots, while the Liquid Steam Boiler consumes 2L of Creosote per second at full production.",
+    "The LV guide now explains the Alloy Smelter and Bender needed for Battery Alloy, and adds an optional late-LV quest for crafting and bundling conductors.",
+    "Machine terminals now use consistent item and fluid channel controls, compact assembler inputs, improved stored-fluid colours, and phone-safe conductor routing placement.",
+    "Existing saves safely return the Centrifuge's retired secondary input, preserve machine contents and routing state, and discard the postponed conduit-filter settings without blocking transfers."
   ]
 }
