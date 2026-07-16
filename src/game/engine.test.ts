@@ -1706,6 +1706,69 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots).toContainEqual({ id: 'charcoal', amount: 3 })
   })
 
+  it('hoppers pull items from chests and feed them into adjacent machines', () => {
+    let state = createFactoryState(1000)
+    Object.assign(state.machines, { standardChest: 1, hopper: 1, furnace: 1 })
+    state.resources.ironOre = 2
+    state = placeMachineInstance(state, 'standardChest', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    state = placeMachineInstance(state, 'furnace', 2, 0)
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    const furnace = state.machineInstances.find((instance) => instance.machineId === 'furnace')!
+    state = insertMachineStorageSlot(state, chest.uid, 0, 'ironOre', 2)
+    state = setPipeSideMode(state, hopper.uid, 'west', 'input')
+    state = setPipeSideMode(state, hopper.uid, 'east', 'output')
+
+    state = tickGame(state, 2000, 3000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots.every((slot) => !slot)).toBe(true)
+    expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.input).toEqual({ id: 'ironOre', amount: 2 })
+  })
+
+  it('hoppers collect output produced by a running furnace', () => {
+    let state = createFactoryState(1000)
+    Object.assign(state.machines, { furnace: 1, hopper: 1, standardChest: 1 })
+    state.resources.log = 2
+    state = placeMachineInstance(state, 'furnace', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    state = placeMachineInstance(state, 'standardChest', 2, 0)
+    const furnace = state.machineInstances.find((instance) => instance.machineId === 'furnace')!
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    state = insertProcessSlot(state, furnace.uid, 'input', 'log', 1)
+    state = insertProcessSlot(state, furnace.uid, 'fuel', 'log', 1)
+    state = setPipeSideMode(state, hopper.uid, 'west', 'input')
+    state = setPipeSideMode(state, hopper.uid, 'east', 'output')
+
+    state = tickGame(state, 10000, 11000).state
+    expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output).toEqual({ id: 'charcoal', amount: 1 })
+    state = tickGame(state, 1000, 12000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.output).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots).toContainEqual({ id: 'charcoal', amount: 1 })
+  })
+
+  it('hoppers collect secondary machine outputs', () => {
+    let state = createFactoryState(1000)
+    Object.assign(state.machines, { lvCentrifuge: 1, hopper: 1, standardChest: 1 })
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 1, 0)
+    state = placeMachineInstance(state, 'standardChest', 2, 0)
+    const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    const hopper = state.machineInstances.find((instance) => instance.machineId === 'hopper')!
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    centrifuge.process.output2 = { id: 'rubberPulp', amount: 1 }
+    state = setPipeSideMode(state, hopper.uid, 'west', 'input')
+    state = setPipeSideMode(state, hopper.uid, 'east', 'output')
+
+    state = tickGame(state, 1000, 2000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.output2).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots).toContainEqual({ id: 'rubberPulp', amount: 1 })
+  })
+
   it('only lets hoppers pull from explicitly configured input sides', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1

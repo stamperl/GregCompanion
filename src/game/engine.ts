@@ -16,7 +16,6 @@ import {
   isEuPoweredMachine,
   isEuProducerMachine,
   isEuStorageMachine,
-  isItemAutomationMachine,
   isItemBusMachine,
   isItemHopperMachine,
   isItemStorageMachine,
@@ -4452,6 +4451,9 @@ type HopperStorageSlotId = (typeof hopperStorageSlotIds)[number]
 type HopperFeedCandidate =
   | { hopperSlotId: HopperStorageSlotId; targetStorageSlotIndex: number; targetSlotId?: never; stored: NonNullable<ProcessSlot> }
   | { hopperSlotId: HopperStorageSlotId; targetSlotId: Exclude<ProcessSlotId, 'output'>; targetStorageSlotIndex?: never; stored: NonNullable<ProcessSlot> }
+type HopperPullCandidate =
+  | { source: MachineInstance; sourceStorageSlotIndex: number; sourceSlotId?: never; hopperSlotId: HopperStorageSlotId; stored: NonNullable<ProcessSlot> }
+  | { source: MachineInstance; sourceSlotId: 'output' | 'output2'; sourceStorageSlotIndex?: never; hopperSlotId: HopperStorageSlotId; stored: NonNullable<ProcessSlot> }
 
 function hopperTargetSlot(machineId: MachineId, process: MachineProcessState, resourceId: ResourceId): Exclude<ProcessSlotId, 'output'> | null {
   const slotIds: Array<Exclude<ProcessSlotId, 'output'>> = ['input', 'secondaryInput', 'fuel']
@@ -4518,6 +4520,33 @@ function hopperFeedTarget(state: GameState, target: MachineInstance) {
   return machineAt(state, multiblock.x, multiblock.y) ?? target
 }
 
+function hopperPullCandidate(state: GameState, instance: MachineInstance, sourceDirections: PipeDirection[]): HopperPullCandidate | null {
+  for (const direction of sourceDirections) {
+    const offset = pipeDirectionOffsets[direction]
+    const adjacentSource = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+    if (!adjacentSource || isItemHopperMachine(adjacentSource.machineId) || isItemBusMachine(adjacentSource.machineId)) continue
+    const source = hopperFeedTarget(state, adjacentSource)
+
+    if (isItemStorageMachine(source.machineId)) {
+      for (let sourceStorageSlotIndex = 0; sourceStorageSlotIndex < source.process.storageSlots.length; sourceStorageSlotIndex += 1) {
+        const stored = source.process.storageSlots[sourceStorageSlotIndex]
+        if (!stored) continue
+        const hopperSlotId = hopperStorageSlotIds.find((slotId) => processSlotAcceptsItem(instance.process[slotId], stored.id))
+        if (hopperSlotId) return { source, sourceStorageSlotIndex, hopperSlotId, stored }
+      }
+      continue
+    }
+
+    for (const sourceSlotId of ['output', 'output2'] as const) {
+      const stored = source.process[sourceSlotId]
+      if (!stored) continue
+      const hopperSlotId = hopperStorageSlotIds.find((slotId) => processSlotAcceptsItem(instance.process[slotId], stored.id))
+      if (hopperSlotId) return { source, sourceSlotId, hopperSlotId, stored }
+    }
+  }
+  return null
+}
+
 function hopperPullFromMachineOutputs(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const sourceDirections = hopperInputDirections(instance)
   if (sourceDirections.length < 1) {
@@ -4526,26 +4555,18 @@ function hopperPullFromMachineOutputs(state: GameState, instance: MachineInstanc
   }
   instance.itemTransferProgressMs = (instance.itemTransferProgressMs ?? 0) + elapsedMs
   while (instance.itemTransferProgressMs >= 1000) {
-    const source = sourceDirections
-      .map((direction) => {
-        const offset = pipeDirectionOffsets[direction]
-        return machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
-      })
-      .find((candidate) => candidate && !isItemAutomationMachine(candidate.machineId) && candidate.process.output)
-    const stored = source?.process.output
-    if (!source || !stored) break
-    const hopperSlotId = hopperStorageSlotIds.find((slotId) => processSlotAcceptsItem(instance.process[slotId], stored.id))
-    if (!hopperSlotId) break
-    const hopperSlot = instance.process[hopperSlotId]
-    instance.process[hopperSlotId] = hopperSlot ? { id: stored.id, amount: hopperSlot.amount + 1 } : { id: stored.id, amount: 1 }
-    source.process.output = decrementProcessSlot(stored, 1)
+    const candidate = hopperPullCandidate(state, instance, sourceDirections)
+    if (!candidate) break
+    const hopperSlot = instance.process[candidate.hopperSlotId]
+    instance.process[candidate.hopperSlotId] = hopperSlot ? { id: candidate.stored.id, amount: hopperSlot.amount + 1 } : { id: candidate.stored.id, amount: 1 }
+    if (candidate.sourceStorageSlotIndex !== undefined) {
+      candidate.source.process.storageSlots[candidate.sourceStorageSlotIndex] = decrementProcessSlot(candidate.stored, 1)
+    } else {
+      candidate.source.process[candidate.sourceSlotId] = decrementProcessSlot(candidate.stored, 1)
+    }
     instance.itemTransferProgressMs -= 1000
   }
-  if (!sourceDirections.some((direction) => {
-    const offset = pipeDirectionOffsets[direction]
-    const source = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
-    return Boolean(source && !isItemAutomationMachine(source.machineId) && source.process.output)
-  })) instance.itemTransferProgressMs = 0
+  if (!hopperPullCandidate(state, instance, sourceDirections)) instance.itemTransferProgressMs = 0
 }
 
 function tickItemHopper(state: GameState, instance: MachineInstance, elapsedMs: number) {
