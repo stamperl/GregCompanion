@@ -4716,7 +4716,8 @@ export function setConfiguredProcessRecipe(state: GameState, uid: string, recipe
 }
 
 function tickLvItemAutomation(state: GameState, source: MachineInstance, elapsedMs: number) {
-  if (!isLvItemAutomationMachine(source.machineId) || !source.itemOutputDirection) {
+  if (!isLvItemAutomationMachine(source.machineId)) return
+  if (!source.itemOutputDirection) {
     source.itemTransferProgressMs = 0
     return
   }

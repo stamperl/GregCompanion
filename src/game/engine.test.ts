@@ -1744,6 +1744,24 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toEqual({ id: 'ironOre', amount: 2 })
   })
 
+  it('pulls a creative chest stack through the input hopper in a two-hopper line', () => {
+    let state = createCreativeState(createFactoryState(1000), 1000)
+    state = placeMachineInstance(state, 'standardChest', 1, 0)
+    state = placeMachineInstance(state, 'hopper', 0, 0)
+    state = placeMachineInstance(state, 'hopper', 2, 0)
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    const leftHopper = state.machineInstances.find((instance) => instance.machineId === 'hopper' && instance.x === 0)!
+    const rightHopper = state.machineInstances.find((instance) => instance.machineId === 'hopper' && instance.x === 2)!
+    chest.process.storageSlots[0] = { id: 'log', amount: 33 }
+    state = setPipeSideMode(state, leftHopper.uid, 'east', 'output')
+    state = setPipeSideMode(state, rightHopper.uid, 'west', 'input')
+
+    for (let tick = 0; tick < 4; tick += 1) state = topUpCreativeState(tickGame(state, 250, 1250 + tick * 250).state, 1250 + tick * 250)
+
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots[0]).toEqual({ id: 'log', amount: 32 })
+    expect(state.machineInstances.find((instance) => instance.uid === rightHopper.uid)!.process.input).toEqual({ id: 'log', amount: 1 })
+  })
+
   it('hoppers collect output produced by a running furnace', () => {
     let state = createFactoryState(1000)
     Object.assign(state.machines, { furnace: 1, hopper: 1, standardChest: 1 })
