@@ -5719,6 +5719,40 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.fluids.nitrogen).toBe(6)
   })
 
+  it('uses one Centrifuge input channel for either items or fluids', () => {
+    let state = createFactoryState()
+    state.machines.lvCentrifuge = 1
+    state.resources.rubberSap = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    const centrifuge = state.machineInstances[0]
+    centrifuge.process.fluids.air = 8
+
+    expect(insertProcessSlot(state, centrifuge.uid, 'input', 'rubberSap', 1)).toBe(state)
+
+    centrifuge.process.fluids.air = 0
+    state = insertProcessSlot(state, centrifuge.uid, 'input', 'rubberSap', 1)
+    state.fluidContainers.push({ uid: 'test-air-cell', kind: 'steelCell', fluidId: 'air', amountLitres: 8 })
+
+    expect(drainPortableFluidContainer(state, centrifuge.uid, 'test-air-cell', 'feed')).toBe(state)
+    expect(state.machineInstances[0].process.fluids.air).toBe(0)
+  })
+
+  it('blocks Centrifuge recipes whose shared output channels contain another product', () => {
+    let state = createFactoryState()
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    const centrifuge = state.machineInstances[0]
+    centrifuge.process.fluids.air = 8
+    centrifuge.process.fluids.glue = 2
+    centrifuge.process.euStored = 128
+
+    state = tickGame(state, 8000).state
+
+    expect(state.machineInstances[0].process.fluids.air).toBe(8)
+    expect(state.machineInstances[0].process.fluids.oxygen ?? 0).toBe(0)
+    expect(state.machineInstances[0].process.fluids.nitrogen ?? 0).toBe(0)
+  })
+
   it('collects Air autonomously while powered', () => {
     let state = createFactoryState()
     state.machines.lvAirCollector = 1

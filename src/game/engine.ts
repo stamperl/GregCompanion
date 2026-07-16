@@ -1711,6 +1711,44 @@ function recipeFluidOutputs(recipe: ProcessRecipe) {
   return recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
 }
 
+function hasStoredRecipeFluidInput(machineId: MachineId, process: MachineProcessState) {
+  const inputFluidIds = new Set(
+    processRecipes
+      .filter((recipe) => recipe.machineId === machineId)
+      .flatMap(recipeFluidInputs)
+      .map((fluid) => fluid.id),
+  )
+  return [...inputFluidIds].some((fluidId) => (process.fluids[fluidId] ?? 0) > 0)
+}
+
+function centrifugeFluidOutputChannelIndex(fluidId: FluidId) {
+  for (const recipe of processRecipes) {
+    if (recipe.machineId !== 'lvCentrifuge') continue
+    const fluidIndex = recipeFluidOutputs(recipe).findIndex((output) => output.id === fluidId)
+    if (fluidIndex < 0) continue
+    const channelIndex = recipeItemOutputs(recipe).length + fluidIndex
+    return channelIndex < 2 ? channelIndex : undefined
+  }
+  return undefined
+}
+
+function canCentrifugeUniversalOutputsAccept(process: MachineProcessState, recipe: ProcessRecipe) {
+  if (recipe.machineId !== 'lvCentrifuge') return true
+  const occupants: Array<Set<string>> = [new Set(), new Set()]
+  if (process.output) occupants[0].add(`item:${process.output.id}`)
+  if (process.output2) occupants[1].add(`item:${process.output2.id}`)
+  for (const fluidId of storedFluidTypes(process)) {
+    const channelIndex = centrifugeFluidOutputChannelIndex(fluidId)
+    if (channelIndex !== undefined) occupants[channelIndex].add(`fluid:${fluidId}`)
+  }
+
+  const products = [
+    ...recipeItemOutputs(recipe).map((output) => `item:${output.id}`),
+    ...recipeFluidOutputs(recipe).map((output) => `fluid:${output.id}`),
+  ]
+  return products.every((product, channelIndex) => occupants[channelIndex].size === 0 || occupants[channelIndex].has(product))
+}
+
 function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot, extraInputs: ProcessSlot[] = []): MatchedProcessRecipe | undefined {
   if (recipe.fluidOnly) return { recipe, inputCost: recipe.input }
   if (recipe.machineId === 'lvAssembler') {
@@ -2443,6 +2481,7 @@ function storedFluidTypes(process: MachineProcessState) {
 }
 
 function canStoreFluid(state: GameState, instance: MachineInstance, fluidId: FluidId) {
+  if (instance.machineId === 'lvCentrifuge' && instance.process.input) return false
   const capacity = fluidCapacityForFluid(state, instance, fluidId, 'input')
   if (capacity < 1) return false
   const buffer = compatibleFluidBuffer(state, instance, fluidId, 'input')
@@ -2918,6 +2957,7 @@ export function drainPortableFluidContainer(state: GameState, machineUid: string
   const container = state.fluidContainers.find((candidate) => candidate.uid === containerUid)
   if (!targetInstance || !container) return state
   const target = manualFluidTarget(state, targetInstance)
+  if (target.machineId === 'lvCentrifuge' && target.process.input) return state
   const inputBuffer = machineFluidBuffersForInstance(state, target).find((buffer) =>
     (!bufferId || buffer.id === bufferId) && (buffer.access === 'input' || buffer.access === 'both') && buffer.acceptedFluids.includes(container.fluidId),
   )
@@ -3732,6 +3772,7 @@ export function insertProcessSlot(state: GameState, uid: string, slotId: Process
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !canResourceEnterProcessSlot(instance.machineId, slotId, resourceId)) return state
   if (slotId === 'output' && !isItemHopperMachine(instance.machineId)) return state
+  if (instance.machineId === 'lvCentrifuge' && slotId === 'input' && hasStoredRecipeFluidInput(instance.machineId, instance.process)) return state
 
   const owner = arcProcessSlotOwner(state, instance, slotId)
   const currentSlot = owner.process[slotId]
@@ -4160,7 +4201,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   while (remainingMs > 0) {
     const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process), process.configuredRecipeId)
     const recipe = match?.recipe
-    if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(process, recipe))) {
+    if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || !canCentrifugeUniversalOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(process, recipe))) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
@@ -4458,6 +4499,7 @@ type HopperPullCandidate =
   | { source: MachineInstance; sourceSlotId: 'output' | 'output2'; sourceStorageSlotIndex?: never; hopperSlotId: HopperStorageSlotId; stored: NonNullable<ProcessSlot> }
 
 function hopperTargetSlot(machineId: MachineId, process: MachineProcessState, resourceId: ResourceId): Exclude<ProcessSlotId, 'output'> | null {
+  if (machineId === 'lvCentrifuge' && hasStoredRecipeFluidInput(machineId, process)) return null
   const slotIds: Array<Exclude<ProcessSlotId, 'output'>> = ['input', 'secondaryInput', 'fuel']
   return slotIds.find((slotId) => canResourceEnterProcessSlot(machineId, slotId, resourceId) && processSlotAcceptsItem(process[slotId], resourceId)) ?? null
 }
@@ -4637,6 +4679,7 @@ export function isLvItemAutomationMachine(machineId: MachineId) {
 }
 
 function lvAutomationTargetSlot(target: MachineInstance, resourceId: ResourceId): Exclude<ProcessSlotId, 'output'> | null {
+  if (target.machineId === 'lvCentrifuge' && hasStoredRecipeFluidInput(target.machineId, target.process)) return null
   const slotIds: Array<Exclude<ProcessSlotId, 'output'>> = ['input', 'secondaryInput', 'extraInput1', 'extraInput2', 'extraInput3', 'extraInput4', 'fuel']
   return slotIds.find((slotId) => canResourceEnterProcessSlot(target.machineId, slotId, resourceId) && processSlotAcceptsItem(target.process[slotId], resourceId)) ?? null
 }

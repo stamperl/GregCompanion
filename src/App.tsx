@@ -285,6 +285,9 @@ type TerminalMode = 'recipes' | 'machines'
 type MachineTerminalMode = 'items' | 'fluids'
 type MachineReviewState = 'idle' | 'active' | 'filled' | 'blocked' | 'missing' | 'disconnected'
 type MachineFluidBufferView = ReturnType<typeof machineFluidBuffersForInstance>[number]
+type CentrifugeOutputChannel =
+  | { kind: 'item'; slotId: 'output' | 'output2'; slot: NonNullable<ProcessSlot> }
+  | { kind: 'fluid'; bufferId: string; fluidId: FluidId; amount: number }
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
 type FactoryFloorViewMode = 'production' | 'maintenance'
@@ -425,6 +428,19 @@ function storedFluids(process: MachineProcessState) {
   return fluidIds
     .map((id) => ({ id, amount: process.fluids[id] ?? 0 }))
     .filter((fluid) => fluid.amount > 0)
+}
+
+function centrifugeFluidOutputChannelIndex(fluidId: FluidId) {
+  for (const recipe of processRecipes) {
+    if (recipe.machineId !== 'lvCentrifuge') continue
+    const fluidOutputs = recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
+    const fluidIndex = fluidOutputs.findIndex((output) => output.id === fluidId)
+    if (fluidIndex < 0) continue
+    const itemOutputCount = recipe.fluidOnly ? 0 : [recipe.output, recipe.secondaryOutput].filter(Boolean).length
+    const channelIndex = itemOutputCount + fluidIndex
+    return channelIndex < 2 ? channelIndex : undefined
+  }
+  return undefined
 }
 
 const pipeDirectionOffsets: Record<PipeDirection, { dx: number; dy: number; label: string }> = {
@@ -2242,10 +2258,15 @@ function App() {
       }
       if (reviewMachineId === 'lvCentrifuge') {
         instance.process.fluidCapacityLitres = 32
-        instance.process.output = { id: 'aluminiumDust', amount: 4 }
-        instance.process.output2 = { id: 'flint', amount: 8 }
+        instance.process.input = null
+        instance.process.output = null
+        instance.process.output2 = null
+        instance.process.fluids.air = reviewState === 'active' ? 4 : 0
         instance.process.fluids.oxygen = reviewState === 'active' ? 8 : 20
         instance.process.fluids.nitrogen = reviewState === 'active' ? 16 : 28
+        instance.process.activeRecipeId = reviewState === 'active' ? 'lv_centrifuge_air' : null
+        instance.process.durationMs = reviewState === 'active' ? 8000 : 0
+        instance.process.progressMs = reviewState === 'active' ? 4000 : 0
       }
       if (isEuCableMachine(reviewMachineId)) {
         const source = reviewGame.machineInstances.find((candidate) => candidate.machineId === 'steamTurbine')
@@ -6376,7 +6397,7 @@ function App() {
                           ? `Empty ${selectedEmptyFluidContainerKind === 'bucket' ? 'Bucket' : 'Steel Cell'}`
                           : 'Tap a container above'}</strong>
                     </div>
-                    <div className="generic-fluid-buffer-grid">
+                    {selectedMachine.machineId !== 'lvCentrifuge' && <div className="generic-fluid-buffer-grid">
                       {selectedMachineFluidBuffers.map((buffer) => {
                         const storedFluidId = buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
                         const preferredDirection = buffer.access === 'output' ? 'output' : 'input'
@@ -6394,7 +6415,7 @@ function App() {
                           />
                         </button>
                       })}
-                    </div>
+                    </div>}
                   </>
                 )}
                 {!selectedMachineIsHmiTerminal && !selectedMachineUsesIntegratedStatus && (
@@ -6978,9 +6999,23 @@ function App() {
                     const isChemicalReactor = selectedMachine.machineId === 'lvChemicalReactor'
                     const isCentrifuge = selectedMachine.machineId === 'lvCentrifuge'
                     const chemicalFluidOutput = isChemicalReactor ? storedFluids(process)[0] : undefined
-                    const centrifugeFluidOutputs = isCentrifuge
-                      ? selectedMachineFluidBuffers.filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
-                      : []
+                    const centrifugeInputBuffer = isCentrifuge
+                      ? selectedMachineFluidBuffers.find((buffer) => buffer.access === 'input' || buffer.access === 'both')
+                      : undefined
+                    const centrifugeInputFluidId = centrifugeInputBuffer?.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
+                    const centrifugeOutputChannels: Array<CentrifugeOutputChannel | undefined> = [
+                      process.output ? { kind: 'item', slotId: 'output', slot: process.output } : undefined,
+                      process.output2 ? { kind: 'item', slotId: 'output2', slot: process.output2 } : undefined,
+                    ]
+                    if (isCentrifuge) {
+                      for (const buffer of selectedMachineFluidBuffers.filter((candidate) => candidate.access === 'output' || candidate.access === 'both')) {
+                        const fluidId = buffer.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
+                        const channelIndex = fluidId ? centrifugeFluidOutputChannelIndex(fluidId) : undefined
+                        if (fluidId && channelIndex !== undefined && !centrifugeOutputChannels[channelIndex]) {
+                          centrifugeOutputChannels[channelIndex] = { kind: 'fluid', bufferId: buffer.id, fluidId, amount: process.fluids[fluidId] ?? 0 }
+                        }
+                      }
+                    }
                     const chemicalFluidCapacity = process.fluidCapacityLitres || 32
                     const progressPercent =
                       process.durationMs > 0 ? Math.min(100, Math.max(0, (process.progressMs / process.durationMs) * 100)) : 0
@@ -7036,7 +7071,23 @@ function App() {
                         </div>
                         <div className={['forge-io-slot', 'forge-input-slot', hmiUsesSecondaryInput ? 'dual-inputs' : ''].join(' ')}>
                           <span>Input</span>
-                          <ProcessItemSlot slot={process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                          {isCentrifuge && !process.input && centrifugeInputBuffer && (centrifugeInputFluidId || machineTerminalMode === 'fluids') ? (
+                            <button
+                              type="button"
+                              className={`process-slot ${centrifugeInputFluidId ? 'filled' : ''} centrifuge-universal-slot native-fluid-control ${nativeFluidControlReady(centrifugeInputBuffer.id, 'input') ? 'ready' : ''}`}
+                              onClick={() => handleNativeFluidControl(centrifugeInputBuffer.id, 'input')}
+                              aria-label={centrifugeInputFluidId ? `${fluidLabel(centrifugeInputFluidId)} input ${formatLitres(process.fluids[centrifugeInputFluidId] ?? 0)} litres` : 'Empty fluid input'}
+                            >
+                              {centrifugeInputFluidId ? (
+                                <>
+                                  <FluidIcon id={centrifugeInputFluidId} />
+                                  <span className="item-count">{formatLitres(process.fluids[centrifugeInputFluidId] ?? 0)}L</span>
+                                </>
+                              ) : <span className="process-slot-label">Input</span>}
+                            </button>
+                          ) : (
+                            <ProcessItemSlot slot={process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                          )}
                           {hmiUsesSecondaryInput && (
                             <ProcessItemSlot slot={process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                           )}
@@ -7082,31 +7133,26 @@ function App() {
                               </button>
                             )
                           ) : isCentrifuge ? (
-                            <div className="centrifuge-output-bank">
-                              <div className="machine-dual-output centrifuge-item-outputs">
-                                <ProcessItemSlot slot={process.output} label="Output 1" onClick={() => handleProcessSlotPress('output')} />
-                                <ProcessItemSlot slot={process.output2} label="Output 2" onClick={() => handleProcessSlotPress('output2')} />
-                              </div>
-                              <div className="centrifuge-fluid-outputs">
-                                {centrifugeFluidOutputs.map((buffer) => {
-                                  const storedFluidId = buffer.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
-                                  const storedLitres = storedFluidId ? process.fluids[storedFluidId] ?? 0 : 0
-                                  return (
-                                    <button
-                                      type="button"
-                                      className={`centrifuge-fluid-output native-fluid-control ${nativeFluidControlReady(buffer.id, 'output') ? 'ready' : ''}`}
-                                      disabled={!nativeFluidControlReady(buffer.id, 'output')}
-                                      onClick={() => handleNativeFluidControl(buffer.id, 'output')}
-                                      aria-label={`${storedFluidId ? fluidLabel(storedFluidId) : buffer.label} output ${formatLitres(storedLitres)} of ${formatLitres(buffer.capacityLitres)} litres`}
-                                      key={buffer.id}
-                                    >
-                                      <span style={{ '--chemical-fluid-color': fluidVisualColor(storedFluidId) } as CSSProperties} aria-hidden="true" />
-                                      <strong>{storedFluidId ? fluidLabel(storedFluidId) : buffer.label}</strong>
-                                      <em>{formatLitres(storedLitres)}L</em>
-                                    </button>
-                                  )
-                                })}
-                              </div>
+                            <div className="machine-dual-output centrifuge-universal-outputs">
+                              {centrifugeOutputChannels.map((channel, index) => channel?.kind === 'fluid' ? (
+                                <button
+                                  type="button"
+                                  className={`process-slot filled centrifuge-universal-slot native-fluid-control ${nativeFluidControlReady(channel.bufferId, 'output') ? 'ready' : ''}`}
+                                  onClick={() => handleNativeFluidControl(channel.bufferId, 'output')}
+                                  aria-label={`${fluidLabel(channel.fluidId)} output ${formatLitres(channel.amount)} litres`}
+                                  key={`fluid-${channel.bufferId}`}
+                                >
+                                  <FluidIcon id={channel.fluidId} />
+                                  <span className="item-count">{formatLitres(channel.amount)}L</span>
+                                </button>
+                              ) : (
+                                <ProcessItemSlot
+                                  slot={channel?.kind === 'item' ? channel.slot : null}
+                                  label={`Output ${index + 1}`}
+                                  onClick={() => handleProcessSlotPress(index === 0 ? 'output' : 'output2')}
+                                  key={`item-output-${index}`}
+                                />
+                              ))}
                             </div>
                           ) : (
                             <div className={machines[selectedMachine.machineId].itemOutputSlots === 2 ? 'machine-dual-output' : ''}>
@@ -7244,7 +7290,7 @@ function App() {
                     </div>
                   </div>
                 )}
-                {machineUsesProcessStorage(selectedMachine.machineId) && (machineTerminalMode === 'items' || selectedMachineFluidBuffers.length > 0) && (
+                {selectedMachine.machineId !== 'lvCentrifuge' && machineUsesProcessStorage(selectedMachine.machineId) && (machineTerminalMode === 'items' || selectedMachineFluidBuffers.length > 0) && (
                   <p className="furnace-help">
                     {machineTerminalMode === 'fluids'
                       ? 'Tap a container, then a highlighted vessel.'
