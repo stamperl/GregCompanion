@@ -4,6 +4,7 @@ import {
   createInitialState,
   fuelDefinitions,
   gatherTargets,
+  isEuCableMachine,
   isResourceBackedMachine,
   machines,
   processRecipes,
@@ -40,6 +41,7 @@ import {
   crowbarRemoveMachineInstance,
   createCreativeFactoryState,
   createCreativeState,
+  currentEuCableFlowEuPerSecond,
   currentFluidOutputFlows,
   currentWellWaterFlowLitresPerSecond,
   currentSteamPipeFlowLitresPerSecond,
@@ -3786,6 +3788,37 @@ describe('game engine', () => {
     expect(tank.process.fluids.creosote).toBe(24)
   })
 
+  it('measures fluid flow on each pipe segment and aggregates shared routes', () => {
+    let state = createFactoryState(1000)
+    state.machines.well = 1
+    state.machines.copperPipe = 4
+    state.machines.steamTank = 2
+    state = placeMachineInstance(state, 'well', 0, 1)
+    state = placeMachineInstance(state, 'copperPipe', 1, 1)
+    state = placeMachineInstance(state, 'copperPipe', 2, 1)
+    state = placeMachineInstance(state, 'copperPipe', 2, 0)
+    state = placeMachineInstance(state, 'copperPipe', 2, 2)
+    state = placeMachineInstance(state, 'steamTank', 3, 0)
+    state = placeMachineInstance(state, 'steamTank', 3, 2)
+    const pipeAt = (x: number, y: number) => state.machineInstances.find((instance) => instance.machineId === 'copperPipe' && instance.x === x && instance.y === y)!
+
+    state = configurePlacedConnector(state, 'copperPipe', { west: 'input', east: 'output' })
+    state = setPipeSideMode(state, pipeAt(2, 1).uid, 'west', 'input')
+    state = setPipeSideMode(state, pipeAt(2, 1).uid, 'north', 'output')
+    state = setPipeSideMode(state, pipeAt(2, 1).uid, 'south', 'output')
+    state = setPipeSideMode(state, pipeAt(2, 0).uid, 'south', 'input')
+    state = setPipeSideMode(state, pipeAt(2, 0).uid, 'east', 'output')
+    state = setPipeSideMode(state, pipeAt(2, 2).uid, 'north', 'input')
+    state = setPipeSideMode(state, pipeAt(2, 2).uid, 'east', 'output')
+
+    state = tickGame(state, 1000).state
+
+    expect(currentFluidOutputFlows(state, pipeAt(1, 1))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 24 })
+    expect(currentFluidOutputFlows(state, pipeAt(2, 1))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 24 })
+    expect(currentFluidOutputFlows(state, pipeAt(2, 0))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 12 })
+    expect(currentFluidOutputFlows(state, pipeAt(2, 2))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 12 })
+  })
+
   it('uses pipe side modes to control liquid flow direction', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1
@@ -4564,6 +4597,44 @@ describe('game engine', () => {
 
     const nextBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
     expect(8192 - nextBuffer.process.euStored).toBeLessThanOrEqual(33)
+  })
+
+  it('measures EU on each cable segment and limits each branch independently', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvBatteryBuffer4A = 1
+    state.resources.tinCable4A = 2
+    state.resources.tinCable = 2
+    state.machines.lvWiremill = 2
+    state.resources.sodiumBattery = 4
+    state = placeMachineInstance(state, 'lvBatteryBuffer4A', 0, 1)
+    state = placeMachineInstance(state, 'tinCable4A', 1, 1)
+    state = placeMachineInstance(state, 'tinCable4A', 2, 1)
+    state = placeMachineInstance(state, 'tinCable', 2, 0)
+    state = placeMachineInstance(state, 'tinCable', 2, 2)
+    state = placeMachineInstance(state, 'lvWiremill', 3, 0)
+    state = placeMachineInstance(state, 'lvWiremill', 3, 2)
+    const cableAt = (x: number, y: number) => state.machineInstances.find((instance) => isEuCableMachine(instance.machineId) && instance.x === x && instance.y === y)!
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer4A')!
+    for (let index = 0; index < 4; index += 1) state = installLvBatteryInBuffer(state, buffer.uid)
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
+
+    for (const [x, y, modes] of [
+      [1, 1, { west: 'both', east: 'both' }],
+      [2, 1, { west: 'both', north: 'both', south: 'both' }],
+      [2, 0, { south: 'both', east: 'both' }],
+      [2, 2, { north: 'both', east: 'both' }],
+    ] as Array<[number, number, Partial<Record<PipeDirection, PipeSideMode>>]>) {
+      for (const [direction, mode] of Object.entries(modes) as Array<[PipeDirection, PipeSideMode]>) {
+        state = setPipeSideMode(state, cableAt(x, y).uid, direction, mode)
+      }
+    }
+
+    state = tickGame(state, 1000).state
+
+    expect(currentEuCableFlowEuPerSecond(state, cableAt(1, 1))).toBe(58)
+    expect(currentEuCableFlowEuPerSecond(state, cableAt(2, 1))).toBe(58)
+    expect(currentEuCableFlowEuPerSecond(state, cableAt(2, 0))).toBe(29)
+    expect(currentEuCableFlowEuPerSecond(state, cableAt(2, 2))).toBe(29)
   })
 
   it('stores connected creosote but does not burn it in a dry liquid steam boiler', () => {

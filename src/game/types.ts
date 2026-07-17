@@ -717,10 +717,14 @@ export type MachineProcessState = {
   miningDamage: number
   steamStoredMs: number
   steamCapacityMs: number
+  steamFlowLitresPerSecond?: number
   euStored: number
   euCapacity: number
+  euFlowPerSecond?: number
   fluids: Partial<Record<FluidId, number>>
   fluidCapacityLitres: number
+  fluidFlowLitresPerSecond?: number
+  fluidFlowFluidId?: FluidId
 }
 
 export type MachineInstance = {
