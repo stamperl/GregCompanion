@@ -13335,6 +13335,45 @@ button.button-primary:disabled,
   scrollbar-color: var(--machine-accent) rgba(0, 0, 0, 0.32);
 }
 
+.machine-inventory-browser {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.machine-terminal .machine-inventory-search {
+  background: #c8c5b5;
+  border-color: #171715;
+  border-bottom-color: #e2ddc5;
+  border-right-color: #e2ddc5;
+  min-height: 34px;
+}
+
+.machine-terminal .processing-storage.machine-terminal-inventory {
+  align-content: start;
+  display: grid;
+  gap: 2px;
+  grid-auto-rows: 40px;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  height: 134px;
+  min-height: 134px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 3px;
+}
+
+.machine-terminal .processing-storage.machine-terminal-inventory .item-slot {
+  height: 40px;
+  min-width: 0;
+  width: 100%;
+}
+
+.machine-terminal .processing-storage.machine-terminal-inventory .empty-furnace-storage {
+  align-self: center;
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
 .pipe-config-modal {
   --machine-panel-face: #3d3322;
   --machine-panel-well: #171614;

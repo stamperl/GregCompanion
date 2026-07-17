@@ -2458,6 +2458,7 @@ function App() {
   const [gatherArea, setGatherArea] = useState<GatherAreaId>('forest')
   const [terminalGrid, setTerminalGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
   const [terminalSearch, setTerminalSearch] = useState('')
+  const [machineInventorySearch, setMachineInventorySearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
@@ -3015,6 +3016,7 @@ function App() {
     setIsMachineRecipePopupOpen(false)
     setSelectedMachinePopupRecipeIndex(0)
     setMachineRecipeLoadNotice('')
+    setMachineInventorySearch('')
   }, [selectedMachineUid])
 
   useEffect(() => {
@@ -3178,6 +3180,15 @@ function App() {
   const furnaceStorageResources = selectedMachine
     ? resourceOrder.filter((id) => availableResourceAmount(state, id) > 0 && canResourceEnterMachine(selectedMachine.machineId, id))
     : []
+  const selectedMachineUsesTerminalInventory = Boolean(
+    selectedMachine && (isItemStorageMachine(selectedMachine.machineId) || isItemHopperMachine(selectedMachine.machineId)),
+  )
+  const displayedFurnaceStorageResources = selectedMachineUsesTerminalInventory
+    ? furnaceStorageResources.filter((id) => {
+        const query = machineInventorySearch.trim().toLowerCase()
+        return !query || id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
+      })
+    : furnaceStorageResources
   const selectedMachineStorageResource = selectedResource && furnaceStorageResources.includes(selectedResource) ? selectedResource : null
   const selectedMachineHmiConfig = selectedMachine ? machineHmiConfigs[selectedMachine.machineId] ?? null : null
   const selectedMachineCanAutomateItems = Boolean(
@@ -6579,9 +6590,25 @@ function App() {
                 <div className="machine-terminal-body">
                 {!isMachineAutomationOpen && machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                 <>
-                  <div className={`processing-storage furnace-storage ${selectedMachineFluidBuffers.length > 0 ? 'fluid-capable-storage' : ''}`} aria-label={`${machines[selectedMachine.machineId].name} storage`}>
-                    {furnaceStorageResources.length > 0 ? (
-                      furnaceStorageResources.map((id) => (
+                  <div className={selectedMachineUsesTerminalInventory ? 'machine-inventory-browser' : undefined}>
+                    {selectedMachineUsesTerminalInventory && (
+                      <input
+                        className="terminal-search machine-inventory-search"
+                        type="search"
+                        placeholder="Search inventory"
+                        value={machineInventorySearch}
+                        onChange={(event) => setMachineInventorySearch(event.target.value)}
+                        aria-label={`Search items for ${machines[selectedMachine.machineId].name}`}
+                      />
+                    )}
+                    <div className={[
+                      'processing-storage',
+                      'furnace-storage',
+                      selectedMachineFluidBuffers.length > 0 ? 'fluid-capable-storage' : '',
+                      selectedMachineUsesTerminalInventory ? 'machine-terminal-inventory' : '',
+                    ].filter(Boolean).join(' ')} aria-label={`${machines[selectedMachine.machineId].name} storage`}>
+                    {displayedFurnaceStorageResources.length > 0 ? (
+                      displayedFurnaceStorageResources.map((id) => (
                         <button
                           type="button"
                           className={selectedResource === id ? 'item-slot selected' : 'item-slot'}
@@ -6596,8 +6623,11 @@ function App() {
                         </button>
                       ))
                     ) : (
-                      <span className="empty-furnace-storage">No valid inputs or fuels</span>
+                      <span className="empty-furnace-storage">
+                        {selectedMachineUsesTerminalInventory && furnaceStorageResources.length > 0 ? 'No matching items' : 'No valid inputs or fuels'}
+                      </span>
                     )}
+                    </div>
                   </div>
                   <div className={selectedMachineStorageResource ? 'machine-selected-item active' : 'machine-selected-item'} aria-live="polite">
                     <span>Selected</span>
