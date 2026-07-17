@@ -2735,6 +2735,26 @@ describe('game engine', () => {
     expect(recipes.find((recipe) => recipe.id === 'build_furnace')?.pattern?.filter(Boolean)).toHaveLength(8)
   })
 
+  it('uses mirrored wrench positions for the LV fluid hatch recipes', () => {
+    const inputHatch = recipes.find((recipe) => recipe.id === 'lv_fluid_input_hatch')!
+    const outputHatch = recipes.find((recipe) => recipe.id === 'lv_fluid_output_hatch')!
+    const asGrid = (recipe: typeof inputHatch): CraftSlot[] =>
+      recipe.pattern!.map((id) => id ? { id } : null)
+
+    expect(inputHatch.pattern).toEqual([
+      'lvPump', null, 'lvPump',
+      'ironWrench', 'lvMachineHull', null,
+      null, null, null,
+    ])
+    expect(outputHatch.pattern).toEqual([
+      'lvPump', null, 'lvPump',
+      null, 'lvMachineHull', 'ironWrench',
+      null, null, null,
+    ])
+    expect(findGridRecipe(asGrid(inputHatch), recipes)?.id).toBe(inputHatch.id)
+    expect(findGridRecipe(asGrid(outputHatch), recipes)?.id).toBe(outputHatch.id)
+  })
+
   it('crafts LV casing and hull before LV machines consume hulls', () => {
     let state = createFactoryState(1000)
     state.resources.steelPlate = 17

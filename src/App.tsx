@@ -296,6 +296,8 @@ type UniversalProcessChannel =
   | { kind: 'fluid'; bufferId: string; fluidId?: FluidId; amount: number }
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
+type QuestMapView = { x: number; y: number; zoom: number }
+type QuestMapViews = Partial<Record<QuestChapterId, QuestMapView>>
 type FactoryFloorViewMode = 'production' | 'maintenance'
 type FactoryMaintenanceState = 'running' | 'power-loss' | 'output-full' | 'idle'
 type FactoryPointerPosition = { x: number; y: number; clientX: number; clientY: number }
@@ -328,6 +330,37 @@ type PendingProcessInsert = {
   slotId: ProcessSlotId
   resourceId: ResourceId
   quantity: number
+}
+
+const questMapViewsStorageKey = 'click-foundry.quest-map-views'
+
+function defaultQuestMapView(chapterId: QuestChapterId): QuestMapView {
+  return { x: 0, y: 0, zoom: chapterId === 'lvAge' ? 0.62 : 0.9 }
+}
+
+function loadQuestMapViews(): QuestMapViews {
+  try {
+    const stored = window.localStorage.getItem(questMapViewsStorageKey)
+    if (!stored) return {}
+    const parsed = JSON.parse(stored) as Record<string, Partial<QuestMapView>>
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, view]) =>
+        Number.isFinite(view.x) &&
+        Number.isFinite(view.y) &&
+        Number.isFinite(view.zoom),
+      ),
+    ) as QuestMapViews
+  } catch {
+    return {}
+  }
+}
+
+function saveQuestMapViews(views: QuestMapViews) {
+  try {
+    window.localStorage.setItem(questMapViewsStorageKey, JSON.stringify(views))
+  } catch {
+    // Guide position remains available for this session when storage is unavailable.
+  }
 }
 
 type RecipeDisplayOutput =
@@ -1893,6 +1926,7 @@ function QuestBook({
   claimableRewardCount,
   showLockedQuests,
   onToggleLockedQuests,
+  mapViewsRef,
 }: {
   quests: Quest[]
   state: GameState
@@ -1904,12 +1938,14 @@ function QuestBook({
   claimableRewardCount: number
   showLockedQuests: boolean
   onToggleLockedQuests: () => void
+  mapViewsRef: { current: QuestMapViews }
 }) {
   const visibleQuestChapters = questChapters.filter((candidate) => visibleQuestChapterIds.has(candidate.id))
   const chapter = visibleQuestChapters.find((candidate) => candidate.id === activeChapterId) ?? visibleQuestChapters[0]
   const chapterQuests = quests.filter((quest) => (chapter.id === 'multiblocks' ? multiblockQuestIds.has(quest.id) : questBookChapterId(quest) === chapter.id))
   const questById = new Map(quests.map((quest) => [quest.id, quest]))
-  const [mapView, setMapView] = useState({ x: 0, y: 0, zoom: 0.82 })
+  const [mapView, setMapView] = useState<QuestMapView>(() => mapViewsRef.current[activeChapterId] ?? defaultQuestMapView(activeChapterId))
+  const mapViewRef = useRef(mapView)
   const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null)
   const mapMargin = 24
   const questNodeSize = (quest: Quest) => {
@@ -1965,13 +2001,25 @@ function QuestBook({
     zoom: number
   } | null>(null)
 
+  const updateMapView = (update: QuestMapView | ((current: QuestMapView) => QuestMapView)) => {
+    const next = typeof update === 'function' ? update(mapViewRef.current) : update
+    mapViewRef.current = next
+    setMapView(next)
+  }
+
+  const persistMapView = () => {
+    mapViewsRef.current[activeChapterId] = mapViewRef.current
+    saveQuestMapViews(mapViewsRef.current)
+  }
+
   useEffect(() => {
     pointerRef.current.clear()
     gestureRef.current = null
     dragRef.current = null
-    const initialZoom = activeChapterId === 'lvAge' && chapterQuests.length > 8 ? 0.62 : 0.9
-    setMapView({ x: 0, y: 0, zoom: initialZoom })
-  }, [activeChapterId, chapterQuests.length])
+    const savedView = mapViewsRef.current[activeChapterId] ?? defaultQuestMapView(activeChapterId)
+    mapViewRef.current = savedView
+    setMapView(savedView)
+  }, [activeChapterId, mapViewsRef])
 
   const pointerDistance = (first: { x: number; y: number }, second: { x: number; y: number }) =>
     Math.hypot(second.x - first.x, second.y - first.y)
@@ -2023,7 +2071,7 @@ function QuestBook({
       const nextZoom = clampZoom((gestureRef.current.zoom * pointerDistance(first, second)) / gestureRef.current.distance)
       const zoomRatio = nextZoom / gestureRef.current.zoom
       const rect = event.currentTarget.getBoundingClientRect()
-      setMapView(clampMapView({
+      updateMapView(clampMapView({
         x: center.x - rect.left - (gestureRef.current.centerX - rect.left - gestureRef.current.startX) * zoomRatio,
         y: center.y - rect.top - (gestureRef.current.centerY - rect.top - gestureRef.current.startY) * zoomRatio,
         zoom: nextZoom,
@@ -2033,7 +2081,7 @@ function QuestBook({
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
     const rect = event.currentTarget.getBoundingClientRect()
-    setMapView((current) =>
+    updateMapView((current) =>
       clampMapView(
         {
           ...current,
@@ -2063,13 +2111,14 @@ function QuestBook({
     } else if (dragRef.current?.pointerId === event.pointerId) {
       dragRef.current = null
     }
+    persistMapView()
   }
 
   const handleMapWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
     const pointerX = event.clientX - rect.left
     const pointerY = event.clientY - rect.top
-    setMapView((current) => {
+    updateMapView((current) => {
       const nextZoom = clampZoom(current.zoom + (event.deltaY < 0 ? 0.08 : -0.08))
       const zoomRatio = nextZoom / current.zoom
       return clampMapView(
@@ -2081,6 +2130,7 @@ function QuestBook({
         rect,
       )
     })
+    persistMapView()
   }
 
   return (
@@ -2468,6 +2518,7 @@ function App() {
   const [machineTerminalMode, setMachineTerminalMode] = useState<MachineTerminalMode>('items')
   const [selectedFluidContainerKey, setSelectedFluidContainerKey] = useState<string | null>(null)
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
+  const questMapViewsRef = useRef<QuestMapViews>(loadQuestMapViews())
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [showLockedQuests, setShowLockedQuests] = useState(false)
   const [terminalNotice, setTerminalNotice] = useState('')
@@ -7913,6 +7964,7 @@ function App() {
             claimableRewardCount={claimableQuestRewardCount}
             showLockedQuests={showLockedQuests}
             onToggleLockedQuests={() => setShowLockedQuests((current) => !current)}
+            mapViewsRef={questMapViewsRef}
           />
         </section>
       )}

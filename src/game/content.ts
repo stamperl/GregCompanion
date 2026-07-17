@@ -2462,7 +2462,9 @@ export const recipes: Recipe[] = [
     inputs: [{ id: 'lvMachineHull' as const, amount: 1 }, { id: componentId, amount: 2 }],
     catalysts: [{ id: 'ironWrench' as const, amount: 1 }],
     durabilityCosts: [{ id: 'ironWrench' as const, amount: 1 }],
-    pattern: [componentId, null, componentId, null, 'lvMachineHull' as const, 'ironWrench' as const, null, null, null],
+    pattern: id === 'lv_fluid_input_hatch'
+      ? [componentId, null, componentId, 'ironWrench' as const, 'lvMachineHull' as const, null, null, null, null]
+      : [componentId, null, componentId, null, 'lvMachineHull' as const, 'ironWrench' as const, null, null, null],
     outputs: [],
     machineOutputs: [{ id: machineId, amount: 1 }],
     unlockedBy: 'steelPlateQuest' as const,
