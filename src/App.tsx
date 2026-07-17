@@ -1686,13 +1686,15 @@ function hasResourceUnlocked(state: GameState, resourceId: ResourceId) {
 }
 
 function hasToolTierUnlocked(state: GameState, resourceId: ResourceId) {
-  if (resourceId === 'woodenShovel') return (['woodenShovel', 'stoneShovel', 'ironShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
-  if (resourceId === 'stoneShovel') return (['stoneShovel', 'ironShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'woodenShovel') return (['woodenShovel', 'stoneShovel', 'ironShovel', 'diamondShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'stoneShovel') return (['stoneShovel', 'ironShovel', 'diamondShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'ironShovel') return (['ironShovel', 'diamondShovel'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   if (resourceId === 'woodenPickaxe') return (['woodenPickaxe', 'stonePickaxe', 'ironPickaxe', 'diamondPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   if (resourceId === 'stonePickaxe') return (['stonePickaxe', 'ironPickaxe', 'diamondPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   if (resourceId === 'ironPickaxe') return (['ironPickaxe', 'diamondPickaxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
-  if (resourceId === 'woodenAxe') return (['woodenAxe', 'stoneAxe', 'ironAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
-  if (resourceId === 'stoneAxe') return (['stoneAxe', 'ironAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'woodenAxe') return (['woodenAxe', 'stoneAxe', 'ironAxe', 'diamondAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'stoneAxe') return (['stoneAxe', 'ironAxe', 'diamondAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
+  if (resourceId === 'ironAxe') return (['ironAxe', 'diamondAxe'] satisfies ResourceId[]).some((id) => hasResourceUnlocked(state, id))
   return hasResourceUnlocked(state, resourceId)
 }
 

@@ -250,7 +250,9 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   stonePickaxe: 64,
   ironAxe: 128,
   ironPickaxe: 128,
+  diamondAxe: 384,
   diamondPickaxe: 384,
+  diamondShovel: 384,
   ironShovel: 128,
   stoneShovel: 64,
   stoneHammer: 48,
@@ -462,8 +464,8 @@ const equipmentSlotItems: Record<EquipmentSlotId, ResourceId[]> = {
   chestplate: [],
   leggings: [],
   boots: [],
-  axe: ['woodenAxe', 'stoneAxe', 'ironAxe', 'treeTap'],
-  shovel: ['woodenShovel', 'stoneShovel', 'ironShovel'],
+  axe: ['woodenAxe', 'stoneAxe', 'ironAxe', 'diamondAxe', 'treeTap'],
+  shovel: ['woodenShovel', 'stoneShovel', 'ironShovel', 'diamondShovel'],
   pickaxe: ['woodenPickaxe', 'stonePickaxe', 'ironPickaxe', 'diamondPickaxe'],
   weapon: [],
 }
@@ -934,6 +936,7 @@ export function unequipSlot(state: GameState, slotId: EquipmentSlotId) {
 
 export function getBestToolForTarget(state: GameState, targetId: GatherTargetId) {
   if (targetId === 'tree') {
+    if (state.equipment.axe === 'diamondAxe') return tools.diamondAxe
     if (state.equipment.axe === 'ironAxe') return tools.ironAxe
     if (state.equipment.axe === 'stoneAxe') return tools.stoneAxe
     if (state.equipment.axe === 'woodenAxe') return tools.woodenAxe
@@ -951,6 +954,7 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
     if (state.equipment.pickaxe === 'stonePickaxe') return tools.stonePickaxe
   }
   if (targetId === 'clayPatch' || targetId === 'sandPatch' || targetId === 'gravelPatch') {
+    if (state.equipment.shovel === 'diamondShovel') return tools.diamondShovel
     if (state.equipment.shovel === 'ironShovel') return tools.ironShovel
     if (state.equipment.shovel === 'stoneShovel') return tools.stoneShovel
     if (state.equipment.shovel === 'woodenShovel') return tools.woodenShovel

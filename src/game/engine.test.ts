@@ -1447,6 +1447,25 @@ describe('game engine', () => {
     expect(durabilityRemaining(result.state, 'ironShovel')).toBe(127)
   })
 
+  it('equips diamond axe and shovel upgrades with LV durability and damage', () => {
+    let state = createFactoryState(1000)
+    state.resources.diamondAxe = 1
+    state.resources.diamondShovel = 1
+    state = equipResource(state, 'axe', 'diamondAxe')
+    state = equipResource(state, 'shovel', 'diamondShovel')
+
+    let result = hitGatherTarget(state, 'tree')
+    expect(result.tool.id).toBe('diamondAxe')
+    expect(result.completed).toBe(true)
+    expect(durabilityRemaining(result.state, 'diamondAxe')).toBe(383)
+
+    state = result.state
+    result = hitGatherTarget(state, 'gravelPatch')
+    expect(result.tool.id).toBe('diamondShovel')
+    expect(result.state.gatherProgress.gravelPatch).toBe(11)
+    expect(durabilityRemaining(result.state, 'diamondShovel')).toBe(383)
+  })
+
   it('destroys a gathering tool when its pooled durability reaches zero', () => {
     let state = createFactoryState(1000)
     state.resources.woodenAxe = 1
@@ -5530,6 +5549,18 @@ describe('game engine', () => {
       { id: 'stick' },
       null,
     ]
+    const diamondAxeGrid: CraftSlot[] = [
+      { id: 'diamond' },
+      { id: 'diamond' },
+      null,
+      { id: 'diamond' },
+      { id: 'steelRod' },
+      null,
+      null,
+      { id: 'steelRod' },
+      null,
+    ]
+    const diamondShovelGrid: CraftSlot[] = [null, { id: 'diamond' }, null, null, { id: 'steelRod' }, null, null, { id: 'steelRod' }, null]
     const ironHammerGrid: CraftSlot[] = [
       { id: 'ironIngot' },
       { id: 'ironIngot' },
@@ -5624,6 +5655,8 @@ describe('game engine', () => {
     expect(findGridRecipe(stoneHammerGrid, recipes)?.id).toBe('craft_stone_hammer')
     expect(findGridRecipe(ironAxeGrid, recipes)?.id).toBe('craft_iron_axe')
     expect(findGridRecipe(ironPickaxeGrid, recipes)?.id).toBe('craft_iron_pickaxe')
+    expect(findGridRecipe(diamondAxeGrid, recipes)?.id).toBe('craft_diamond_axe')
+    expect(findGridRecipe(diamondShovelGrid, recipes)?.id).toBe('craft_diamond_shovel')
     expect(findGridRecipe(ironHammerGrid, recipes)?.id).toBe('craft_iron_hammer')
     expect(findGridRecipe(ironFileGrid, recipes)?.id).toBe('craft_iron_file')
     expect(findGridRecipe(bronzeFileGrid, recipes)?.id).toBe('craft_bronze_file')
