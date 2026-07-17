@@ -3280,6 +3280,21 @@ export function currentEuCableFlowEuPerSecond(state: GameState, instance: Machin
   return Math.min(euNetworkCableAmps(state, instance) * lvEuPerAmpSecond, availableEu, demandEu)
 }
 
+function fluidSupplyForPipe(state: GameState, pipe: MachineInstance) {
+  const network = connectedFluidNetworkForInstance(state, pipe)
+  return fluidIds
+    .map((fluidId) => {
+      const availableLitres = uniqueMachineInstances(
+        network
+          .map((instance) => (instance.machineId === 'steamTank' ? steamTankStorageForInstance(state, instance) : instance))
+          .filter((source) => source.uid !== pipe.uid && canExportFluidSource(source) && canFluidFlowBetween(state, source, pipe)),
+      ).reduce((sum, source) => sum + (source.process.fluids[fluidId] ?? 0), 0)
+      return { fluidId, availableLitres }
+    })
+    .filter((supply) => supply.availableLitres > 0)
+    .sort((a, b) => b.availableLitres - a.availableLitres)[0]
+}
+
 function tickPipeDisplayBuffers(state: GameState) {
   const elapsedSeconds = activeTransferElapsedMs > 0 ? activeTransferElapsedMs / 1000 : 1
 
@@ -3300,20 +3315,29 @@ function tickPipeDisplayBuffers(state: GameState) {
         .map(([fluidId, amount]) => ({ fluidId, litresPerSecond: amount / elapsedSeconds }))
         .sort((a, b) => b.litresPerSecond - a.litresPerSecond)[0]
       const totalFluidFlowLitresPerSecond = Object.values(measuredFlows).reduce((sum, amount) => sum + (amount ?? 0), 0) / elapsedSeconds
+      const fluidSupply = primaryFluidFlow
+        ? { fluidId: primaryFluidFlow.fluidId, availableLitres: Number.POSITIVE_INFINITY }
+        : fluidSupplyForPipe(state, instance)
+      const hasSteamSupply = steamFlowLitres > 0 || availableConnectedSteam(state, instance) > 0
+      const pipeFillLitres = machinePipeTransferLitresPerSecond(instance.machineId) * elapsedSeconds
+      const previousFluidId = instance.process.fluidFlowFluidId
 
       instance.process.steamCapacityMs = steamCapacity
       instance.process.steamFlowLitresPerSecond = steamFlowLitres
-      instance.process.steamStoredMs = steamFlowLitres > 0
-        ? Math.min(steamCapacity, Math.max(steamFlowLitres * steamMsPerLitre * 0.5, steamCapacity * 0.35))
+      instance.process.steamStoredMs = hasSteamSupply
+        ? Math.min(steamCapacity, instance.process.steamStoredMs + pipeFillLitres * steamMsPerLitre)
         : 0
       instance.process.fluidCapacityLitres = fluidCapacity
-      instance.process.fluidFlowFluidId = primaryFluidFlow?.fluidId
+      instance.process.fluidFlowFluidId = fluidSupply?.fluidId
       instance.process.fluidFlowLitresPerSecond = totalFluidFlowLitresPerSecond
-      instance.process.fluids = primaryFluidFlow
+      instance.process.fluids = fluidSupply
         ? {
-            [primaryFluidFlow.fluidId]: Math.min(
+            [fluidSupply.fluidId]: Math.min(
               fluidCapacity,
-              Math.max(totalFluidFlowLitresPerSecond * 0.5, fluidCapacity * 0.35),
+              previousFluidId === fluidSupply.fluidId
+                ? (instance.process.fluids[fluidSupply.fluidId] ?? 0) + pipeFillLitres
+                : pipeFillLitres,
+              fluidSupply.availableLitres,
             ),
           }
         : normalizeFluidStore()
@@ -3323,7 +3347,7 @@ function tickPipeDisplayBuffers(state: GameState) {
       const availableEu = availableConnectedEu(state, instance)
       instance.process.euCapacity = capacity
       instance.process.euFlowPerSecond = flowEu
-      instance.process.euStored = availableEu > 0 ? Math.min(capacity, availableEu, Math.max(flowEu * 0.5, capacity * 0.35)) : 0
+      instance.process.euStored = flowEu > 0 ? Math.min(capacity, availableEu, Math.max(flowEu * 0.5, capacity * 0.35)) : 0
     }
   }
 }

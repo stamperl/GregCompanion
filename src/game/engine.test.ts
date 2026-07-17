@@ -108,6 +108,7 @@ import {
   setPipeSideMode,
   setPipeSideDisabled,
   pipeSideMode,
+  fluidPipeBufferCapacityLitres,
   steamMsPerLitre,
   steamPipeBufferCapacityMs,
   steamMaceratorCapacityMs,
@@ -3482,6 +3483,41 @@ describe('game engine', () => {
     expect(currentSteamPipeFlowLitresPerSecond(state, firstPipe)).toBeGreaterThan(0)
   })
 
+  it('pressurizes idle pipe buffers from connected steam and liquid sources', () => {
+    let steamState = createFactoryState(1000)
+    steamState.machines.steamTank = 1
+    steamState.machines.copperPipe = 1
+    steamState = placeMachineInstance(steamState, 'steamTank', 0, 0)
+    steamState = placeMachineInstance(steamState, 'copperPipe', 1, 0)
+    const steamTank = steamState.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const steamPipe = steamState.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    steamTank.process.steamStoredMs = steamTankCapacityMs
+    steamState = setPipeSideMode(steamState, steamPipe.uid, 'west', 'input')
+
+    steamState = tickGame(steamState, 1000).state
+
+    const chargedSteamPipe = steamState.machineInstances.find((instance) => instance.uid === steamPipe.uid)!
+    expect(chargedSteamPipe.process.steamStoredMs).toBe(steamPipeBufferCapacityMs('copperPipe'))
+    expect(currentSteamPipeFlowLitresPerSecond(steamState, chargedSteamPipe)).toBe(0)
+
+    let liquidState = createFactoryState(1000)
+    liquidState.machines.cokeOven = 1
+    liquidState.machines.copperPipe = 1
+    liquidState = placeMachineInstance(liquidState, 'cokeOven', 0, 0)
+    liquidState = placeMachineInstance(liquidState, 'copperPipe', 1, 0)
+    const cokeOven = liquidState.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
+    const liquidPipe = liquidState.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    cokeOven.process.fluids.creosote = 32
+    liquidState = setFluidOutputDirection(liquidState, cokeOven.uid, 'east')
+    liquidState = setPipeSideMode(liquidState, liquidPipe.uid, 'west', 'input')
+
+    liquidState = tickGame(liquidState, 1000).state
+
+    const chargedLiquidPipe = liquidState.machineInstances.find((instance) => instance.uid === liquidPipe.uid)!
+    expect(chargedLiquidPipe.process.fluids.creosote).toBe(fluidPipeBufferCapacityLitres('copperPipe'))
+    expect(currentFluidOutputFlows(liquidState, chargedLiquidPipe)[0]).toMatchObject({ fluidId: 'creosote', litresPerSecond: 0 })
+  })
+
   it('shares one steam pipe transfer budget across multiple consumers', () => {
     let state = createFactoryState(1000)
     state.machines.steamTank = 1
@@ -4635,6 +4671,26 @@ describe('game engine', () => {
     expect(currentEuCableFlowEuPerSecond(state, cableAt(2, 1))).toBe(58)
     expect(currentEuCableFlowEuPerSecond(state, cableAt(2, 0))).toBe(29)
     expect(currentEuCableFlowEuPerSecond(state, cableAt(2, 2))).toBe(29)
+  })
+
+  it('keeps an idle cable empty until a connected machine requests EU', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvBatteryBuffer = 1
+    state.resources.tinCable = 1
+    state.resources.sodiumBattery = 1
+    state = placeMachineInstance(state, 'lvBatteryBuffer', 0, 0)
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'tinCable')!
+    state = installLvBatteryInBuffer(state, buffer.uid)
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 2048
+    state = setPipeSideMode(state, cable.uid, 'west', 'both')
+
+    state = tickGame(state, 1000).state
+
+    const idleCable = state.machineInstances.find((instance) => instance.uid === cable.uid)!
+    expect(currentEuCableFlowEuPerSecond(state, idleCable)).toBe(0)
+    expect(idleCable.process.euStored).toBe(0)
   })
 
   it('stores connected creosote but does not burn it in a dry liquid steam boiler', () => {
