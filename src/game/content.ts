@@ -6304,7 +6304,7 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Automate port assembly',
-    description: 'Build an LV Assembler for ports and battery cells. Program 0 handles unique recipes automatically; Programs 1-4 select the matching item bus or fluid hatch. Keep Glue in its fluid input as the sealant.',
+    description: 'Build an LV Assembler for ports and battery cells. Every LV machine has Programs 0-10: Program 0 runs normal recipes automatically, while numbered programs select recipes assigned to that machine. Programs 1-4 select the matching Assembler bus or hatch; unused numbers are reserved for later processes. Keep Glue in the fluid input as the sealant.',
     kind: 'main',
     position: { x: 2230, y: 380 },
     icon: { type: 'machine', id: 'lvAssembler' },

@@ -162,7 +162,7 @@ import {
   searchTerminalRecipes,
   sellShopItem,
   setFluidOutputDirection,
-  setConfiguredProcessRecipe,
+  setConfiguredProcessProgram,
   setConductorFaceSettings,
   setLvItemOutputDirection,
   setPipeSideMode,
@@ -308,17 +308,6 @@ const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3',
 const assemblerInputSlotIds = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds] as const
 const machineReviewStates: MachineReviewState[] = ['idle', 'active', 'filled', 'blocked', 'missing', 'disconnected']
 const airCollectorRecipe = processRecipes.find((recipe) => recipe.id === 'collect_air')
-const assemblerProgramOptions = [
-  { id: null, number: 0, label: 'Auto' },
-  ...processRecipes
-    .filter((recipe) => recipe.machineId === 'lvAssembler' && recipe.programNumber !== undefined)
-    .sort((left, right) => left.programNumber! - right.programNumber!)
-    .map((recipe) => ({
-      id: recipe.id,
-      number: recipe.programNumber!,
-      label: recipe.name.replace(/^Assemble LV /, ''),
-    })),
-]
 const airCollectorCollectionLitresPerSecond = airCollectorRecipe
   ? (airCollectorRecipe.fluidOutputs?.[0]?.amount ?? airCollectorRecipe.fluidOutput?.amount ?? 0) / (airCollectorRecipe.durationMs / 1000)
   : 0
@@ -1540,7 +1529,9 @@ function findSelectedProcessRecipe(instance: MachineInstance | null) {
   if (!instance) return undefined
   return processRecipes.find((recipe) => {
     if (recipe.machineId !== instance.machineId) return false
-    if (instance.process.configuredRecipeId ? recipe.id !== instance.process.configuredRecipeId : recipe.autoSelectable === false) return false
+    if (instance.process.configuredProgramNumber > 0
+      ? recipe.programNumber !== instance.process.configuredProgramNumber
+      : recipe.autoSelectable === false) return false
     if (recipe.fluidOnly) return true
     if (instance.machineId === 'lvAssembler') {
       const slots = assemblerInputSlotIds.map((slotId) => instance.process[slotId])
@@ -3024,10 +3015,9 @@ function App() {
     ? conductorFaceSettings(selectedPipeConfig, selectedConductorLane, selectedConductorDirection)
     : null
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
-  const selectedAssemblerProgramIndex = selectedMachine?.machineId === 'lvAssembler'
-    ? Math.max(0, assemblerProgramOptions.findIndex((program) => program.id === selectedMachine.process.configuredRecipeId))
-    : 0
-  const selectedAssemblerProgram = assemblerProgramOptions[selectedAssemblerProgramIndex]
+  const selectedMachineProgramRecipe = selectedMachine && selectedMachine.process.configuredProgramNumber > 0
+    ? processRecipes.find((recipe) => recipe.machineId === selectedMachine.machineId && recipe.programNumber === selectedMachine.process.configuredProgramNumber)
+    : undefined
   const selectedMachinePopupRecipes = selectedMachine ? processRecipesForMachine(selectedMachine.machineId, processRecipes) : []
   const selectedMachineRecipeCount = selectedMachinePopupRecipes.length
   const clampedMachinePopupRecipeIndex = Math.min(
@@ -4395,8 +4385,8 @@ function App() {
       return
     }
     if (selectedMachinePopupLoadStatus.ready) {
-      if (selectedMachinePopupRecipe.autoSelectable === false) {
-        setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, selectedMachinePopupRecipe.id))
+      if (selectedMachinePopupRecipe.programNumber !== undefined) {
+        setState((current) => setConfiguredProcessProgram(current, selectedMachine.uid, selectedMachinePopupRecipe.programNumber!))
       }
       const fluidInputs = selectedMachinePopupRecipe.fluidInputs ?? (selectedMachinePopupRecipe.fluidInput ? [selectedMachinePopupRecipe.fluidInput] : [])
       setMachineRecipeLoadNotice(selectedMachinePopupRecipe.programNumber !== undefined
@@ -6664,6 +6654,41 @@ function App() {
                   </div>
                 )}
                 <div className="machine-terminal-body">
+                {machines[selectedMachine.machineId].tier === 'lv' && (
+                  <div className="machine-program-control" aria-label={`${machines[selectedMachine.machineId].name} program`}>
+                    <button
+                      type="button"
+                      aria-label="Previous program"
+                      disabled={selectedMachine.process.progressMs > 0 || selectedMachine.process.configuredProgramNumber === 0}
+                      onClick={() => setState((current) => setConfiguredProcessProgram(
+                        current,
+                        selectedMachine.uid,
+                        selectedMachine.process.configuredProgramNumber - 1,
+                      ))}
+                    >
+                      <ChevronLeft size={18} aria-hidden="true" />
+                    </button>
+                    <span>
+                      <small>Program</small>
+                      <strong>{selectedMachine.process.configuredProgramNumber}</strong>
+                      <em>{selectedMachine.process.configuredProgramNumber === 0
+                        ? 'Auto'
+                        : selectedMachineProgramRecipe?.name ?? 'Reserved'}</em>
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Next program"
+                      disabled={selectedMachine.process.progressMs > 0 || selectedMachine.process.configuredProgramNumber === 10}
+                      onClick={() => setState((current) => setConfiguredProcessProgram(
+                        current,
+                        selectedMachine.uid,
+                        selectedMachine.process.configuredProgramNumber + 1,
+                      ))}
+                    >
+                      <ChevronRight size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
                 {!isMachineAutomationOpen && machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                 <>
                   <div className={selectedMachineUsesTerminalInventory ? 'machine-inventory-browser' : undefined}>
@@ -7132,35 +7157,6 @@ function App() {
                   })()
                 ) : selectedMachine.machineId === 'lvAssembler' ? (
                   <div className="furnace-interface lvAssembler-process-interface">
-                    <div className="assembler-program-control" aria-label="Assembler recipe program">
-                      <button
-                        type="button"
-                        aria-label="Previous Assembler program"
-                        disabled={selectedMachine.process.progressMs > 0 || selectedAssemblerProgramIndex === 0}
-                        onClick={() => {
-                          const program = assemblerProgramOptions[selectedAssemblerProgramIndex - 1]
-                          if (program) setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, program.id))
-                        }}
-                      >
-                        <ChevronLeft size={18} aria-hidden="true" />
-                      </button>
-                      <span>
-                        <small>Program</small>
-                        <strong>{selectedAssemblerProgram.number}</strong>
-                        <em>{selectedAssemblerProgram.label}</em>
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Next Assembler program"
-                        disabled={selectedMachine.process.progressMs > 0 || selectedAssemblerProgramIndex === assemblerProgramOptions.length - 1}
-                        onClick={() => {
-                          const program = assemblerProgramOptions[selectedAssemblerProgramIndex + 1]
-                          if (program) setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, program.id))
-                        }}
-                      >
-                        <ChevronRight size={18} aria-hidden="true" />
-                      </button>
-                    </div>
                     <div className="assembler-stage-lot" aria-label={`Assembler stage ${selectedMachineStatusLabel}`}>
                       <span className="assembler-stage-press" aria-hidden="true" />
                       <span className="assembler-stage-table" aria-hidden="true" />
@@ -7393,25 +7389,6 @@ function App() {
                         <span><small>Time</small><strong>{selectedMachineProcessTimeLabel || '--'}</strong></span>
                         <span><small>{isArc ? 'Power' : isBbf ? 'Heat' : 'Byproduct'}</small><strong>{isArc ? `${formatAmount(selectedMachineEuUsagePerSecond)} EU/s` : isBbf ? (process.fuelRemainingMs > 0 ? 'Hot' : 'Cold') : `${formatLitres(process.fluids.creosote ?? 0)}L creosote`}</strong>{isCokeOven && <em>{formatAmount(fluidProductionRate)}L/s made · {formatAmount(fluidOutflow)}L/s out</em>}</span>
                       </div>
-                      {isArc && (
-                        <div className="arc-program-control" aria-label="Arc Furnace recipe program">
-                          {[
-                            { id: null, number: 0, label: 'Auto' },
-                            { id: 'arc_blast_oxygen_steel', number: 1, label: 'Oxygen Steel' },
-                            { id: 'arc_blast_nitrogen_aluminium', number: 2, label: 'Nitrogen Aluminium' },
-                          ].map((program) => {
-                            const selected = process.configuredRecipeId === program.id
-                            return <button
-                              type="button"
-                              className={selected ? 'selected' : ''}
-                              aria-pressed={selected}
-                              disabled={process.progressMs > 0}
-                              onClick={() => setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, program.id))}
-                              key={program.number}
-                            ><b>{program.number}</b><span>{program.label}</span></button>
-                          })}
-                        </div>
-                      )}
                       {isArc && selectedArcStructure && (
                         <div className="arc-hatch-strip" aria-label="Arc Furnace Energy Hatches">
                           {selectedArcStructure.energyHatches.map((hatch, index) => (

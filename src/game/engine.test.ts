@@ -98,7 +98,7 @@ import {
   saveGame,
   sellShopItem,
   setFluidOutputDirection,
-  setConfiguredProcessRecipe,
+  setConfiguredProcessProgram,
   setConductorFaceSettings,
   setHopperOutputDirection,
   setLvItemOutputDirection,
@@ -1128,6 +1128,25 @@ describe('game engine', () => {
     expect(state.version).toBe(14)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
     expect(state.machineInstances[0].process.output2).toBeNull()
+    expect(state.machineInstances[0].process.configuredProgramNumber).toBe(0)
+  })
+
+  it('migrates legacy recipe selections to reusable program numbers', () => {
+    const state = loadGame(JSON.stringify({
+      version: 14,
+      factoryFoundationLevel: 2,
+      machines: { lvAssembler: 1 },
+      machineInstances: [{
+        uid: 'old-assembler',
+        machineId: 'lvAssembler',
+        x: 0,
+        y: 0,
+        level: 1,
+        process: { configuredRecipeId: 'lv_assemble_fluid_output_hatch' },
+      }],
+    }), 1000)
+
+    expect(state.machineInstances[0].process.configuredProgramNumber).toBe(4)
     expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
   })
 
@@ -4891,7 +4910,7 @@ describe('game engine', () => {
     const assembler = state.machineInstances[0]
     state = insertProcessSlot(state, assembler.uid, 'input', 'lvMachineHull', 1)
     state = insertProcessSlot(state, assembler.uid, 'secondaryInput', 'lvConveyor', 1)
-    state = setConfiguredProcessRecipe(state, assembler.uid, 'lv_assemble_input_bus')
+    state = setConfiguredProcessProgram(state, assembler.uid, 1)
     state.machineInstances[0].process.fluids.glue = 2
     state.machineInstances[0].process.euStored = 128
 
@@ -6186,11 +6205,30 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'arcBlastFurnace', 0, 0)
     const controller = state.machineInstances[0]
 
-    state = setConfiguredProcessRecipe(state, controller.uid, 'arc_blast_oxygen_steel')
-    expect(state.machineInstances[0].process.configuredRecipeId).toBe('arc_blast_oxygen_steel')
+    state = setConfiguredProcessProgram(state, controller.uid, 1)
+    expect(state.machineInstances[0].process.configuredProgramNumber).toBe(1)
 
-    state = setConfiguredProcessRecipe(state, controller.uid, null)
-    expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
+    state = setConfiguredProcessProgram(state, controller.uid, 0)
+    expect(state.machineInstances[0].process.configuredProgramNumber).toBe(0)
+  })
+
+  it('stores reserved programs 0-10 on any LV machine', () => {
+    let state = createFactoryState()
+    state.machines.lvMacerator = 1
+    state = placeMachineInstance(state, 'lvMacerator', 0, 0)
+    const macerator = state.machineInstances[0]
+
+    state = setConfiguredProcessProgram(state, macerator.uid, 10)
+    expect(state.machineInstances[0].process.configuredProgramNumber).toBe(10)
+
+    const unchanged = setConfiguredProcessProgram(state, macerator.uid, 11)
+    expect(unchanged).toBe(state)
+
+    state.machineInstances[0].process.input = { id: 'copperOre', amount: 1 }
+    state.machineInstances[0].process.euStored = 64
+    state = tickGame(state, 10000).state
+    expect(state.machineInstances[0].process.input).toEqual({ id: 'copperOre', amount: 1 })
+    expect(state.machineInstances[0].process.output).toBeNull()
   })
 
   it('uses Assembler programs to distinguish matching bus and hatch inputs', () => {
@@ -6221,7 +6259,7 @@ describe('game engine', () => {
     state = loadProcessRecipeInputs(state, assembler.uid, 'lv_assemble_output_bus')
     state = tickGame(state, 8000).state
 
-    expect(state.machineInstances[0].process.configuredRecipeId).toBe('lv_assemble_output_bus')
+    expect(state.machineInstances[0].process.configuredProgramNumber).toBe(2)
     expect(state.machines.lvInputBus).toBe(0)
     expect(state.machines.lvOutputBus).toBe(1)
   })

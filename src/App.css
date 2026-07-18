@@ -14516,28 +14516,27 @@ button.button-primary:disabled,
 
 .machine-terminal .lvAssembler-process-interface {
   grid-template-areas:
-    "program program"
     "inputs energy"
     "stage energy"
     "readouts output"
     "load load";
   grid-template-columns: minmax(0, 1fr) 82px;
-  grid-template-rows: auto auto minmax(174px, 27svh) auto 38px;
+  grid-template-rows: auto minmax(174px, 27svh) auto 38px;
 }
 
-.machine-terminal .assembler-program-control {
+.machine-terminal .machine-program-control {
   align-items: stretch;
   background: #0c1212;
   border: 1px solid #55615e;
   display: grid;
   gap: 5px;
-  grid-area: program;
   grid-template-columns: 38px minmax(0, 1fr) 38px;
+  margin: 0 0 6px;
   min-height: 42px;
   padding: 4px;
 }
 
-.machine-terminal .assembler-program-control button {
+.machine-terminal .machine-program-control button {
   align-items: center;
   background: #252d2b;
   border: 1px solid #697672;
@@ -14548,12 +14547,12 @@ button.button-primary:disabled,
   padding: 0;
 }
 
-.machine-terminal .assembler-program-control button:disabled {
+.machine-terminal .machine-program-control button:disabled {
   color: #5f6967;
   opacity: 0.55;
 }
 
-.machine-terminal .assembler-program-control span {
+.machine-terminal .machine-program-control span {
   align-items: center;
   display: grid;
   gap: 6px;
@@ -14561,13 +14560,13 @@ button.button-primary:disabled,
   min-width: 0;
 }
 
-.machine-terminal .assembler-program-control small {
+.machine-terminal .machine-program-control small {
   color: #8fa5a1;
   font-size: 0.48rem;
   text-transform: uppercase;
 }
 
-.machine-terminal .assembler-program-control strong {
+.machine-terminal .machine-program-control strong {
   background: #050808;
   color: #8fe5ef;
   display: grid;
@@ -14576,7 +14575,7 @@ button.button-primary:disabled,
   place-items: center;
 }
 
-.machine-terminal .assembler-program-control em {
+.machine-terminal .machine-program-control em {
   color: #f0e7b1;
   font-size: 0.56rem;
   font-style: normal;
@@ -17197,52 +17196,6 @@ button.button-primary:disabled,
     min-height: 215px;
   }
 }
-.arc-program-control {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid #4d514d;
-  background: #111513;
-}
-
-.arc-program-control button {
-  min-width: 0;
-  min-height: 42px;
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid #555c57;
-  border-radius: 2px;
-  background: #202522;
-  color: #c8ceca;
-  font: inherit;
-}
-
-.arc-program-control button.selected {
-  border-color: #73c8d8;
-  background: #17333a;
-  color: #e4fbff;
-}
-
-.arc-program-control button b {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  background: #090c0b;
-  color: #9edfea;
-}
-
-.arc-program-control button span {
-  min-width: 0;
-  font-size: 9px;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
 .furnace-modal.machine-terminal .dual-boiler-vessels {
   grid-template-columns: minmax(58px, 0.62fr) minmax(58px, 0.62fr) minmax(0, 1fr) minmax(64px, 0.68fr);
 }

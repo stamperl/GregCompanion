@@ -310,6 +310,7 @@ function emptyProcessState(): MachineProcessState {
     storageSlots: [],
     batterySlots: [],
     activeRecipeId: null,
+    configuredProgramNumber: 0,
     configuredRecipeId: null,
     progressMs: 0,
     durationMs: 0,
@@ -343,7 +344,8 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     storageSlots: process.storageSlots.map(cloneProcessSlot),
     batterySlots: [...process.batterySlots],
     activeRecipeId: process.activeRecipeId,
-    configuredRecipeId: process.configuredRecipeId,
+    configuredProgramNumber: process.configuredProgramNumber,
+    configuredRecipeId: null,
     progressMs: process.progressMs,
     durationMs: process.durationMs,
     fuelRemainingMs: process.fuelRemainingMs,
@@ -403,6 +405,8 @@ function normalizeProcessSlot(slot: unknown): ProcessSlot {
 
 function normalizeProcessState(process?: Partial<MachineProcessState>): MachineProcessState {
   if (!process) return emptyProcessState()
+  const legacyProgramNumber = processRecipes.find((recipe) => recipe.id === process.configuredRecipeId)?.programNumber
+  const configuredProgramNumber = process.configuredProgramNumber ?? legacyProgramNumber ?? 0
   return {
     input: normalizeProcessSlot(process.input),
     secondaryInput: normalizeProcessSlot(process.secondaryInput),
@@ -418,7 +422,10 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
       ? process.batterySlots.map((id) => (id && isBufferBatteryId(id) ? id : null)).slice(0, 8)
       : [],
     activeRecipeId: process.activeRecipeId ?? null,
-    configuredRecipeId: process.configuredRecipeId ?? null,
+    configuredProgramNumber: Number.isInteger(configuredProgramNumber) && configuredProgramNumber >= 0 && configuredProgramNumber <= 10
+      ? configuredProgramNumber
+      : 0,
+    configuredRecipeId: null,
     progressMs: Math.max(0, Math.floor(process.progressMs ?? 0)),
     durationMs: Math.max(0, Math.floor(process.durationMs ?? 0)),
     fuelRemainingMs: Math.max(0, Math.floor(process.fuelRemainingMs ?? 0)),
@@ -1842,10 +1849,10 @@ function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, sec
   return undefined
 }
 
-function findMatchedProcessRecipe(machineId: MachineId, input: ProcessSlot, secondaryInput: ProcessSlot = null, extraInputs: ProcessSlot[] = [], configuredRecipeId: string | null = null) {
+function findMatchedProcessRecipe(machineId: MachineId, input: ProcessSlot, secondaryInput: ProcessSlot = null, extraInputs: ProcessSlot[] = [], configuredProgramNumber = 0) {
   return processRecipes
     .filter((recipe) => recipe.machineId === machineId)
-    .filter((recipe) => configuredRecipeId ? recipe.id === configuredRecipeId : recipe.autoSelectable !== false)
+    .filter((recipe) => configuredProgramNumber > 0 ? recipe.programNumber === configuredProgramNumber : recipe.autoSelectable !== false)
     .map((recipe) => matchProcessRecipeInputs(recipe, input, secondaryInput, extraInputs))
     .find((match): match is MatchedProcessRecipe => Boolean(match))
 }
@@ -4150,7 +4157,7 @@ export function loadProcessRecipeInputs(state: GameState, uid: string, recipeId:
     : undefined
   if (!instance || !recipe || !status.canLoad) return state
 
-  let next = recipe.autoSelectable === false ? setConfiguredProcessRecipe(state, uid, recipe.id) : state
+  let next = recipe.programNumber !== undefined ? setConfiguredProcessProgram(state, uid, recipe.programNumber) : state
   if (status.ready) return next
   for (const { slotId, amount } of processRecipeItemAssignments(recipe)) {
     const currentInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
@@ -4472,7 +4479,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
     process.euCapacity = machineEuCapacity(instance.machineId)
     process.euStored = Math.min(process.euStored, process.euCapacity)
   }
-  const initialMatch = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process), process.configuredRecipeId)
+  const initialMatch = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process), process.configuredProgramNumber)
   if (!initialMatch && !arcStructure) fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   if (arcStructure && initialMatch) {
     const requiredPerHatch = ((recipeEuCost(initialMatch.recipe) / initialMatch.recipe.durationMs) * elapsedMs) / arcStructure.energyHatches.length
@@ -4491,7 +4498,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   let remainingMs = elapsedMs
 
   while (remainingMs > 0) {
-    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process), process.configuredRecipeId)
+    const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(process), process.configuredProgramNumber)
     const recipe = match?.recipe
     if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || !canCentrifugeUniversalOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(process, recipe))) {
       process.activeRecipeId = null
@@ -5038,18 +5045,20 @@ export function setLvItemOutputDirection(state: GameState, uid: string, directio
   return next
 }
 
-export function setConfiguredProcessRecipe(state: GameState, uid: string, recipeId: string | null) {
+export function setConfiguredProcessProgram(state: GameState, uid: string, programNumber: number) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (
     !instance ||
-    (instance.machineId !== 'arcBlastFurnace' && instance.machineId !== 'lvAssembler') ||
+    machines[instance.machineId].tier !== 'lv' ||
+    !Number.isInteger(programNumber) ||
+    programNumber < 0 ||
+    programNumber > 10 ||
     instance.process.progressMs > 0
   ) return state
-  const validRecipe = recipeId === null || processRecipes.some((recipe) => recipe.id === recipeId && recipe.machineId === instance.machineId && recipe.autoSelectable === false)
-  if (!validRecipe) return state
   const next = cloneState(state)
   const target = next.machineInstances.find((candidate) => candidate.uid === uid)!
-  target.process.configuredRecipeId = recipeId
+  target.process.configuredProgramNumber = programNumber
+  target.process.configuredRecipeId = null
   target.process.activeRecipeId = null
   target.process.durationMs = 0
   next.lastSavedAt = Date.now()
