@@ -2372,20 +2372,6 @@ export const recipes: Recipe[] = [
     unlockedBy: 'steelPlateQuest',
   },
   {
-    id: 'mix_cupronickel_dust',
-    name: 'Alloy Cupronickel Ingots',
-    description: 'Nickel and copper dust alloy into heat-resistant coil stock.',
-    tier: 'lv',
-    durationMs: 3600,
-    inputs: [
-      { id: 'nickelDust', amount: 1 },
-      { id: 'copperDust', amount: 1 },
-    ],
-    pattern: ['nickelDust', 'copperDust', null, null, null, null, null, null, null],
-    outputs: [{ id: 'cupronickelIngot', amount: 2 }],
-    unlockedBy: 'steelPlateQuest',
-  },
-  {
     id: 'craft_heating_coil',
     name: 'Wind Heating Coil',
     description: 'Cupronickel and red alloy wire become the first electric furnace coil.',
@@ -4580,7 +4566,7 @@ export const processRecipes: ProcessRecipe[] = [
     euCost: 96,
     input: { id: 'copperDust', amount: 2 },
     secondaryInput: { id: 'nickelDust', amount: 2 },
-    output: { id: 'cupronickelIngot', amount: 5 },
+    output: { id: 'cupronickelIngot', amount: 3 },
   },
   {
     id: 'lv_alloy_cupronickel_ingots',
@@ -4592,7 +4578,7 @@ export const processRecipes: ProcessRecipe[] = [
     euCost: 96,
     input: { id: 'copperIngot', amount: 2 },
     secondaryInput: { id: 'nickelIngot', amount: 2 },
-    output: { id: 'cupronickelIngot', amount: 4 },
+    output: { id: 'cupronickelIngot', amount: 3 },
   },
   {
     id: 'lv_alloy_invar',
@@ -6239,7 +6225,7 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Make cupronickel',
-    description: 'Process nickel and copper into cupronickel. This alloy is the bridge from basic LV machines into electric blast heat.',
+    description: 'Alloy copper and nickel in the LV Alloy Smelter. Cupronickel is the bridge from basic LV machines into electric blast heat.',
     position: { x: 1690, y: 180 },
     icon: { type: 'resource', id: 'cupronickelIngot' },
     prerequisites: ['findNickelQuest'],

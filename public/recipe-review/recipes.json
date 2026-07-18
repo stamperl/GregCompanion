@@ -4577,42 +4577,6 @@
     },
     {
       "kind": "crafting",
-      "id": "mix_cupronickel_dust",
-      "name": "Alloy Cupronickel Ingots",
-      "description": "Nickel and copper dust alloy into heat-resistant coil stock.",
-      "tier": "lv",
-      "durationMs": 3600,
-      "inputs": [
-        {
-          "id": "nickelDust",
-          "amount": 1
-        },
-        {
-          "id": "copperDust",
-          "amount": 1
-        }
-      ],
-      "pattern": [
-        "nickelDust",
-        "copperDust",
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "outputs": [
-        {
-          "id": "cupronickelIngot",
-          "amount": 2
-        }
-      ],
-      "unlockedBy": "steelPlateQuest"
-    },
-    {
-      "kind": "crafting",
       "id": "craft_heating_coil",
       "name": "Wind Heating Coil",
       "description": "Cupronickel and red alloy wire become the first electric furnace coil.",
@@ -8920,7 +8884,29 @@
       },
       "output": {
         "id": "cupronickelIngot",
-        "amount": 5
+        "amount": 3
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_alloy_cupronickel_ingots",
+      "name": "LV Alloy Cupronickel Ingots",
+      "description": "Remelt copper and nickel ingots into cupronickel when the ore line has already been refined.",
+      "tier": "lv",
+      "machineId": "lvAlloySmelter",
+      "durationMs": 8000,
+      "euCost": 96,
+      "input": {
+        "id": "copperIngot",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "nickelIngot",
+        "amount": 2
+      },
+      "output": {
+        "id": "cupronickelIngot",
+        "amount": 3
       }
     },
     {

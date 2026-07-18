@@ -4950,8 +4950,8 @@ describe('game engine', () => {
       ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 6 }],
       ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 6 }, { id: 'basicBoard', amount: 1 }],
       ['lv_assembler_aluminium_piston', 'lvAssembler', { id: 'lvMotor', amount: 1 }, { id: 'aluminiumGear', amount: 1 }, { id: 'lvPiston', amount: 1 }],
-      ['lv_alloy_cupronickel', 'lvAlloySmelter', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 5 }],
-      ['lv_alloy_cupronickel_ingots', 'lvAlloySmelter', { id: 'copperIngot', amount: 2 }, { id: 'nickelIngot', amount: 2 }, { id: 'cupronickelIngot', amount: 4 }],
+      ['lv_alloy_cupronickel', 'lvAlloySmelter', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 3 }],
+      ['lv_alloy_cupronickel_ingots', 'lvAlloySmelter', { id: 'copperIngot', amount: 2 }, { id: 'nickelIngot', amount: 2 }, { id: 'cupronickelIngot', amount: 3 }],
     ] as const
 
     for (const [id, machineId, input, secondaryInput, output] of expectations) {
@@ -4970,6 +4970,23 @@ describe('game engine', () => {
       expect(recipe?.output, id).toEqual(output)
       expect(recipe?.euCost, id).toBeGreaterThan(0)
     }
+  })
+
+  it('only produces cupronickel in the LV Alloy Smelter', () => {
+    const handRecipes = recipes.filter((recipe) =>
+      recipe.outputs.some((output) => output.id === 'cupronickelIngot'),
+    )
+    const machineRecipes = processRecipes.filter((recipe) =>
+      recipe.output.id === 'cupronickelIngot' ||
+      recipe.secondaryOutput?.id === 'cupronickelIngot',
+    )
+
+    expect(handRecipes).toEqual([])
+    expect(machineRecipes.map((recipe) => recipe.id)).toEqual([
+      'lv_alloy_cupronickel',
+      'lv_alloy_cupronickel_ingots',
+    ])
+    expect(machineRecipes.every((recipe) => recipe.machineId === 'lvAlloySmelter')).toBe(true)
   })
 
   it('crafts empty battery cells by hand or in an efficient LV Assembler batch', () => {

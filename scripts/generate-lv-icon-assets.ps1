@@ -308,7 +308,7 @@ Recolor-Material (Icon-Path 'resources' 'tinDust') (Icon-Path 'resources' 'nicke
 Recolor-Material (Icon-Path 'resources' 'copperDust') (Icon-Path 'resources' 'bauxiteDust') '#6e342b' '#b35b43' '#ee9e69'
 Recolor-Material (Icon-Path 'resources' 'tinDust') (Icon-Path 'resources' 'aluminiumDust') '#708089' '#c0ced2' '#f5fbfb'
 Recolor-Material (Icon-Path 'resources' 'tinIngot') (Icon-Path 'resources' 'nickelIngot') '#3e5b54' '#89ad9c' '#d7ece2'
-Recolor-Material (Icon-Path 'resources' 'bronzeIngot') (Icon-Path 'resources' 'cupronickelIngot') '#73402e' '#c28455' '#f3c282'
+Copy-Item -LiteralPath (Join-Path $root 'public/icon-reviews/cupronickel-ingot-v1/cupronickelIngot-candidate.png') -Destination (Icon-Path 'resources' 'cupronickelIngot') -Force
 Recolor-Material (Icon-Path 'resources' 'ironIngot') (Icon-Path 'resources' 'aluminiumIngot') '#6f7c84' '#c7d4d8' '#f7ffff'
 Recolor-Material (Icon-Path 'resources' 'steelPlate') (Icon-Path 'resources' 'aluminiumPlate') '#64737b' '#bdcbd0' '#f6ffff'
 Recolor-Material (Icon-Path 'resources' 'steelRod') (Icon-Path 'resources' 'aluminiumRod') '#64737b' '#bdcbd0' '#f6ffff'

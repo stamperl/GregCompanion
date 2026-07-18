@@ -12,6 +12,7 @@
     { "id": "steelScrew", "review": "dark-steel-v1", "status": "approved" },
     { "id": "diamondAxe", "review": "diamond-tools-v1", "status": "approved" },
     { "id": "diamondPickaxe", "review": "diamond-tools-v1", "status": "approved" },
-    { "id": "diamondShovel", "review": "diamond-tools-v1", "status": "approved" }
+    { "id": "diamondShovel", "review": "diamond-tools-v1", "status": "approved" },
+    { "id": "cupronickelIngot", "review": "cupronickel-ingot-v1", "status": "approved" }
   ]
 }
