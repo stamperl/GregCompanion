@@ -3273,7 +3273,7 @@ function App() {
         isConductorMachine(selectedMachine.machineId) ||
         isEuCableMachine(selectedMachine.machineId) ||
         isItemHopperMachine(selectedMachine.machineId) ||
-        isFluidOutletConfigurableMachine(selectedMachine.machineId)),
+        (isFluidOutletConfigurableMachine(selectedMachine.machineId) && !selectedMachineCanAutomateFluids)),
   )
   const selectedMachineCanRemove = Boolean(selectedMachineSource && (machines[selectedMachineSource.machineId].placeable || selectedMachineSource.machineId === 'conductorBundle' || selectedMachineMultiblock))
   const selectedMachineIsStructureOnly = Boolean(selectedMachine && machines[selectedMachine.machineId].processKind === 'none')
