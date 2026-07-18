@@ -4638,15 +4638,17 @@ export const processRecipes: ProcessRecipe[] = [
     machineOutput: { id: 'fluidConductor', amount: 2 },
   },
   ...([
-    ['lv_assemble_energy_hatch_2a', 'Assemble 2A LV Energy Hatch', 'lvEnergyHatch2A', 'tinCable2A'],
-    ['lv_assemble_input_bus', 'Assemble LV Input Bus', 'lvInputBus', 'lvConveyor'],
-    ['lv_assemble_output_bus', 'Assemble LV Output Bus', 'lvOutputBus', 'lvConveyor'],
-    ['lv_assemble_fluid_input_hatch', 'Assemble LV Fluid Input Hatch', 'lvFluidInputHatch', 'lvPump'],
-    ['lv_assemble_fluid_output_hatch', 'Assemble LV Fluid Output Hatch', 'lvFluidOutputHatch', 'lvPump'],
-  ] as const).map(([id, name, machineId, componentId]) => ({
+    ['lv_assemble_energy_hatch_2a', 'Assemble 2A LV Energy Hatch', 'lvEnergyHatch2A', 'tinCable2A', undefined],
+    ['lv_assemble_input_bus', 'Assemble LV Input Bus', 'lvInputBus', 'lvConveyor', 1],
+    ['lv_assemble_output_bus', 'Assemble LV Output Bus', 'lvOutputBus', 'lvConveyor', 2],
+    ['lv_assemble_fluid_input_hatch', 'Assemble LV Fluid Input Hatch', 'lvFluidInputHatch', 'lvPump', 3],
+    ['lv_assemble_fluid_output_hatch', 'Assemble LV Fluid Output Hatch', 'lvFluidOutputHatch', 'lvPump', 4],
+  ] as const).map(([id, name, machineId, componentId, programNumber]) => ({
     id,
     name,
-    description: `Use powered assembly to fit a ${name.replace('Assemble ', '')} without hand-tool waste.`,
+    description: programNumber === undefined
+      ? `Use powered assembly to fit a ${name.replace('Assemble ', '')} without hand-tool waste.`
+      : `Set Assembler Program ${programNumber} to fit a ${name.replace('Assemble ', '')} without hand-tool waste.`,
     tier: 'lv' as const,
     machineId: 'lvAssembler' as const,
     durationMs: 8000,
@@ -4656,6 +4658,7 @@ export const processRecipes: ProcessRecipe[] = [
     fluidInput: { id: 'glue' as const, amount: 2 },
     output: { id: 'lvMachineHull' as const, amount: 0 },
     machineOutput: { id: machineId, amount: 1 },
+    ...(programNumber === undefined ? {} : { programNumber, autoSelectable: false }),
   })),
   {
     id: 'lv_assembler_insulated_copper_wire',
@@ -6301,7 +6304,7 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Automate port assembly',
-    description: 'Build an LV Assembler for ports and battery cells. Keep Glue in its fluid input: every LV bus, hatch, and buffer uses it as a sealant, so stage resin separation before batch assembly.',
+    description: 'Build an LV Assembler for ports and battery cells. Program 0 handles unique recipes automatically; Programs 1-4 select the matching item bus or fluid hatch. Keep Glue in its fluid input as the sealant.',
     kind: 'main',
     position: { x: 2230, y: 380 },
     icon: { type: 'machine', id: 'lvAssembler' },

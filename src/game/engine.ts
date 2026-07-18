@@ -4144,14 +4144,14 @@ export function processRecipeInputLoadStatus(state: GameState, uid: string, reci
 
 export function loadProcessRecipeInputs(state: GameState, uid: string, recipeId: string) {
   const status = processRecipeInputLoadStatus(state, uid, recipeId)
-  if (!status.canLoad || status.ready) return state
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   const recipe = instance
     ? processRecipes.find((candidate) => candidate.id === recipeId && candidate.machineId === instance.machineId)
     : undefined
-  if (!instance || !recipe) return state
+  if (!instance || !recipe || !status.canLoad) return state
 
-  let next = state
+  let next = recipe.autoSelectable === false ? setConfiguredProcessRecipe(state, uid, recipe.id) : state
+  if (status.ready) return next
   for (const { slotId, amount } of processRecipeItemAssignments(recipe)) {
     const currentInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
     if (!currentInstance) return state
@@ -5040,7 +5040,11 @@ export function setLvItemOutputDirection(state: GameState, uid: string, directio
 
 export function setConfiguredProcessRecipe(state: GameState, uid: string, recipeId: string | null) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!instance || instance.machineId !== 'arcBlastFurnace' || instance.process.progressMs > 0) return state
+  if (
+    !instance ||
+    (instance.machineId !== 'arcBlastFurnace' && instance.machineId !== 'lvAssembler') ||
+    instance.process.progressMs > 0
+  ) return state
   const validRecipe = recipeId === null || processRecipes.some((recipe) => recipe.id === recipeId && recipe.machineId === instance.machineId && recipe.autoSelectable === false)
   if (!validRecipe) return state
   const next = cloneState(state)

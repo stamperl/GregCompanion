@@ -4891,6 +4891,7 @@ describe('game engine', () => {
     const assembler = state.machineInstances[0]
     state = insertProcessSlot(state, assembler.uid, 'input', 'lvMachineHull', 1)
     state = insertProcessSlot(state, assembler.uid, 'secondaryInput', 'lvConveyor', 1)
+    state = setConfiguredProcessRecipe(state, assembler.uid, 'lv_assemble_input_bus')
     state.machineInstances[0].process.fluids.glue = 2
     state.machineInstances[0].process.euStored = 128
 
@@ -6190,6 +6191,39 @@ describe('game engine', () => {
 
     state = setConfiguredProcessRecipe(state, controller.uid, null)
     expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
+  })
+
+  it('uses Assembler programs to distinguish matching bus and hatch inputs', () => {
+    const programs = processRecipes
+      .filter((recipe) => recipe.machineId === 'lvAssembler' && recipe.programNumber !== undefined)
+      .map((recipe) => [recipe.programNumber, recipe.id])
+    expect(programs).toEqual([
+      [1, 'lv_assemble_input_bus'],
+      [2, 'lv_assemble_output_bus'],
+      [3, 'lv_assemble_fluid_input_hatch'],
+      [4, 'lv_assemble_fluid_output_hatch'],
+    ])
+
+    let state = createFactoryState()
+    state.machines.lvAssembler = 1
+    state = placeMachineInstance(state, 'lvAssembler', 0, 0)
+    let assembler = state.machineInstances[0]
+    assembler.process.input = { id: 'lvMachineHull', amount: 1 }
+    assembler.process.secondaryInput = { id: 'lvConveyor', amount: 1 }
+    assembler.process.fluids.glue = 2
+    assembler.process.euStored = 128
+
+    state = tickGame(state, 8000).state
+    expect(state.machines.lvInputBus).toBe(0)
+    expect(state.machines.lvOutputBus).toBe(0)
+
+    assembler = state.machineInstances[0]
+    state = loadProcessRecipeInputs(state, assembler.uid, 'lv_assemble_output_bus')
+    state = tickGame(state, 8000).state
+
+    expect(state.machineInstances[0].process.configuredRecipeId).toBe('lv_assemble_output_bus')
+    expect(state.machines.lvInputBus).toBe(0)
+    expect(state.machines.lvOutputBus).toBe(1)
   })
 })
 

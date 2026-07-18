@@ -308,6 +308,17 @@ const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3',
 const assemblerInputSlotIds = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds] as const
 const machineReviewStates: MachineReviewState[] = ['idle', 'active', 'filled', 'blocked', 'missing', 'disconnected']
 const airCollectorRecipe = processRecipes.find((recipe) => recipe.id === 'collect_air')
+const assemblerProgramOptions = [
+  { id: null, number: 0, label: 'Auto' },
+  ...processRecipes
+    .filter((recipe) => recipe.machineId === 'lvAssembler' && recipe.programNumber !== undefined)
+    .sort((left, right) => left.programNumber! - right.programNumber!)
+    .map((recipe) => ({
+      id: recipe.id,
+      number: recipe.programNumber!,
+      label: recipe.name.replace(/^Assemble LV /, ''),
+    })),
+]
 const airCollectorCollectionLitresPerSecond = airCollectorRecipe
   ? (airCollectorRecipe.fluidOutputs?.[0]?.amount ?? airCollectorRecipe.fluidOutput?.amount ?? 0) / (airCollectorRecipe.durationMs / 1000)
   : 0
@@ -3013,6 +3024,10 @@ function App() {
     ? conductorFaceSettings(selectedPipeConfig, selectedConductorLane, selectedConductorDirection)
     : null
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
+  const selectedAssemblerProgramIndex = selectedMachine?.machineId === 'lvAssembler'
+    ? Math.max(0, assemblerProgramOptions.findIndex((program) => program.id === selectedMachine.process.configuredRecipeId))
+    : 0
+  const selectedAssemblerProgram = assemblerProgramOptions[selectedAssemblerProgramIndex]
   const selectedMachinePopupRecipes = selectedMachine ? processRecipesForMachine(selectedMachine.machineId, processRecipes) : []
   const selectedMachineRecipeCount = selectedMachinePopupRecipes.length
   const clampedMachinePopupRecipeIndex = Math.min(
@@ -4380,10 +4395,15 @@ function App() {
       return
     }
     if (selectedMachinePopupLoadStatus.ready) {
+      if (selectedMachinePopupRecipe.autoSelectable === false) {
+        setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, selectedMachinePopupRecipe.id))
+      }
       const fluidInputs = selectedMachinePopupRecipe.fluidInputs ?? (selectedMachinePopupRecipe.fluidInput ? [selectedMachinePopupRecipe.fluidInput] : [])
-      setMachineRecipeLoadNotice(selectedMachinePopupRecipe.fluidOnly
-        ? fluidInputs.length > 0 ? 'This recipe only requires fluid inputs.' : 'No manual inputs. Keep the machine powered.'
-        : 'All required items are already loaded.')
+      setMachineRecipeLoadNotice(selectedMachinePopupRecipe.programNumber !== undefined
+        ? `Program ${selectedMachinePopupRecipe.programNumber} selected. All required items are loaded.`
+        : selectedMachinePopupRecipe.fluidOnly
+          ? fluidInputs.length > 0 ? 'This recipe only requires fluid inputs.' : 'No manual inputs. Keep the machine powered.'
+          : 'All required items are already loaded.')
       return
     }
 
@@ -6084,6 +6104,9 @@ function App() {
                                 {selectedRecipeProcessStats.costLabel}
                               </span>
                             )}
+                            {selectedProcessRecipe?.programNumber !== undefined && (
+                              <span className="recipe-process-pill">Program {selectedProcessRecipe.programNumber}</span>
+                            )}
                           </div>
                         </div>
                       )}
@@ -7109,6 +7132,35 @@ function App() {
                   })()
                 ) : selectedMachine.machineId === 'lvAssembler' ? (
                   <div className="furnace-interface lvAssembler-process-interface">
+                    <div className="assembler-program-control" aria-label="Assembler recipe program">
+                      <button
+                        type="button"
+                        aria-label="Previous Assembler program"
+                        disabled={selectedMachine.process.progressMs > 0 || selectedAssemblerProgramIndex === 0}
+                        onClick={() => {
+                          const program = assemblerProgramOptions[selectedAssemblerProgramIndex - 1]
+                          if (program) setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, program.id))
+                        }}
+                      >
+                        <ChevronLeft size={18} aria-hidden="true" />
+                      </button>
+                      <span>
+                        <small>Program</small>
+                        <strong>{selectedAssemblerProgram.number}</strong>
+                        <em>{selectedAssemblerProgram.label}</em>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Next Assembler program"
+                        disabled={selectedMachine.process.progressMs > 0 || selectedAssemblerProgramIndex === assemblerProgramOptions.length - 1}
+                        onClick={() => {
+                          const program = assemblerProgramOptions[selectedAssemblerProgramIndex + 1]
+                          if (program) setState((current) => setConfiguredProcessRecipe(current, selectedMachine.uid, program.id))
+                        }}
+                      >
+                        <ChevronRight size={18} aria-hidden="true" />
+                      </button>
+                    </div>
                     <div className="assembler-stage-lot" aria-label={`Assembler stage ${selectedMachineStatusLabel}`}>
                       <span className="assembler-stage-press" aria-hidden="true" />
                       <span className="assembler-stage-table" aria-hidden="true" />
@@ -7768,7 +7820,10 @@ function App() {
                       </button>
                       <div>
                         <strong>{selectedMachinePopupRecipe.name}</strong>
-                        <span>{clampedMachinePopupRecipeIndex + 1} / {selectedMachinePopupRecipes.length}</span>
+                        <span>
+                          {clampedMachinePopupRecipeIndex + 1} / {selectedMachinePopupRecipes.length}
+                          {selectedMachinePopupRecipe.programNumber !== undefined ? ` | Program ${selectedMachinePopupRecipe.programNumber}` : ''}
+                        </span>
                       </div>
                       <button type="button" aria-label="Next recipe" disabled={selectedMachinePopupRecipes.length < 2} onClick={() => handleCycleMachinePopupRecipe(1)}>
                         <ChevronRight size={18} />
