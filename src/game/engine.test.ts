@@ -2735,24 +2735,31 @@ describe('game engine', () => {
     expect(recipes.find((recipe) => recipe.id === 'build_furnace')?.pattern?.filter(Boolean)).toHaveLength(8)
   })
 
-  it('uses mirrored wrench positions for the LV fluid hatch recipes', () => {
-    const inputHatch = recipes.find((recipe) => recipe.id === 'lv_fluid_input_hatch')!
-    const outputHatch = recipes.find((recipe) => recipe.id === 'lv_fluid_output_hatch')!
-    const asGrid = (recipe: typeof inputHatch): CraftSlot[] =>
-      recipe.pattern!.map((id) => id ? { id } : null)
+  it('uses mirrored wrench positions for LV input and output port recipes', () => {
+    const portPairs = [
+      ['lv_input_bus', 'lv_output_bus', 'lvConveyor'],
+      ['lv_fluid_input_hatch', 'lv_fluid_output_hatch', 'lvPump'],
+    ] as const
 
-    expect(inputHatch.pattern).toEqual([
-      'lvPump', null, 'lvPump',
-      'ironWrench', 'lvMachineHull', null,
-      null, null, null,
-    ])
-    expect(outputHatch.pattern).toEqual([
-      'lvPump', null, 'lvPump',
-      null, 'lvMachineHull', 'ironWrench',
-      null, null, null,
-    ])
-    expect(findGridRecipe(asGrid(inputHatch), recipes)?.id).toBe(inputHatch.id)
-    expect(findGridRecipe(asGrid(outputHatch), recipes)?.id).toBe(outputHatch.id)
+    for (const [inputId, outputId, componentId] of portPairs) {
+      const input = recipes.find((recipe) => recipe.id === inputId)!
+      const output = recipes.find((recipe) => recipe.id === outputId)!
+      const asGrid = (recipe: typeof input): CraftSlot[] =>
+        recipe.pattern!.map((id) => id ? { id } : null)
+
+      expect(input.pattern).toEqual([
+        componentId, null, componentId,
+        'ironWrench', 'lvMachineHull', null,
+        null, null, null,
+      ])
+      expect(output.pattern).toEqual([
+        componentId, null, componentId,
+        null, 'lvMachineHull', 'ironWrench',
+        null, null, null,
+      ])
+      expect(findGridRecipe(asGrid(input), recipes)?.id).toBe(input.id)
+      expect(findGridRecipe(asGrid(output), recipes)?.id).toBe(output.id)
+    }
   })
 
   it('crafts LV casing and hull before LV machines consume hulls', () => {
