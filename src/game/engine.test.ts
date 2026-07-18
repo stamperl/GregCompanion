@@ -6231,6 +6231,26 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toBeNull()
   })
 
+  it('pauses autonomous LV production on an unused program', () => {
+    let state = createFactoryState()
+    state.machines.lvAirCollector = 1
+    state.machines.lvAutoMiner = 1
+    state = placeMachineInstance(state, 'lvAirCollector', 0, 0)
+    state = placeMachineInstance(state, 'lvAutoMiner', 1, 0)
+    const collector = state.machineInstances.find((instance) => instance.machineId === 'lvAirCollector')!
+    const miner = state.machineInstances.find((instance) => instance.machineId === 'lvAutoMiner')!
+    state = setConfiguredProcessProgram(state, collector.uid, 1)
+    state = setConfiguredProcessProgram(state, miner.uid, 1)
+    state = assignAutoMiner(state, miner.uid, 'stone')
+    state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.euStored = 64
+    state.machineInstances.find((instance) => instance.uid === miner.uid)!.process.euStored = 64
+
+    state = tickGame(state, lvAutoMinerActionMs * 8).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air ?? 0).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)!.process.output).toBeNull()
+  })
+
   it('uses Assembler programs to distinguish matching bus and hatch inputs', () => {
     const programs = processRecipes
       .filter((recipe) => recipe.machineId === 'lvAssembler' && recipe.programNumber !== undefined)

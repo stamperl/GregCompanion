@@ -5065,6 +5065,10 @@ export function setConfiguredProcessProgram(state: GameState, uid: string, progr
   return next
 }
 
+function canRunAutomaticLvProgram(instance: MachineInstance) {
+  return machines[instance.machineId].tier !== 'lv' || instance.process.configuredProgramNumber === 0
+}
+
 function tickLvItemAutomation(state: GameState, source: MachineInstance, elapsedMs: number) {
   if (!isLvItemAutomationMachine(source.machineId)) return
   if (!source.itemOutputDirection) {
@@ -5396,7 +5400,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
     }
     if (instance.machineId === 'cokeOven') tickCokeOven(next, instance, elapsedMs)
-    if (isLiquidSteamBoilerMachine(instance.machineId)) tickLiquidSteamBoiler(next, instance, elapsedMs)
+    if (isLiquidSteamBoilerMachine(instance.machineId) && canRunAutomaticLvProgram(instance)) tickLiquidSteamBoiler(next, instance, elapsedMs)
     if (instance.machineId === 'brickedBlastFurnace') tickBrickedBlastFurnace(instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
@@ -5406,7 +5410,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     if (isSteamPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickSteamProcessMachine(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
-    if (isEuProducerMachine(instance.machineId)) tickSteamTurbine(next, instance, elapsedMs)
+    if (isEuProducerMachine(instance.machineId) && canRunAutomaticLvProgram(instance)) tickSteamTurbine(next, instance, elapsedMs)
   }
   const euConsumersByDistance = next.machineInstances
     .map((instance) => ({ instance, sourceDistance: nearestConnectedEuSourceDistance(next, instance) }))
@@ -5419,7 +5423,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     if (isEuHatchMachine(instance.machineId)) fillInternalEuFromConnectedStorage(next, instance, elapsedMs, 2)
   }
   for (const instance of euConsumersByDistance) {
-    if (instance.machineId === 'lvAirCollector') tickAirCollector(next, instance, elapsedMs)
+    if (instance.machineId === 'lvAirCollector' && canRunAutomaticLvProgram(instance)) tickAirCollector(next, instance, elapsedMs)
     else if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
@@ -5427,7 +5431,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     for (const fluidId of storedFluidTypes(instance.process)) pushFluidToConnectedStorage(next, instance, fluidId, elapsedMs)
   }
   for (const instance of euConsumersByDistance) {
-    if (isAutoMinerMachine(instance.machineId)) tickAutoMiner(next, instance, elapsedMs)
+    if (isAutoMinerMachine(instance.machineId) && canRunAutomaticLvProgram(instance)) tickAutoMiner(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
     if (instance.machineId !== 'arcBlastFurnace') continue
