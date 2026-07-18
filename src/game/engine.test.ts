@@ -6231,6 +6231,18 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toBeNull()
   })
 
+  it('does not apply recipe programs to LV battery buffers', () => {
+    let state = createFactoryState()
+    state.machines.lvBatteryBuffer = 1
+    state = placeMachineInstance(state, 'lvBatteryBuffer', 0, 0)
+    const buffer = state.machineInstances[0]
+
+    const unchanged = setConfiguredProcessProgram(state, buffer.uid, 1)
+
+    expect(unchanged).toBe(state)
+    expect(unchanged.machineInstances[0].process.configuredProgramNumber).toBe(0)
+  })
+
   it('pauses autonomous LV production on an unused program', () => {
     let state = createFactoryState()
     state.machines.lvAirCollector = 1
@@ -6249,6 +6261,28 @@ describe('game engine', () => {
 
     expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air ?? 0).toBe(0)
     expect(state.machineInstances.find((instance) => instance.uid === miner.uid)!.process.output).toBeNull()
+  })
+
+  it('allows portable containers to withdraw fluid from an input hatch', () => {
+    let state = createFactoryState()
+    state.machines.lvFluidInputHatch = 1
+    state.machines.lvFluidOutputHatch = 1
+    state.resources.bucket = 1
+    state = placeMachineInstance(state, 'lvFluidInputHatch', 0, 0)
+    state = placeMachineInstance(state, 'lvFluidOutputHatch', 1, 0)
+    const inputHatch = state.machineInstances.find((instance) => instance.machineId === 'lvFluidInputHatch')!
+    const outputHatch = state.machineInstances.find((instance) => instance.machineId === 'lvFluidOutputHatch')!
+    inputHatch.process.fluids.water = 32
+
+    state = fillPortableFluidContainer(state, inputHatch.uid, 'bucket', { fluidId: 'water', bufferId: 'input' })
+
+    expect(state.machineInstances.find((instance) => instance.uid === inputHatch.uid)!.process.fluids.water).toBe(31)
+    expect(state.fluidContainers).toContainEqual(expect.objectContaining({ kind: 'bucket', fluidId: 'water', amountLitres: 1 }))
+
+    state = drainPortableFluidContainer(state, outputHatch.uid, state.fluidContainers[0].uid, 'output')
+
+    expect(state.machineInstances.find((instance) => instance.uid === outputHatch.uid)!.process.fluids.water).toBe(1)
+    expect(state.fluidContainers).toHaveLength(0)
   })
 
   it('uses Assembler programs to distinguish matching bus and hatch inputs', () => {

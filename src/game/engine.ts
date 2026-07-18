@@ -3108,7 +3108,10 @@ export function fillPortableFluidContainer(
   const existing = options.containerUid ? state.fluidContainers.find((container) => container.uid === options.containerUid && container.kind === kind) : undefined
   if (options.containerUid && !existing) return state
   if (!existing && availableResourceAmount(state, emptyContainerResource(kind)) < 1) return state
-  const outputBuffers = machineFluidBuffersForInstance(state, source).filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
+  const isManualHatchTransfer = machines[source.machineId].processKind === 'fluidHatch'
+  const outputBuffers = machineFluidBuffersForInstance(state, source).filter(
+    (buffer) => isManualHatchTransfer || buffer.access === 'output' || buffer.access === 'both',
+  )
   const selectedFluid = existing?.fluidId ?? options.fluidId ?? outputBuffers.flatMap((buffer) => buffer.acceptedFluids).find((fluidId) => (source.process.fluids[fluidId] ?? 0) > 0)
   if (!selectedFluid) return state
   const outputBuffer = outputBuffers.find((buffer) => (!options.bufferId || buffer.id === options.bufferId) && buffer.acceptedFluids.includes(selectedFluid))
@@ -3140,10 +3143,15 @@ export function drainPortableFluidContainer(state: GameState, machineUid: string
   if (!targetInstance || !container) return state
   const target = manualFluidTarget(state, targetInstance)
   if (target.machineId === 'lvCentrifuge' && target.process.input) return state
+  const isManualHatchTransfer = machines[target.machineId].processKind === 'fluidHatch'
   const inputBuffer = machineFluidBuffersForInstance(state, target).find((buffer) =>
-    (!bufferId || buffer.id === bufferId) && (buffer.access === 'input' || buffer.access === 'both') && buffer.acceptedFluids.includes(container.fluidId),
+    (!bufferId || buffer.id === bufferId) &&
+    (isManualHatchTransfer || buffer.access === 'input' || buffer.access === 'both') &&
+    buffer.acceptedFluids.includes(container.fluidId),
   )
-  if (!inputBuffer || !canStoreFluid(state, target, container.fluidId)) return state
+  const storedTypes = storedFluidTypes(target.process)
+  const canAcceptManualHatchFluid = isManualHatchTransfer && (storedTypes.length < 1 || storedTypes.every((id) => id === container.fluidId))
+  if (!inputBuffer || (!canAcceptManualHatchFluid && !canStoreFluid(state, target, container.fluidId))) return state
   const transfer = normalizeLitres(Math.min(container.amountLitres, inputBuffer.capacityLitres - (target.process.fluids[container.fluidId] ?? 0)))
   if (transfer <= 0) return state
 
@@ -5050,6 +5058,7 @@ export function setConfiguredProcessProgram(state: GameState, uid: string, progr
   if (
     !instance ||
     machines[instance.machineId].tier !== 'lv' ||
+    isEuStorageMachine(instance.machineId) ||
     !Number.isInteger(programNumber) ||
     programNumber < 0 ||
     programNumber > 10 ||

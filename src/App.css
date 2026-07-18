@@ -17300,11 +17300,22 @@ button.button-primary:disabled,
   grid-template-areas:
     "status status"
     "stage port";
+  grid-template-columns: minmax(0, 1fr) 76px;
   min-height: 240px;
 }
 
 .fluid-hatch-interface .fluid-channel-stage {
   grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  padding: 8px;
+  place-items: center;
+}
+
+.fluid-hatch-interface .fluid-channel-stage > .machine-glyph {
+  height: clamp(112px, 18svh, 142px);
+  max-height: 100%;
+  max-width: 100%;
+  width: clamp(112px, 32vw, 142px);
 }
 
 .machine-dual-output {

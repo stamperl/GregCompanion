@@ -3055,27 +3055,28 @@ function App() {
   const selectedContainerKind = selectedEmptyFluidContainerKind ?? selectedFluidContainerGroup?.kind
   const canUseFluidPort = (buffer: MachineFluidBufferView, direction: 'input' | 'output') => {
     if (!selectedMachine) return false
+    const isManualHatchTransfer = machines[selectedMachine.machineId].processKind === 'fluidHatch'
     if (direction === 'output') {
-      if (!selectedContainerKind || (buffer.access !== 'output' && buffer.access !== 'both')) return false
+      if (!selectedContainerKind || (!isManualHatchTransfer && buffer.access !== 'output' && buffer.access !== 'both')) return false
       const fluidId = buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
       return Boolean(fluidId && (!selectedFluidContainerGroup || (
         selectedFluidContainerGroup.fluidId === fluidId &&
         selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind]
       )))
     }
-    if (!selectedFluidContainerGroup || (buffer.access !== 'input' && buffer.access !== 'both')) return false
+    if (!selectedFluidContainerGroup || (!isManualHatchTransfer && buffer.access !== 'input' && buffer.access !== 'both')) return false
     return buffer.acceptedFluids.includes(selectedFluidContainerGroup.fluidId) &&
       (selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) < buffer.capacityLitres
   }
 
   useEffect(() => {
-    setMachineTerminalMode('items')
+    setMachineTerminalMode(selectedMachine?.machineId === 'lvFluidInputHatch' || selectedMachine?.machineId === 'lvFluidOutputHatch' ? 'fluids' : 'items')
     setSelectedFluidContainerKey(null)
     setIsMachineRecipePopupOpen(false)
     setSelectedMachinePopupRecipeIndex(0)
     setMachineRecipeLoadNotice('')
     setMachineInventorySearch('')
-  }, [selectedMachineUid])
+  }, [selectedMachine?.machineId, selectedMachineUid])
 
   useEffect(() => {
     if (listedRecipeGroups.length < 1) {
@@ -6647,14 +6648,14 @@ function App() {
                     )}
                   </div>
                 )}
-                {selectedMachineFluidBuffers.length > 0 && (
+                {selectedMachineFluidBuffers.length > 0 && !selectedMachineIsFluidHatch && (
                   <div className="machine-terminal-tabs" role="tablist" aria-label="Terminal inventory view">
                     <button type="button" role="tab" aria-selected={machineTerminalMode === 'items'} className={machineTerminalMode === 'items' ? 'active' : ''} onClick={() => setMachineTerminalMode('items')}>Items</button>
                     <button type="button" role="tab" aria-selected={machineTerminalMode === 'fluids'} className={machineTerminalMode === 'fluids' ? 'active' : ''} onClick={() => setMachineTerminalMode('fluids')}><Droplet size={14} />Fluids</button>
                   </div>
                 )}
                 <div className="machine-terminal-body">
-                {machines[selectedMachine.machineId].tier === 'lv' && (
+                {machines[selectedMachine.machineId].tier === 'lv' && !isEuStorageMachine(selectedMachine.machineId) && (
                   <div className="machine-program-control" aria-label={`${machines[selectedMachine.machineId].name} program`}>
                     <button
                       type="button"
@@ -7144,13 +7145,13 @@ function App() {
                         <MachineGlyph id={selectedMachine.machineId} active={Boolean(fluidId)} />
                       </div>
                       <div className="fluid-channel-port">
-                        <span>{direction}</span>
+                        <span>Transfer</span>
                         <ProcessFluidSlot
                           fluidId={fluidId}
                           amount={fluidId ? selectedMachine.process.fluids[fluidId] ?? 0 : 0}
-                          label={`${direction} fluid`}
-                          ready={Boolean(buffer && nativeFluidControlReady(buffer.id, direction))}
-                          onClick={() => buffer && handleNativeFluidControl(buffer.id, direction)}
+                          label="Stored fluid"
+                          ready={Boolean(buffer && nativeFluidControlReady(buffer.id))}
+                          onClick={() => buffer && handleNativeFluidControl(buffer.id)}
                         />
                       </div>
                     </div>
