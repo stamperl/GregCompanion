@@ -186,7 +186,7 @@ export const resourceRegistry = {
   signalProcessor: { id: 'signalProcessor', label: 'Signal Processor', category: 'circuit', tier: 'mv' },
   computationProcessor: { id: 'computationProcessor', label: 'Computation Processor', category: 'circuit', tier: 'mv' },
   structuralProcessor: { id: 'structuralProcessor', label: 'Structural Processor', category: 'circuit', tier: 'mv' },
-  blankRecipeCard: { id: 'blankRecipeCard', label: 'Blank Recipe Card', category: 'circuit', tier: 'mv' },
+  blankRecipeCard: { id: 'blankRecipeCard', label: 'Blank Pattern', category: 'circuit', tier: 'mv' },
 } satisfies Record<ResourceId, ResourceSpec>
 
 export const resourceLabels: Record<ResourceId, string> = Object.fromEntries(
@@ -1117,8 +1117,8 @@ export const machineRegistry = {
   },
   recipeEncoder: {
     id: 'recipeEncoder',
-    name: 'Recipe Encoder',
-    description: 'Encodes reusable crafting and machine-processing instructions onto recipe cards.',
+    name: 'Pattern Terminal',
+    description: 'Adds crafting and processing pattern encoding to the main factory Terminal.',
     tier: 'mv',
     placeable: true,
     processKind: 'euProcess',
@@ -1127,7 +1127,7 @@ export const machineRegistry = {
   jobInterface: {
     id: 'jobInterface',
     name: 'Job Interface',
-    description: 'Holds recipe cards and dispatches complete fabrication batches to one adjacent machine.',
+    description: 'Holds encoded patterns and dispatches complete fabrication batches to one adjacent machine.',
     tier: 'mv',
     placeable: true,
     processKind: 'fabricationInterface',
@@ -5390,8 +5390,8 @@ export const processRecipes: ProcessRecipe[] = [
   },
   {
     id: 'lv_assembler_blank_recipe_cards',
-    name: 'Assemble Blank Recipe Cards',
-    description: 'Laminate phase-sensitive traces into four reusable instruction cards.',
+    name: 'Assemble Blank Patterns',
+    description: 'Laminate phase-sensitive traces into four reusable instruction patterns.',
     tier: 'mv',
     machineId: 'lvAssembler',
     durationMs: 6000,
@@ -5405,7 +5405,7 @@ export const processRecipes: ProcessRecipe[] = [
     output: { id: 'blankRecipeCard', amount: 4 },
   },
   ...([
-    ['lv_assembler_recipe_encoder', 'Assemble Recipe Encoder', 'recipeEncoder', 'signalProcessor', 'glass', 2],
+    ['lv_assembler_recipe_encoder', 'Assemble Pattern Terminal', 'recipeEncoder', 'signalProcessor', 'glass', 2],
     ['lv_assembler_auto_fabricator', 'Assemble Auto Fabricator', 'autoFabricator', 'signalProcessor', 'lvPiston', 2],
     ['lv_assembler_fluid_storage_link', 'Assemble Fluid Storage Link', 'fluidStorageLink', 'computationProcessor', 'lvPump', 2],
     ['lv_assembler_memory_module', 'Assemble Memory Module', 'memoryModule', 'computationProcessor', 'basicBoard', 4],
@@ -7295,8 +7295,8 @@ export const quests: Quest[] = [
     id: 'encodeRecipeCardQuest',
     chapterId: 'mvFoundations',
     chapter: 'Auto Crafting',
-    title: 'Encode a fabrication card',
-    description: 'Build a Recipe Encoder and write one known recipe onto a reusable blank card.',
+    title: 'Encode a fabrication pattern',
+    description: 'Build and place a Pattern Terminal, then open the main Terminal and encode one known recipe onto a Blank Pattern.',
     position: { x: 1330, y: 80 },
     icon: { type: 'resource', id: 'blankRecipeCard' },
     prerequisites: ['makeProcessorsQuest'],
@@ -7322,7 +7322,7 @@ export const quests: Quest[] = [
     chapterId: 'mvFoundations',
     chapter: 'Auto Crafting',
     title: 'Complete a fabrication job',
-    description: 'Install a card in a Job Interface, preview its material demand, and complete the first scheduled batch.',
+    description: 'Install a pattern in a Job Interface, then request its output from the main Terminal and confirm the planned material demand.',
     position: { x: 1710, y: 80 },
     icon: { type: 'machine', id: 'jobInterface' },
     prerequisites: ['formPlanningRackQuest'],

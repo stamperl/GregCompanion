@@ -1889,8 +1889,29 @@ type FabricationPlan = {
   fluidNeeds: import('./types').FluidAmount[]
 }
 
+export type FabricationRequestPreview = {
+  card: RecipeCardInstance | null
+  requestedAmount: number
+  steps: FabricationJob['steps']
+  itemNeeds: ResourceAmount[]
+  fluidNeeds: import('./types').FluidAmount[]
+  missingItems: ResourceAmount[]
+  missingFluids: import('./types').FluidAmount[]
+  jobUnits: number
+  rackUid?: string
+  rackMemoryUnits?: number
+  canStart: boolean
+  reason?: string
+}
+
 function buildFabricationPlan(state: GameState, rootCard: RecipeCardInstance, quantity: number): FabricationPlan | null {
-  const installedCards = state.recipeCards.filter((card) => card.installedInUid)
+  const installedCards = state.recipeCards
+    .filter((card) => card.installedInUid)
+    .sort((a, b) => {
+      const aPriority = state.machineInstances.find((instance) => instance.uid === a.installedInUid)?.fabricationPriority ?? 0
+      const bPriority = state.machineInstances.find((instance) => instance.uid === b.installedInUid)?.fabricationPriority ?? 0
+      return bPriority - aPriority || a.uid.localeCompare(b.uid)
+    })
   const remaining = new Map<ResourceId, number>(Object.entries(state.resources).map(([id, amount]) => [id as ResourceId, amount]))
   const itemNeeds = new Map<ResourceId, number>()
   const fluidNeeds = new Map<FluidId, number>()
@@ -1942,41 +1963,88 @@ function buildFabricationPlan(state: GameState, rootCard: RecipeCardInstance, qu
   }
 }
 
-export function requestFabricationJob(state: GameState, cardUid: string, quantity = 1, now = Date.now()) {
+export function previewFabricationRequest(state: GameState, cardUid: string, quantity = 1): FabricationRequestPreview {
   const card = state.recipeCards.find((candidate) => candidate.uid === cardUid && candidate.installedInUid)
-  const primaryOutput = card?.itemOutputs[0]
+  const requestedAmount = Math.max(1, Math.floor(quantity))
+  const emptyPreview = {
+    card: card ?? null,
+    requestedAmount,
+    steps: [],
+    itemNeeds: [],
+    fluidNeeds: [],
+    missingItems: [],
+    missingFluids: [],
+    jobUnits: 0,
+    canStart: false,
+  }
+  if (!card?.itemOutputs[0]) return { ...emptyPreview, reason: 'No installed pattern exposes this output.' }
+
+  const plan = buildFabricationPlan(state, card, requestedAmount)
+  if (!plan) return { ...emptyPreview, reason: 'The pattern chain is recursive or incomplete.' }
+  const missingItems = plan.itemNeeds
+    .map((amount) => ({ ...amount, amount: Math.max(0, amount.amount - availableResourceAmount(state, amount.id)) }))
+    .filter((amount) => amount.amount > 0)
+  const missingFluids = plan.fluidNeeds
+    .map((amount) => ({ ...amount, amount: Math.max(0, amount.amount - availableLinkedFluid(state, amount.id)) }))
+    .filter((amount) => amount.amount > 0)
+  const jobUnits = plan.itemNeeds.reduce((sum, amount) => sum + amount.amount, 0) +
+    plan.fluidNeeds.reduce((sum, amount) => sum + Math.ceil(amount.amount / 8), 0)
   const racks = state.machineInstances
     .filter((instance) => instance.machineId === 'planningController')
     .map((instance) => planningRackStructureForInstance(state, instance))
     .filter((rack): rack is PlanningRackStructure => Boolean(rack))
     .filter((rack) => !state.fabricationJobs.some((job) => job.controllerUid === rack.controller.uid && (job.status === 'queued' || job.status === 'running' || job.status === 'blocked')))
     .sort((a, b) => a.memoryUnits - b.memoryUnits || a.controller.uid.localeCompare(b.controller.uid))
-  if (!card || !primaryOutput || racks.length < 1) return state
-  const requestedAmount = Math.max(1, Math.floor(quantity))
-  const plan = buildFabricationPlan(state, card, requestedAmount)
-  if (!plan || plan.itemNeeds.some((amount) => availableResourceAmount(state, amount.id) < amount.amount)) return state
-  if (plan.fluidNeeds.some((amount) => availableLinkedFluid(state, amount.id) < amount.amount)) return state
-  const jobUnits = plan.itemNeeds.reduce((sum, amount) => sum + amount.amount, 0) + plan.fluidNeeds.reduce((sum, amount) => sum + Math.ceil(amount.amount / 8), 0)
   const rack = racks.find((candidate) => candidate.memoryUnits >= jobUnits)
-  if (!rack) return state
+  const reason = missingItems.length > 0
+    ? 'Stored items do not cover this plan.'
+    : missingFluids.length > 0
+      ? 'Linked fluid storage does not cover this plan.'
+      : racks.length < 1
+        ? 'No idle Planning Rack is available.'
+        : !rack
+          ? 'Available Planning Racks do not have enough memory.'
+          : undefined
 
-  let next = subtractResources(state, plan.itemNeeds)
-  for (const fluid of plan.fluidNeeds) {
+  return {
+    card,
+    requestedAmount,
+    steps: plan.steps,
+    itemNeeds: plan.itemNeeds,
+    fluidNeeds: plan.fluidNeeds,
+    missingItems,
+    missingFluids,
+    jobUnits,
+    rackUid: rack?.controller.uid,
+    rackMemoryUnits: rack?.memoryUnits,
+    canStart: !reason,
+    reason,
+  }
+}
+
+export function requestFabricationJob(state: GameState, cardUid: string, quantity = 1, now = Date.now()) {
+  const preview = previewFabricationRequest(state, cardUid, quantity)
+  const card = preview.card
+  const primaryOutput = card?.itemOutputs[0]
+  if (!preview.canStart || !card || !primaryOutput || !preview.rackUid) return state
+
+  let next = subtractResources(state, preview.itemNeeds)
+  for (const fluid of preview.fluidNeeds) {
     if (!reserveLinkedFluid(next, fluid.id, fluid.amount)) return state
   }
   const uid = nextFabricationUid('job', next.fabricationJobs.map((job) => job.uid))
   next.fabricationJobs.push({
     uid,
     cardUid,
-    requestedOutput: { id: primaryOutput.id, amount: requestedAmount },
-    batches: plan.steps.reduce((sum, step) => sum + step.batches, 0),
+    requestedOutput: { id: primaryOutput.id, amount: preview.requestedAmount },
+    batches: preview.steps.reduce((sum, step) => sum + step.batches, 0),
     completedBatches: 0,
     status: 'queued',
-    controllerUid: rack.controller.uid,
+    controllerUid: preview.rackUid,
     interfaceUid: card.installedInUid,
-    reservedItems: plan.itemNeeds.map((amount) => ({ ...amount })),
-    reservedFluids: plan.fluidNeeds.map((amount) => ({ ...amount })),
-    steps: plan.steps,
+    reservedItems: preview.itemNeeds.map((amount) => ({ ...amount })),
+    reservedFluids: preview.fluidNeeds.map((amount) => ({ ...amount })),
+    steps: preview.steps,
     progressMs: 0,
     createdAt: now,
   })
@@ -6352,7 +6420,7 @@ export function questObjectiveLabel(objective: QuestObjective) {
   if (objective.type === 'surveyCard') return `${gatherTargets[objective.id].name} Survey Card`
   if (objective.type === 'recipe') return processRecipes.find((recipe) => recipe.id === objective.id)?.name ?? recipes.find((recipe) => recipe.id === objective.id)?.name ?? objective.id
   if (objective.type === 'fabrication') {
-    return objective.id === 'cardEncoded' ? 'Recipe card encoded' : objective.id === 'rackFormed' ? 'Planning rack formed' : 'Fabrication job completed'
+    return objective.id === 'cardEncoded' ? 'Fabrication pattern encoded' : objective.id === 'rackFormed' ? 'Planning rack formed' : 'Fabrication job completed'
   }
   if (objective.type === 'factoryFoundation') return `Factory foundation level ${objective.level}`
   if (objective.type === 'fluidTransfer') {

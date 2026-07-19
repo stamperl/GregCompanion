@@ -82,6 +82,7 @@ import {
   missingForRecipe,
   placeMachineInstance,
   planningRackStructureForInstance,
+  previewFabricationRequest,
   processRecipeInputLoadStatus,
   processStackLimit,
   questKind,
@@ -6424,6 +6425,18 @@ describe('game engine', () => {
       state = installRecipeCard(state, recipeInterface.uid, card.uid)
     }
     const sticksCard = state.recipeCards.find((card) => card.recipeId === 'craft_sticks')!
+    const readyPreview = previewFabricationRequest(state, sticksCard.uid, 4)
+    const missingPreview = previewFabricationRequest(state, sticksCard.uid, 16)
+
+    expect(readyPreview.canStart).toBe(true)
+    expect(readyPreview.steps.map((step) => state.recipeCards.find((card) => card.uid === step.cardUid)?.recipeId)).toEqual([
+      'craft_planks',
+      'craft_sticks',
+    ])
+    expect(readyPreview.rackMemoryUnits).toBe(64)
+    expect(missingPreview.canStart).toBe(false)
+    expect(missingPreview.missingItems).toContainEqual({ id: 'log', amount: 1 })
+
     state = requestFabricationJob(state, sticksCard.uid, 4)
     state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
     state.machineInstances.find((instance) => instance.machineId === 'autoFabricator')!.process.euStored = 128

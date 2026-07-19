@@ -13400,6 +13400,70 @@ button.button-primary:disabled,
   padding: 8px;
 }
 
+.terminal-workspace-tabs {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+}
+
+.terminal-workspace-tabs button {
+  align-items: center;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-radius: 0;
+  border-right-color: var(--bevel-light);
+  color: var(--ink);
+  display: flex;
+  font: 850 0.66rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 5px;
+  justify-content: center;
+  min-height: 36px;
+}
+
+.terminal-workspace-tabs button.active {
+  background: var(--bevel-deep);
+  border-color: var(--accent-light) var(--accent-dark) var(--accent-dark) var(--accent-light);
+}
+
+.terminal-virtual-craftable {
+  opacity: 0.72;
+}
+
+.terminal-craftable-mark {
+  align-items: center;
+  background: #1c5e4d;
+  border: 1px solid #9de7c8;
+  color: #e8fff4;
+  display: flex;
+  height: 14px;
+  justify-content: center;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  width: 14px;
+}
+
+.terminal-request-shortcut {
+  align-items: center;
+  background: #285849;
+  border: 1px solid #9de7c8;
+  border-radius: 0;
+  color: #f2fff8;
+  display: flex;
+  font: 850 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 4px;
+  justify-content: center;
+  min-height: 27px;
+  padding: 3px 7px;
+}
+
+.terminal-pattern-workspace,
+.terminal-jobs-workspace {
+  margin-top: 0;
+  min-height: 250px;
+}
+
 .fabrication-status-grid {
   display: grid;
   gap: 5px;
@@ -13563,6 +13627,11 @@ button.button-primary:disabled,
   padding: 5px;
 }
 
+.interface-terminal .fabrication-card-row,
+.terminal-job-row {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+}
+
 .fabrication-card-row .pixel-icon,
 .fabrication-job-row .pixel-icon {
   height: 34px;
@@ -13627,6 +13696,140 @@ button.button-primary:disabled,
   height: 150px;
   justify-self: center;
   width: 150px;
+}
+
+.recipe-icon-button.network-craftable {
+  box-shadow: inset 0 0 0 2px #66d59a;
+}
+
+.network-craftable-badge {
+  align-items: center;
+  background: #1c5e4d;
+  border: 1px solid #9de7c8;
+  color: #e8fff4;
+  display: flex;
+  height: 14px;
+  justify-content: center;
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 14px;
+}
+
+.recipe-network-actions {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+}
+
+.fabrication-request-plan {
+  background: #111715;
+  border: 2px solid #58635e;
+  color: #e8eadf;
+  display: grid;
+  gap: 7px;
+  padding: 7px;
+}
+
+.fabrication-request-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.fabrication-request-head > span {
+  display: grid;
+}
+
+.fabrication-request-head small,
+.fabrication-plan-summary small {
+  color: #d9c86f;
+  font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.fabrication-request-head strong {
+  color: #dffcff;
+  font: 900 1rem "Courier New", ui-monospace, monospace;
+}
+
+.fabrication-request-head > div,
+.fabrication-request-quick {
+  display: flex;
+  gap: 4px;
+}
+
+.fabrication-request-head button,
+.fabrication-request-quick button {
+  background: #252d2a;
+  border: 2px solid #5a6660;
+  border-bottom-color: #080b0a;
+  border-radius: 0;
+  border-right-color: #080b0a;
+  color: #e8eadf;
+  min-height: 30px;
+  min-width: 34px;
+}
+
+.fabrication-request-quick button {
+  flex: 1;
+  font-weight: 900;
+}
+
+.fabrication-plan-summary {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fabrication-plan-summary span {
+  border: 1px solid #46524d;
+  display: grid;
+  padding: 5px;
+}
+
+.fabrication-plan-summary strong {
+  color: #dffcff;
+  font: 900 0.7rem "Courier New", ui-monospace, monospace;
+}
+
+.fabrication-plan-needs {
+  display: grid;
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.fabrication-plan-needs > span {
+  align-items: center;
+  border: 1px solid #46524d;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  min-height: 36px;
+  padding: 3px 5px;
+}
+
+.fabrication-plan-needs > span.missing {
+  border-color: #a95f57;
+}
+
+.fabrication-plan-needs .pixel-icon {
+  height: 26px;
+  width: 26px;
+}
+
+.fabrication-plan-needs strong {
+  font-size: 0.64rem;
+}
+
+.fabrication-plan-needs small {
+  color: #ef9f93;
+  font-size: 0.56rem;
+}
+
+.fabrication-confirm {
+  background: #285849;
 }
 
 .machine-inventory-browser {

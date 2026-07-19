@@ -212,6 +212,7 @@ import {
   eraseRecipeCard,
   installRecipeCard,
   removeRecipeCard,
+  previewFabricationRequest,
   requestFabricationJob,
   cancelFabricationJob,
   planningRackStructureForInstance,
@@ -298,6 +299,7 @@ function recipeOpensProcessView(recipe: Recipe) {
 
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'machines'
+type TerminalWorkspaceMode = 'crafting' | 'patterns' | 'jobs'
 type MachineTerminalMode = 'items' | 'fluids'
 type MachineReviewState = 'idle' | 'active' | 'filled' | 'blocked' | 'missing' | 'disconnected'
 type MachineFluidBufferView = ReturnType<typeof machineFluidBuffersForInstance>[number]
@@ -2544,6 +2546,8 @@ function App() {
   const [encoderRecipeKind, setEncoderRecipeKind] = useState<'crafting' | 'processing'>('crafting')
   const [encoderRecipeId, setEncoderRecipeId] = useState('')
   const [fabricationRequestQuantity, setFabricationRequestQuantity] = useState(1)
+  const [fabricationRequestCardUid, setFabricationRequestCardUid] = useState<string | null>(null)
+  const [terminalWorkspaceMode, setTerminalWorkspaceMode] = useState<TerminalWorkspaceMode>('crafting')
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
@@ -2967,6 +2971,16 @@ function App() {
     if (!query) return true
     return id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
   })
+  const networkCraftableResourceIds = [...new Set(
+    state.recipeCards
+      .filter((card) => card.installedInUid && card.itemOutputs[0]?.amount > 0)
+      .map((card) => card.itemOutputs[0].id),
+  )]
+  const filteredVirtualCraftables = networkCraftableResourceIds.filter((id) => {
+    if (inventoryResources.includes(id)) return false
+    const query = terminalSearch.trim().toLowerCase()
+    return !query || id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
+  })
   const filteredMachines = placeableFactoryMachineOrder.filter((id) => {
     if (unplacedMachineCounts[id] < 1) return false
     const query = terminalSearch.trim().toLowerCase()
@@ -3021,6 +3035,31 @@ function App() {
   const selectedRecipeStationMachineId = terminalMode === 'machines'
     ? selectedRecipeMinimumMachineId ?? selectedRecipe?.requiredMachine
     : selectedRecipe?.requiredMachine
+  const placedPatternTerminal = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')
+  const installedPatternsByPriority = state.recipeCards
+    .filter((card) => card.installedInUid)
+    .slice()
+    .sort((a, b) => {
+      const aPriority = state.machineInstances.find((instance) => instance.uid === a.installedInUid)?.fabricationPriority ?? 0
+      const bPriority = state.machineInstances.find((instance) => instance.uid === b.installedInUid)?.fabricationPriority ?? 0
+      return bPriority - aPriority || a.uid.localeCompare(b.uid)
+    })
+  const selectedInstalledPattern = selectedRecipe
+    ? installedPatternsByPriority.find((card) => card.recipeId === selectedRecipe.id) ??
+      installedPatternsByPriority.find((card) => selectedRecipeGroup?.recipes.some((recipe) => recipe.id === card.recipeId))
+    : undefined
+  const fabricationRequestPreview = fabricationRequestCardUid
+    ? previewFabricationRequest(state, fabricationRequestCardUid, fabricationRequestQuantity)
+    : null
+  const terminalFabricationJobs = state.fabricationJobs
+    .filter((job) => job.status !== 'cancelled')
+    .slice()
+    .sort((a, b) => b.createdAt - a.createdAt)
+
+  useEffect(() => {
+    if (!placedPatternTerminal && terminalWorkspaceMode === 'patterns') setTerminalWorkspaceMode('crafting')
+  }, [placedPatternTerminal, terminalWorkspaceMode])
+
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachineSource = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
   const selectedMachineMultiblock = selectedMachineSource ? multiblockControllerForInstance(state, selectedMachineSource) : null
@@ -4414,10 +4453,10 @@ function App() {
   }
 
   const handleEncodeSelectedRecipe = () => {
-    if (!selectedMachine || selectedMachine.machineId !== 'recipeEncoder' || !encoderRecipeId) return
+    if (!placedPatternTerminal || !encoderRecipeId) return
     setState((current) => encoderRecipeKind === 'crafting'
-      ? encodeCraftingRecipeCard(current, selectedMachine.uid, encoderRecipeId)
-      : encodeProcessingRecipeCard(current, selectedMachine.uid, encoderRecipeId))
+      ? encodeCraftingRecipeCard(current, placedPatternTerminal.uid, encoderRecipeId)
+      : encodeProcessingRecipeCard(current, placedPatternTerminal.uid, encoderRecipeId))
   }
 
   const handleInstallRecipeCard = (cardUid: string) => {
@@ -4427,6 +4466,10 @@ function App() {
 
   const handleRequestFabricationJob = (cardUid: string) => {
     setState((current) => requestFabricationJob(current, cardUid, fabricationRequestQuantity))
+    setFabricationRequestCardUid(null)
+    setTerminalWorkspaceMode('jobs')
+    setIsRecipeModalOpen(false)
+    setTerminalNotice('Fabrication request sent to the Planning Rack.')
   }
 
   const handleCycleMachinePopupRecipe = (direction: -1 | 1) => {
@@ -5503,11 +5546,31 @@ function App() {
             />
           </div>
 
+          <div className="terminal-workspace-tabs" role="tablist" aria-label="Terminal workspace">
+            <button type="button" className={terminalWorkspaceMode === 'crafting' ? 'active' : ''} onClick={() => setTerminalWorkspaceMode('crafting')}>
+              <Factory size={15} />
+              Crafting
+            </button>
+            {placedPatternTerminal && (
+              <button type="button" className={terminalWorkspaceMode === 'patterns' ? 'active' : ''} onClick={() => setTerminalWorkspaceMode('patterns')}>
+                <Database size={15} />
+                Patterns
+              </button>
+            )}
+            {(state.recipeCards.some((card) => card.installedInUid) || terminalFabricationJobs.length > 0) && (
+              <button type="button" className={terminalWorkspaceMode === 'jobs' ? 'active' : ''} onClick={() => setTerminalWorkspaceMode('jobs')}>
+                <Clock size={15} />
+                Jobs
+              </button>
+            )}
+          </div>
+
           <div className="terminal-items" aria-label="Stored items">
-            {filteredResources.length > 0 || filteredMachines.length > 0 || filteredPortableFluidGroups.length > 0 ? (
+            {filteredResources.length > 0 || filteredVirtualCraftables.length > 0 || filteredMachines.length > 0 || filteredPortableFluidGroups.length > 0 ? (
               <>
                 {filteredResources.map((id) => {
                   const available = terminalAvailableAmount(state, terminalGrid, id)
+                  const networkCraftable = networkCraftableResourceIds.includes(id)
                   return (
                     <button
                       type="button"
@@ -5523,10 +5586,25 @@ function App() {
                     >
                       <PixelIcon id={id} />
                       <span className="item-count">{formatAmount(available)}</span>
+                      {networkCraftable && <span className="terminal-craftable-mark" title="Craftable by fabrication network"><Factory size={9} /></span>}
                       <DurabilityBar state={state} id={id} />
                     </button>
                   )
                 })}
+                {filteredVirtualCraftables.map((id) => (
+                  <button
+                    type="button"
+                    className="item-slot terminal-virtual-craftable"
+                    aria-label={`${resourceLabels[id]}, craftable by fabrication network`}
+                    title={`${resourceLabels[id]} · Craftable`}
+                    onClick={() => handleJumpToResourceRecipe(id)}
+                    key={`craftable-${id}`}
+                  >
+                    <PixelIcon id={id} />
+                    <span className="item-count">0</span>
+                    <span className="terminal-craftable-mark"><Factory size={9} /></span>
+                  </button>
+                ))}
                 {filteredMachines.map((id) => (
                   <span className="item-slot machine-inventory-slot" title={machines[id].name} key={`machine-${id}`}>
                     <MachineGlyph id={id} />
@@ -5573,6 +5651,12 @@ function App() {
                   x{formatAmount(Math.max(0, selectedAvailable))}
                   {maxDurability(selectedResource) > 0 && ` | ${formatAmount(durabilityRemaining(state, selectedResource))}/${formatAmount(maxDurability(selectedResource))} uses`}
                 </span>
+                {networkCraftableResourceIds.includes(selectedResource) && (
+                  <button type="button" className="terminal-request-shortcut" onClick={() => handleJumpToResourceRecipe(selectedResource)}>
+                    <Factory size={13} />
+                    Request craft
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -5582,7 +5666,7 @@ function App() {
             )}
           </div>
 
-          <div className="terminal-crafting-compact">
+          {terminalWorkspaceMode === 'crafting' && <div className="terminal-crafting-compact">
             <div className="terminal-craft-stack">
               <div className="craft-grid three-grid pixel-grid" aria-label="Terminal crafting grid">
                 {terminalGrid.map((slot, index) => (
@@ -5660,9 +5744,9 @@ function App() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>}
 
-          <div className="compact-actions">
+          {terminalWorkspaceMode === 'crafting' && <div className="compact-actions">
             <button type="button" onClick={handleClearGrid}>
               <Trash2 size={16} />
               Clear
@@ -5671,7 +5755,73 @@ function App() {
               <Undo2 size={16} />
               Return
             </button>
-          </div>
+          </div>}
+
+          {terminalWorkspaceMode === 'patterns' && placedPatternTerminal && (
+            <div className="fabrication-terminal terminal-pattern-workspace">
+              <div className="fabrication-status-grid">
+                <span><small>Pattern Terminal</small><strong>Online</strong></span>
+                <span><small>Blank patterns</small><strong>{formatAmount(availableResourceAmount(state, 'blankRecipeCard'))}</strong></span>
+                <span><small>Encode charge</small><strong>{Math.floor(placedPatternTerminal.process.euStored)} / 64 EU</strong></span>
+                <span><small>Encoded</small><strong>{state.recipeCards.length}</strong></span>
+              </div>
+              <div className="fabrication-mode-tabs" role="tablist" aria-label="Pattern type">
+                <button type="button" className={encoderRecipeKind === 'crafting' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('crafting'); setEncoderRecipeId('') }}>Crafting</button>
+                <button type="button" className={encoderRecipeKind === 'processing' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('processing'); setEncoderRecipeId('') }}>Processing</button>
+              </div>
+              <label className="fabrication-recipe-select">
+                <span>{encoderRecipeKind === 'crafting' ? 'Crafts' : 'Processes'}</span>
+                <select value={encoderRecipeId} onChange={(event) => setEncoderRecipeId(event.target.value)}>
+                  <option value="">Select a known recipe</option>
+                  {(encoderRecipeKind === 'crafting'
+                    ? recipes.filter((recipe) => recipe.outputs.length > 0)
+                    : processRecipes
+                  ).map((recipe) => <option value={recipe.id} key={recipe.id}>{recipe.name}</option>)}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="fabrication-command"
+                disabled={!encoderRecipeId || availableResourceAmount(state, 'blankRecipeCard') < 1 || placedPatternTerminal.process.euStored < 64}
+                onClick={handleEncodeSelectedRecipe}
+              >
+                <Database size={15} />
+                Encode pattern
+              </button>
+              <section className="fabrication-section">
+                <h3>Pattern library</h3>
+                <div className="fabrication-card-list" aria-label="Encoded pattern library">
+                  {state.recipeCards.length < 1 && <p className="fabrication-empty">No encoded patterns</p>}
+                  {state.recipeCards.map((card) => {
+                    const output = card.itemOutputs[0]
+                    return <div className="fabrication-card-row" key={card.uid}>
+                      {output ? <PixelIcon id={output.id} /> : <Database size={22} />}
+                      <span><strong>{card.name}</strong><small>{card.kind} · {card.installedInUid ? 'Provider installed' : 'Available'}</small></span>
+                      {!card.installedInUid && <button type="button" className="icon-button" aria-label={`Erase ${card.name}`} onClick={() => setState((current) => eraseRecipeCard(current, card.uid))}><Trash2 size={14} /></button>}
+                    </div>
+                  })}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {terminalWorkspaceMode === 'jobs' && (
+            <div className="fabrication-terminal terminal-jobs-workspace">
+              <div className="fabrication-status-grid">
+                <span><small>Craftable patterns</small><strong>{state.recipeCards.filter((card) => card.installedInUid).length}</strong></span>
+                <span><small>Active jobs</small><strong>{terminalFabricationJobs.filter((job) => job.status === 'queued' || job.status === 'running' || job.status === 'blocked').length}</strong></span>
+              </div>
+              <section className="fabrication-section">
+                <h3>Crafting status</h3>
+                {terminalFabricationJobs.length < 1 && <p className="fabrication-empty">No fabrication requests</p>}
+                {terminalFabricationJobs.map((job) => <div className={`fabrication-job-row terminal-job-row job-${job.status}`} key={job.uid}>
+                  <PixelIcon id={job.requestedOutput.id} />
+                  <span><strong>{resourceLabels[job.requestedOutput.id]} ×{job.requestedOutput.amount}</strong><small>{job.blockedReason ?? `${job.status} · ${job.completedBatches}/${job.batches} batches`}</small></span>
+                  {job.status !== 'complete' && <button type="button" className="icon-button" aria-label="Cancel job" onClick={() => setState((current) => cancelFabricationJob(current, job.uid))}><X size={14} /></button>}
+                </div>)}
+              </section>
+            </div>
+          )}
 
           <div className={isEquipmentOpen ? 'equipment-drawer open' : 'equipment-drawer closed'}>
             <button
@@ -5778,12 +5928,14 @@ function App() {
                     const machineIsOnFloor = isMachineResult && state.machineInstances.some((instance) => instance.machineId === output.id)
                     const locked = !isMachineResult && group.recipes.every((recipe) => lockedLine(state, recipe))
                     const missing = !isMachineResult && !locked && group.recipes.every((recipe) => missingLine(state, recipe))
+                    const networkCraftable = !isMachineResult && group.recipes.some((recipe) => state.recipeCards.some((card) => card.installedInUid && card.recipeId === recipe.id))
                     return (
                       <button
                         type="button"
                         className={[
                           'recipe-icon-button',
                           group.key === selectedRecipeGroup?.key ? 'selected' : '',
+                          networkCraftable ? 'network-craftable' : '',
                           isMachineResult ? machineIsOnFloor ? 'machine-on-floor' : 'machine-off-floor' : locked ? 'locked' : missing ? 'missing' : 'ready',
                         ].join(' ')}
                         aria-label={isMachineResult ? `${output.label}, ${machineIsOnFloor ? 'on factory floor' : 'not on factory floor'}` : output.label}
@@ -5794,6 +5946,7 @@ function App() {
                         <RecipeDisplayIcon output={output} />
                         <span className="item-count">{recipeDisplayAmount(output)}</span>
                         {(terminalMode === 'machines' || group.recipes.length > 1) && <span className="recipe-count-badge">{group.recipes.length}</span>}
+                        {networkCraftable && <span className="network-craftable-badge" title="Craftable by fabrication network"><Factory size={9} /></span>}
                       </button>
                     )
                   })}
@@ -5850,6 +6003,80 @@ function App() {
                               ? 'Load recipe'
                               : 'Recipe needs a grid or machine'}
                       </button>
+
+                      <div className="recipe-network-actions">
+                        {selectedInstalledPattern && (
+                          <button
+                            type="button"
+                            className="fabrication-command"
+                            onClick={() => {
+                              setFabricationRequestQuantity(Math.max(1, selectedRecipeOutput.amount))
+                              setFabricationRequestCardUid(selectedInstalledPattern.uid)
+                            }}
+                          >
+                            <Factory size={15} />
+                            Request craft
+                          </button>
+                        )}
+                        {placedPatternTerminal && !state.recipeCards.some((card) => card.recipeId === selectedRecipe.id) && (
+                          <button
+                            type="button"
+                            className="fabrication-command"
+                            onClick={() => {
+                              setEncoderRecipeKind(selectedRecipe.recipeType === 'processing' ? 'processing' : 'crafting')
+                              setEncoderRecipeId(selectedRecipe.id)
+                              setTerminalWorkspaceMode('patterns')
+                              setIsRecipeModalOpen(false)
+                            }}
+                          >
+                            <Database size={15} />
+                            Open in Pattern Terminal
+                          </button>
+                        )}
+                      </div>
+
+                      {fabricationRequestPreview && fabricationRequestPreview.card?.uid === selectedInstalledPattern?.uid && (
+                        <section className="fabrication-request-plan" aria-label="Crafting plan">
+                          <div className="fabrication-request-head">
+                            <span>
+                              <small>Request amount</small>
+                              <strong>{fabricationRequestQuantity}</strong>
+                            </span>
+                            <div>
+                              <button type="button" aria-label="Decrease request" disabled={fabricationRequestQuantity <= 1} onClick={() => setFabricationRequestQuantity((amount) => Math.max(1, amount - 1))}><ChevronLeft size={15} /></button>
+                              <button type="button" aria-label="Increase request" disabled={fabricationRequestQuantity >= 999} onClick={() => setFabricationRequestQuantity((amount) => Math.min(999, amount + 1))}><ChevronRight size={15} /></button>
+                            </div>
+                          </div>
+                          <div className="fabrication-request-quick">
+                            {[1, 10, 64].map((amount) => <button type="button" key={amount} onClick={() => setFabricationRequestQuantity(amount)}>×{amount}</button>)}
+                          </div>
+                          <div className="fabrication-plan-summary">
+                            <span><small>Operations</small><strong>{fabricationRequestPreview.steps.reduce((sum, step) => sum + step.batches, 0)}</strong></span>
+                            <span><small>Memory</small><strong>{fabricationRequestPreview.jobUnits} / {fabricationRequestPreview.rackMemoryUnits ?? 0}</strong></span>
+                          </div>
+                          {(fabricationRequestPreview.itemNeeds.length > 0 || fabricationRequestPreview.fluidNeeds.length > 0) && (
+                            <div className="fabrication-plan-needs">
+                              {fabricationRequestPreview.itemNeeds.map((amount) => {
+                                const missing = fabricationRequestPreview.missingItems.find((candidate) => candidate.id === amount.id)?.amount ?? 0
+                                return <span className={missing > 0 ? 'missing' : ''} key={amount.id}><PixelIcon id={amount.id} /><strong>{resourceLabels[amount.id]} ×{amount.amount}</strong>{missing > 0 && <small>Missing {missing}</small>}</span>
+                              })}
+                              {fabricationRequestPreview.fluidNeeds.map((amount) => {
+                                const missing = fabricationRequestPreview.missingFluids.find((candidate) => candidate.id === amount.id)?.amount ?? 0
+                                return <span className={missing > 0 ? 'missing' : ''} key={amount.id}><Droplet size={22} /><strong>{fluidLabel(amount.id)} {formatLitres(amount.amount)}L</strong>{missing > 0 && <small>Missing {formatLitres(missing)}L</small>}</span>
+                              })}
+                            </div>
+                          )}
+                          {fabricationRequestPreview.reason && <p className="recipe-detail-warning">{fabricationRequestPreview.reason}</p>}
+                          <button
+                            type="button"
+                            className="fabrication-command fabrication-confirm"
+                            disabled={!fabricationRequestPreview.canStart}
+                            onClick={() => handleRequestFabricationJob(fabricationRequestPreview.card!.uid)}
+                          >
+                            Confirm request
+                          </button>
+                        </section>
+                      )}
 
                       {isFactoryFloorLayoutRecipe(selectedRecipe) && (
                         <div className="recipe-slot-section factory-layout-section">
@@ -7223,48 +7450,27 @@ function App() {
                 ) : selectedMachine.machineId === 'recipeEncoder' ? (
                   <div className="fabrication-terminal encoder-terminal">
                     <div className="fabrication-status-grid">
-                      <span><small>Blank cards</small><strong>{formatAmount(availableResourceAmount(state, 'blankRecipeCard'))}</strong></span>
+                      <span><small>Network terminal</small><strong>Online</strong></span>
                       <span><small>Encode charge</small><strong>{Math.floor(selectedMachine.process.euStored)} / 64 EU</strong></span>
                     </div>
-                    <div className="fabrication-mode-tabs" role="tablist" aria-label="Recipe card type">
-                      <button type="button" className={encoderRecipeKind === 'crafting' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('crafting'); setEncoderRecipeId('') }}>Crafting</button>
-                      <button type="button" className={encoderRecipeKind === 'processing' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('processing'); setEncoderRecipeId('') }}>Processing</button>
-                    </div>
-                    <label className="fabrication-recipe-select">
-                      <span>Instruction</span>
-                      <select value={encoderRecipeId} onChange={(event) => setEncoderRecipeId(event.target.value)}>
-                        <option value="">Select a recipe</option>
-                        {(encoderRecipeKind === 'crafting'
-                          ? recipes.filter((recipe) => recipe.outputs.length > 0)
-                          : processRecipes
-                        ).map((recipe) => <option value={recipe.id} key={recipe.id}>{recipe.name}</option>)}
-                      </select>
-                    </label>
                     <button
                       type="button"
                       className="fabrication-command"
-                      disabled={!encoderRecipeId || availableResourceAmount(state, 'blankRecipeCard') < 1 || selectedMachine.process.euStored < 64}
-                      onClick={handleEncodeSelectedRecipe}
+                      onClick={() => {
+                        setSelectedMachineUid(null)
+                        setPage('terminal')
+                        setTerminalWorkspaceMode('patterns')
+                      }}
                     >
                       <Database size={15} />
-                      Encode card
+                      Open Pattern Terminal
                     </button>
-                    <div className="fabrication-card-list" aria-label="Encoded recipe card library">
-                      {state.recipeCards.length < 1 && <p className="fabrication-empty">No encoded cards</p>}
-                      {state.recipeCards.map((card) => {
-                        const output = card.itemOutputs[0]
-                        return <div className="fabrication-card-row" key={card.uid}>
-                          {output ? <PixelIcon id={output.id} /> : <Database size={22} />}
-                          <span><strong>{card.name}</strong><small>{card.kind} · {card.installedInUid ? 'Installed' : 'Available'}</small></span>
-                          {!card.installedInUid && <button type="button" className="icon-button" aria-label={`Erase ${card.name}`} onClick={() => setState((current) => eraseRecipeCard(current, card.uid))}><Trash2 size={14} /></button>}
-                        </div>
-                      })}
-                    </div>
+                    <p className="fabrication-empty">Pattern encoding is available inside the main Terminal while this machine remains placed.</p>
                   </div>
                 ) : selectedMachine.machineId === 'jobInterface' ? (
                   <div className="fabrication-terminal interface-terminal">
                     <div className="fabrication-status-grid">
-                      <span><small>Card slots</small><strong>{selectedInterfaceCards.length} / 9</strong></span>
+                      <span><small>Pattern slots</small><strong>{selectedInterfaceCards.length} / 9</strong></span>
                       <span><small>Priority</small><strong>{selectedMachine.fabricationPriority ?? 0}</strong></span>
                     </div>
                     <div className="fabrication-interface-controls">
@@ -7276,15 +7482,9 @@ function App() {
                         <strong>{selectedMachine.fabricationPriority ?? 0}</strong>
                         <button type="button" disabled={(selectedMachine.fabricationPriority ?? 0) >= 10} onClick={() => setState((current) => setFabricationPriority(current, selectedMachine.uid, (selectedMachine.fabricationPriority ?? 0) + 1))}><ChevronRight size={14} /></button>
                       </div>
-                      <span>Request</span>
-                      <div>
-                        <button type="button" disabled={fabricationRequestQuantity <= 1} onClick={() => setFabricationRequestQuantity((amount) => Math.max(1, amount - 1))}><ChevronLeft size={14} /></button>
-                        <strong>{fabricationRequestQuantity}</strong>
-                        <button type="button" disabled={fabricationRequestQuantity >= 64} onClick={() => setFabricationRequestQuantity((amount) => Math.min(64, amount + 1))}><ChevronRight size={14} /></button>
-                      </div>
                     </div>
                     <section className="fabrication-section">
-                      <h3>Installed cards</h3>
+                      <h3>Installed patterns</h3>
                       <div className="fabrication-card-list">
                         {selectedInterfaceCards.length < 1 && <p className="fabrication-empty">Install a card to expose its output</p>}
                         {selectedInterfaceCards.map((card) => {
@@ -7293,7 +7493,6 @@ function App() {
                           return <div className="fabrication-card-row" key={card.uid}>
                             {output ? <PixelIcon id={output.id} /> : <Database size={22} />}
                             <span><strong>{card.name}</strong><small>{activeJob ? activeJob.status : card.kind} {output ? `· ${output.amount}/batch` : ''}</small></span>
-                            <button type="button" title="Request one batch" disabled={Boolean(activeJob)} onClick={() => handleRequestFabricationJob(card.uid)}><Factory size={14} /></button>
                             <button type="button" className="icon-button" aria-label={`Remove ${card.name}`} disabled={Boolean(activeJob)} onClick={() => setState((current) => removeRecipeCard(current, card.uid))}><Upload size={14} /></button>
                           </div>
                         })}
@@ -7308,13 +7507,7 @@ function App() {
                         </button>)}
                       </div>
                     </section>}
-                    {selectedFabricationJobs.length > 0 && <section className="fabrication-section">
-                      <h3>Jobs</h3>
-                      {selectedFabricationJobs.map((job) => <div className={`fabrication-job-row job-${job.status}`} key={job.uid}>
-                        <span><strong>{resourceLabels[job.requestedOutput.id]} ×{job.requestedOutput.amount}</strong><small>{job.blockedReason ?? `${job.completedBatches} / ${job.batches} batches`}</small></span>
-                        {job.status !== 'complete' && job.status !== 'cancelled' && <button type="button" className="icon-button" aria-label="Cancel job" onClick={() => setState((current) => cancelFabricationJob(current, job.uid))}><X size={14} /></button>}
-                      </div>)}
-                    </section>}
+                    <p className="fabrication-empty">Installed patterns appear as craftable outputs in the main Terminal. Requests and job status are managed there.</p>
                   </div>
                 ) : selectedMachine.machineId === 'planningController' ? (
                   <div className="fabrication-terminal planning-terminal">
