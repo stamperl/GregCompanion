@@ -2581,6 +2581,7 @@ function App() {
   const [isPatternRecipeBookOpen, setIsPatternRecipeBookOpen] = useState(false)
   const [fabricationRequestQuantity, setFabricationRequestQuantity] = useState(1)
   const [fabricationRequestCardUid, setFabricationRequestCardUid] = useState<string | null>(null)
+  const [isFabricationRequestOpen, setIsFabricationRequestOpen] = useState(false)
   const [terminalWorkspaceMode, setTerminalWorkspaceMode] = useState<TerminalWorkspaceMode>('crafting')
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
@@ -3098,6 +3099,8 @@ function App() {
   const fabricationRequestPreview = fabricationRequestCardUid
     ? previewFabricationRequest(state, fabricationRequestCardUid, fabricationRequestQuantity)
     : null
+  const fabricationRequestItemOutput = fabricationRequestPreview?.card?.itemOutputs[0]
+  const fabricationRequestFluidOutput = fabricationRequestPreview?.card?.fluidOutputs[0]
   const terminalFabricationJobs = state.fabricationJobs
     .filter((job) => job.status !== 'cancelled')
     .slice()
@@ -4576,9 +4579,23 @@ function App() {
     setState((current) => installRecipeCard(current, selectedMachine.uid, cardUid))
   }
 
+  const handleOpenFabricationRequest = (resourceId: ResourceId) => {
+    const card = installedPatternsByPriority.find((candidate) => (
+      candidate.itemOutputs.some((output) => output.id === resourceId && output.amount > 0)
+    ))
+    if (!card) {
+      setTerminalNotice(`No installed pattern can produce ${resourceLabels[resourceId]}.`)
+      return
+    }
+    setFabricationRequestQuantity(1)
+    setFabricationRequestCardUid(card.uid)
+    setIsFabricationRequestOpen(true)
+  }
+
   const handleRequestFabricationJob = (cardUid: string) => {
     setState((current) => requestFabricationJob(current, cardUid, fabricationRequestQuantity))
     setFabricationRequestCardUid(null)
+    setIsFabricationRequestOpen(false)
     setTerminalWorkspaceMode('jobs')
     setIsRecipeModalOpen(false)
     setTerminalNotice('Fabrication request sent to the Planning Rack.')
@@ -5767,7 +5784,7 @@ function App() {
                   {maxDurability(selectedResource) > 0 && ` | ${formatAmount(durabilityRemaining(state, selectedResource))}/${formatAmount(maxDurability(selectedResource))} uses`}
                 </span>
                 {networkCraftableResourceIds.includes(selectedResource) && (
-                  <button type="button" className="terminal-request-shortcut" onClick={() => handleJumpToResourceRecipe(selectedResource)}>
+                  <button type="button" className="terminal-request-shortcut" onClick={() => handleOpenFabricationRequest(selectedResource)}>
                     <Factory size={13} />
                     Request craft
                   </button>
@@ -6260,6 +6277,7 @@ function App() {
                             onClick={() => {
                               setFabricationRequestQuantity(Math.max(1, selectedRecipeOutput.amount))
                               setFabricationRequestCardUid(selectedInstalledPattern.uid)
+                              setIsFabricationRequestOpen(true)
                             }}
                           >
                             <Factory size={15} />
@@ -6639,6 +6657,127 @@ function App() {
                       {selectedRecipeLockedLine && <p className="missing-line recipe-detail-warning">Locked: {selectedRecipeLockedLine}</p>}
                     </aside>
                   )}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {isFabricationRequestOpen && fabricationRequestPreview?.card && (
+            <div
+              className="modal-backdrop compact-backdrop fabrication-request-backdrop"
+              role="presentation"
+              onClick={() => {
+                setIsFabricationRequestOpen(false)
+                setFabricationRequestCardUid(null)
+              }}
+            >
+              <section
+                className="missing-modal fabrication-request-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Request fabrication"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <div>
+                    <p className="eyebrow">Fabrication request</p>
+                    <h2>
+                      {fabricationRequestItemOutput
+                        ? resourceLabels[fabricationRequestItemOutput.id]
+                        : fabricationRequestFluidOutput
+                          ? fluidLabel(fabricationRequestFluidOutput.id)
+                          : 'Encoded pattern'}
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Close fabrication request"
+                    onClick={() => {
+                      setIsFabricationRequestOpen(false)
+                      setFabricationRequestCardUid(null)
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="fabrication-request-target">
+                  <span className="mini-slot">
+                    {fabricationRequestItemOutput
+                      ? <PixelIcon id={fabricationRequestItemOutput.id} />
+                      : <Droplet size={24} />}
+                  </span>
+                  <span>
+                    <small>Amount to craft</small>
+                    <strong>{fabricationRequestQuantity}</strong>
+                  </span>
+                </div>
+
+                <div className="fabrication-quantity-controls" aria-label="Craft quantity">
+                  <button type="button" aria-label="Decrease request" disabled={fabricationRequestQuantity <= 1} onClick={() => setFabricationRequestQuantity((amount) => Math.max(1, amount - 1))}>
+                    <ChevronLeft size={17} />
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    max="999"
+                    inputMode="numeric"
+                    aria-label="Requested amount"
+                    value={fabricationRequestQuantity}
+                    onChange={(event) => setFabricationRequestQuantity(Math.max(1, Math.min(999, Number(event.target.value) || 1)))}
+                  />
+                  <button type="button" aria-label="Increase request" disabled={fabricationRequestQuantity >= 999} onClick={() => setFabricationRequestQuantity((amount) => Math.min(999, amount + 1))}>
+                    <ChevronRight size={17} />
+                  </button>
+                </div>
+
+                <div className="fabrication-request-quick">
+                  {[1, 10, 64].map((amount) => (
+                    <button type="button" className={fabricationRequestQuantity === amount ? 'active' : ''} key={amount} onClick={() => setFabricationRequestQuantity(amount)}>
+                      x{amount}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="fabrication-plan-summary">
+                  <span><small>Operations</small><strong>{fabricationRequestPreview.steps.reduce((sum, step) => sum + step.batches, 0)}</strong></span>
+                  <span><small>Memory</small><strong>{fabricationRequestPreview.jobUnits} / {fabricationRequestPreview.rackMemoryUnits ?? 0}</strong></span>
+                </div>
+
+                {(fabricationRequestPreview.itemNeeds.length > 0 || fabricationRequestPreview.fluidNeeds.length > 0) && (
+                  <div className="fabrication-plan-needs">
+                    {fabricationRequestPreview.itemNeeds.map((amount) => {
+                      const missing = fabricationRequestPreview.missingItems.find((candidate) => candidate.id === amount.id)?.amount ?? 0
+                      return <span className={missing > 0 ? 'missing' : ''} key={amount.id}><PixelIcon id={amount.id} /><strong>{resourceLabels[amount.id]} x{amount.amount}</strong>{missing > 0 && <small>Missing {missing}</small>}</span>
+                    })}
+                    {fabricationRequestPreview.fluidNeeds.map((amount) => {
+                      const missing = fabricationRequestPreview.missingFluids.find((candidate) => candidate.id === amount.id)?.amount ?? 0
+                      return <span className={missing > 0 ? 'missing' : ''} key={amount.id}><Droplet size={22} /><strong>{fluidLabel(amount.id)} {formatLitres(amount.amount)}L</strong>{missing > 0 && <small>Missing {formatLitres(missing)}L</small>}</span>
+                    })}
+                  </div>
+                )}
+
+                {fabricationRequestPreview.reason && <p className="recipe-detail-warning">{fabricationRequestPreview.reason}</p>}
+                <div className="fabrication-request-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsFabricationRequestOpen(false)
+                      setFabricationRequestCardUid(null)
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="fabrication-command fabrication-confirm"
+                    disabled={!fabricationRequestPreview.canStart}
+                    onClick={() => handleRequestFabricationJob(fabricationRequestPreview.card!.uid)}
+                  >
+                    <Factory size={15} />
+                    Start craft
+                  </button>
                 </div>
               </section>
             </div>

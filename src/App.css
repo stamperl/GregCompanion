@@ -14165,6 +14165,145 @@ button.button-primary:disabled,
   background: #285849;
 }
 
+.fabrication-request-backdrop {
+  z-index: 110;
+}
+
+.fabrication-request-dialog {
+  background:
+    linear-gradient(90deg, rgba(101, 211, 207, 0.04) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, #1d2523, #0b0f0e);
+  border-color: #75817a #252b28 #252b28 #75817a;
+  color: #e8eadf;
+  max-height: min(620px, calc(100svh - 24px));
+  max-width: 390px;
+  overflow-y: auto;
+  padding: 9px;
+  width: min(100%, 390px);
+}
+
+.fabrication-request-dialog .modal-head {
+  border-bottom: 1px solid #58635e;
+  padding-bottom: 7px;
+}
+
+.fabrication-request-dialog .eyebrow {
+  color: #d9c86f;
+}
+
+.fabrication-request-dialog h2 {
+  color: #f4edcf;
+  font-size: 0.92rem;
+}
+
+.fabrication-request-dialog .icon-button {
+  background: #252d2a;
+  border-color: #75817a #080b0a #080b0a #75817a;
+  color: #f4edcf;
+  flex: 0 0 38px;
+  height: 38px;
+}
+
+.fabrication-request-target {
+  align-items: center;
+  background: #111715;
+  border: 1px solid #46524d;
+  display: flex;
+  gap: 9px;
+  padding: 6px;
+}
+
+.fabrication-request-target .mini-slot {
+  background: #252d2a;
+  border-color: #75817a #080b0a #080b0a #75817a;
+  height: 42px;
+  width: 42px;
+}
+
+.fabrication-request-target .mini-slot .pixel-icon {
+  height: 34px;
+  width: 34px;
+}
+
+.fabrication-request-target > span:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.fabrication-request-target small {
+  color: #d9c86f;
+  font: 900 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.fabrication-request-target strong {
+  color: #dffcff;
+  font: 900 1.05rem "Courier New", ui-monospace, monospace;
+}
+
+.fabrication-quantity-controls {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+}
+
+.fabrication-quantity-controls button,
+.fabrication-quantity-controls input,
+.fabrication-request-actions button {
+  background: #252d2a;
+  border: 2px solid #75817a;
+  border-bottom-color: #080b0a;
+  border-radius: 0;
+  border-right-color: #080b0a;
+  color: #f4edcf;
+  min-height: 38px;
+}
+
+.fabrication-quantity-controls input {
+  color: #dffcff;
+  font: 900 1rem "Courier New", ui-monospace, monospace;
+  min-width: 0;
+  text-align: center;
+  width: 100%;
+}
+
+.fabrication-request-quick button.active {
+  background: #6f5c1d;
+  border-color: #f2dc76 #332b0e #332b0e #f2dc76;
+}
+
+.fabrication-request-dialog .fabrication-plan-needs {
+  max-height: 132px;
+}
+
+.fabrication-request-dialog .recipe-detail-warning {
+  margin: 0;
+}
+
+.fabrication-request-actions {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+}
+
+.fabrication-request-actions button {
+  align-items: center;
+  display: flex;
+  font-weight: 900;
+  gap: 5px;
+  justify-content: center;
+}
+
+.fabrication-request-actions .fabrication-confirm {
+  background: #285849;
+  border-color: #9de7c8 #102c25 #102c25 #9de7c8;
+}
+
+.fabrication-request-actions .fabrication-confirm:disabled {
+  filter: grayscale(0.7);
+  opacity: 0.48;
+}
+
 .machine-inventory-browser {
   display: grid;
   gap: 5px;
