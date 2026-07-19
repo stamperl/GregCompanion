@@ -207,6 +207,16 @@ import {
   visibleQuests,
   visibleRecipes,
   durabilityRemaining,
+  encodeCraftingRecipeCard,
+  encodeProcessingRecipeCard,
+  eraseRecipeCard,
+  installRecipeCard,
+  removeRecipeCard,
+  requestFabricationJob,
+  cancelFabricationJob,
+  planningRackStructureForInstance,
+  setFabricationInterfaceFace,
+  setFabricationPriority,
 } from './game/engine'
 import {
   defaultSaveSlotId,
@@ -372,6 +382,7 @@ type MachineHmiConfig = {
   kind: string
   runningLabel: string
   secondaryInput?: boolean
+  extraInputs?: number
 }
 
 const autoSaveIntervalMs = 5000
@@ -434,6 +445,16 @@ const machineOrder: MachineId[] = [
   'arcBlastFurnace',
   'reachGateCasing',
   'reachGate',
+  'crystalEnergizer',
+  'circuitImprinter',
+  'recipeEncoder',
+  'jobInterface',
+  'autoFabricator',
+  'fluidStorageLink',
+  'planningController',
+  'memoryModule',
+  'dispatchModule',
+  'rackFrame',
 ]
 
 const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
@@ -456,9 +477,12 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   lvCentrifuge: { kind: 'centrifuge', runningLabel: 'Spinning' },
   lvCanner: { kind: 'canner', runningLabel: 'Canning', secondaryInput: true },
   lvChemicalReactor: { kind: 'chemicalReactor', runningLabel: 'Reacting', secondaryInput: true },
+  crystalEnergizer: { kind: 'energizer', runningLabel: 'Charging' },
+  circuitImprinter: { kind: 'imprinter', runningLabel: 'Imprinting', secondaryInput: true, extraInputs: 1 },
+  autoFabricator: { kind: 'fabricator', runningLabel: 'Fabricating' },
 }
 
-const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach'])
+const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach', 'mvFoundations'])
 const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
 const inventoryMachineOrder = machineOrder.filter((id) => !isResourceBackedMachine(id) && id !== 'conductorBundle')
 
@@ -541,9 +565,9 @@ const gatherAreas: Array<{ id: GatherAreaId; label: string; targets: GatherTarge
   {
     id: 'mine',
     label: 'Mine',
-    targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'redstoneVein', 'coalSeam', 'diamondVein', 'leadVein', 'saltDeposit', 'obsidianDeposit'],
+    targets: ['stone', 'ironVein', 'copperVein', 'tinVein', 'nickelVein', 'bauxiteVein', 'goldVein', 'resonantQuartzSeam', 'redstoneVein', 'coalSeam', 'diamondVein', 'leadVein', 'saltDeposit', 'obsidianDeposit'],
   },
-  { id: 'shatteredReach', label: 'Shattered Reach', targets: ['sulfurVent'] },
+  { id: 'shatteredReach', label: 'Shattered Reach', targets: ['sulfurVent', 'voidQuartzOutcrop'] },
 ]
 const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   tree: 'log',
@@ -564,6 +588,9 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
   saltDeposit: 'sodiumSalt',
   obsidianDeposit: 'obsidian',
   sulfurVent: 'sulfurOre',
+  goldVein: 'goldOre',
+  resonantQuartzSeam: 'resonantQuartz',
+  voidQuartzOutcrop: 'voidQuartz',
 }
 const craftSlotHitboxScale = 0.64
 
@@ -1448,9 +1475,8 @@ function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId
   }
   const extraSlotIndex = assemblerExtraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
   if (extraSlotIndex >= 0) {
-    return (
-      machineId === 'lvAssembler' &&
-      processRecipes.some((recipe) => recipe.machineId === machineId && recipe.extraInputs?.[extraSlotIndex]?.id === resourceId)
+    return processRecipes.some(
+      (recipe) => recipe.machineId === machineId && recipe.extraInputs?.[extraSlotIndex]?.id === resourceId,
     )
   }
   if (slotId === 'input') {
@@ -2514,6 +2540,9 @@ function App() {
   const [terminalSearch, setTerminalSearch] = useState('')
   const [machineInventorySearch, setMachineInventorySearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
+  const [encoderRecipeKind, setEncoderRecipeKind] = useState<'crafting' | 'processing'>('crafting')
+  const [encoderRecipeId, setEncoderRecipeId] = useState('')
+  const [fabricationRequestQuantity, setFabricationRequestQuantity] = useState(1)
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
@@ -3019,6 +3048,18 @@ function App() {
     ? processRecipes.find((recipe) => recipe.machineId === selectedMachine.machineId && recipe.programNumber === selectedMachine.process.configuredProgramNumber)
     : undefined
   const selectedMachinePopupRecipes = selectedMachine ? processRecipesForMachine(selectedMachine.machineId, processRecipes) : []
+  const selectedInterfaceCards = selectedMachine?.machineId === 'jobInterface'
+    ? state.recipeCards.filter((card) => card.installedInUid === selectedMachine.uid)
+    : []
+  const availableRecipeCards = state.recipeCards.filter((card) => !card.installedInUid)
+  const selectedPlanningRack = selectedMachine?.machineId === 'planningController'
+    ? planningRackStructureForInstance(state, selectedMachine)
+    : null
+  const selectedFabricationJobs = selectedMachine?.machineId === 'planningController'
+    ? state.fabricationJobs.filter((job) => job.controllerUid === selectedMachine.uid)
+    : selectedMachine?.machineId === 'jobInterface'
+      ? state.fabricationJobs.filter((job) => job.interfaceUid === selectedMachine.uid || job.steps.some((step) => step.interfaceUid === selectedMachine.uid))
+      : []
   const selectedMachineRecipeCount = selectedMachinePopupRecipes.length
   const clampedMachinePopupRecipeIndex = Math.min(
     selectedMachinePopupRecipeIndex,
@@ -4363,6 +4404,22 @@ function App() {
     setMachineRecipeLoadNotice('')
     setPendingProcessInsert(null)
     setIsMachineRecipePopupOpen(true)
+  }
+
+  const handleEncodeSelectedRecipe = () => {
+    if (!selectedMachine || selectedMachine.machineId !== 'recipeEncoder' || !encoderRecipeId) return
+    setState((current) => encoderRecipeKind === 'crafting'
+      ? encodeCraftingRecipeCard(current, selectedMachine.uid, encoderRecipeId)
+      : encodeProcessingRecipeCard(current, selectedMachine.uid, encoderRecipeId))
+  }
+
+  const handleInstallRecipeCard = (cardUid: string) => {
+    if (!selectedMachine || selectedMachine.machineId !== 'jobInterface') return
+    setState((current) => installRecipeCard(current, selectedMachine.uid, cardUid))
+  }
+
+  const handleRequestFabricationJob = (cardUid: string) => {
+    setState((current) => requestFabricationJob(current, cardUid, fabricationRequestQuantity))
   }
 
   const handleCycleMachinePopupRecipe = (direction: -1 | 1) => {
@@ -7156,6 +7213,130 @@ function App() {
                       </div>
                     </div>
                   })()
+                ) : selectedMachine.machineId === 'recipeEncoder' ? (
+                  <div className="fabrication-terminal encoder-terminal">
+                    <div className="fabrication-status-grid">
+                      <span><small>Blank cards</small><strong>{formatAmount(availableResourceAmount(state, 'blankRecipeCard'))}</strong></span>
+                      <span><small>Encode charge</small><strong>{Math.floor(selectedMachine.process.euStored)} / 64 EU</strong></span>
+                    </div>
+                    <div className="fabrication-mode-tabs" role="tablist" aria-label="Recipe card type">
+                      <button type="button" className={encoderRecipeKind === 'crafting' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('crafting'); setEncoderRecipeId('') }}>Crafting</button>
+                      <button type="button" className={encoderRecipeKind === 'processing' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('processing'); setEncoderRecipeId('') }}>Processing</button>
+                    </div>
+                    <label className="fabrication-recipe-select">
+                      <span>Instruction</span>
+                      <select value={encoderRecipeId} onChange={(event) => setEncoderRecipeId(event.target.value)}>
+                        <option value="">Select a recipe</option>
+                        {(encoderRecipeKind === 'crafting'
+                          ? recipes.filter((recipe) => recipe.outputs.length > 0)
+                          : processRecipes
+                        ).map((recipe) => <option value={recipe.id} key={recipe.id}>{recipe.name}</option>)}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="fabrication-command"
+                      disabled={!encoderRecipeId || availableResourceAmount(state, 'blankRecipeCard') < 1 || selectedMachine.process.euStored < 64}
+                      onClick={handleEncodeSelectedRecipe}
+                    >
+                      <Database size={15} />
+                      Encode card
+                    </button>
+                    <div className="fabrication-card-list" aria-label="Encoded recipe card library">
+                      {state.recipeCards.length < 1 && <p className="fabrication-empty">No encoded cards</p>}
+                      {state.recipeCards.map((card) => {
+                        const output = card.itemOutputs[0]
+                        return <div className="fabrication-card-row" key={card.uid}>
+                          {output ? <PixelIcon id={output.id} /> : <Database size={22} />}
+                          <span><strong>{card.name}</strong><small>{card.kind} · {card.installedInUid ? 'Installed' : 'Available'}</small></span>
+                          {!card.installedInUid && <button type="button" className="icon-button" aria-label={`Erase ${card.name}`} onClick={() => setState((current) => eraseRecipeCard(current, card.uid))}><Trash2 size={14} /></button>}
+                        </div>
+                      })}
+                    </div>
+                  </div>
+                ) : selectedMachine.machineId === 'jobInterface' ? (
+                  <div className="fabrication-terminal interface-terminal">
+                    <div className="fabrication-status-grid">
+                      <span><small>Card slots</small><strong>{selectedInterfaceCards.length} / 9</strong></span>
+                      <span><small>Priority</small><strong>{selectedMachine.fabricationPriority ?? 0}</strong></span>
+                    </div>
+                    <div className="fabrication-interface-controls">
+                      <span>Machine face</span>
+                      <div>{pipeDirections.map((direction) => <button type="button" className={selectedMachine.fabricationFace === direction ? 'active' : ''} key={direction} onClick={() => setState((current) => setFabricationInterfaceFace(current, selectedMachine.uid, direction))}>{direction.slice(0, 1).toUpperCase()}</button>)}</div>
+                      <span>Priority</span>
+                      <div>
+                        <button type="button" disabled={(selectedMachine.fabricationPriority ?? 0) <= -10} onClick={() => setState((current) => setFabricationPriority(current, selectedMachine.uid, (selectedMachine.fabricationPriority ?? 0) - 1))}><ChevronLeft size={14} /></button>
+                        <strong>{selectedMachine.fabricationPriority ?? 0}</strong>
+                        <button type="button" disabled={(selectedMachine.fabricationPriority ?? 0) >= 10} onClick={() => setState((current) => setFabricationPriority(current, selectedMachine.uid, (selectedMachine.fabricationPriority ?? 0) + 1))}><ChevronRight size={14} /></button>
+                      </div>
+                      <span>Request</span>
+                      <div>
+                        <button type="button" disabled={fabricationRequestQuantity <= 1} onClick={() => setFabricationRequestQuantity((amount) => Math.max(1, amount - 1))}><ChevronLeft size={14} /></button>
+                        <strong>{fabricationRequestQuantity}</strong>
+                        <button type="button" disabled={fabricationRequestQuantity >= 64} onClick={() => setFabricationRequestQuantity((amount) => Math.min(64, amount + 1))}><ChevronRight size={14} /></button>
+                      </div>
+                    </div>
+                    <section className="fabrication-section">
+                      <h3>Installed cards</h3>
+                      <div className="fabrication-card-list">
+                        {selectedInterfaceCards.length < 1 && <p className="fabrication-empty">Install a card to expose its output</p>}
+                        {selectedInterfaceCards.map((card) => {
+                          const output = card.itemOutputs[0]
+                          const activeJob = selectedFabricationJobs.find((job) => job.cardUid === card.uid && job.status !== 'complete' && job.status !== 'cancelled')
+                          return <div className="fabrication-card-row" key={card.uid}>
+                            {output ? <PixelIcon id={output.id} /> : <Database size={22} />}
+                            <span><strong>{card.name}</strong><small>{activeJob ? activeJob.status : card.kind} {output ? `· ${output.amount}/batch` : ''}</small></span>
+                            <button type="button" title="Request one batch" disabled={Boolean(activeJob)} onClick={() => handleRequestFabricationJob(card.uid)}><Factory size={14} /></button>
+                            <button type="button" className="icon-button" aria-label={`Remove ${card.name}`} disabled={Boolean(activeJob)} onClick={() => setState((current) => removeRecipeCard(current, card.uid))}><Upload size={14} /></button>
+                          </div>
+                        })}
+                      </div>
+                    </section>
+                    {availableRecipeCards.length > 0 && <section className="fabrication-section">
+                      <h3>Card library</h3>
+                      <div className="fabrication-card-list">
+                        {availableRecipeCards.map((card) => <button type="button" className="fabrication-library-row" key={card.uid} disabled={selectedInterfaceCards.length >= 9} onClick={() => handleInstallRecipeCard(card.uid)}>
+                          <Download size={14} />
+                          <span>{card.name}</span>
+                        </button>)}
+                      </div>
+                    </section>}
+                    {selectedFabricationJobs.length > 0 && <section className="fabrication-section">
+                      <h3>Jobs</h3>
+                      {selectedFabricationJobs.map((job) => <div className={`fabrication-job-row job-${job.status}`} key={job.uid}>
+                        <span><strong>{resourceLabels[job.requestedOutput.id]} ×{job.requestedOutput.amount}</strong><small>{job.blockedReason ?? `${job.completedBatches} / ${job.batches} batches`}</small></span>
+                        {job.status !== 'complete' && job.status !== 'cancelled' && <button type="button" className="icon-button" aria-label="Cancel job" onClick={() => setState((current) => cancelFabricationJob(current, job.uid))}><X size={14} /></button>}
+                      </div>)}
+                    </section>}
+                  </div>
+                ) : selectedMachine.machineId === 'planningController' ? (
+                  <div className="fabrication-terminal planning-terminal">
+                    <div className="fabrication-status-grid">
+                      <span><small>Structure</small><strong>{selectedPlanningRack ? `${selectedPlanningRack.width}×${selectedPlanningRack.height}` : 'Incomplete'}</strong></span>
+                      <span><small>Memory</small><strong>{selectedPlanningRack?.memoryUnits ?? 0} units</strong></span>
+                      <span><small>Dispatch</small><strong>{selectedPlanningRack?.dispatchLanes ?? 0} lanes</strong></span>
+                      <span><small>Power</small><strong>{Math.floor(selectedMachine.process.euStored)} EU</strong></span>
+                    </div>
+                    {!selectedPlanningRack && <p className="fabrication-empty">Fill a 2×2 to 4×4 rectangle southeast of this controller with at least one Memory Module.</p>}
+                    <section className="fabrication-section">
+                      <h3>Job monitor</h3>
+                      {selectedFabricationJobs.length < 1 && <p className="fabrication-empty">No jobs assigned</p>}
+                      {selectedFabricationJobs.map((job) => <div className={`fabrication-job-row job-${job.status}`} key={job.uid}>
+                        <PixelIcon id={job.requestedOutput.id} />
+                        <span><strong>{resourceLabels[job.requestedOutput.id]} ×{job.requestedOutput.amount}</strong><small>{job.blockedReason ?? `${job.status} · ${job.completedBatches}/${job.batches}`}</small></span>
+                        {job.status !== 'complete' && job.status !== 'cancelled' && <button type="button" className="icon-button" aria-label="Cancel job" onClick={() => setState((current) => cancelFabricationJob(current, job.uid))}><X size={14} /></button>}
+                      </div>)}
+                    </section>
+                  </div>
+                ) : selectedMachine.machineId === 'fluidStorageLink' ? (
+                  <div className="fabrication-terminal">
+                    <div className="fabrication-status-grid">
+                      <span><small>Transfer</small><strong>64 L/s</strong></span>
+                      <span><small>Connection</small><strong>Adjacent tank</strong></span>
+                    </div>
+                    <MachineGlyph id="fluidStorageLink" active />
+                    <p className="fabrication-empty">The link exposes one adjacent Iron Tank structure to fabrication reservations and returned fluid products.</p>
+                  </div>
                 ) : selectedMachine.machineId === 'lvAssembler' ? (
                   <div className="furnace-interface lvAssembler-process-interface">
                     <div className="assembler-stage-lot" aria-label={`Assembler stage ${selectedMachineStatusLabel}`}>
@@ -7435,6 +7616,7 @@ function App() {
                     const process = selectedMachine.process
                     const hmiRunningLabel = selectedMachineHmiConfig?.runningLabel ?? 'Running'
                     const hmiUsesSecondaryInput = Boolean(selectedMachineHmiConfig?.secondaryInput)
+                    const hmiExtraInputCount = selectedMachineHmiConfig?.extraInputs ?? 0
                     const hmiSystemLabel = isSteamHmi ? 'Pressure' : 'Power'
                     const isChemicalReactor = selectedMachine.machineId === 'lvChemicalReactor'
                     const isCentrifuge = selectedMachine.machineId === 'lvCentrifuge'
@@ -7550,7 +7732,7 @@ function App() {
                           </div>
                           <em>{bufferCapacity}{isSteamHmi ? 'L max' : 'EU max'}</em>
                         </div>
-                        <div className={['forge-io-slot', 'forge-input-slot', hmiUsesSecondaryInput ? 'dual-inputs' : ''].join(' ')}>
+                        <div className={['forge-io-slot', 'forge-input-slot', hmiUsesSecondaryInput ? 'dual-inputs' : '', hmiExtraInputCount > 0 ? 'multi-inputs' : ''].join(' ')}>
                           <span>Input</span>
                           {isChemicalReactor ? chemicalInputChannels.map((channel, index) => channel?.kind === 'fluid' ? (
                             <ProcessFluidSlot
@@ -7582,6 +7764,17 @@ function App() {
                           {!isChemicalReactor && hmiUsesSecondaryInput && (
                             <ProcessItemSlot slot={process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                           )}
+                          {!isChemicalReactor && Array.from({ length: hmiExtraInputCount }, (_, index) => {
+                            const slotId = assemblerExtraInputSlotIds[index]
+                            return (
+                              <ProcessItemSlot
+                                slot={process[slotId]}
+                                label={`Input ${index + 3}`}
+                                onClick={() => handleProcessSlotPress(slotId)}
+                                key={slotId}
+                              />
+                            )
+                          })}
                         </div>
                         <div className="forge-readout-stack">
                           <div className="forge-readout">

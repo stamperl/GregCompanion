@@ -5729,6 +5729,11 @@ button.craft-output:disabled {
   width: 42px;
 }
 
+.forge-io-slot.multi-inputs .process-slot {
+  height: 38px;
+  width: 38px;
+}
+
 .forge-readout-stack {
   display: grid;
   gap: 4px;
@@ -13335,6 +13340,293 @@ button.button-primary:disabled,
 
 .machine-terminal .processing-storage {
   scrollbar-color: var(--machine-accent) rgba(0, 0, 0, 0.32);
+}
+
+/* Early-MV crystal, processor, and fabrication fallbacks. Bitmap sprites remain
+   the primary rendering path; these keep failed loads readable and distinct. */
+.pixel-goldOre, .pixel-crushedGoldOre, .pixel-goldDust, .pixel-goldIngot, .pixel-goldPlate,
+.pixel-resonantQuartz, .pixel-resonantQuartzDust, .pixel-chargedResonantQuartz,
+.pixel-voidQuartz, .pixel-voidQuartzDust, .pixel-phaseCrystal, .pixel-phaseDust,
+.pixel-silicon, .pixel-hardenedDieBlank, .pixel-signalImprintDie,
+.pixel-computationImprintDie, .pixel-structuralImprintDie, .pixel-siliconImprintDie,
+.pixel-printedSignalCircuit, .pixel-printedComputationCircuit,
+.pixel-printedStructuralCircuit, .pixel-printedSilicon, .pixel-signalProcessor,
+.pixel-computationProcessor, .pixel-structuralProcessor, .pixel-blankRecipeCard {
+  --pixel-base: #6a746f;
+  --pixel-light: #d7c96f;
+  --pixel-dark: #151b1a;
+}
+
+.pixel-goldOre, .pixel-goldDust, .pixel-goldIngot, .pixel-goldPlate {
+  --pixel-base: #a77a20;
+  --pixel-light: #f4dc68;
+}
+
+.pixel-resonantQuartz, .pixel-resonantQuartzDust, .pixel-chargedResonantQuartz {
+  --pixel-base: #63bfc8;
+  --pixel-light: #d7ffff;
+}
+
+.pixel-voidQuartz, .pixel-voidQuartzDust {
+  --pixel-base: #4b435f;
+  --pixel-light: #a79ac4;
+}
+
+.pixel-phaseCrystal, .pixel-phaseDust {
+  --pixel-base: #6e5e9f;
+  --pixel-light: #68d3cf;
+}
+
+.machine-crystalEnergizer, .machine-circuitImprinter, .machine-recipeEncoder,
+.machine-jobInterface, .machine-autoFabricator, .machine-fluidStorageLink,
+.machine-planningController, .machine-memoryModule, .machine-dispatchModule,
+.machine-rackFrame {
+  --machine-body: #505a57;
+  --machine-trim: #a6b2aa;
+  --machine-accent: #6ac7cd;
+}
+
+.fabrication-terminal {
+  background:
+    linear-gradient(90deg, rgba(101, 211, 207, 0.045) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, #1d2523, #0b0f0e);
+  border: 2px solid #58635e;
+  border-bottom-color: #050706;
+  border-right-color: #050706;
+  color: #e8eadf;
+  display: grid;
+  gap: 8px;
+  min-height: 260px;
+  padding: 8px;
+}
+
+.fabrication-status-grid {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.planning-terminal .fabrication-status-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fabrication-status-grid > span {
+  background: #111715;
+  border: 1px solid #46524d;
+  display: grid;
+  min-width: 0;
+  padding: 6px;
+}
+
+.fabrication-status-grid small,
+.fabrication-section h3,
+.fabrication-recipe-select > span {
+  color: #d9c86f;
+  font: 900 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.fabrication-status-grid strong {
+  color: #dffcff;
+  font: 900 0.72rem "Courier New", ui-monospace, monospace;
+}
+
+.fabrication-mode-tabs {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fabrication-mode-tabs button,
+.fabrication-command,
+.fabrication-library-row,
+.fabrication-card-row > button {
+  background: #202725;
+  border: 2px solid #5a6660;
+  border-bottom-color: #080b0a;
+  border-radius: 0;
+  border-right-color: #080b0a;
+  color: #e8eadf;
+  min-height: 34px;
+}
+
+.fabrication-mode-tabs button.active {
+  background: #534924;
+  border-color: #f2dc76 #6e5a1c #6e5a1c #f2dc76;
+  color: #fff7bd;
+}
+
+.fabrication-recipe-select {
+  display: grid;
+  gap: 5px;
+}
+
+.fabrication-recipe-select select {
+  background: #eef0e8;
+  border: 2px solid #7e806f;
+  border-radius: 0;
+  color: #111514;
+  font: 800 0.72rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 38px;
+  padding: 5px;
+  width: 100%;
+}
+
+.fabrication-command {
+  align-items: center;
+  display: flex;
+  font: 900 0.7rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 7px;
+  justify-content: center;
+}
+
+.fabrication-command:disabled,
+.fabrication-card-row button:disabled {
+  opacity: 0.4;
+}
+
+.fabrication-interface-controls {
+  align-items: center;
+  background: #111715;
+  border: 1px solid #46524d;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  padding: 6px;
+}
+
+.fabrication-interface-controls > span {
+  color: #d9c86f;
+  font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.fabrication-interface-controls > div {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, minmax(30px, 1fr));
+}
+
+.fabrication-interface-controls > div:not(:first-of-type) {
+  align-items: center;
+  grid-template-columns: 34px 44px 34px;
+  justify-content: end;
+}
+
+.fabrication-interface-controls button {
+  background: #252d2a;
+  border: 2px solid #5a6660;
+  border-bottom-color: #080b0a;
+  border-radius: 0;
+  border-right-color: #080b0a;
+  color: #e8eadf;
+  min-height: 30px;
+}
+
+.fabrication-interface-controls button.active {
+  background: #534924;
+  border-color: #f2dc76 #6e5a1c #6e5a1c #f2dc76;
+}
+
+.fabrication-interface-controls strong {
+  color: #dffcff;
+  text-align: center;
+}
+
+.fabrication-section {
+  border-top: 1px solid #46524d;
+  display: grid;
+  gap: 6px;
+  padding-top: 7px;
+}
+
+.fabrication-section h3 {
+  margin: 0;
+}
+
+.fabrication-card-list {
+  display: grid;
+  gap: 5px;
+  max-height: 230px;
+  overflow-y: auto;
+}
+
+.fabrication-card-row,
+.fabrication-job-row {
+  align-items: center;
+  background: #111715;
+  border: 1px solid #46524d;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  min-height: 48px;
+  padding: 5px;
+}
+
+.fabrication-card-row .pixel-icon,
+.fabrication-job-row .pixel-icon {
+  height: 34px;
+  width: 34px;
+}
+
+.fabrication-card-row > span,
+.fabrication-job-row > span {
+  display: grid;
+  min-width: 0;
+}
+
+.fabrication-card-row strong,
+.fabrication-job-row strong {
+  color: #f5eed0;
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.fabrication-card-row small,
+.fabrication-job-row small {
+  color: #92aaa2;
+  font-size: 0.58rem;
+  overflow-wrap: anywhere;
+}
+
+.fabrication-library-row {
+  align-items: center;
+  display: flex;
+  font: 800 0.66rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 7px;
+  padding: 5px 8px;
+  text-align: left;
+}
+
+.fabrication-job-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.planning-terminal .fabrication-job-row {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+}
+
+.fabrication-job-row.job-blocked {
+  border-color: #a95f57;
+}
+
+.fabrication-job-row.job-running {
+  border-color: #58bfa6;
+}
+
+.fabrication-empty {
+  background: #0e1312;
+  border: 1px solid #3f4945;
+  color: #8e9d97;
+  font: 800 0.66rem Inter, ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
+  padding: 8px;
+}
+
+.fabrication-terminal > .machine-glyph {
+  height: 150px;
+  justify-self: center;
+  width: 150px;
 }
 
 .machine-inventory-browser {

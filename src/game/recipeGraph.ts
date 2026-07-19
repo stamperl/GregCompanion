@@ -5,6 +5,7 @@ const machineTierRank: Record<Tier, number> = {
   bronze: 1,
   steam: 2,
   lv: 3,
+  mv: 4,
 }
 
 function resourceKey(amount: ResourceAmount | undefined) {

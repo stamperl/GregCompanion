@@ -33,11 +33,15 @@ export type ResourceId =
   | 'tinOre'
   | 'nickelOre'
   | 'bauxiteOre'
+  | 'goldOre'
+  | 'resonantQuartz'
+  | 'voidQuartz'
   | 'redstoneDust'
   | 'crushedIronOre'
   | 'crushedCopperOre'
   | 'crushedTinOre'
   | 'crushedBauxiteOre'
+  | 'crushedGoldOre'
   | 'coal'
   | 'charcoal'
   | 'coalCoke'
@@ -56,11 +60,16 @@ export type ResourceId =
   | 'nickelDust'
   | 'bauxiteDust'
   | 'aluminiumDust'
+  | 'goldDust'
+  | 'resonantQuartzDust'
+  | 'voidQuartzDust'
+  | 'phaseDust'
   | 'bronzeIngot'
   | 'nickelIngot'
   | 'cupronickelIngot'
   | 'invarIngot'
   | 'aluminiumIngot'
+  | 'goldIngot'
   | 'clay'
   | 'sand'
   | 'rubberSap'
@@ -80,6 +89,7 @@ export type ResourceId =
   | 'steelPlate'
   | 'invarPlate'
   | 'aluminiumPlate'
+  | 'goldPlate'
   | 'steelRod'
   | 'aluminiumRod'
   | 'steelRing'
@@ -140,6 +150,22 @@ export type ResourceId =
   | 'sulfurDust'
   | 'surveyKit'
   | 'emptySteelCell'
+  | 'chargedResonantQuartz'
+  | 'phaseCrystal'
+  | 'silicon'
+  | 'hardenedDieBlank'
+  | 'signalImprintDie'
+  | 'computationImprintDie'
+  | 'structuralImprintDie'
+  | 'siliconImprintDie'
+  | 'printedSignalCircuit'
+  | 'printedComputationCircuit'
+  | 'printedStructuralCircuit'
+  | 'printedSilicon'
+  | 'signalProcessor'
+  | 'computationProcessor'
+  | 'structuralProcessor'
+  | 'blankRecipeCard'
 
 export type MachineId =
   | 'furnace'
@@ -200,6 +226,16 @@ export type MachineId =
   | 'brickedBlastFurnace'
   | 'arcBlastFurnacePart'
   | 'arcBlastFurnace'
+  | 'crystalEnergizer'
+  | 'circuitImprinter'
+  | 'recipeEncoder'
+  | 'jobInterface'
+  | 'autoFabricator'
+  | 'fluidStorageLink'
+  | 'planningController'
+  | 'memoryModule'
+  | 'dispatchModule'
+  | 'rackFrame'
 
 export type QuestId =
   | 'punchTree'
@@ -313,10 +349,21 @@ export type QuestId =
   | 'diluteSulfuricAcidQuest'
   | 'etchCircuitBoardsQuest'
   | 'runGasArcRecipesQuest'
+  | 'findGoldQuest'
+  | 'findResonantQuartzQuest'
+  | 'findVoidQuartzQuest'
+  | 'makePhaseCrystalQuest'
+  | 'makeSiliconQuest'
+  | 'buildCircuitImprinterQuest'
+  | 'makeProcessorDiesQuest'
+  | 'makeProcessorsQuest'
+  | 'encodeRecipeCardQuest'
+  | 'formPlanningRackQuest'
+  | 'runFabricationJobQuest'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations'
 
-export type Tier = 'manual' | 'bronze' | 'steam' | 'lv'
+export type Tier = 'manual' | 'bronze' | 'steam' | 'lv' | 'mv'
 
 export type StationType = 'hand' | 'furnace' | 'steam' | 'lv'
 
@@ -369,6 +416,9 @@ export type MachineProcessKind =
   | 'itemConductor'
   | 'fluidConductor'
   | 'conductorBundle'
+  | 'fabricationInterface'
+  | 'fabricationController'
+  | 'fabricationModule'
 
 export type ToolId =
   | 'bareHand'
@@ -405,6 +455,9 @@ export type GatherTargetId =
   | 'saltDeposit'
   | 'obsidianDeposit'
   | 'sulfurVent'
+  | 'goldVein'
+  | 'resonantQuartzSeam'
+  | 'voidQuartzOutcrop'
 
 export type FluidId =
   | 'water'
@@ -459,6 +512,50 @@ export type FluidAmount = {
   id: FluidId
   amount: number
   bufferId?: string
+}
+
+export type RecipeCardKind = 'crafting' | 'processing'
+
+export type RecipeCardInstance = {
+  uid: string
+  kind: RecipeCardKind
+  name: string
+  recipeId?: string
+  targetMachineId?: MachineId
+  programNumber: number
+  itemInputs: ResourceAmount[]
+  fluidInputs: FluidAmount[]
+  itemOutputs: ResourceAmount[]
+  fluidOutputs: FluidAmount[]
+  installedInUid?: string
+}
+
+export type FabricationJobStatus = 'queued' | 'running' | 'blocked' | 'complete' | 'cancelled'
+
+export type FabricationStep = {
+  uid: string
+  cardUid: string
+  batches: number
+  completedBatches: number
+  interfaceUid?: string
+  dispatched: boolean
+}
+
+export type FabricationJob = {
+  uid: string
+  cardUid: string
+  requestedOutput: ResourceAmount
+  batches: number
+  completedBatches: number
+  status: FabricationJobStatus
+  blockedReason?: string
+  controllerUid?: string
+  interfaceUid?: string
+  reservedItems: ResourceAmount[]
+  reservedFluids: FluidAmount[]
+  steps: FabricationStep[]
+  progressMs: number
+  createdAt: number
 }
 
 export type Recipe = {
@@ -585,6 +682,7 @@ export type QuestObjective =
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }
   | { type: 'fluidTransfer'; direction: 'fill' | 'drain'; kind: FluidContainerKind; fluidId: FluidId; amountLitres: number; machineId?: MachineId; label?: string }
+  | { type: 'fabrication'; id: 'cardEncoded' | 'rackFormed' | 'jobComplete'; amount: number; label?: string }
 
 export type Machine = {
   id: MachineId
@@ -664,6 +762,8 @@ export type GameState = {
   surveyCards: Partial<Record<GatherTargetId, number>>
   recipeMilestones: Partial<Record<string, number>>
   machineProgress: Partial<Record<MachineId, number>>
+  recipeCards: RecipeCardInstance[]
+  fabricationJobs: FabricationJob[]
   migrationNotices: string[]
   lastSavedAt: number
   lastSavedAtVerified: boolean
@@ -746,6 +846,9 @@ export type MachineInstance = {
   conductorFluidRoundRobinCursor?: number
   itemOutputDirection?: PipeDirection
   itemTransferProgressMs?: number
+  installedRecipeCardUids?: string[]
+  fabricationPriority?: number
+  fabricationFace?: PipeDirection
   surveyCardTarget?: GatherTargetId
   process: MachineProcessState
 }

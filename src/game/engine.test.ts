@@ -48,6 +48,7 @@ import {
   craftableQuantity,
   craftRecipeInstant,
   durabilityRemaining,
+  encodeCraftingRecipeCard,
   equipResource,
   equippedResourceCounts,
   expandFactoryFloor,
@@ -60,6 +61,7 @@ import {
   ironTankFluidCapacityLitres,
   insertProcessSlot,
   insertMachineStorageSlot,
+  installRecipeCard,
   installLvBatteryInBuffer,
   installSurveyCardInAutoMiner,
   isAutoMinerPowered,
@@ -79,6 +81,7 @@ import {
   missingForQuantity,
   missingForRecipe,
   placeMachineInstance,
+  planningRackStructureForInstance,
   processRecipeInputLoadStatus,
   processStackLimit,
   questKind,
@@ -88,6 +91,7 @@ import {
   questStatus,
   recipeFitsTerminalGrid,
   recipesUsingInput,
+  requestFabricationJob,
   removeMachineInstance,
   removeConductorLane,
   removeProcessSlot,
@@ -100,6 +104,7 @@ import {
   setFluidOutputDirection,
   setConfiguredProcessProgram,
   setConductorFaceSettings,
+  setFabricationInterfaceFace,
   setHopperOutputDirection,
   setLvItemOutputDirection,
   shopItemCooldownMs,
@@ -1019,7 +1024,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(14)
+    expect(state.version).toBe(15)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -1040,7 +1045,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(14)
+    expect(state.version).toBe(15)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1125,7 +1130,7 @@ describe('game engine', () => {
       }],
     }), 1000)
 
-    expect(state.version).toBe(14)
+    expect(state.version).toBe(15)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
     expect(state.machineInstances[0].process.output2).toBeNull()
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(0)
@@ -5905,7 +5910,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(14)
+    expect(state.version).toBe(15)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')
@@ -6316,6 +6321,82 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(2)
     expect(state.machines.lvInputBus).toBe(0)
     expect(state.machines.lvOutputBus).toBe(1)
+  })
+
+  it('keeps Circuit Imprinter dies after stamping components', () => {
+    let state = createFactoryState()
+    state.machines.circuitImprinter = 1
+    state = placeMachineInstance(state, 'circuitImprinter', 0, 0)
+    const imprinter = state.machineInstances[0]
+    imprinter.process.input = { id: 'goldPlate', amount: 1 }
+    imprinter.process.secondaryInput = { id: 'signalImprintDie', amount: 1 }
+    imprinter.process.euStored = 128
+
+    state = tickGame(state, 4000).state
+
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'printedSignalCircuit', amount: 1 })
+    expect(state.machineInstances[0].process.secondaryInput).toEqual({ id: 'signalImprintDie', amount: 1 })
+  })
+
+  it('forms a planning rack and derives capacity from memory modules', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.memoryModule = 1
+    state.machines.dispatchModule = 1
+    state.machines.rackFrame = 1
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'memoryModule', 1, 0)
+    state = placeMachineInstance(state, 'dispatchModule', 0, 1)
+    state = placeMachineInstance(state, 'rackFrame', 1, 1)
+
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+    const structure = planningRackStructureForInstance(state, controller)
+
+    expect(structure).not.toBeNull()
+    expect(structure?.memoryUnits).toBe(64)
+    expect(structure?.dispatchLanes).toBe(2)
+  })
+
+  it('runs a recursive crafting request from encoded recipe cards', () => {
+    let state = createFactoryState()
+    state.machines.recipeEncoder = 1
+    state.machines.jobInterface = 1
+    state.machines.autoFabricator = 1
+    state.machines.planningController = 1
+    state.machines.memoryModule = 1
+    state.machines.rackFrame = 2
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'memoryModule', 1, 0)
+    state = placeMachineInstance(state, 'rackFrame', 0, 1)
+    state = placeMachineInstance(state, 'rackFrame', 1, 1)
+    state = placeMachineInstance(state, 'recipeEncoder', 3, 0)
+    state = placeMachineInstance(state, 'jobInterface', 3, 2)
+    state = placeMachineInstance(state, 'autoFabricator', 4, 2)
+    state.resources.blankRecipeCard = 2
+    state.resources.log = 1
+
+    const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
+    encoder.process.euStored = 128
+    state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_planks')
+    state.machineInstances.find((instance) => instance.uid === encoder.uid)!.process.euStored = 128
+    state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_sticks')
+
+    const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
+    state = setFabricationInterfaceFace(state, recipeInterface.uid, 'east')
+    for (const card of state.recipeCards) {
+      state = installRecipeCard(state, recipeInterface.uid, card.uid)
+    }
+    const sticksCard = state.recipeCards.find((card) => card.recipeId === 'craft_sticks')!
+    state = requestFabricationJob(state, sticksCard.uid, 4)
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
+    state.machineInstances.find((instance) => instance.machineId === 'autoFabricator')!.process.euStored = 128
+
+    for (let step = 0; step < 5; step += 1) {
+      state = tickGame(state, 2100).state
+    }
+
+    expect(state.fabricationJobs[0].status).toBe('complete')
+    expect(state.resources.stick).toBeGreaterThanOrEqual(4)
   })
 })
 
