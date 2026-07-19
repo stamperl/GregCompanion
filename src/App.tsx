@@ -611,6 +611,7 @@ const multiblockQuestIds = new Set<QuestId>([
 ])
 
 function questBookChapterId(quest: Quest): QuestChapterId {
+  if (quest.chapterId === 'mvFoundations') return 'mvFoundations'
   if (quest.chapterId === 'shatteredReach') return 'shatteredReach'
   if (quest.chapterId === 'lvAge') return 'lvAge'
   if (quest.chapterId === 'multiblocks') return 'multiblocks'
@@ -2932,7 +2933,13 @@ function App() {
   }, [gatherArea, state])
 
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
-  const guideQuests = useMemo(() => (showLockedQuests ? questDefinitions : visibleQuests(state)), [showLockedQuests, state])
+  const guideQuests = useMemo(() => {
+    if (showLockedQuests) return questDefinitions
+    const visibleQuestIds = new Set(visibleQuests(state).map((quest) => quest.id))
+    return questDefinitions.filter(
+      (quest) => visibleQuestIds.has(quest.id) || questBookChapterId(quest) === 'mvFoundations',
+    )
+  }, [showLockedQuests, state])
   const selectedQuest = useMemo(() => guideQuests.find((quest) => quest.id === selectedQuestId) ?? null, [guideQuests, selectedQuestId])
   const claimableQuestRewardCount = guideQuests.filter((quest) => state.completedQuests.includes(quest.id) && !state.claimedQuests.includes(quest.id)).length
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)

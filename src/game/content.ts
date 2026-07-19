@@ -5541,8 +5541,8 @@ export const questChapters: QuestChapter[] = [
   },
   {
     id: 'mvFoundations',
-    title: 'MV Foundations',
-    description: 'Refine precision crystals, imprint processors, and commission fabrication planning.',
+    title: 'Auto Crafting',
+    description: 'Refine processors, encode reusable recipes, and commission a recursive fabrication network.',
   },
   {
     id: 'stoneAndFire',
@@ -7185,7 +7185,7 @@ export const quests: Quest[] = [
   {
     id: 'findGoldQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Survey conductive gold',
     description: 'Gold carries the dense signal traces needed by the first fabrication processors. Mine it manually, then encode a survey profile for sustained production.',
     position: { x: 0, y: 80 },
@@ -7197,7 +7197,7 @@ export const quests: Quest[] = [
   {
     id: 'findResonantQuartzQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Find resonant quartz',
     description: 'Recover piezoelectric quartz from the deep mine. Keep crystals and dust because the processor line consumes both forms.',
     position: { x: 190, y: 80 },
@@ -7209,7 +7209,7 @@ export const quests: Quest[] = [
   {
     id: 'findVoidQuartzQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Recover void quartz',
     description: 'Return to the Shattered Reach for dark quartz. It supplies both silicon feedstock and the opposing phase needed for stable crystals.',
     position: { x: 380, y: 80 },
@@ -7221,7 +7221,7 @@ export const quests: Quest[] = [
   {
     id: 'makeSiliconQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Refine silicon',
     description: 'Macerate Void Quartz, then smelt its dust into imprint-ready Silicon.',
     position: { x: 570, y: 0 },
@@ -7233,7 +7233,7 @@ export const quests: Quest[] = [
   {
     id: 'makePhaseCrystalQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Stabilise phase crystal',
     description: 'Charge Resonant Quartz, then react it with Void Quartz, Redstone, and Water. Phase Crystal is the defining early-MV control material.',
     position: { x: 570, y: 160 },
@@ -7245,7 +7245,7 @@ export const quests: Quest[] = [
   {
     id: 'makeProcessorDiesQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Cut permanent imprint dies',
     description: 'Compress steel blanks and use Programs 1-4 to cut Signal, Computation, Structural, and Silicon dies. Dies are permanent tools, not consumables.',
     position: { x: 760, y: 80 },
@@ -7264,7 +7264,7 @@ export const quests: Quest[] = [
   {
     id: 'buildCircuitImprinterQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Build the Circuit Imprinter',
     description: 'Assemble the precision ram that stamps circuit layers and bonds them to printed silicon.',
     position: { x: 950, y: 80 },
@@ -7276,7 +7276,7 @@ export const quests: Quest[] = [
   {
     id: 'makeProcessorsQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Produce all processor grades',
     description: 'Print material circuits and silicon separately, then bond each pair with Phase Dust. Dedicated Imprinters make this repeating chain easier to automate.',
     position: { x: 1140, y: 80 },
@@ -7294,7 +7294,7 @@ export const quests: Quest[] = [
   {
     id: 'encodeRecipeCardQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Encode a fabrication card',
     description: 'Build a Recipe Encoder and write one known recipe onto a reusable blank card.',
     position: { x: 1330, y: 80 },
@@ -7307,7 +7307,7 @@ export const quests: Quest[] = [
   {
     id: 'formPlanningRackQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Form a planning rack',
     description: 'Place a Planning Controller at the northwest corner of a filled 2x2 to 4x4 rectangle containing at least one Memory Module.',
     position: { x: 1520, y: 80 },
@@ -7320,7 +7320,7 @@ export const quests: Quest[] = [
   {
     id: 'runFabricationJobQuest',
     chapterId: 'mvFoundations',
-    chapter: 'MV Foundations',
+    chapter: 'Auto Crafting',
     title: 'Complete a fabrication job',
     description: 'Install a card in a Job Interface, preview its material demand, and complete the first scheduled batch.',
     position: { x: 1710, y: 80 },

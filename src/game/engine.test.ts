@@ -1258,6 +1258,13 @@ describe('game engine', () => {
       'brickedBlastFurnace',
       'reachGate',
       'arcBlastFurnace',
+      'planningController',
+      'memoryModule',
+      'dispatchModule',
+      'rackFrame',
+      'recipeEncoder',
+      'jobInterface',
+      'autoFabricator',
     ]))
     expect(isReachGateFormed(state)).toBe(true)
     const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
@@ -1285,6 +1292,36 @@ describe('game engine', () => {
     ]))
     expect(lvMiner.surveyCardTarget).toBe('sulfurVent')
     expect(state.autoMinerAssignments[lvMiner.uid]).toBe('sulfurVent')
+  })
+
+  it('loads a powered end-to-end recursive auto-crafting demonstration', () => {
+    let state = createCreativeFactoryState(createInitialState(1000), 2000)
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+    const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
+    const fabricator = state.machineInstances.find((instance) => instance.machineId === 'autoFabricator')!
+    const rack = planningRackStructureForInstance(state, controller)
+
+    expect(rack?.memoryUnits).toBe(64)
+    expect(rack?.dispatchLanes).toBe(2)
+    expect(recipeInterface.fabricationFace).toBe('east')
+    expect(fabricator.x).toBe(recipeInterface.x + 1)
+    expect(fabricator.y).toBe(recipeInterface.y)
+    expect(state.recipeCards.map((card) => card.recipeId)).toEqual(['craft_planks', 'craft_sticks'])
+    expect(state.recipeCards.every((card) => card.installedInUid === recipeInterface.uid)).toBe(true)
+    expect(recipeInterface.installedRecipeCardUids).toEqual(state.recipeCards.map((card) => card.uid))
+    expect(state.fabricationJobs).toHaveLength(1)
+    expect(state.fabricationJobs[0].status).toBe('queued')
+    expect(state.fabricationJobs[0].steps.map((step) => state.recipeCards.find((card) => card.uid === step.cardUid)?.recipeId)).toEqual([
+      'craft_planks',
+      'craft_sticks',
+    ])
+    expect(controller.process.euStored).toBeGreaterThan(0)
+    expect(fabricator.process.euStored).toBeGreaterThan(0)
+
+    for (let step = 0; step < 4; step += 1) state = tickGame(state, 2100, 4100 + step * 2100).state
+
+    expect(state.fabricationJobs[0].status).toBe('complete')
+    expect(state.resources.stick).toBeGreaterThan(256)
   })
 
   it('reserves equipped items from terminal storage and crafting', () => {

@@ -1307,6 +1307,17 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'furnace', x: 2, y: 6 },
   { id: 'hopper', x: 3, y: 6 },
   { id: 'standardChest', x: 4, y: 6 },
+  { id: 'lvBatteryBuffer4A', x: 5, y: 6 },
+  { id: 'planningController', x: 6, y: 6 },
+  { id: 'memoryModule', x: 7, y: 6 },
+  { id: 'recipeEncoder', x: 8, y: 6 },
+  { id: 'jobInterface', x: 9, y: 6 },
+  { id: 'autoFabricator', x: 10, y: 6 },
+  { id: 'dispatchModule', x: 6, y: 7 },
+  { id: 'rackFrame', x: 7, y: 7 },
+  { id: 'tinCable4A', x: 8, y: 7 },
+  { id: 'lvBatteryBuffer4A', x: 9, y: 7 },
+  { id: 'tinCable4A', x: 10, y: 7 },
   { id: 'cokeOvenPart', x: 0, y: 8 },
   { id: 'cokeOvenPart', x: 1, y: 8 },
   { id: 'cokeOvenPart', x: 0, y: 9 },
@@ -1366,6 +1377,8 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
 
   state.machineInstances = []
   state.autoMinerAssignments = {}
+  state.recipeCards = []
+  state.fabricationJobs = []
   state.factoryFoundationLevel = maxFactoryFoundationLevel
   state.resources = resourceIds.reduce(
     (resources, id) => ({ ...resources, [id]: Math.max(256, state.resources[id] ?? 0) }),
@@ -1554,6 +1567,22 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     [fluidTransferMilestoneKey('drain', 'steelCell', 'liquidRubber', 'lvAssembler')]: fluidContainerCapacities.steelCell,
     [fluidTransferMilestoneKey('drain', 'steelCell', 'liquidRubber')]: fluidContainerCapacities.steelCell,
   }
+
+  const recipeEncoder = machineAtPosition(state, 8, 6)
+  const jobInterface = machineAtPosition(state, 9, 6)
+  if (!recipeEncoder || recipeEncoder.machineId !== 'recipeEncoder' || !jobInterface || jobInterface.machineId !== 'jobInterface') {
+    throw new Error('Creative auto-crafting setup is incomplete')
+  }
+  recipeEncoder.process.euStored = recipeEncoder.process.euCapacity
+  state = encodeCraftingRecipeCard(state, recipeEncoder.uid, 'craft_planks')
+  state = encodeCraftingRecipeCard(state, recipeEncoder.uid, 'craft_sticks')
+  state = setFabricationInterfaceFace(state, jobInterface.uid, 'east')
+  for (const card of state.recipeCards) state = installRecipeCard(state, jobInterface.uid, card.uid)
+  state.resources.plank = 0
+  const stickCard = state.recipeCards.find((card) => card.recipeId === 'craft_sticks')
+  if (!stickCard) throw new Error('Creative auto-crafting cards were not encoded')
+  state = requestFabricationJob(state, stickCard.uid, 8, now)
+
   state.unlockedQuests = quests.map((quest) => quest.id)
   state.craftedResources = resourceIds
   state.discoveredResources = resourceIds
