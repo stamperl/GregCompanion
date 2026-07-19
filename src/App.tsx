@@ -212,6 +212,7 @@ import {
   encodeCraftingRecipeCard,
   encodeProcessingRecipeCard,
   eraseRecipeCard,
+  fabricationCardSupportsMachine,
   installRecipeCard,
   removeRecipeCard,
   previewFabricationRequest,
@@ -7506,11 +7507,7 @@ function App() {
                         if (isCenter) return <span className="lv-automation-machine" key="center"><MachineGlyph id={selectedMachine.machineId} active={selectedFabricationJobs.some((job) => job.status === 'running')} /><strong>Job Interface</strong></span>
                         const offset = pipeDirectionOffsets[direction!]
                         const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
-                        const compatible = Boolean(neighbour && selectedInterfaceCards.some((card) => (
-                          card.kind === 'crafting'
-                            ? neighbour.machineId === 'autoFabricator'
-                            : card.targetMachineId === neighbour.machineId
-                        )))
+                        const compatible = Boolean(neighbour && selectedInterfaceCards.some((card) => fabricationCardSupportsMachine(card, neighbour.machineId)))
                         const selected = selectedMachine.fabricationFace === direction
                         return <button
                             type="button"
@@ -7531,7 +7528,7 @@ function App() {
                       <span><small>Compatible</small><strong>{pipeDirections.filter((direction) => {
                         const offset = pipeDirectionOffsets[direction]
                         const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
-                        return neighbour && selectedInterfaceCards.some((card) => card.kind === 'crafting' ? neighbour.machineId === 'autoFabricator' : card.targetMachineId === neighbour.machineId)
+                        return neighbour && selectedInterfaceCards.some((card) => fabricationCardSupportsMachine(card, neighbour.machineId))
                       }).length}</strong></span>
                     </div>
                   </div>

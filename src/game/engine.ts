@@ -1704,10 +1704,47 @@ function cardItemOutputs(card: RecipeCardInstance) {
   return combineResourceAmounts(card.itemOutputs)
 }
 
-function fabricationCardMatchesTarget(card: RecipeCardInstance, target: MachineInstance) {
+function fabricationAmountsMatch(
+  expectedItems: ResourceAmount[],
+  actualItems: ResourceAmount[],
+  expectedFluids: import('./types').FluidAmount[],
+  actualFluids: import('./types').FluidAmount[],
+) {
+  const itemKey = (amounts: ResourceAmount[]) => combineResourceAmounts(amounts)
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((amount) => `${amount.id}:${amount.amount}`)
+    .join('|')
+  const fluidKey = (amounts: import('./types').FluidAmount[]) => amounts
+    .slice()
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((amount) => `${amount.id}:${amount.amount}`)
+    .join('|')
+  return itemKey(expectedItems) === itemKey(actualItems) && fluidKey(expectedFluids) === fluidKey(actualFluids)
+}
+
+function fabricationProcessRecipeForMachine(card: RecipeCardInstance, machineId: MachineId) {
+  if (card.kind !== 'processing') return undefined
+  return processRecipes.find((recipe) => {
+    if (recipe.machineId !== machineId) return false
+    const itemInputs = [
+      recipe.input,
+      ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
+      ...(recipe.extraInputs ?? []),
+      ...(recipe.fuelInput ? [recipe.fuelInput] : []),
+    ].filter((amount) => amount.amount > 0)
+    return fabricationAmountsMatch(card.itemInputs, itemInputs, card.fluidInputs, recipeFluidInputs(recipe)) &&
+      fabricationAmountsMatch(card.itemOutputs, recipeItemOutputs(recipe), card.fluidOutputs, recipeFluidOutputs(recipe))
+  })
+}
+
+export function fabricationCardSupportsMachine(card: RecipeCardInstance, machineId: MachineId) {
   return card.kind === 'crafting'
-    ? target.machineId === 'autoFabricator'
-    : Boolean(card.targetMachineId && card.targetMachineId === target.machineId)
+    ? machineId === 'autoFabricator'
+    : Boolean(fabricationProcessRecipeForMachine(card, machineId))
+}
+
+function fabricationCardMatchesTarget(card: RecipeCardInstance, target: MachineInstance) {
+  return fabricationCardSupportsMachine(card, target.machineId)
 }
 
 function fabricationInterfaceTarget(
@@ -6089,8 +6126,8 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
       continue
     }
 
-    const recipe = card.recipeId ? processRecipes.find((candidate) => candidate.id === card.recipeId) : undefined
-    if (!recipe || recipe.machineId !== target.machineId || card.targetMachineId !== target.machineId) {
+    const recipe = fabricationProcessRecipeForMachine(card, target.machineId)
+    if (!recipe) {
       job.status = 'blocked'
       job.blockedReason = 'Processing card does not match the adjacent machine'
       continue

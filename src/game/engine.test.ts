@@ -6418,7 +6418,7 @@ describe('game engine', () => {
 
     const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
     encoder.process.euStored = 64
-    state = encodeProcessingRecipeCard(state, encoder.uid, 'lv_furnace_iron')
+    state = encodeProcessingRecipeCard(state, encoder.uid, 'smelt_iron_ingot')
     const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
     state = installRecipeCard(state, recipeInterface.uid, state.recipeCards[0].uid)
     state = requestFabricationJob(state, state.recipeCards[0].uid, 1)
