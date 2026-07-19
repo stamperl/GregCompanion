@@ -13533,18 +13533,30 @@ button.button-primary:disabled,
 }
 
 .pattern-crafting-editor {
+  --pattern-slot-size: clamp(44px, 13vw, 54px);
   align-items: center;
   background: #111715;
   border: 1px solid #46524d;
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(126px, 150px) 20px 54px;
+  grid-template-columns: auto 20px 54px;
   justify-content: center;
   padding: 9px;
 }
 
 .pattern-crafting-editor .pattern-grid {
-  width: 100%;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, var(--pattern-slot-size));
+  max-width: none;
+  width: calc(var(--pattern-slot-size) * 3 + 10px);
+}
+
+.pattern-crafting-editor .pattern-grid .craft-slot {
+  height: var(--pattern-slot-size);
+  min-height: var(--pattern-slot-size);
+  min-width: var(--pattern-slot-size);
+  width: var(--pattern-slot-size);
 }
 
 .pattern-crafting-editor .output-slot {
