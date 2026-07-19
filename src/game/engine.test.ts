@@ -49,6 +49,7 @@ import {
   craftRecipeInstant,
   durabilityRemaining,
   encodeCraftingRecipeCard,
+  encodeProcessingRecipeCard,
   equipResource,
   equippedResourceCounts,
   expandFactoryFloor,
@@ -6393,6 +6394,45 @@ describe('game engine', () => {
     expect(structure).not.toBeNull()
     expect(structure?.memoryUnits).toBe(64)
     expect(structure?.dispatchLanes).toBe(2)
+  })
+
+  it('automatically selects a compatible free machine beside a Job Interface', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.memoryModule = 1
+    state.machines.rackFrame = 2
+    state.machines.recipeEncoder = 1
+    state.machines.jobInterface = 1
+    state.machines.standardChest = 1
+    state.machines.lvFurnace = 1
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'memoryModule', 1, 0)
+    state = placeMachineInstance(state, 'rackFrame', 0, 1)
+    state = placeMachineInstance(state, 'rackFrame', 1, 1)
+    state = placeMachineInstance(state, 'recipeEncoder', 5, 0)
+    state = placeMachineInstance(state, 'standardChest', 3, 1)
+    state = placeMachineInstance(state, 'jobInterface', 3, 2)
+    state = placeMachineInstance(state, 'lvFurnace', 4, 2)
+    state.resources.blankRecipeCard = 1
+    state.resources.ironOre = 1
+
+    const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
+    encoder.process.euStored = 64
+    state = encodeProcessingRecipeCard(state, encoder.uid, 'lv_furnace_iron')
+    const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
+    state = installRecipeCard(state, recipeInterface.uid, state.recipeCards[0].uid)
+    state = requestFabricationJob(state, state.recipeCards[0].uid, 1)
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
+    state.machineInstances.find((instance) => instance.machineId === 'lvFurnace')!.process.euStored = 128
+
+    state = tickGame(state, 100).state
+    expect(state.fabricationJobs[0].steps[0].targetUid).toBe(state.machineInstances.find((instance) => instance.machineId === 'lvFurnace')!.uid)
+    expect(state.fabricationJobs[0].status).toBe('running')
+
+    state = tickGame(state, 5000).state
+    state = tickGame(state, 100).state
+    expect(state.fabricationJobs[0].status).toBe('complete')
+    expect(state.resources.ironIngot).toBe(1)
   })
 
   it('runs a recursive crafting request from encoded recipe cards', () => {

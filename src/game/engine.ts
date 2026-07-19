@@ -471,6 +471,7 @@ function normalizeFabricationJobs(parsed: unknown, cards: RecipeCardInstance[], 
           batches: Math.max(1, Math.floor(Number(parsedStep.batches) || 1)),
           completedBatches: Math.max(0, Math.floor(Number(parsedStep.completedBatches) || 0)),
           interfaceUid: typeof parsedStep.interfaceUid === 'string' ? parsedStep.interfaceUid : undefined,
+          targetUid: typeof parsedStep.targetUid === 'string' ? parsedStep.targetUid : undefined,
           dispatched: Boolean(parsedStep.dispatched),
         }]
       }) : [],
@@ -1703,16 +1704,41 @@ function cardItemOutputs(card: RecipeCardInstance) {
   return combineResourceAmounts(card.itemOutputs)
 }
 
-function fabricationInterfaceTarget(state: GameState, instance: MachineInstance) {
+function fabricationCardMatchesTarget(card: RecipeCardInstance, target: MachineInstance) {
+  return card.kind === 'crafting'
+    ? target.machineId === 'autoFabricator'
+    : Boolean(card.targetMachineId && card.targetMachineId === target.machineId)
+}
+
+function fabricationInterfaceTarget(
+  state: GameState,
+  instance: MachineInstance,
+  card: RecipeCardInstance,
+  preferredTargetUid?: string,
+) {
   if (instance.machineId !== 'jobInterface') return null
-  const candidates = adjacentPositions(state, instance.x, instance.y)
+  const adjacent = adjacentPositions(state, instance.x, instance.y)
     .map((position) => machineAt(state, position.x, position.y))
     .filter((candidate): candidate is MachineInstance => Boolean(candidate))
   if (instance.fabricationFace) {
     const offset = pipeDirectionOffsets[instance.fabricationFace]
-    return machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+    const target = machineAt(state, instance.x + offset.dx, instance.y + offset.dy)
+    return target && fabricationCardMatchesTarget(card, target) ? target : null
   }
-  return candidates.sort((a, b) => a.uid.localeCompare(b.uid))[0] ?? null
+  const candidates = adjacent
+    .filter((candidate) => fabricationCardMatchesTarget(card, candidate))
+    .sort((a, b) => a.uid.localeCompare(b.uid))
+  const preferred = candidates.find((candidate) => candidate.uid === preferredTargetUid)
+  if (preferred) return preferred
+  const claimedTargetUids = new Set(state.fabricationJobs.flatMap((job) => (
+    job.status === 'complete' || job.status === 'cancelled'
+      ? []
+      : job.steps.filter((step) => step.completedBatches < step.batches && step.targetUid).map((step) => step.targetUid!)
+  )))
+  return candidates.find((candidate) => (
+    !claimedTargetUids.has(candidate.uid) &&
+    (card.kind === 'crafting' || processSlotsAreEmpty(candidate.process))
+  )) ?? candidates.find((candidate) => !claimedTargetUids.has(candidate.uid)) ?? candidates[0] ?? null
 }
 
 export function encodeCraftingRecipeCard(state: GameState, encoderUid: string, recipeId: string) {
@@ -2051,9 +2077,9 @@ export function requestFabricationJob(state: GameState, cardUid: string, quantit
   return next
 }
 
-export function setFabricationInterfaceFace(state: GameState, interfaceUid: string, direction: PipeDirection) {
+export function setFabricationInterfaceFace(state: GameState, interfaceUid: string, direction?: PipeDirection) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === interfaceUid && candidate.machineId === 'jobInterface')
-  if (!instance || !pipeDirections.includes(direction)) return state
+  if (!instance || (direction && !pipeDirections.includes(direction))) return state
   const next = cloneState(state)
   next.machineInstances.find((candidate) => candidate.uid === interfaceUid)!.fabricationFace = direction
   return next
@@ -6010,12 +6036,17 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
     }
     const card = state.recipeCards.find((candidate) => candidate.uid === activeStep.cardUid)
     const interfaceInstance = state.machineInstances.find((instance) => instance.uid === activeStep.interfaceUid && instance.machineId === 'jobInterface')
-    const target = interfaceInstance ? fabricationInterfaceTarget(state, interfaceInstance) : null
+    const target = card && interfaceInstance
+      ? fabricationInterfaceTarget(state, interfaceInstance, card, activeStep.targetUid)
+      : null
     if (!card || !interfaceInstance || !target) {
       job.status = 'blocked'
-      job.blockedReason = 'Recipe interface is missing its adjacent machine'
+      job.blockedReason = interfaceInstance?.fabricationFace
+        ? 'Selected interface face does not contain a compatible machine'
+        : 'Recipe interface has no compatible adjacent machine'
       continue
     }
+    activeStep.targetUid = target.uid
     if (rack.controller.process.euStored < 0.001) {
       job.status = 'blocked'
       job.blockedReason = 'Planning rack needs EU'

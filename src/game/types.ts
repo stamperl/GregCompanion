@@ -538,6 +538,7 @@ export type FabricationStep = {
   batches: number
   completedBatches: number
   interfaceUid?: string
+  targetUid?: string
   dispatched: boolean
 }
 

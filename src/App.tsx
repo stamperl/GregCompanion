@@ -3397,7 +3397,7 @@ function App() {
     machines[selectedMachine.machineId].tier === 'lv' &&
     isFluidOutletConfigurableMachine(selectedMachine.machineId),
   )
-  const selectedMachineCanAutomate = selectedMachineCanAutomateItems || selectedMachineCanAutomateFluids
+  const selectedMachineCanAutomate = selectedMachineCanAutomateItems || selectedMachineCanAutomateFluids || selectedMachine?.machineId === 'jobInterface'
   const selectedMachineFluidOutputDirections = selectedMachine && selectedMachineCanAutomateFluids
     ? pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output')
     : []
@@ -7476,12 +7476,66 @@ function App() {
                   >
                     <Route size={14} />
                     <span>{isMachineAutomationOpen ? 'Back to machine' : 'Automation'}</span>
-                    <strong>{showSelectedMachineFluidAutomation
+                    <strong>{selectedMachine.machineId === 'jobInterface'
+                      ? selectedMachine.fabricationFace ? pipeDirectionOffsets[selectedMachine.fabricationFace].label : 'Auto'
+                      : showSelectedMachineFluidAutomation
                       ? selectedMachineFluidOutputDirections.length > 0 ? 'Ready' : 'Disabled'
                       : selectedMachineAutomationStatus?.label}</strong>
                   </button>
                 )}
-                {isMachineAutomationOpen && selectedMachineCanAutomate && showSelectedMachineFluidAutomation ? (
+                {isMachineAutomationOpen && selectedMachine.machineId === 'jobInterface' ? (
+                  <div className="lv-item-automation-hmi fabrication-face-automation">
+                    <div className="lv-automation-head">
+                      <span><small>Machine face</small><strong>{selectedMachine.fabricationFace ? pipeDirectionOffsets[selectedMachine.fabricationFace].label : 'Automatic'}</strong></span>
+                      <span className="lv-automation-state state-ready"><small>Mode</small><strong>{selectedMachine.fabricationFace ? 'Manual' : 'Auto'}</strong></span>
+                    </div>
+                    <button
+                      type="button"
+                      className={!selectedMachine.fabricationFace ? 'fabrication-auto-face active' : 'fabrication-auto-face'}
+                      aria-pressed={!selectedMachine.fabricationFace}
+                      onClick={() => setState((current) => setFabricationInterfaceFace(current, selectedMachine.uid))}
+                    >
+                      <Route size={15} />
+                      Use any free compatible face
+                    </button>
+                    <div className="lv-automation-grid" aria-label="Job Interface machine face override">
+                      {[-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => {
+                        const direction: PipeDirection | null = dx === 0 && dy === -1 ? 'north' : dx === 1 && dy === 0 ? 'east' : dx === 0 && dy === 1 ? 'south' : dx === -1 && dy === 0 ? 'west' : null
+                        const isCenter = dx === 0 && dy === 0
+                        if (!direction && !isCenter) return <span className="lv-automation-spacer" key={`${dx},${dy}`} />
+                        if (isCenter) return <span className="lv-automation-machine" key="center"><MachineGlyph id={selectedMachine.machineId} active={selectedFabricationJobs.some((job) => job.status === 'running')} /><strong>Job Interface</strong></span>
+                        const offset = pipeDirectionOffsets[direction!]
+                        const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
+                        const compatible = Boolean(neighbour && selectedInterfaceCards.some((card) => (
+                          card.kind === 'crafting'
+                            ? neighbour.machineId === 'autoFabricator'
+                            : card.targetMachineId === neighbour.machineId
+                        )))
+                        const selected = selectedMachine.fabricationFace === direction
+                        return <button
+                            type="button"
+                            className={['lv-automation-face', direction, selected ? 'selected' : '', neighbour && !compatible ? 'conflict' : ''].filter(Boolean).join(' ')}
+                            aria-label={`Use ${offset.label} face${compatible ? ', compatible machine' : neighbour ? ', incompatible machine' : ', no machine'}`}
+                            aria-pressed={selected}
+                            onClick={() => setState((current) => setFabricationInterfaceFace(current, selectedMachine.uid, selected ? undefined : direction!))}
+                            key={direction}
+                          >
+                            {neighbour ? <MachineGlyph id={neighbour.machineId} /> : <span className="lv-automation-empty" />}
+                            <b>{offset.label}</b>
+                            {compatible && <i aria-hidden="true" />}
+                          </button>
+                      }))}
+                    </div>
+                    <div className="lv-automation-route-readout">
+                      <span><small>Selection</small><strong>{selectedMachine.fabricationFace ? `Only ${pipeDirectionOffsets[selectedMachine.fabricationFace].label}` : 'First free valid face'}</strong></span>
+                      <span><small>Compatible</small><strong>{pipeDirections.filter((direction) => {
+                        const offset = pipeDirectionOffsets[direction]
+                        const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
+                        return neighbour && selectedInterfaceCards.some((card) => card.kind === 'crafting' ? neighbour.machineId === 'autoFabricator' : card.targetMachineId === neighbour.machineId)
+                      }).length}</strong></span>
+                    </div>
+                  </div>
+                ) : isMachineAutomationOpen && selectedMachineCanAutomate && showSelectedMachineFluidAutomation ? (
                   <div className="lv-item-automation-hmi fluid-automation-hmi">
                     <div className="lv-automation-head">
                       <span><small>Fluid output</small><strong>{selectedMachineFluidOutputDirections.length > 0
@@ -7856,8 +7910,6 @@ function App() {
                       <span><small>Priority</small><strong>{selectedMachine.fabricationPriority ?? 0}</strong></span>
                     </div>
                     <div className="fabrication-interface-controls">
-                      <span>Machine face</span>
-                      <div>{pipeDirections.map((direction) => <button type="button" className={selectedMachine.fabricationFace === direction ? 'active' : ''} key={direction} onClick={() => setState((current) => setFabricationInterfaceFace(current, selectedMachine.uid, direction))}>{direction.slice(0, 1).toUpperCase()}</button>)}</div>
                       <span>Priority</span>
                       <div>
                         <button type="button" disabled={(selectedMachine.fabricationPriority ?? 0) <= -10} onClick={() => setState((current) => setFabricationPriority(current, selectedMachine.uid, (selectedMachine.fabricationPriority ?? 0) - 1))}><ChevronLeft size={14} /></button>
