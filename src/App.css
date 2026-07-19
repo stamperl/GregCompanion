@@ -13464,6 +13464,231 @@ button.button-primary:disabled,
   min-height: 250px;
 }
 
+.pattern-encode-rail {
+  align-items: center;
+  background: #111715;
+  border: 1px solid #46524d;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: minmax(82px, 1fr) 38px minmax(82px, 1fr);
+  padding: 7px;
+}
+
+.pattern-media-slot {
+  align-items: center;
+  background: #202725;
+  border: 2px solid #5a6660;
+  border-bottom-color: #080b0a;
+  border-radius: 0;
+  border-right-color: #080b0a;
+  color: #e8eadf;
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  min-height: 72px;
+  min-width: 0;
+  padding: 5px;
+}
+
+.pattern-media-slot.inserted {
+  border-color: #f2dc76 #6e5a1c #6e5a1c #f2dc76;
+}
+
+.pattern-media-slot .pixel-icon {
+  height: 38px;
+  width: 38px;
+}
+
+.pattern-media-slot small {
+  font-size: 0.54rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.pattern-encode-arrow {
+  align-items: center;
+  background: #534924;
+  border: 2px solid #f2dc76;
+  border-bottom-color: #6e5a1c;
+  border-radius: 0;
+  border-right-color: #6e5a1c;
+  color: #fff7bd;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  padding: 0;
+  width: 38px;
+}
+
+.pattern-encode-arrow:disabled {
+  filter: grayscale(1);
+  opacity: 0.35;
+}
+
+.pattern-recipe-book {
+  margin: 0;
+  min-height: 36px;
+  width: 100%;
+}
+
+.pattern-crafting-editor {
+  align-items: center;
+  background: #111715;
+  border: 1px solid #46524d;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(126px, 150px) 20px 54px;
+  justify-content: center;
+  padding: 9px;
+}
+
+.pattern-crafting-editor .pattern-grid {
+  width: 100%;
+}
+
+.pattern-crafting-editor .output-slot {
+  height: 54px;
+  width: 54px;
+}
+
+.pattern-crafting-editor > p {
+  color: #92aaa2;
+  font-size: 0.58rem;
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+}
+
+.processing-pattern-editor {
+  background: #111715;
+  border: 1px solid #46524d;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+  padding: 7px;
+}
+
+.processing-pattern-editor > section {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.processing-pattern-editor h3 {
+  color: #d9c86f;
+  font: 900 0.56rem Inter, ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.processing-pattern-arrow {
+  align-self: center;
+}
+
+.pattern-amount-grid {
+  align-content: start;
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.pattern-amount-slot {
+  align-items: center;
+  background: #202725;
+  border: 1px solid #46524d;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: 28px minmax(0, 1fr) 25px 25px;
+  min-height: 38px;
+  padding: 3px;
+}
+
+.pattern-amount-slot .pixel-icon,
+.pattern-amount-slot .fluid-icon {
+  height: 26px;
+  width: 26px;
+}
+
+.pattern-amount-slot > span {
+  display: grid;
+  min-width: 0;
+}
+
+.pattern-amount-slot strong {
+  color: #f5eed0;
+  font-size: 0.57rem;
+  overflow-wrap: anywhere;
+}
+
+.pattern-amount-slot small {
+  color: #92aaa2;
+  font-size: 0.52rem;
+}
+
+.pattern-amount-slot input {
+  appearance: textfield;
+  background: #0e1312;
+  border: 1px solid #46524d;
+  border-radius: 0;
+  color: #dffcff;
+  font: 800 0.56rem "Courier New", ui-monospace, monospace;
+  min-height: 20px;
+  min-width: 0;
+  padding: 1px 3px;
+  width: 100%;
+}
+
+.pattern-amount-slot input::-webkit-inner-spin-button,
+.pattern-amount-slot input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.pattern-amount-slot button {
+  align-items: center;
+  background: #252d2a;
+  border: 1px solid #5a6660;
+  border-radius: 0;
+  color: #e8eadf;
+  display: flex;
+  height: 27px;
+  justify-content: center;
+  padding: 0;
+  width: 25px;
+}
+
+.pattern-add-slot {
+  background: #202725;
+  border: 1px dashed #6d7a74;
+  border-radius: 0;
+  color: #dffcff;
+  font: 800 0.56rem Inter, ui-sans-serif, system-ui, sans-serif;
+  min-height: 34px;
+}
+
+.pattern-add-slot:disabled {
+  opacity: 0.35;
+}
+
+.pattern-match-status {
+  color: #ef9f93;
+  font-size: 0.58rem;
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+}
+
+.pattern-match-status.valid {
+  color: #9de7c8;
+}
+
+.pattern-editor-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .fabrication-status-grid {
   display: grid;
   gap: 5px;

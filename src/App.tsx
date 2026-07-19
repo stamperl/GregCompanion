@@ -30,9 +30,11 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type Dispatch,
   type DragEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
 import './App.css'
@@ -251,6 +253,7 @@ import type {
   CraftSlot,
   EquipmentSlotId,
   FluidContainerKind,
+  FluidAmount,
   FluidId,
   GatherTargetId,
   GameState,
@@ -1318,6 +1321,30 @@ function processRecipePrimaryOutput(recipe: ProcessRecipe): RecipeDisplayOutput 
     }
   }
   return { kind: 'machine', id: 'furnace', amount: 0, label: 'No output' }
+}
+
+function processRecipePatternAmounts(recipe: ProcessRecipe) {
+  const itemInputs = [
+    recipe.input,
+    ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
+    ...(recipe.extraInputs ?? []),
+    ...(recipe.fuelInput ? [recipe.fuelInput] : []),
+  ].filter((amount) => amount.amount > 0)
+  const itemOutputs = recipe.fluidOnly
+    ? []
+    : [recipe.output, ...(recipe.secondaryOutput ? [recipe.secondaryOutput] : [])].filter((amount) => amount.amount > 0)
+  const fluidInputs = recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])
+  const fluidOutputs = recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
+  return { itemInputs, itemOutputs, fluidInputs, fluidOutputs }
+}
+
+function patternAmountsKey(itemInputs: ResourceAmount[], fluidInputs: FluidAmount[], itemOutputs: ResourceAmount[], fluidOutputs: FluidAmount[]) {
+  const key = <T extends { id: string; amount: number }>(amounts: T[]) => amounts
+    .filter((amount) => amount.amount > 0)
+    .map((amount) => `${amount.id}:${amount.amount}`)
+    .sort()
+    .join('|')
+  return `${key(itemInputs)}>${key(fluidInputs)}>${key(itemOutputs)}>${key(fluidOutputs)}`
 }
 
 function recipeDisplayName(recipe: Recipe) {
@@ -2544,7 +2571,14 @@ function App() {
   const [machineInventorySearch, setMachineInventorySearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
   const [encoderRecipeKind, setEncoderRecipeKind] = useState<'crafting' | 'processing'>('crafting')
-  const [encoderRecipeId, setEncoderRecipeId] = useState('')
+  const [patternBlankInserted, setPatternBlankInserted] = useState(false)
+  const [patternCraftingGrid, setPatternCraftingGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
+  const [patternItemInputs, setPatternItemInputs] = useState<ResourceAmount[]>([])
+  const [patternFluidInputs, setPatternFluidInputs] = useState<FluidAmount[]>([])
+  const [patternItemOutputs, setPatternItemOutputs] = useState<ResourceAmount[]>([])
+  const [patternFluidOutputs, setPatternFluidOutputs] = useState<FluidAmount[]>([])
+  const [patternSourceRecipeId, setPatternSourceRecipeId] = useState<string | null>(null)
+  const [isPatternRecipeBookOpen, setIsPatternRecipeBookOpen] = useState(false)
   const [fabricationRequestQuantity, setFabricationRequestQuantity] = useState(1)
   const [fabricationRequestCardUid, setFabricationRequestCardUid] = useState<string | null>(null)
   const [terminalWorkspaceMode, setTerminalWorkspaceMode] = useState<TerminalWorkspaceMode>('crafting')
@@ -3036,6 +3070,19 @@ function App() {
     ? selectedRecipeMinimumMachineId ?? selectedRecipe?.requiredMachine
     : selectedRecipe?.requiredMachine
   const placedPatternTerminal = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')
+  const patternCraftingRecipe = findGridRecipe(
+    patternCraftingGrid.map((slot) => slot ? { ...slot, ghost: false } : null),
+    recipes,
+  )
+  const processingPatternKey = patternAmountsKey(patternItemInputs, patternFluidInputs, patternItemOutputs, patternFluidOutputs)
+  const matchingProcessingPatternRecipes = processingPatternKey === '>>>'
+    ? []
+    : processRecipes.filter((recipe) => {
+        const amounts = processRecipePatternAmounts(recipe)
+        return patternAmountsKey(amounts.itemInputs, amounts.fluidInputs, amounts.itemOutputs, amounts.fluidOutputs) === processingPatternKey
+      })
+  const patternProcessingRecipe = matchingProcessingPatternRecipes.find((recipe) => recipe.id === patternSourceRecipeId) ?? matchingProcessingPatternRecipes[0]
+  const latestAvailablePattern = state.recipeCards.filter((card) => !card.installedInUid).at(-1)
   const installedPatternsByPriority = state.recipeCards
     .filter((card) => card.installedInUid)
     .slice()
@@ -4434,6 +4481,7 @@ function App() {
   }
 
   const handleOpenRecipeBrowser = () => {
+    setIsPatternRecipeBookOpen(false)
     setTerminalMode('recipes')
     setRecipeSearch('')
     setSelectedRecipeGroupKey(null)
@@ -4452,11 +4500,75 @@ function App() {
     setIsMachineRecipePopupOpen(true)
   }
 
+  const clearPatternEditor = () => {
+    setPatternCraftingGrid(Array.from({ length: 9 }, () => null))
+    setPatternItemInputs([])
+    setPatternFluidInputs([])
+    setPatternItemOutputs([])
+    setPatternFluidOutputs([])
+    setPatternSourceRecipeId(null)
+  }
+
+  const handleLoadPatternRecipe = (recipe: Recipe) => {
+    if (recipe.recipeType === 'processing') {
+      setEncoderRecipeKind('processing')
+      setPatternItemInputs(recipe.inputs.map((amount) => ({ ...amount })))
+      setPatternFluidInputs(recipe.fluidInputs?.map((amount) => ({ ...amount })) ?? [])
+      setPatternItemOutputs(recipe.outputs.map((amount) => ({ ...amount })))
+      setPatternFluidOutputs(recipe.fluidOutputs?.map((amount) => ({ ...amount })) ?? [])
+      setPatternSourceRecipeId(recipe.id)
+    } else if (recipeFitsTerminalGrid(recipe)) {
+      setEncoderRecipeKind('crafting')
+      setPatternCraftingGrid(makeGridForRecipe(recipe).map((slot) => slot ? { ...slot, ghost: true } : null))
+    } else {
+      setTerminalNotice('That recipe cannot be encoded as a crafting pattern.')
+      return
+    }
+    setTerminalWorkspaceMode('patterns')
+    setIsPatternRecipeBookOpen(false)
+    setIsRecipeModalOpen(false)
+    setTerminalNotice(`${recipeDisplayName(recipe)} loaded into the Pattern Terminal.`)
+  }
+
   const handleEncodeSelectedRecipe = () => {
-    if (!placedPatternTerminal || !encoderRecipeId) return
+    const recipeId = encoderRecipeKind === 'crafting' ? patternCraftingRecipe?.id : patternProcessingRecipe?.id
+    if (!placedPatternTerminal || !patternBlankInserted || availableResourceAmount(state, 'blankRecipeCard') < 1 || !recipeId) return
     setState((current) => encoderRecipeKind === 'crafting'
-      ? encodeCraftingRecipeCard(current, placedPatternTerminal.uid, encoderRecipeId)
-      : encodeProcessingRecipeCard(current, placedPatternTerminal.uid, encoderRecipeId))
+      ? encodeCraftingRecipeCard(current, placedPatternTerminal.uid, recipeId)
+      : encodeProcessingRecipeCard(current, placedPatternTerminal.uid, recipeId))
+    setPatternBlankInserted(false)
+    clearPatternEditor()
+    setTerminalNotice('Pattern encoded.')
+  }
+
+  const handlePatternCraftSlot = (slotIndex: number) => {
+    setPatternCraftingGrid((current) => current.map((slot, index) => {
+      if (index !== slotIndex) return slot
+      if (slot) return null
+      return selectedResource ? { id: selectedResource, ghost: true } : null
+    }))
+  }
+
+  const adjustPatternResourceAmount = (
+    setter: Dispatch<SetStateAction<ResourceAmount[]>>,
+    id: ResourceId,
+    delta: number,
+  ) => {
+    setPatternSourceRecipeId(null)
+    setter((current) => current
+      .map((amount) => amount.id === id ? { ...amount, amount: Math.max(0, Math.min(999, amount.amount + delta)) } : amount)
+      .filter((amount) => amount.amount > 0))
+  }
+
+  const adjustPatternFluidAmount = (
+    setter: Dispatch<SetStateAction<FluidAmount[]>>,
+    id: FluidId,
+    delta: number,
+  ) => {
+    setPatternSourceRecipeId(null)
+    setter((current) => current
+      .map((amount) => amount.id === id ? { ...amount, amount: Math.max(0, Math.min(999, amount.amount + delta)) } : amount)
+      .filter((amount) => amount.amount > 0))
   }
 
   const handleInstallRecipeCard = (cardUid: string) => {
@@ -5765,29 +5877,166 @@ function App() {
                 <span><small>Encode charge</small><strong>{Math.floor(placedPatternTerminal.process.euStored)} / 64 EU</strong></span>
                 <span><small>Encoded</small><strong>{state.recipeCards.length}</strong></span>
               </div>
-              <div className="fabrication-mode-tabs" role="tablist" aria-label="Pattern type">
-                <button type="button" className={encoderRecipeKind === 'crafting' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('crafting'); setEncoderRecipeId('') }}>Crafting</button>
-                <button type="button" className={encoderRecipeKind === 'processing' ? 'active' : ''} onClick={() => { setEncoderRecipeKind('processing'); setEncoderRecipeId('') }}>Processing</button>
+              <div className="pattern-encode-rail" aria-label="Pattern encoding slots">
+                <button
+                  type="button"
+                  className={patternBlankInserted ? 'pattern-media-slot inserted' : 'pattern-media-slot'}
+                  disabled={!patternBlankInserted && availableResourceAmount(state, 'blankRecipeCard') < 1}
+                  onClick={() => setPatternBlankInserted((inserted) => !inserted)}
+                >
+                  {patternBlankInserted ? <PixelIcon id="blankRecipeCard" /> : <span className="empty-output" />}
+                  <small>{patternBlankInserted ? 'Blank Pattern' : 'Insert blank'}</small>
+                </button>
+                <button
+                  type="button"
+                  className="pattern-encode-arrow"
+                  disabled={
+                    !patternBlankInserted ||
+                    availableResourceAmount(state, 'blankRecipeCard') < 1 ||
+                    placedPatternTerminal.process.euStored < 64 ||
+                    (encoderRecipeKind === 'crafting' ? !patternCraftingRecipe?.outputs.some((output) => output.amount > 0) : !patternProcessingRecipe)
+                  }
+                  aria-label="Encode pattern"
+                  onClick={handleEncodeSelectedRecipe}
+                >
+                  <ChevronRight size={22} />
+                </button>
+                <div className="pattern-media-slot encoded">
+                  {latestAvailablePattern?.itemOutputs[0] ? <PixelIcon id={latestAvailablePattern.itemOutputs[0].id} /> : <span className="empty-output" />}
+                  <small>{latestAvailablePattern?.name ?? 'Encoded output'}</small>
+                </div>
               </div>
-              <label className="fabrication-recipe-select">
-                <span>{encoderRecipeKind === 'crafting' ? 'Crafts' : 'Processes'}</span>
-                <select value={encoderRecipeId} onChange={(event) => setEncoderRecipeId(event.target.value)}>
-                  <option value="">Select a known recipe</option>
-                  {(encoderRecipeKind === 'crafting'
-                    ? recipes.filter((recipe) => recipe.outputs.length > 0)
-                    : processRecipes
-                  ).map((recipe) => <option value={recipe.id} key={recipe.id}>{recipe.name}</option>)}
-                </select>
-              </label>
+              <div className="fabrication-mode-tabs" role="tablist" aria-label="Pattern type">
+                <button type="button" className={encoderRecipeKind === 'crafting' ? 'active' : ''} onClick={() => setEncoderRecipeKind('crafting')}>Crafting</button>
+                <button type="button" className={encoderRecipeKind === 'processing' ? 'active' : ''} onClick={() => setEncoderRecipeKind('processing')}>Processing</button>
+              </div>
               <button
                 type="button"
-                className="fabrication-command"
-                disabled={!encoderRecipeId || availableResourceAmount(state, 'blankRecipeCard') < 1 || placedPatternTerminal.process.euStored < 64}
-                onClick={handleEncodeSelectedRecipe}
+                className="recipe-open-button pattern-recipe-book"
+                onClick={() => {
+                  setIsPatternRecipeBookOpen(true)
+                  setTerminalMode('recipes')
+                  setRecipeSearch('')
+                  setSelectedRecipeGroupKey(null)
+                  setSelectedRecipeIndex(0)
+                  setIsRecipeModalOpen(true)
+                }}
               >
-                <Database size={15} />
-                Encode pattern
+                <BookOpen size={15} />
+                Recipe Book
               </button>
+              {encoderRecipeKind === 'crafting' ? (
+                <div className="pattern-crafting-editor">
+                  <div className="craft-grid three-grid pixel-grid pattern-grid" aria-label="Crafting pattern grid">
+                    {patternCraftingGrid.map((slot, index) => (
+                      <button
+                        type="button"
+                        className={slot ? 'craft-slot ghost' : 'craft-slot'}
+                        aria-label={slot ? `Remove ${resourceLabels[slot.id]}` : `Pattern slot ${index + 1}`}
+                        onClick={() => handlePatternCraftSlot(index)}
+                        key={`${slot?.id ?? 'empty'}-${index}`}
+                      >
+                        {slot && <PixelIcon id={slot.id} />}
+                      </button>
+                    ))}
+                  </div>
+                  <ChevronRight size={20} aria-hidden="true" />
+                  <div className={patternCraftingRecipe ? 'output-slot matched' : 'output-slot'}>
+                    {patternCraftingRecipe?.outputs[0] ? <PixelIcon id={patternCraftingRecipe.outputs[0].id} /> : <span className="empty-output" />}
+                    {patternCraftingRecipe?.outputs[0] && <span className="item-count output-count">{patternCraftingRecipe.outputs[0].amount}</span>}
+                  </div>
+                  <p>{patternCraftingRecipe ? recipeDisplayName(patternCraftingRecipe) : 'Arrange a valid 3×3 recipe or fill it from the Recipe Book.'}</p>
+                </div>
+              ) : (
+                <div className="processing-pattern-editor">
+                  <section>
+                    <h3>Inputs</h3>
+                    <div className="pattern-amount-grid">
+                      {patternItemInputs.map((amount) => <div className="pattern-amount-slot" key={`in-${amount.id}`}>
+                        <PixelIcon id={amount.id} />
+                        <span><strong>{resourceLabels[amount.id]}</strong><input type="number" min="1" max="999" value={amount.amount} aria-label={`${resourceLabels[amount.id]} input amount`} onChange={(event) => adjustPatternResourceAmount(setPatternItemInputs, amount.id, Number(event.target.value) - amount.amount)} /></span>
+                        <button type="button" aria-label={`Remove one ${resourceLabels[amount.id]}`} onClick={() => adjustPatternResourceAmount(setPatternItemInputs, amount.id, -1)}><ChevronLeft size={13} /></button>
+                        <button type="button" aria-label={`Add one ${resourceLabels[amount.id]}`} onClick={() => adjustPatternResourceAmount(setPatternItemInputs, amount.id, 1)}><ChevronRight size={13} /></button>
+                      </div>)}
+                      {patternFluidInputs.map((amount) => <div className="pattern-amount-slot fluid" key={`fluid-in-${amount.id}`}>
+                        <FluidIcon id={amount.id} />
+                        <span><strong>{fluidLabel(amount.id)}</strong><input type="number" min="1" max="999" value={amount.amount} aria-label={`${fluidLabel(amount.id)} input litres`} onChange={(event) => adjustPatternFluidAmount(setPatternFluidInputs, amount.id, Number(event.target.value) - amount.amount)} /></span>
+                        <button type="button" aria-label={`Remove ${fluidLabel(amount.id)}`} onClick={() => adjustPatternFluidAmount(setPatternFluidInputs, amount.id, -1)}><ChevronLeft size={13} /></button>
+                        <button type="button" aria-label={`Add ${fluidLabel(amount.id)}`} onClick={() => adjustPatternFluidAmount(setPatternFluidInputs, amount.id, 1)}><ChevronRight size={13} /></button>
+                      </div>)}
+                      <button
+                        type="button"
+                        className="pattern-add-slot"
+                        disabled={!selectedResource || patternItemInputs.some((amount) => amount.id === selectedResource) || patternItemInputs.length >= 9}
+                        onClick={() => {
+                          setPatternSourceRecipeId(null)
+                          if (selectedResource) setPatternItemInputs((current) => [...current, { id: selectedResource, amount: 1 }])
+                        }}
+                      >
+                        + Selected item
+                      </button>
+                      <button
+                        type="button"
+                        className="pattern-add-slot"
+                        disabled={!selectedFluidContainerGroup || patternFluidInputs.some((amount) => amount.id === selectedFluidContainerGroup.fluidId)}
+                        onClick={() => {
+                          setPatternSourceRecipeId(null)
+                          if (selectedFluidContainerGroup) setPatternFluidInputs((current) => [...current, { id: selectedFluidContainerGroup.fluidId, amount: 1 }])
+                        }}
+                      >
+                        + Selected fluid
+                      </button>
+                    </div>
+                  </section>
+                  <ChevronRight size={20} className="processing-pattern-arrow" aria-hidden="true" />
+                  <section>
+                    <h3>Outputs</h3>
+                    <div className="pattern-amount-grid">
+                      {patternItemOutputs.map((amount) => <div className="pattern-amount-slot" key={`out-${amount.id}`}>
+                        <PixelIcon id={amount.id} />
+                        <span><strong>{resourceLabels[amount.id]}</strong><input type="number" min="1" max="999" value={amount.amount} aria-label={`${resourceLabels[amount.id]} output amount`} onChange={(event) => adjustPatternResourceAmount(setPatternItemOutputs, amount.id, Number(event.target.value) - amount.amount)} /></span>
+                        <button type="button" aria-label={`Remove one ${resourceLabels[amount.id]}`} onClick={() => adjustPatternResourceAmount(setPatternItemOutputs, amount.id, -1)}><ChevronLeft size={13} /></button>
+                        <button type="button" aria-label={`Add one ${resourceLabels[amount.id]}`} onClick={() => adjustPatternResourceAmount(setPatternItemOutputs, amount.id, 1)}><ChevronRight size={13} /></button>
+                      </div>)}
+                      {patternFluidOutputs.map((amount) => <div className="pattern-amount-slot fluid" key={`fluid-out-${amount.id}`}>
+                        <FluidIcon id={amount.id} />
+                        <span><strong>{fluidLabel(amount.id)}</strong><input type="number" min="1" max="999" value={amount.amount} aria-label={`${fluidLabel(amount.id)} output litres`} onChange={(event) => adjustPatternFluidAmount(setPatternFluidOutputs, amount.id, Number(event.target.value) - amount.amount)} /></span>
+                        <button type="button" aria-label={`Remove ${fluidLabel(amount.id)}`} onClick={() => adjustPatternFluidAmount(setPatternFluidOutputs, amount.id, -1)}><ChevronLeft size={13} /></button>
+                        <button type="button" aria-label={`Add ${fluidLabel(amount.id)}`} onClick={() => adjustPatternFluidAmount(setPatternFluidOutputs, amount.id, 1)}><ChevronRight size={13} /></button>
+                      </div>)}
+                      <button
+                        type="button"
+                        className="pattern-add-slot"
+                        disabled={!selectedResource || patternItemOutputs.some((amount) => amount.id === selectedResource) || patternItemOutputs.length >= 3}
+                        onClick={() => {
+                          setPatternSourceRecipeId(null)
+                          if (selectedResource) setPatternItemOutputs((current) => [...current, { id: selectedResource, amount: 1 }])
+                        }}
+                      >
+                        + Selected item
+                      </button>
+                      <button
+                        type="button"
+                        className="pattern-add-slot"
+                        disabled={!selectedFluidContainerGroup || patternFluidOutputs.some((amount) => amount.id === selectedFluidContainerGroup.fluidId) || patternFluidOutputs.length >= 3}
+                        onClick={() => {
+                          setPatternSourceRecipeId(null)
+                          if (selectedFluidContainerGroup) setPatternFluidOutputs((current) => [...current, { id: selectedFluidContainerGroup.fluidId, amount: 1 }])
+                        }}
+                      >
+                        + Selected fluid
+                      </button>
+                    </div>
+                  </section>
+                  <p className={patternProcessingRecipe ? 'pattern-match-status valid' : 'pattern-match-status'}>
+                    {patternProcessingRecipe ? `${machines[patternProcessingRecipe.machineId].name} · ${patternProcessingRecipe.name}` : 'Inputs and outputs must match a known machine process.'}
+                  </p>
+                </div>
+              )}
+              <div className="compact-actions pattern-editor-actions">
+                <button type="button" onClick={clearPatternEditor}><Trash2 size={15} />Clear editor</button>
+                {latestAvailablePattern && <button type="button" onClick={() => setState((current) => eraseRecipeCard(current, latestAvailablePattern.uid))}><Undo2 size={15} />Clear encoded</button>}
+              </div>
               <section className="fabrication-section">
                 <h3>Pattern library</h3>
                 <div className="fabrication-card-list" aria-label="Encoded pattern library">
@@ -5993,9 +6242,11 @@ function App() {
                       <button
                         type="button"
                         className="load-recipe-button recipe-primary-action"
-                        onClick={() => handleRecipeBrowserAction(selectedRecipe)}
+                        onClick={() => isPatternRecipeBookOpen ? handleLoadPatternRecipe(selectedRecipe) : handleRecipeBrowserAction(selectedRecipe)}
                       >
-                        {isFactoryFloorLayoutRecipe(selectedRecipe)
+                        {isPatternRecipeBookOpen
+                          ? selectedRecipe.recipeType === 'processing' || recipeFitsTerminalGrid(selectedRecipe) ? 'Fill pattern' : 'Cannot encode this recipe'
+                          : isFactoryFloorLayoutRecipe(selectedRecipe)
                           ? 'Create factory parts'
                           : recipeOpensProcessView(selectedRecipe)
                             ? 'Open process view'
@@ -6018,16 +6269,11 @@ function App() {
                             Request craft
                           </button>
                         )}
-                        {placedPatternTerminal && !state.recipeCards.some((card) => card.recipeId === selectedRecipe.id) && (
+                        {!isPatternRecipeBookOpen && placedPatternTerminal && !state.recipeCards.some((card) => card.recipeId === selectedRecipe.id) && (
                           <button
                             type="button"
                             className="fabrication-command"
-                            onClick={() => {
-                              setEncoderRecipeKind(selectedRecipe.recipeType === 'processing' ? 'processing' : 'crafting')
-                              setEncoderRecipeId(selectedRecipe.id)
-                              setTerminalWorkspaceMode('patterns')
-                              setIsRecipeModalOpen(false)
-                            }}
+                            onClick={() => handleLoadPatternRecipe(selectedRecipe)}
                           >
                             <Database size={15} />
                             Open in Pattern Terminal
