@@ -13908,6 +13908,64 @@ button.button-primary:disabled,
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.fabrication-job-row.terminal-job-row {
+  gap: 5px;
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
+  min-height: 42px;
+  padding: 4px;
+}
+
+.terminal-job-row .pixel-icon {
+  height: 28px;
+  width: 28px;
+}
+
+.terminal-job-row > span {
+  line-height: 1.15;
+}
+
+.terminal-job-row strong {
+  font-size: 0.66rem;
+}
+
+.terminal-job-row small {
+  font-size: 0.54rem;
+}
+
+.terminal-job-row > .icon-button {
+  align-self: center;
+  aspect-ratio: auto;
+  height: 30px;
+  justify-self: end;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0;
+  width: 30px;
+}
+
+.terminal-job-row.job-complete {
+  border-color: #3f4945;
+  opacity: 0.72;
+}
+
+.terminal-jobs-workspace {
+  gap: 6px;
+  min-height: 0;
+  padding: 6px;
+}
+
+.terminal-jobs-workspace .fabrication-status-grid > span {
+  min-height: 46px;
+  padding: 5px;
+}
+
+.terminal-jobs-workspace .fabrication-section {
+  gap: 4px;
+  max-height: 270px;
+  overflow-y: auto;
+  padding-top: 6px;
+}
+
 .planning-terminal .fabrication-job-row {
   grid-template-columns: 38px minmax(0, 1fr) auto;
 }
