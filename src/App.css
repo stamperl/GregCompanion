@@ -13464,6 +13464,44 @@ button.button-primary:disabled,
   min-height: 250px;
 }
 
+.terminal-panel .terminal-items.pattern-item-picker {
+  display: flex;
+  gap: 3px;
+  height: 50px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 3px;
+}
+
+.terminal-panel .terminal-items.pattern-item-picker .item-slot {
+  flex: 0 0 40px;
+  height: 40px;
+  min-height: 40px;
+  min-width: 40px;
+  width: 40px;
+}
+
+.terminal-panel .terminal-items.pattern-item-picker .empty-storage {
+  flex: 1;
+  min-height: 40px;
+}
+
+.pattern-selection-tooltip {
+  font-size: 0.68rem;
+  min-height: 28px;
+  padding: 3px 7px;
+}
+
+.pattern-selection-tooltip .terminal-request-shortcut {
+  display: none;
+}
+
+.terminal-pattern-workspace {
+  gap: 6px;
+  min-height: 0;
+  padding: 6px;
+}
+
 .pattern-encode-rail {
   align-items: center;
   background: #111715;
@@ -13471,7 +13509,7 @@ button.button-primary:disabled,
   display: grid;
   gap: 7px;
   grid-template-columns: minmax(82px, 1fr) 38px minmax(82px, 1fr);
-  padding: 7px;
+  padding: 5px;
 }
 
 .pattern-media-slot {
@@ -13485,9 +13523,9 @@ button.button-primary:disabled,
   display: grid;
   gap: 3px;
   justify-items: center;
-  min-height: 72px;
+  min-height: 54px;
   min-width: 0;
-  padding: 5px;
+  padding: 3px;
 }
 
 .pattern-media-slot.inserted {
@@ -13495,8 +13533,8 @@ button.button-primary:disabled,
 }
 
 .pattern-media-slot .pixel-icon {
-  height: 38px;
-  width: 38px;
+  height: 30px;
+  width: 30px;
 }
 
 .pattern-media-slot small {

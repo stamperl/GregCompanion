@@ -5677,7 +5677,7 @@ function App() {
             )}
           </div>
 
-          <div className="terminal-items" aria-label="Stored items">
+          <div className={terminalWorkspaceMode === 'patterns' ? 'terminal-items pattern-item-picker' : 'terminal-items'} aria-label="Stored items">
             {filteredResources.length > 0 || filteredVirtualCraftables.length > 0 || filteredMachines.length > 0 || filteredPortableFluidGroups.length > 0 ? (
               <>
                 {filteredResources.map((id) => {
@@ -5750,7 +5750,10 @@ function App() {
             )}
           </div>
 
-          <div className={selectedResource || selectedFluidContainerGroup ? 'item-tooltip' : 'item-tooltip empty'} role={selectedResource || selectedFluidContainerGroup ? 'status' : undefined}>
+          <div className={[
+            selectedResource || selectedFluidContainerGroup ? 'item-tooltip' : 'item-tooltip empty',
+            terminalWorkspaceMode === 'patterns' ? 'pattern-selection-tooltip' : '',
+          ].filter(Boolean).join(' ')} role={selectedResource || selectedFluidContainerGroup ? 'status' : undefined}>
             {selectedFluidContainerGroup ? (
               <>
                 <strong>{fluidLabel(selectedFluidContainerGroup.fluidId)} {selectedFluidContainerGroup.kind === 'bucket' ? 'Bucket' : 'Steel Cell'}</strong>
@@ -5871,41 +5874,6 @@ function App() {
 
           {terminalWorkspaceMode === 'patterns' && placedPatternTerminal && (
             <div className="fabrication-terminal terminal-pattern-workspace">
-              <div className="fabrication-status-grid">
-                <span><small>Pattern Terminal</small><strong>Online</strong></span>
-                <span><small>Blank patterns</small><strong>{formatAmount(availableResourceAmount(state, 'blankRecipeCard'))}</strong></span>
-                <span><small>Encode charge</small><strong>{Math.floor(placedPatternTerminal.process.euStored)} / 64 EU</strong></span>
-                <span><small>Encoded</small><strong>{state.recipeCards.length}</strong></span>
-              </div>
-              <div className="pattern-encode-rail" aria-label="Pattern encoding slots">
-                <button
-                  type="button"
-                  className={patternBlankInserted ? 'pattern-media-slot inserted' : 'pattern-media-slot'}
-                  disabled={!patternBlankInserted && availableResourceAmount(state, 'blankRecipeCard') < 1}
-                  onClick={() => setPatternBlankInserted((inserted) => !inserted)}
-                >
-                  {patternBlankInserted ? <PixelIcon id="blankRecipeCard" /> : <span className="empty-output" />}
-                  <small>{patternBlankInserted ? 'Blank Pattern' : 'Insert blank'}</small>
-                </button>
-                <button
-                  type="button"
-                  className="pattern-encode-arrow"
-                  disabled={
-                    !patternBlankInserted ||
-                    availableResourceAmount(state, 'blankRecipeCard') < 1 ||
-                    placedPatternTerminal.process.euStored < 64 ||
-                    (encoderRecipeKind === 'crafting' ? !patternCraftingRecipe?.outputs.some((output) => output.amount > 0) : !patternProcessingRecipe)
-                  }
-                  aria-label="Encode pattern"
-                  onClick={handleEncodeSelectedRecipe}
-                >
-                  <ChevronRight size={22} />
-                </button>
-                <div className="pattern-media-slot encoded">
-                  {latestAvailablePattern?.itemOutputs[0] ? <PixelIcon id={latestAvailablePattern.itemOutputs[0].id} /> : <span className="empty-output" />}
-                  <small>{latestAvailablePattern?.name ?? 'Encoded output'}</small>
-                </div>
-              </div>
               <div className="fabrication-mode-tabs" role="tablist" aria-label="Pattern type">
                 <button type="button" className={encoderRecipeKind === 'crafting' ? 'active' : ''} onClick={() => setEncoderRecipeKind('crafting')}>Crafting</button>
                 <button type="button" className={encoderRecipeKind === 'processing' ? 'active' : ''} onClick={() => setEncoderRecipeKind('processing')}>Processing</button>
@@ -6033,6 +6001,35 @@ function App() {
                   </p>
                 </div>
               )}
+              <div className="pattern-encode-rail" aria-label="Pattern encoding slots">
+                <button
+                  type="button"
+                  className={patternBlankInserted ? 'pattern-media-slot inserted' : 'pattern-media-slot'}
+                  disabled={!patternBlankInserted && availableResourceAmount(state, 'blankRecipeCard') < 1}
+                  onClick={() => setPatternBlankInserted((inserted) => !inserted)}
+                >
+                  {patternBlankInserted ? <PixelIcon id="blankRecipeCard" /> : <span className="empty-output" />}
+                  <small>{patternBlankInserted ? 'Blank Pattern' : `Insert blank · ${formatAmount(availableResourceAmount(state, 'blankRecipeCard'))}`}</small>
+                </button>
+                <button
+                  type="button"
+                  className="pattern-encode-arrow"
+                  disabled={
+                    !patternBlankInserted ||
+                    availableResourceAmount(state, 'blankRecipeCard') < 1 ||
+                    placedPatternTerminal.process.euStored < 64 ||
+                    (encoderRecipeKind === 'crafting' ? !patternCraftingRecipe?.outputs.some((output) => output.amount > 0) : !patternProcessingRecipe)
+                  }
+                  aria-label="Encode pattern"
+                  onClick={handleEncodeSelectedRecipe}
+                >
+                  <ChevronRight size={22} />
+                </button>
+                <div className="pattern-media-slot encoded">
+                  {latestAvailablePattern?.itemOutputs[0] ? <PixelIcon id={latestAvailablePattern.itemOutputs[0].id} /> : <span className="empty-output" />}
+                  <small>{latestAvailablePattern?.name ?? `Encoded · ${state.recipeCards.length}`}</small>
+                </div>
+              </div>
               <div className="compact-actions pattern-editor-actions">
                 <button type="button" onClick={clearPatternEditor}><Trash2 size={15} />Clear editor</button>
                 {latestAvailablePattern && <button type="button" onClick={() => setState((current) => eraseRecipeCard(current, latestAvailablePattern.uid))}><Undo2 size={15} />Clear encoded</button>}
