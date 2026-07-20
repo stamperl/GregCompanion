@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Diamond Tool Icon Review</title>
+    <style>
+      body { margin: 0; background: #111315; color: #edf1f3; font: 16px system-ui, sans-serif; }
+      main { width: min(720px, calc(100% - 32px)); margin: 32px auto; }
+      h1 { font-size: 24px; letter-spacing: 0; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+      figure { margin: 0; padding: 16px; border: 1px solid #3c454d; background: #20252a; }
+      .preview { display: flex; align-items: end; justify-content: center; gap: 16px; min-height: 128px; background: #090b0d; }
+      img { image-rendering: auto; object-fit: contain; }
+      .large { width: 112px; height: 112px; }
+      .slot { width: 40px; height: 40px; }
+      figcaption { margin-top: 10px; color: #bac5cc; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Diamond Tool Family</h1>
+      <div class="grid" id="icons"></div>
+    </main>
+    <script>
+      const icons = ['diamondAxe', 'diamondPickaxe', 'diamondShovel']
+      document.querySelector('#icons').innerHTML = icons.map((id) => `
+        <figure>
+          <div class="preview">
+            <img class="large" src="${id}-candidate.png" alt="${id}" />
+            <img class="slot" src="${id}-candidate.png" alt="" />
+          </div>
+          <figcaption>${id} - approved in chat</figcaption>
+        </figure>
+      `).join('')
+    </script>
+  </body>
+</html>
