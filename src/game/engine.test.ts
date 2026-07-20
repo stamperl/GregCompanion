@@ -500,6 +500,30 @@ describe('game engine', () => {
     }
   })
 
+  it('completes the solid rubber quest through a running Steam Furnace', () => {
+    let state = createFactoryState(1000)
+    state.completedQuests = ['separateStickyResinQuest']
+    state.machines.well = 1
+    state.machines.steamBoiler = 1
+    state.machines.steamFurnace = 1
+    state.resources.coal = 1
+    state.resources.rubberPulp = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 1, 0)
+    state = placeMachineInstance(state, 'steamFurnace', 2, 0)
+
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    const furnace = state.machineInstances.find((instance) => instance.machineId === 'steamFurnace')!
+    state = insertProcessSlot(state, boiler.uid, 'fuel', 'coal', 1)
+    state = tickGame(state, 32000).state
+    expect(state.machineInstances.find((instance) => instance.uid === furnace.uid)!.process.steamStoredMs).toBeGreaterThan(0)
+    state = insertProcessSlot(state, furnace.uid, 'input', 'rubberPulp', 1)
+    state = tickGame(state, 4000).state
+
+    expect(state.recipeMilestones.steam_furnace_rubber_pulp).toBe(1)
+    expect(state.completedQuests).toContain('cureLiquidRubberQuest')
+  })
+
   it('unlocks the shop after the getting started gate and buys only discovered resources', () => {
     let state = createInitialState(1000)
     const logShopItem = shopItems.find((item) => item.id === 'log')!

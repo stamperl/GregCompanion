@@ -5318,6 +5318,7 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
       if (slotId) process[slotId] = decrementProcessSlot(process[slotId], cost.amount)
     })
     process.output = addToProcessOutput(process.output, recipe.output)
+    state.recipeMilestones[recipe.id] = (state.recipeMilestones[recipe.id] ?? 0) + 1
     process.progressMs = 0
     process.activeRecipeId = null
     process.durationMs = 0
