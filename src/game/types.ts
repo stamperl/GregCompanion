@@ -180,6 +180,7 @@ export type MachineId =
   | 'itemConductor'
   | 'fluidConductor'
   | 'conductorBundle'
+  | 'fabricationCable'
   | 'steamMacerator'
   | 'steamForgeHammer'
   | 'steamCompressor'
@@ -208,6 +209,7 @@ export type MachineId =
   | 'lvLathe'
   | 'lvElectrolyzer'
   | 'lvAssembler'
+  | 'lvMixer'
   | 'lvCentrifuge'
   | 'lvCanner'
   | 'lvAutoMiner'
@@ -235,7 +237,6 @@ export type MachineId =
   | 'planningController'
   | 'memoryModule'
   | 'dispatchModule'
-  | 'rackFrame'
 
 export type QuestId =
   | 'punchTree'
@@ -352,6 +353,7 @@ export type QuestId =
   | 'findGoldQuest'
   | 'findResonantQuartzQuest'
   | 'findVoidQuartzQuest'
+  | 'buildLvMixerQuest'
   | 'makePhaseCrystalQuest'
   | 'makeSiliconQuest'
   | 'buildCircuitImprinterQuest'
@@ -416,6 +418,7 @@ export type MachineProcessKind =
   | 'itemConductor'
   | 'fluidConductor'
   | 'conductorBundle'
+  | 'fabricationCable'
   | 'fabricationInterface'
   | 'fabricationController'
   | 'fabricationModule'
@@ -528,6 +531,13 @@ export type RecipeCardInstance = {
   itemOutputs: ResourceAmount[]
   fluidOutputs: FluidAmount[]
   installedInUid?: string
+}
+
+export type FabricationInterfaceAttachment = {
+  uid: string
+  direction: PipeDirection
+  installedRecipeCardUids: string[]
+  priority: number
 }
 
 export type FabricationJobStatus = 'queued' | 'running' | 'blocked' | 'complete' | 'cancelled'
@@ -783,7 +793,16 @@ export type OfflineProgressResult = {
   questCompletions: QuestId[]
 }
 
-export type ProcessSlotId = 'input' | 'secondaryInput' | 'extraInput1' | 'extraInput2' | 'extraInput3' | 'extraInput4' | 'fuel' | 'output' | 'output2'
+export type ProcessSlotId =
+  | 'input'
+  | 'secondaryInput'
+  | 'extraInput1'
+  | 'extraInput2'
+  | 'extraInput3'
+  | 'extraInput4'
+  | 'fuel'
+  | 'output'
+  | 'output2'
 export type PipeDirection = 'north' | 'east' | 'south' | 'west'
 export type PipeSideMode = 'both' | 'input' | 'output' | 'blocked'
 export type ConductorChannel = 0 | 1 | 2 | 3
@@ -845,6 +864,8 @@ export type MachineInstance = {
   conductorFluidFaces?: Partial<Record<PipeDirection, ConductorFaceSettings>>
   conductorItemRoundRobinCursor?: number
   conductorFluidRoundRobinCursor?: number
+  fabricationCableInstalled?: boolean
+  fabricationInterfaces?: Partial<Record<PipeDirection, FabricationInterfaceAttachment>>
   itemOutputDirection?: PipeDirection
   itemTransferProgressMs?: number
   installedRecipeCardUids?: string[]

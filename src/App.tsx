@@ -212,13 +212,21 @@ import {
   encodeCraftingRecipeCard,
   encodeProcessingRecipeCard,
   eraseRecipeCard,
+  attachFabricationInterface,
   fabricationCardSupportsMachine,
+  fabricationInterfaceByUid,
+  fabricationNetworkForController,
+  fabricationNetworkForDevice,
+  fabricationNetworkForInterface,
+  hasFabricationCable,
   installRecipeCard,
+  removeFabricationInterface,
   removeRecipeCard,
   previewFabricationRequest,
   requestFabricationJob,
   cancelFabricationJob,
   planningRackStructureForInstance,
+  planningRackStructureForPart,
   setFabricationInterfaceFace,
   setFabricationPriority,
 } from './game/engine'
@@ -322,6 +330,9 @@ type FactoryGesture =
   | { mode: 'pinch'; startDistance: number; originZoom: number; contentX: number; contentY: number; dragged: boolean }
 const assemblerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3', 'extraInput4'] as const
 const assemblerInputSlotIds = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds] as const
+const mixerExtraInputSlotIds = ['extraInput1', 'extraInput2', 'extraInput3', 'extraInput4'] as const
+const mixerInputSlotIds = ['input', 'secondaryInput', ...mixerExtraInputSlotIds] as const
+const processOutputSlotIds = ['output', 'output2'] as const
 const machineReviewStates: MachineReviewState[] = ['idle', 'active', 'filled', 'blocked', 'missing', 'disconnected']
 const airCollectorRecipe = processRecipes.find((recipe) => recipe.id === 'collect_air')
 const airCollectorCollectionLitresPerSecond = airCollectorRecipe
@@ -405,6 +416,7 @@ const machineOrder: MachineId[] = [
   'itemConductor',
   'fluidConductor',
   'conductorBundle',
+  'fabricationCable',
   'steamMacerator',
   'steamForgeHammer',
   'steamCompressor',
@@ -433,6 +445,7 @@ const machineOrder: MachineId[] = [
   'lvLathe',
   'lvElectrolyzer',
   'lvAssembler',
+  'lvMixer',
   'lvChemicalReactor',
   'lvAirCollector',
   'lvCentrifuge',
@@ -460,7 +473,6 @@ const machineOrder: MachineId[] = [
   'planningController',
   'memoryModule',
   'dispatchModule',
-  'rackFrame',
 ]
 
 const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
@@ -480,6 +492,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   lvBender: { kind: 'bender', runningLabel: 'Bending' },
   lvLathe: { kind: 'lathe', runningLabel: 'Turning' },
   lvElectrolyzer: { kind: 'electrolyzer', runningLabel: 'Splitting' },
+  lvMixer: { kind: 'mixer', runningLabel: 'Mixing', secondaryInput: true, extraInputs: 4 },
   lvCentrifuge: { kind: 'centrifuge', runningLabel: 'Spinning' },
   lvCanner: { kind: 'canner', runningLabel: 'Canning', secondaryInput: true },
   lvChemicalReactor: { kind: 'chemicalReactor', runningLabel: 'Reacting', secondaryInput: true },
@@ -489,7 +502,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
 }
 
 const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach', 'mvFoundations'])
-const placeableFactoryMachineOrder = machineOrder.filter(isPlaceableMachine)
+const placeableFactoryMachineOrder = machineOrder.filter((id) => isPlaceableMachine(id) || id === 'jobInterface')
 const inventoryMachineOrder = machineOrder.filter((id) => !isResourceBackedMachine(id) && id !== 'conductorBundle')
 
 function fluidLabel(fluidId: FluidId) {
@@ -796,6 +809,7 @@ function offlineProgressNotice(offline: OfflineProgressResult) {
 }
 
 function migrationNoticeText(notices: string[]) {
+  if (notices.includes('fabrication-interface-faces')) return 'Standalone Job Interfaces were returned to Factory Parts. Their encoded patterns are safe in Pattern Inventory and can be installed after attaching a Job Interface Face to Fabrication Cable.'
   if (notices.includes('portable-fluid-containers')) return 'Buckets and Steel Cells now keep their exact fluid and fill level. Legacy filled cells were converted, and old overfilled buckets were safely limited to their new 1L capacity.'
   if (notices.includes('centrifuge-single-input')) return 'LV Centrifuges now use one item input. Anything left in the old second input slot has been returned to storage.'
   if (notices.includes('arc-furnace-3x3')) return 'Arc Furnaces now use flexible 3x3 structures. Legacy furnaces were dismantled and their heatproof casings returned so you can build the new controller, buses, and Energy Hatches.'
@@ -929,11 +943,23 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
     [state.machineInstances],
   )
   const machineAtCell = (x: number, y: number) => machineByCell.get(`${x},${y}`)
+  const planningRackByUid = useMemo(() => {
+    const racks = state.machineInstances
+      .filter((instance) => instance.machineId === 'planningController')
+      .map((controller) => planningRackStructureForInstance(state, controller))
+      .filter((rack): rack is NonNullable<typeof rack> => Boolean(rack))
+    const byUid = new Map<string, (typeof racks)[number]>()
+    for (const rack of racks) {
+      byUid.set(rack.controller.uid, rack)
+      for (const cell of rack.cells) byUid.set(cell.uid, rack)
+    }
+    return byUid
+  }, [state])
 
   const pipeConnectionsForInstance = (instance: MachineInstance): PipeConnections | undefined => {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
     const isEuCable = isEuCableMachine(instance.machineId)
-    const isConductor = isConductorMachine(instance.machineId)
+    const isConductor = isConductorMachine(instance.machineId) || hasFabricationCable(instance)
     if (!isSteamPipe && !isEuCable && !isConductor) return undefined
     const isSteamPipeNeighbour = (machineId: MachineId) =>
       isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
@@ -946,10 +972,16 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
           return instance.x + offset.dx === x && instance.y + offset.dy === y
         })
         if (!direction) return false
-        if (isConductorMachine(neighbour.machineId)) {
+        if (isConductorMachine(neighbour.machineId) || hasFabricationCable(neighbour)) {
           return (isItemConductorMachine(instance.machineId) && isItemConductorMachine(neighbour.machineId)) ||
-            (isFluidConductorMachine(instance.machineId) && isFluidConductorMachine(neighbour.machineId))
+            (isFluidConductorMachine(instance.machineId) && isFluidConductorMachine(neighbour.machineId)) ||
+            (hasFabricationCable(instance) && hasFabricationCable(neighbour))
         }
+        if (hasFabricationCable(instance) && instance.fabricationInterfaces?.[direction]) return true
+        if (hasFabricationCable(instance) && (
+          neighbour.machineId === 'planningController' ||
+          machines[neighbour.machineId].processKind === 'fabricationInterface'
+        )) return true
         const itemOpen = isItemConductorMachine(instance.machineId) && conductorFaceSettings(instance, 'item', direction).mode !== 'blocked'
         const fluidOpen = isFluidConductorMachine(instance.machineId) && conductorFaceSettings(instance, 'fluid', direction).mode !== 'blocked'
         return itemOpen || fluidOpen
@@ -975,8 +1007,23 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
     if (tankStructure) return tankStructure.controller
     const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
     if (arcStructure) return arcStructure.controller
+    const planningRack = planningRackStructureForPart(state, instance)
+    if (planningRack) return planningRack.controller
     return controllerForMultiblockPart(instance)
   }
+
+  const fabricationInterfacesForTarget = (target: MachineInstance) =>
+    pipeDirections.flatMap((direction) => {
+      const offset = pipeDirectionOffsets[direction]
+      const cable = machineAtCell(target.x + offset.dx, target.y + offset.dy)
+      const attachment = cable?.fabricationInterfaces?.[oppositePipeDirection[direction]]
+      if (!cable || !hasFabricationCable(cable) || !attachment) return []
+      return [{
+        attachment,
+        direction,
+        patternCount: state.recipeCards.filter((card) => card.installedInUid === attachment.uid).length,
+      }]
+    })
 
   const fluidOutputFacesForInstance = (instance: MachineInstance) => {
     const controller = controllerForStructure(instance) ?? instance
@@ -1002,7 +1049,7 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
   const pipePolarityForInstance = (instance: MachineInstance) => {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
     const isEuCable = isEuCableMachine(instance.machineId)
-    const isConductor = isConductorMachine(instance.machineId)
+    const isConductor = isConductorMachine(instance.machineId) || hasFabricationCable(instance)
     const isHopper = isItemHopperMachine(instance.machineId)
     const fluidFaces = isFluidOutletConfigurableMachine(instance.machineId)
       ? fluidOutputFacesForInstance(instance).filter((face) => face.cell.uid === instance.uid)
@@ -1032,6 +1079,7 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
         ? [
             ...(isItemConductorMachine(instance.machineId) ? [conductorFaceSettings(instance, 'item', direction).mode] : []),
             ...(isFluidConductorMachine(instance.machineId) ? [conductorFaceSettings(instance, 'fluid', direction).mode] : []),
+            ...(hasFabricationCable(instance) ? ['both' as PipeSideMode] : []),
           ]
         : []
       const mode = isConductor
@@ -1068,6 +1116,10 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
         const x = index % width
         const y = Math.floor(index / width)
         const instance = machineAtCell(x, y)
+        const planningRack = instance ? planningRackByUid.get(instance.uid) : undefined
+        const isPlanningRackController = Boolean(planningRack && instance?.uid === planningRack.controller.uid)
+        const isPlanningRackModule = Boolean(planningRack && instance?.uid !== planningRack.controller.uid)
+        const isPlanningRackOrigin = Boolean(planningRack && instance?.x === planningRack.originX && instance?.y === planningRack.originY)
         const arcStructure = instance ? arcBlastFurnaceStructureForInstance(state, instance) : null
         const isFormedArc = Boolean(arcStructure?.formed)
         const isFormedArcController = Boolean(isFormedArc && arcStructure && instance?.uid === arcStructure.controller.uid)
@@ -1078,22 +1130,28 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
         const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
         const isTankStructureController = Boolean(tankStructure && instance && tankStructure.controller.uid === instance.uid && tankStructure.area > 1)
         const isTankStructureChild = Boolean(tankStructure && instance && tankStructure.controller.uid !== instance.uid)
-        const isStructureController = isMultiblockController || isTankStructureController
-        const isStructureCell = isStructureController || Boolean(multiblockController) || isTankStructureChild
-        const isConnector = Boolean(instance && (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId) || isConductorMachine(instance.machineId)))
+        const isStructureController = isMultiblockController || isTankStructureController || isPlanningRackController
+        const isStructureCell = isStructureController || Boolean(multiblockController) || isTankStructureChild || isPlanningRackModule
+        const isConnector = Boolean(instance && (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId) || isConductorMachine(instance.machineId) || hasFabricationCable(instance)))
+        const attachedFabricationInterfaces = instance ? fabricationInterfacesForTarget(instance) : []
         const pipePolarity = viewMode === 'maintenance' && instance ? pipePolarityForInstance(instance) : null
         const itemAutomationDirection =
           viewMode === 'maintenance' && instance && isLvItemAutomationMachine(instance.machineId)
             ? instance.itemOutputDirection
             : undefined
         const itemAutomationStatus = itemAutomationDirection && instance ? lvItemAutomationStatus(state, instance) : null
-        const structureMachineId = tankStructure?.controller.machineId ?? multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
-        const tankStructureStyle =
+        const structureMachineId = planningRack?.controller.machineId ?? tankStructure?.controller.machineId ?? multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
+        const structureStyle =
           tankStructure && isTankStructureController
             ? ({
                 '--structure-width': `${tankStructure.width * factoryCellSize + Math.max(0, tankStructure.width - 1) * factoryCellGap}px`,
                 '--structure-height': `${tankStructure.height * factoryCellSize + Math.max(0, tankStructure.height - 1) * factoryCellGap}px`,
               } as CSSProperties)
+            : planningRack && isPlanningRackOrigin
+              ? ({
+                  '--structure-width': `${planningRack.width * factoryCellSize + Math.max(0, planningRack.width - 1) * factoryCellGap}px`,
+                  '--structure-height': `${planningRack.height * factoryCellSize + Math.max(0, planningRack.height - 1) * factoryCellGap}px`,
+                } as CSSProperties)
             : undefined
         const isMachineActive = Boolean(
           instance &&
@@ -1145,6 +1203,9 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                     multiblockController ? 'multiblock-bbf-child' : '',
                     isTankStructureController ? 'tank-structure-controller' : '',
                     isTankStructureChild ? 'tank-structure-child' : '',
+                    isPlanningRackController ? 'planning-rack-controller' : '',
+                    isPlanningRackModule ? 'planning-rack-module' : '',
+                    isPlanningRackOrigin ? 'planning-rack-origin' : '',
                     isFormedArc ? 'formed-arc-cell' : '',
                     isFormedArcController ? 'formed-arc-controller-cell' : '',
                     isFormedArc && !isFormedArcController ? 'formed-arc-child-cell' : '',
@@ -1154,7 +1215,7 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                   ? 'factory-cell placing'
                   : 'factory-cell'
             }
-            style={tankStructureStyle}
+            style={structureStyle}
             aria-label={
               instance
                 ? `${isStructureCell && structureMachineId ? machines[structureMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}${statusLabel ? `, ${statusLabel}` : ''}`
@@ -1163,7 +1224,22 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
             onClick={() => cellPressRef.current(x, y, instance)}
             key={`${x}-${y}`}
           >
-            {showFormedArc && arcStructure ? (
+            {isPlanningRackOrigin && planningRack ? (
+              <span className="formed-planning-rack" aria-hidden="true">
+                {planningRack.cells.map((cell) => (
+                  <span
+                    className={`formed-planning-rack-module module-${cell.machineId}`}
+                    style={{
+                      left: `${(cell.x - planningRack.originX) * (factoryCellSize + factoryCellGap)}px`,
+                      top: `${(cell.y - planningRack.originY) * (factoryCellSize + factoryCellGap)}px`,
+                    }}
+                    key={cell.uid}
+                  >
+                    <MachineGlyph id={cell.machineId} />
+                  </span>
+                ))}
+              </span>
+            ) : showFormedArc && arcStructure ? (
               <span className={animateMachine ? 'formed-arc-render active' : 'formed-arc-render'} aria-hidden="true">
                 <img src={`${import.meta.env.BASE_URL}game-art/formed-arc-blast-furnace.png`} alt="" draggable={false} />
                 <span className="formed-arc-core" />
@@ -1186,7 +1262,7 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                   })}
               </span>
             ) : instance && (!isFormedArc || isFormedArcInspection) && (!isStructureCell || isStructureController || isFormedArcInspection) ? (
-              <MachineGlyph id={instance.machineId} active={animateMachine} pipeConnections={pipeConnectionsForInstance(instance)} />
+              <MachineGlyph id={instance.machineId} active={animateMachine} pipeConnections={pipeConnectionsForInstance(instance)} fabricationLane={hasFabricationCable(instance)} />
             ) : (
               <span />
             )}
@@ -1198,8 +1274,8 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                     {instance && isItemHopperMachine(instance.machineId) && side.mode !== 'blocked' && (
                       <span className="hopper-route-mark">{side.mode === 'input' ? 'IN' : side.mode === 'output' ? 'OUT' : 'I/O'}</span>
                     )}
-                    {instance && isConductorMachine(instance.machineId) && side.mode !== 'blocked' && (
-                      <span className="conductor-route-mark">{isItemConductorMachine(instance.machineId) ? 'I' : ''}{isFluidConductorMachine(instance.machineId) ? 'F' : ''}</span>
+                    {instance && (isConductorMachine(instance.machineId) || hasFabricationCable(instance)) && side.mode !== 'blocked' && (
+                      <span className="conductor-route-mark">{isItemConductorMachine(instance.machineId) ? 'I' : ''}{isFluidConductorMachine(instance.machineId) ? 'F' : ''}{hasFabricationCable(instance) ? 'N' : ''}</span>
                     )}
                   </span>
                 ))}
@@ -1213,6 +1289,20 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                 >
                   <PipeFlowArrows direction={itemAutomationDirection} mode="output" />
                 </span>
+              </span>
+            )}
+            {attachedFabricationInterfaces.length > 0 && (
+              <span className="fabrication-interface-overlay" aria-label={`${attachedFabricationInterfaces.length} attached job interface ${attachedFabricationInterfaces.length === 1 ? 'face' : 'faces'}`}>
+                {attachedFabricationInterfaces.map(({ attachment, direction, patternCount }) => (
+                  <span
+                    className={`fabrication-interface-port ${direction}`}
+                    title={`Job Interface Face: ${patternCount} installed ${patternCount === 1 ? 'pattern' : 'patterns'}`}
+                    key={attachment.uid}
+                  >
+                    <span className="fabrication-interface-socket" />
+                    <b>{patternCount}</b>
+                  </span>
+                ))}
               </span>
             )}
           </button>
@@ -1497,14 +1587,16 @@ function missingResourceLine(state: GameState, costs: ResourceAmount[]) {
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
   if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
-  if (machineId === 'lvAssembler' && assemblerInputSlotIds.includes(slotId as typeof assemblerInputSlotIds[number])) {
+  const flexibleInputSlotIds: readonly ProcessSlotId[] = machineId === 'lvMixer' ? mixerInputSlotIds : assemblerInputSlotIds
+  if ((machineId === 'lvAssembler' || machineId === 'lvMixer') && flexibleInputSlotIds.includes(slotId)) {
     return processRecipes.some(
       (recipe) =>
         recipe.machineId === machineId &&
         [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])].some((cost) => cost.id === resourceId),
     )
   }
-  const extraSlotIndex = assemblerExtraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
+  const extraInputSlotIds = machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
+  const extraSlotIndex = extraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
   if (extraSlotIndex >= 0) {
     return processRecipes.some(
       (recipe) => recipe.machineId === machineId && recipe.extraInputs?.[extraSlotIndex]?.id === resourceId,
@@ -1536,7 +1628,7 @@ function processSlotRecipeCost(recipe: { input: ResourceAmount; secondaryInput?:
   if (slotId === 'input') return recipe.input
   if (slotId === 'secondaryInput') return recipe.secondaryInput
   if (slotId === 'fuel') return recipe.fuelInput
-  const extraSlotIndex = assemblerExtraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
+  const extraSlotIndex = mixerExtraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
   return extraSlotIndex >= 0 ? recipe.extraInputs?.[extraSlotIndex] : undefined
 }
 
@@ -1554,7 +1646,8 @@ function suggestedProcessInsertQuantity(
 ) {
   const currentAmount = instance.process[slotId]?.id === resourceId ? instance.process[slotId]?.amount ?? 0 : 0
   const candidates = processRecipes.filter((recipe) => recipe.machineId === instance.machineId)
-  if (instance.machineId === 'lvAssembler' && assemblerInputSlotIds.includes(slotId as typeof assemblerInputSlotIds[number])) {
+  const flexibleInputSlotIds: readonly ProcessSlotId[] = instance.machineId === 'lvMixer' ? mixerInputSlotIds : assemblerInputSlotIds
+  if ((instance.machineId === 'lvAssembler' || instance.machineId === 'lvMixer') && flexibleInputSlotIds.includes(slotId)) {
     const recipe = candidates.find((candidate) =>
       [candidate.input, ...(candidate.secondaryInput ? [candidate.secondaryInput] : []), ...(candidate.extraInputs ?? [])].some((cost) => cost.id === resourceId),
     )
@@ -1563,7 +1656,7 @@ function suggestedProcessInsertQuantity(
           .filter((cost) => cost.id === resourceId)
           .reduce((total, cost) => total + cost.amount, 0)
       : 1
-    const stored = assemblerInputSlotIds.reduce(
+    const stored = flexibleInputSlotIds.reduce(
       (total, candidateSlotId) => total + (instance.process[candidateSlotId]?.id === resourceId ? instance.process[candidateSlotId]?.amount ?? 0 : 0),
       0,
     )
@@ -1590,8 +1683,9 @@ function findSelectedProcessRecipe(instance: MachineInstance | null) {
       ? recipe.programNumber !== instance.process.configuredProgramNumber
       : recipe.autoSelectable === false) return false
     if (recipe.fluidOnly) return true
-    if (instance.machineId === 'lvAssembler') {
-      const slots = assemblerInputSlotIds.map((slotId) => instance.process[slotId])
+    if (instance.machineId === 'lvAssembler' || instance.machineId === 'lvMixer') {
+      const inputSlotIds = instance.machineId === 'lvMixer' ? mixerInputSlotIds : assemblerInputSlotIds
+      const slots = inputSlotIds.map((slotId) => instance.process[slotId])
       if (!slots.some(Boolean)) return false
       const costs = [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])]
       const requiredByResource = new Map<ResourceId, number>()
@@ -1760,8 +1854,12 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   }
   if (isEuPoweredMachine(instance.machineId)) {
     if (!recipe) return 'No input'
-    if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
-    if (recipe.secondaryOutput && process.output2 && (process.output2.id !== recipe.secondaryOutput.id || process.output2.amount + recipe.secondaryOutput.amount > processStackLimit)) return 'Output 2 full'
+    const recipeOutputs = [recipe.output, recipe.secondaryOutput].filter((output): output is ResourceAmount => Boolean(output && output.amount > 0))
+    const blockedOutputIndex = recipeOutputs.findIndex((output, index) => {
+      const slot = process[processOutputSlotIds[index]]
+      return Boolean(slot && (slot.id !== output.id || slot.amount + output.amount > processStackLimit))
+    })
+    if (blockedOutputIndex >= 0) return `Output ${blockedOutputIndex + 1} full`
     const missingFluid = (recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])).find((fluid) => (process.fluids[fluid.id] ?? 0) < fluid.amount)
     if (missingFluid) return `Needs ${fluidLabel(missingFluid.id)}`
     if (process.euStored + availableConnectedEu(state, instance) < 1) return 'No power'
@@ -2314,11 +2412,25 @@ function App() {
   const reviewMachineId = reviewParams.get('reviewMachine') as MachineId | null
   const reviewStateParam = reviewParams.get('reviewState') as MachineReviewState | null
   const reviewState = reviewStateParam && machineReviewStates.includes(reviewStateParam) ? reviewStateParam : null
+  const reviewRackParam = reviewParams.get('reviewRack')
+  const reviewRackFootprint = reviewRackParam && ['1x1', '2x2', '3x2', '3x3'].includes(reviewRackParam)
+    ? reviewRackParam
+    : null
   const reviewSetup = useMemo(() => {
     if (!import.meta.env.DEV || !reviewMachineId || !(reviewMachineId in machines) || !reviewState) return null
     let reviewGame = createCreativeState(createInitialState())
     const controllerSpec = machines[reviewMachineId].multiblock
-    if (reviewMachineId === 'arcBlastFurnace') {
+    if (reviewMachineId === 'planningController' && reviewRackFootprint) {
+      const [rackWidth, rackHeight] = reviewRackFootprint.split('x').map(Number)
+      reviewGame = placeMachineInstance(reviewGame, 'planningController', 3, 2)
+      for (let y = 0; y < rackHeight; y += 1) {
+        for (let x = 0; x < rackWidth; x += 1) {
+          if (x === 0 && y === 0) continue
+          const moduleId: MachineId = x === 1 && y === 0 ? 'dispatchModule' : 'memoryModule'
+          reviewGame = placeMachineInstance(reviewGame, moduleId, 3 + x, 2 + y)
+        }
+      }
+    } else if (reviewMachineId === 'arcBlastFurnace') {
       const layout: Array<[MachineId, number, number]> = [
         ['lvEnergyHatch2A', 1, 1], ['lvEnergyHatch2A', 2, 1], ['arcBlastFurnacePart', 3, 1],
         ['lvInputBus', 1, 2], ['arcBlastFurnace', 2, 2], ['lvOutputBus', 3, 2],
@@ -2549,7 +2661,7 @@ function App() {
       }
     }
     return { state: reviewGame, uid: instance.uid }
-  }, [reviewMachineId, reviewState])
+  }, [reviewMachineId, reviewRackFootprint, reviewState])
   const [state, setState] = useState<GameState>(() => reviewSetup?.state ?? loadGame(null))
   const [factoryFloorSnapshot, setFactoryFloorSnapshot] = useState<GameState>(state)
   const [hasLoadedSave, setHasLoadedSave] = useState(Boolean(reviewSetup))
@@ -2612,7 +2724,7 @@ function App() {
   const [isMachineAutomationOpen, setIsMachineAutomationOpen] = useState(false)
   const [isAutoMinerTargetOpen, setIsAutoMinerTargetOpen] = useState(false)
   const [selectedPipeConfigUid, setSelectedPipeConfigUid] = useState<string | null>(reviewStartsInConductorRouting ? reviewSetup?.uid ?? null : null)
-  const [selectedConductorLane, setSelectedConductorLane] = useState<'item' | 'fluid'>('item')
+  const [selectedConductorLane, setSelectedConductorLane] = useState<'item' | 'fluid' | 'fabrication'>('item')
   const [selectedConductorDirection, setSelectedConductorDirection] = useState<PipeDirection>('north')
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
@@ -3071,7 +3183,10 @@ function App() {
   const selectedRecipeStationMachineId = terminalMode === 'machines'
     ? selectedRecipeMinimumMachineId ?? selectedRecipe?.requiredMachine
     : selectedRecipe?.requiredMachine
-  const placedPatternTerminal = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')
+  const placedPatternTerminal = state.machineInstances.find((instance) => (
+    instance.machineId === 'recipeEncoder' && fabricationNetworkForDevice(state, instance.uid)
+  ))
+  const placedPatternNetwork = placedPatternTerminal ? fabricationNetworkForDevice(state, placedPatternTerminal.uid) : null
   const patternCraftingRecipe = findGridRecipe(
     patternCraftingGrid.map((slot) => slot ? { ...slot, ghost: false } : null),
     recipes,
@@ -3086,11 +3201,11 @@ function App() {
   const patternProcessingRecipe = matchingProcessingPatternRecipes.find((recipe) => recipe.id === patternSourceRecipeId) ?? matchingProcessingPatternRecipes[0]
   const latestAvailablePattern = state.recipeCards.filter((card) => !card.installedInUid).at(-1)
   const installedPatternsByPriority = state.recipeCards
-    .filter((card) => card.installedInUid)
+    .filter((card) => card.installedInUid && fabricationNetworkForInterface(state, card.installedInUid))
     .slice()
     .sort((a, b) => {
-      const aPriority = state.machineInstances.find((instance) => instance.uid === a.installedInUid)?.fabricationPriority ?? 0
-      const bPriority = state.machineInstances.find((instance) => instance.uid === b.installedInUid)?.fabricationPriority ?? 0
+      const aPriority = a.installedInUid ? fabricationInterfaceByUid(state, a.installedInUid)?.attachment.priority ?? 0 : 0
+      const bPriority = b.installedInUid ? fabricationInterfaceByUid(state, b.installedInUid)?.attachment.priority ?? 0 : 0
       return bPriority - aPriority || a.uid.localeCompare(b.uid)
     })
   const selectedInstalledPattern = selectedRecipe
@@ -3129,6 +3244,11 @@ function App() {
         },
       }
     : selectedMachineSource
+  const selectedMachineFabricationNetwork = selectedMachine
+    ? selectedMachine.machineId === 'planningController'
+      ? fabricationNetworkForController(state, selectedMachine.uid)
+      : fabricationNetworkForDevice(state, selectedMachine.uid)
+    : null
   const selectedAutoMinerTargets = selectedMachine && isAutoMinerMachine(selectedMachine.machineId)
     ? Object.values(gatherTargets).filter((target) => canAutoMinerTarget(selectedMachine.machineId, target.id))
     : []
@@ -3137,16 +3257,23 @@ function App() {
   const selectedSteamTankFluidCapacityLitres =
     selectedMachine?.machineId === 'steamTank' ? steamTankFluidCapacityLitresForInstance(state, selectedMachine) || ironTankFluidCapacityLitres : ironTankFluidCapacityLitres
   const selectedPipeConfig = state.machineInstances.find((instance) => instance.uid === selectedPipeConfigUid) ?? null
-  const selectedConductorFace = selectedPipeConfig && isConductorMachine(selectedPipeConfig.machineId)
+  const selectedConductorFace = selectedPipeConfig && selectedConductorLane !== 'fabrication' && isConductorMachine(selectedPipeConfig.machineId)
     ? conductorFaceSettings(selectedPipeConfig, selectedConductorLane, selectedConductorDirection)
+    : null
+  const selectedFabricationAttachment = selectedPipeConfig?.fabricationInterfaces?.[selectedConductorDirection]
+  const selectedFabricationTarget = selectedPipeConfig
+    ? state.machineInstances.find((instance) => (
+        instance.x === selectedPipeConfig.x + pipeDirectionOffsets[selectedConductorDirection].dx &&
+        instance.y === selectedPipeConfig.y + pipeDirectionOffsets[selectedConductorDirection].dy
+      )) ?? null
     : null
   const selectedMachineRecipe = findSelectedProcessRecipe(selectedMachine)
   const selectedMachineProgramRecipe = selectedMachine && selectedMachine.process.configuredProgramNumber > 0
     ? processRecipes.find((recipe) => recipe.machineId === selectedMachine.machineId && recipe.programNumber === selectedMachine.process.configuredProgramNumber)
     : undefined
   const selectedMachinePopupRecipes = selectedMachine ? processRecipesForMachine(selectedMachine.machineId, processRecipes) : []
-  const selectedInterfaceCards = selectedMachine?.machineId === 'jobInterface'
-    ? state.recipeCards.filter((card) => card.installedInUid === selectedMachine.uid)
+  const selectedInterfaceCards = selectedFabricationAttachment
+    ? state.recipeCards.filter((card) => card.installedInUid === selectedFabricationAttachment.uid)
     : []
   const availableRecipeCards = state.recipeCards.filter((card) => !card.installedInUid)
   const selectedPlanningRack = selectedMachine?.machineId === 'planningController'
@@ -3154,8 +3281,8 @@ function App() {
     : null
   const selectedFabricationJobs = selectedMachine?.machineId === 'planningController'
     ? state.fabricationJobs.filter((job) => job.controllerUid === selectedMachine.uid)
-    : selectedMachine?.machineId === 'jobInterface'
-      ? state.fabricationJobs.filter((job) => job.interfaceUid === selectedMachine.uid || job.steps.some((step) => step.interfaceUid === selectedMachine.uid))
+    : selectedFabricationAttachment
+      ? state.fabricationJobs.filter((job) => job.interfaceUid === selectedFabricationAttachment.uid || job.steps.some((step) => step.interfaceUid === selectedFabricationAttachment.uid))
       : []
   const selectedMachineRecipeCount = selectedMachinePopupRecipes.length
   const clampedMachinePopupRecipeIndex = Math.min(
@@ -3409,6 +3536,7 @@ function App() {
     selectedMachine &&
       (isSteamPipeMachine(selectedMachine.machineId) ||
         isConductorMachine(selectedMachine.machineId) ||
+        hasFabricationCable(selectedMachine) ||
         isEuCableMachine(selectedMachine.machineId) ||
         isItemHopperMachine(selectedMachine.machineId) ||
         (isFluidOutletConfigurableMachine(selectedMachine.machineId) && !selectedMachineCanAutomateFluids)),
@@ -3704,6 +3832,8 @@ function App() {
     if (tankStructure) return tankStructure.controller
     const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
     if (arcStructure) return arcStructure.controller
+    const planningRack = planningRackStructureForPart(state, instance)
+    if (planningRack) return planningRack.controller
     return controllerForMultiblockPart(instance)
   }
 
@@ -3990,7 +4120,10 @@ function App() {
       const canBundleSelectedConductor = Boolean(
         placingMachineId &&
         ((placingMachineId === 'itemConductor' && instance.machineId === 'fluidConductor') ||
-          (placingMachineId === 'fluidConductor' && instance.machineId === 'itemConductor')),
+          (placingMachineId === 'fluidConductor' && instance.machineId === 'itemConductor') ||
+          (placingMachineId === 'fabricationCable' && isConductorMachine(instance.machineId) && !hasFabricationCable(instance)) ||
+          ((placingMachineId === 'itemConductor' || placingMachineId === 'fluidConductor') && instance.machineId === 'fabricationCable') ||
+          (placingMachineId === 'jobInterface' && hasFabricationCable(instance))),
       )
       if (canBundleSelectedConductor && placingMachineId) {
         setState((current) => {
@@ -3998,6 +4131,15 @@ function App() {
           if (next !== current) {
             if (availableUnplacedMachineCount(next, placingMachineId) < 1) setPlacingMachineId(null)
             setFactoryNotice('')
+            if (placingMachineId === 'jobInterface') {
+              const nextCable = next.machineInstances.find((candidate) => candidate.uid === instance.uid)
+              const attachedDirection = pipeDirections.find((direction) => (
+                !instance.fabricationInterfaces?.[direction] && Boolean(nextCable?.fabricationInterfaces?.[direction])
+              ))
+              setSelectedConductorLane('fabrication')
+              setSelectedConductorDirection(attachedDirection ?? 'north')
+              setSelectedPipeConfigUid(instance.uid)
+            }
           }
           return next
         })
@@ -4035,8 +4177,8 @@ function App() {
         setSelectedMachineUid(instance.uid)
         return
       }
-      if (isConductorMachine(instance.machineId)) {
-        setSelectedConductorLane(isItemConductorMachine(instance.machineId) ? 'item' : 'fluid')
+      if (isConductorMachine(instance.machineId) || hasFabricationCable(instance)) {
+        setSelectedConductorLane(isItemConductorMachine(instance.machineId) ? 'item' : isFluidConductorMachine(instance.machineId) ? 'fluid' : 'fabrication')
         setSelectedConductorDirection('north')
         setSelectedPipeConfigUid(instance.uid)
         return
@@ -4073,8 +4215,8 @@ function App() {
 
   const handleOpenSelectedMachineRouting = () => {
     if (!selectedMachine || !selectedMachineCanConfigureRouting) return
-    if (isConductorMachine(selectedMachine.machineId)) {
-      setSelectedConductorLane(isItemConductorMachine(selectedMachine.machineId) ? 'item' : 'fluid')
+    if (isConductorMachine(selectedMachine.machineId) || hasFabricationCable(selectedMachine)) {
+      setSelectedConductorLane(isItemConductorMachine(selectedMachine.machineId) ? 'item' : isFluidConductorMachine(selectedMachine.machineId) ? 'fluid' : 'fabrication')
       setSelectedConductorDirection('north')
     }
     setPendingProcessInsert(null)
@@ -4083,12 +4225,16 @@ function App() {
     setSelectedMachineUid(null)
   }
 
-  const handleRemoveConductorLane = (lane: 'item' | 'fluid') => {
-    if (!selectedPipeConfig || !isConductorMachine(selectedPipeConfig.machineId)) return
-    const removingOnlyLane = selectedPipeConfig.machineId !== 'conductorBundle'
+  const handleRemoveConductorLane = (lane: 'item' | 'fluid' | 'fabrication') => {
+    if (!selectedPipeConfig || (!isConductorMachine(selectedPipeConfig.machineId) && !hasFabricationCable(selectedPipeConfig))) return
+    const remainingLanes = [
+      lane !== 'item' && isItemConductorMachine(selectedPipeConfig.machineId) ? 'item' as const : null,
+      lane !== 'fluid' && isFluidConductorMachine(selectedPipeConfig.machineId) ? 'fluid' as const : null,
+      lane !== 'fabrication' && hasFabricationCable(selectedPipeConfig) ? 'fabrication' as const : null,
+    ].filter((candidate): candidate is 'item' | 'fluid' | 'fabrication' => Boolean(candidate))
     setState((current) => removeConductorLane(current, selectedPipeConfig.uid, lane))
-    if (removingOnlyLane) setSelectedPipeConfigUid(null)
-    else setSelectedConductorLane(lane === 'item' ? 'fluid' : 'item')
+    if (remainingLanes.length < 1) setSelectedPipeConfigUid(null)
+    else setSelectedConductorLane(remainingLanes[0])
   }
 
   const handleRemoveSelectedMachine = () => {
@@ -4110,8 +4256,9 @@ function App() {
   const handleProcessSlotPress = (slotId: ProcessSlotId) => {
     if (!selectedMachine) return
     const slot = selectedMachine.process[slotId]
-    if ((slotId === 'output' || slotId === 'output2') && !isItemHopperMachine(selectedMachine.machineId)) {
-      setState((current) => collectProcessOutput(current, selectedMachine.uid, slotId === 'output2' ? 1 : 0))
+    const outputIndex = processOutputSlotIds.indexOf(slotId as typeof processOutputSlotIds[number])
+    if (outputIndex >= 0 && !isItemHopperMachine(selectedMachine.machineId)) {
+      setState((current) => collectProcessOutput(current, selectedMachine.uid, outputIndex as 0 | 1))
       return
     }
     if (slot && slot.id === selectedResource) {
@@ -6035,7 +6182,7 @@ function App() {
                   disabled={
                     !patternBlankInserted ||
                     availableResourceAmount(state, 'blankRecipeCard') < 1 ||
-                    placedPatternTerminal.process.euStored < 64 ||
+                    (placedPatternNetwork?.rack.controller.process.euStored ?? 0) < 64 ||
                     (encoderRecipeKind === 'crafting' ? !patternCraftingRecipe?.outputs.some((output) => output.amount > 0) : !patternProcessingRecipe)
                   }
                   aria-label="Encode pattern"
@@ -6050,17 +6197,17 @@ function App() {
               </div>
               <div className="compact-actions pattern-editor-actions">
                 <button type="button" onClick={clearPatternEditor}><Trash2 size={15} />Clear editor</button>
-                {latestAvailablePattern && <button type="button" onClick={() => setState((current) => eraseRecipeCard(current, latestAvailablePattern.uid))}><Undo2 size={15} />Clear encoded</button>}
+                {latestAvailablePattern && <button type="button" onClick={() => setState((current) => eraseRecipeCard(current, latestAvailablePattern.uid))}><Undo2 size={15} />Erase pattern</button>}
               </div>
               <section className="fabrication-section">
-                <h3>Pattern library</h3>
-                <div className="fabrication-card-list" aria-label="Encoded pattern library">
+                <h3>Pattern inventory</h3>
+                <div className="fabrication-card-list" aria-label="Physical encoded pattern inventory">
                   {state.recipeCards.length < 1 && <p className="fabrication-empty">No encoded patterns</p>}
                   {state.recipeCards.map((card) => {
                     const output = card.itemOutputs[0]
                     return <div className="fabrication-card-row" key={card.uid}>
                       {output ? <PixelIcon id={output.id} /> : <Database size={22} />}
-                      <span><strong>{card.name}</strong><small>{card.kind} · {card.installedInUid ? 'Provider installed' : 'Available'}</small></span>
+                      <span><strong>{card.name}</strong><small>{card.kind} · {card.installedInUid ? 'Installed in interface' : 'Loose item'}</small></span>
                       {!card.installedInUid && <button type="button" className="icon-button" aria-label={`Erase ${card.name}`} onClick={() => setState((current) => eraseRecipeCard(current, card.uid))}><Trash2 size={14} /></button>}
                     </div>
                   })}
@@ -6072,7 +6219,7 @@ function App() {
           {terminalWorkspaceMode === 'jobs' && (
             <div className="fabrication-terminal terminal-jobs-workspace">
               <div className="fabrication-status-grid">
-                <span><small>Craftable patterns</small><strong>{state.recipeCards.filter((card) => card.installedInUid).length}</strong></span>
+                <span><small>Craftable patterns</small><strong>{installedPatternsByPriority.length}</strong></span>
                 <span><small>Active jobs</small><strong>{terminalFabricationJobs.filter((job) => job.status === 'queued' || job.status === 'running' || job.status === 'blocked').length}</strong></span>
               </div>
               <section className="fabrication-section">
@@ -7008,7 +7155,7 @@ function App() {
             </div>
           )}
 
-          {selectedPipeConfig && (isConductorMachine(selectedPipeConfig.machineId) || isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
+          {selectedPipeConfig && (isConductorMachine(selectedPipeConfig.machineId) || hasFabricationCable(selectedPipeConfig) || isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"
@@ -7021,7 +7168,7 @@ function App() {
                 <div className="modal-head">
                   <div>
                     <p className="eyebrow">
-                      {isConductorMachine(selectedPipeConfig.machineId)
+                      {isConductorMachine(selectedPipeConfig.machineId) || hasFabricationCable(selectedPipeConfig)
                         ? 'Conductor Routing'
                         : isItemHopperMachine(selectedPipeConfig.machineId)
                         ? 'Hopper Routing'
@@ -7046,7 +7193,7 @@ function App() {
                     <X size={18} />
                   </button>
                 </div>
-                {isConductorMachine(selectedPipeConfig.machineId) && selectedConductorFace ? (
+                {(isConductorMachine(selectedPipeConfig.machineId) || hasFabricationCable(selectedPipeConfig)) && (selectedConductorFace || selectedConductorLane === 'fabrication') ? (
                   <div className="conductor-config">
                     <div className="conductor-lane-tabs" role="tablist" aria-label="Conductor lanes">
                       {isItemConductorMachine(selectedPipeConfig.machineId) && (
@@ -7059,6 +7206,11 @@ function App() {
                           <Droplet size={14} /> Fluid lane
                         </button>
                       )}
+                      {hasFabricationCable(selectedPipeConfig) && (
+                        <button type="button" role="tab" aria-selected={selectedConductorLane === 'fabrication'} className={selectedConductorLane === 'fabrication' ? 'active fabrication-lane' : 'fabrication-lane'} onClick={() => setSelectedConductorLane('fabrication')}>
+                          <Zap size={14} /> Fabrication
+                        </button>
+                      )}
                     </div>
                     <div className="conductor-face-layout">
                       <div className="conductor-face-grid" aria-label={`${selectedConductorLane} conductor faces`}>
@@ -7068,62 +7220,123 @@ function App() {
                             return offset.dx === dx && offset.dy === dy
                           })
                           const center = dx === 0 && dy === 0
-                          if (center) return <span className={`conductor-core ${selectedConductorLane}-lane`} key="core"><MachineGlyph id={selectedPipeConfig.machineId} active /></span>
+                          if (center) return <span className={`conductor-core ${selectedConductorLane}-lane`} key="core"><MachineGlyph id={selectedPipeConfig.machineId} active fabricationLane={hasFabricationCable(selectedPipeConfig)} /></span>
                           if (!direction) return <span className="conductor-face-spacer" key={`${dx},${dy}`} />
-                          const face = conductorFaceSettings(selectedPipeConfig, selectedConductorLane, direction)
+                          const attachment = selectedPipeConfig.fabricationInterfaces?.[direction]
+                          const face = selectedConductorLane === 'fabrication'
+                            ? { mode: attachment ? 'both' as PipeSideMode : 'blocked' as PipeSideMode, channel: 0 }
+                            : conductorFaceSettings(selectedPipeConfig, selectedConductorLane, direction)
                           const neighbour = machineAtFactoryCell(selectedPipeConfig.x + dx, selectedPipeConfig.y + dy)
+                          const fabricationFaceState = attachment ? 'Attached' : neighbour ? 'Ready' : 'Empty'
                           return (
                             <button
                               type="button"
-                              className={`conductor-face-button ${direction} mode-${face.mode} channel-${face.channel} ${selectedConductorDirection === direction ? 'selected' : ''}`}
+                              className={`conductor-face-button ${direction} ${selectedConductorLane === 'fabrication' ? `fabrication-${fabricationFaceState.toLowerCase()}` : `mode-${face.mode} channel-${face.channel}`} ${selectedConductorDirection === direction ? 'selected' : ''}`}
                               aria-pressed={selectedConductorDirection === direction}
-                              aria-label={`${pipeDirectionOffsets[direction].label} face, ${face.mode}, channel ${face.channel + 1}`}
+                              aria-label={selectedConductorLane === 'fabrication'
+                                ? `${pipeDirectionOffsets[direction].label} machine face, ${fabricationFaceState.toLowerCase()}${neighbour ? ` for ${machines[neighbour.machineId].name}` : ''}`
+                                : `${pipeDirectionOffsets[direction].label} face, ${face.mode}, channel ${face.channel + 1}`}
                               onClick={() => setSelectedConductorDirection(direction)}
                               key={direction}
                             >
                               {neighbour ? <MachineGlyph id={neighbour.machineId} /> : <span />}
                               <b>{pipeDirectionOffsets[direction].label.slice(0, 1)}</b>
-                              <em>{face.mode === 'input' ? 'EXT' : face.mode === 'output' ? 'INS' : face.mode === 'both' ? 'I/O' : 'OFF'}</em>
+                              <em>{selectedConductorLane === 'fabrication' ? fabricationFaceState.toUpperCase() : face.mode === 'input' ? 'EXT' : face.mode === 'output' ? 'INS' : face.mode === 'both' ? 'I/O' : 'OFF'}</em>
                             </button>
                           )
                         }))}
                       </div>
                       <div className="conductor-face-summary">
                         <span><small>Face</small><strong>{pipeDirectionOffsets[selectedConductorDirection].label}</strong></span>
-                        <span><small>Lane</small><strong>{selectedConductorLane === 'item' ? 'Items' : 'Fluids'}</strong></span>
-                        <span><small>Channel</small><strong>{selectedConductorFace.channel + 1}</strong></span>
+                        <span><small>Lane</small><strong>{selectedConductorLane === 'item' ? 'Items' : selectedConductorLane === 'fluid' ? 'Fluids' : 'Network'}</strong></span>
+                        <span><small>{selectedConductorLane === 'fabrication' ? 'Face' : 'Channel'}</small><strong>{selectedConductorLane === 'fabrication' ? selectedFabricationAttachment ? 'Attached' : 'Open' : selectedConductorFace!.channel + 1}</strong></span>
                       </div>
                     </div>
-                    <div className="conductor-setting-group">
-                      <span className="conductor-setting-label">Connection mode</span>
-                      <div className="conductor-mode-control" role="group" aria-label="Connection mode">
-                        {(['blocked', 'input', 'output', 'both'] as PipeSideMode[]).map((mode) => (
-                          <button type="button" className={selectedConductorFace.mode === mode ? 'active' : ''} aria-pressed={selectedConductorFace.mode === mode} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { mode }))} key={mode}>
-                            {mode === 'blocked' ? 'Off' : mode === 'input' ? 'Extract' : mode === 'output' ? 'Insert' : 'Both'}
+                    {selectedConductorLane === 'fabrication' ? (
+                      <div className="fabrication-face-panel">
+                        <div className="fabrication-face-target">
+                          {selectedFabricationTarget ? <MachineGlyph id={selectedFabricationTarget.machineId} active /> : <span className="lv-automation-empty" />}
+                          <span><small>Machine face</small><strong>{selectedFabricationTarget ? machines[selectedFabricationTarget.machineId].name : 'No adjacent machine'}</strong></span>
+                        </div>
+                        {!selectedFabricationAttachment ? (
+                          <button
+                            type="button"
+                            className="fabrication-command"
+                            disabled={!selectedFabricationTarget || hasFabricationCable(selectedFabricationTarget) || availableUnplacedMachineCount(state, 'jobInterface') < 1}
+                            onClick={() => setState((current) => attachFabricationInterface(current, selectedPipeConfig.uid, selectedConductorDirection))}
+                          >
+                            Attach Job Interface Face
                           </button>
-                        ))}
+                        ) : (
+                          <>
+                            <div className="conductor-setting-row">
+                              <span className="conductor-setting-label">Priority</span>
+                              <div className="conductor-priority-control">
+                                <button type="button" className="icon-button" aria-label="Decrease priority" disabled={selectedFabricationAttachment.priority <= -10} onClick={() => setState((current) => setFabricationPriority(current, selectedFabricationAttachment.uid, selectedFabricationAttachment.priority - 1))}><ChevronLeft size={16} /></button>
+                                <strong>{selectedFabricationAttachment.priority > 0 ? `+${selectedFabricationAttachment.priority}` : selectedFabricationAttachment.priority}</strong>
+                                <button type="button" className="icon-button" aria-label="Increase priority" disabled={selectedFabricationAttachment.priority >= 10} onClick={() => setState((current) => setFabricationPriority(current, selectedFabricationAttachment.uid, selectedFabricationAttachment.priority + 1))}><ChevronRight size={16} /></button>
+                              </div>
+                            </div>
+                            <section className="fabrication-section">
+                              <h3>Installed patterns <span>{selectedInterfaceCards.length}/9</span></h3>
+                              <div className="fabrication-card-list">
+                                {selectedInterfaceCards.length < 1 && <p className="fabrication-empty">Insert an encoded pattern item</p>}
+                                {selectedInterfaceCards.map((card) => (
+                                  <button type="button" className="fabrication-library-row" onClick={() => setState((current) => removeRecipeCard(current, card.uid))} key={card.uid}>
+                                    <span>{card.name}</span><Trash2 size={13} />
+                                  </button>
+                                ))}
+                              </div>
+                            </section>
+                            <section className="fabrication-section">
+                              <h3>Pattern inventory <span>{availableRecipeCards.length}</span></h3>
+                              <div className="fabrication-card-list">
+                                {availableRecipeCards.length < 1 && <p className="fabrication-empty">No encoded patterns available</p>}
+                                {availableRecipeCards.map((card) => (
+                                  <button type="button" className="fabrication-library-row" disabled={selectedInterfaceCards.length >= 9} onClick={() => setState((current) => installRecipeCard(current, selectedFabricationAttachment.uid, card.uid))} key={card.uid}>
+                                    <span>{card.name}</span><Download size={13} />
+                                  </button>
+                                ))}
+                              </div>
+                            </section>
+                            <button type="button" className="conductor-remove-lane" onClick={() => setState((current) => removeFabricationInterface(current, selectedFabricationAttachment.uid))}><Trash2 size={14} /> Remove interface face</button>
+                          </>
+                        )}
                       </div>
-                    </div>
-                    <div className="conductor-setting-row">
-                      <span className="conductor-setting-label">Channel</span>
-                      <div className="conductor-channel-control" role="group" aria-label="Network channel">
-                        {([0, 1, 2, 3] as const).map((channel) => (
-                          <button type="button" className={`channel-${channel} ${selectedConductorFace.channel === channel ? 'active' : ''}`} aria-label={`Channel ${channel + 1}`} aria-pressed={selectedConductorFace.channel === channel} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { channel }))} key={channel}><span /></button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="conductor-setting-row">
-                      <span className="conductor-setting-label">Priority</span>
-                      <div className="conductor-priority-control">
-                        <button type="button" className="icon-button" aria-label="Decrease priority" disabled={selectedConductorFace.priority <= -9} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { priority: selectedConductorFace.priority - 1 }))}><ChevronLeft size={16} /></button>
-                        <strong>{selectedConductorFace.priority > 0 ? `+${selectedConductorFace.priority}` : selectedConductorFace.priority}</strong>
-                        <button type="button" className="icon-button" aria-label="Increase priority" disabled={selectedConductorFace.priority >= 9} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { priority: selectedConductorFace.priority + 1 }))}><ChevronRight size={16} /></button>
-                      </div>
-                    </div>
-                    <div className="conductor-toggle-grid">
-                      <label><input type="checkbox" checked={selectedConductorFace.roundRobin} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { roundRobin: event.target.checked }))} /><span>Round robin</span></label>
-                      <label><input type="checkbox" checked={selectedConductorFace.selfFeed} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { selfFeed: event.target.checked }))} /><span>Allow self-feed</span></label>
-                    </div>
+                    ) : selectedConductorFace ? (
+                      <>
+                        <div className="conductor-setting-group">
+                          <span className="conductor-setting-label">Connection mode</span>
+                          <div className="conductor-mode-control" role="group" aria-label="Connection mode">
+                            {(['blocked', 'input', 'output', 'both'] as PipeSideMode[]).map((mode) => (
+                              <button type="button" className={selectedConductorFace.mode === mode ? 'active' : ''} aria-pressed={selectedConductorFace.mode === mode} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { mode }))} key={mode}>
+                                {mode === 'blocked' ? 'Off' : mode === 'input' ? 'Extract' : mode === 'output' ? 'Insert' : 'Both'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="conductor-setting-row">
+                          <span className="conductor-setting-label">Channel</span>
+                          <div className="conductor-channel-control" role="group" aria-label="Network channel">
+                            {([0, 1, 2, 3] as const).map((channel) => (
+                              <button type="button" className={`channel-${channel} ${selectedConductorFace.channel === channel ? 'active' : ''}`} aria-label={`Channel ${channel + 1}`} aria-pressed={selectedConductorFace.channel === channel} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { channel }))} key={channel}><span /></button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="conductor-setting-row">
+                          <span className="conductor-setting-label">Priority</span>
+                          <div className="conductor-priority-control">
+                            <button type="button" className="icon-button" aria-label="Decrease priority" disabled={selectedConductorFace.priority <= -9} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { priority: selectedConductorFace.priority - 1 }))}><ChevronLeft size={16} /></button>
+                            <strong>{selectedConductorFace.priority > 0 ? `+${selectedConductorFace.priority}` : selectedConductorFace.priority}</strong>
+                            <button type="button" className="icon-button" aria-label="Increase priority" disabled={selectedConductorFace.priority >= 9} onClick={() => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { priority: selectedConductorFace.priority + 1 }))}><ChevronRight size={16} /></button>
+                          </div>
+                        </div>
+                        <div className="conductor-toggle-grid">
+                          <label><input type="checkbox" checked={selectedConductorFace.roundRobin} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { roundRobin: event.target.checked }))} /><span>Round robin</span></label>
+                          <label><input type="checkbox" checked={selectedConductorFace.selfFeed} onChange={(event) => setState((current) => setConductorFaceSettings(current, selectedPipeConfig.uid, selectedConductorLane, selectedConductorDirection, { selfFeed: event.target.checked }))} /><span>Allow self-feed</span></label>
+                        </div>
+                      </>
+                    ) : null}
                     <button type="button" className="conductor-remove-lane" onClick={() => handleRemoveConductorLane(selectedConductorLane)}><Trash2 size={14} /> Remove {selectedConductorLane} lane</button>
                   </div>
                 ) : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? (
@@ -7240,7 +7453,9 @@ function App() {
                   </div>
                 )}
                 <p className="pipe-config-note">
-                  {isConductorMachine(selectedPipeConfig.machineId)
+                  {hasFabricationCable(selectedPipeConfig) && selectedConductorLane === 'fabrication'
+                    ? 'Select a machine face to attach, remove, or load physical patterns. All work and power pass through the connected Planning Controller.'
+                    : isConductorMachine(selectedPipeConfig.machineId)
                     ? 'Extract pulls from the adjacent machine. Insert sends into it. Faces only exchange with matching channels; higher-priority inserts fill first.'
                     : isItemHopperMachine(selectedPipeConfig.machineId)
                     ? 'Set one side to In beside the machine output, and another side to Out beside the destination. Both can pull and push.'
@@ -7883,12 +8098,13 @@ function App() {
                 ) : selectedMachine.machineId === 'recipeEncoder' ? (
                   <div className="fabrication-terminal encoder-terminal">
                     <div className="fabrication-status-grid">
-                      <span><small>Network terminal</small><strong>Online</strong></span>
-                      <span><small>Encode charge</small><strong>{Math.floor(selectedMachine.process.euStored)} / 64 EU</strong></span>
+                      <span><small>Network terminal</small><strong>{selectedMachineFabricationNetwork ? 'Online' : 'Disconnected'}</strong></span>
+                      <span><small>Controller EU</small><strong>{Math.floor(selectedMachineFabricationNetwork?.rack.controller.process.euStored ?? 0)} / 64 EU</strong></span>
                     </div>
                     <button
                       type="button"
                       className="fabrication-command"
+                      disabled={!selectedMachineFabricationNetwork}
                       onClick={() => {
                         setSelectedMachineUid(null)
                         setPage('terminal')
@@ -7898,7 +8114,18 @@ function App() {
                       <Database size={15} />
                       Open Pattern Terminal
                     </button>
-                    <p className="fabrication-empty">Pattern encoding is available inside the main Terminal while this machine remains placed.</p>
+                    <p className="fabrication-empty">{selectedMachineFabricationNetwork ? 'Pattern encoding is available inside the main Terminal while this device remains connected.' : 'Connect this device to Fabrication Cable from a formed Planning Controller.'}</p>
+                  </div>
+                ) : selectedMachine.machineId === 'autoFabricator' ? (
+                  <div className="fabrication-terminal">
+                    <div className="fabrication-status-grid">
+                      <span><small>Network</small><strong>{selectedMachineFabricationNetwork ? 'Online' : 'Disconnected'}</strong></span>
+                      <span><small>Power source</small><strong>{selectedMachineFabricationNetwork ? 'Planning Controller' : 'None'}</strong></span>
+                      <span><small>Controller EU</small><strong>{Math.floor(selectedMachineFabricationNetwork?.rack.controller.process.euStored ?? 0)}</strong></span>
+                      <span><small>Local buffer</small><strong>Not required</strong></span>
+                    </div>
+                    <MachineGlyph id="autoFabricator" active={(selectedMachineFabricationNetwork?.rack.controller.process.euStored ?? 0) > 0} />
+                    <p className="fabrication-empty">Attach a Job Interface Face on adjacent Fabrication Cable and insert one physical crafting pattern for each recipe this machine should expose.</p>
                   </div>
                 ) : selectedMachine.machineId === 'jobInterface' ? (
                   <div className="fabrication-terminal interface-terminal">
@@ -7947,8 +8174,9 @@ function App() {
                       <span><small>Memory</small><strong>{selectedPlanningRack?.memoryUnits ?? 0} units</strong></span>
                       <span><small>Dispatch</small><strong>{selectedPlanningRack?.dispatchLanes ?? 0} lanes</strong></span>
                       <span><small>Power</small><strong>{Math.floor(selectedMachine.process.euStored)} EU</strong></span>
+                      <span><small>Network</small><strong>{selectedMachineFabricationNetwork ? `${selectedMachineFabricationNetwork.cables.length} cables` : selectedPlanningRack ? 'No cable' : 'Offline'}</strong></span>
                     </div>
-                    {!selectedPlanningRack && <p className="fabrication-empty">Fill a 2×2 to 4×4 rectangle southeast of this controller with at least one Memory Module.</p>}
+                    {!selectedPlanningRack && <p className="fabrication-empty">Place this controller in the northwest cell of a filled 1×1, 2×2, 3×2, or 3×3 rack. Use Memory or Dispatch Modules for the remaining cells.</p>}
                     <section className="fabrication-section">
                       <h3>Job monitor</h3>
                       {selectedFabricationJobs.length < 1 && <p className="fabrication-empty">No jobs assigned</p>}
@@ -7963,10 +8191,10 @@ function App() {
                   <div className="fabrication-terminal">
                     <div className="fabrication-status-grid">
                       <span><small>Transfer</small><strong>64 L/s</strong></span>
-                      <span><small>Connection</small><strong>Adjacent tank</strong></span>
+                      <span><small>Network</small><strong>{selectedMachineFabricationNetwork ? 'Online' : 'Disconnected'}</strong></span>
                     </div>
                     <MachineGlyph id="fluidStorageLink" active />
-                    <p className="fabrication-empty">The link exposes one adjacent Iron Tank structure to fabrication reservations and returned fluid products.</p>
+                    <p className="fabrication-empty">{selectedMachineFabricationNetwork ? 'The link exposes one adjacent Iron Tank structure to this controller network.' : 'Connect this link to Fabrication Cable before it can expose a tank.'}</p>
                   </div>
                 ) : selectedMachine.machineId === 'lvAssembler' ? (
                   <div className="furnace-interface lvAssembler-process-interface">
@@ -8248,9 +8476,38 @@ function App() {
                     const hmiRunningLabel = selectedMachineHmiConfig?.runningLabel ?? 'Running'
                     const hmiUsesSecondaryInput = Boolean(selectedMachineHmiConfig?.secondaryInput)
                     const hmiExtraInputCount = selectedMachineHmiConfig?.extraInputs ?? 0
+                    const hmiExtraInputSlotIds = selectedMachine.machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
                     const hmiSystemLabel = isSteamHmi ? 'Pressure' : 'Power'
                     const isChemicalReactor = selectedMachine.machineId === 'lvChemicalReactor'
                     const isCentrifuge = selectedMachine.machineId === 'lvCentrifuge'
+                    const isMixer = selectedMachine.machineId === 'lvMixer'
+                    const mixerFluidInputBuffers = isMixer
+                      ? selectedMachineFluidBuffers.filter((buffer) => buffer.access === 'input' || buffer.access === 'both').slice(0, 2)
+                      : []
+                    const mixerFluidOutputBuffer = isMixer
+                      ? selectedMachineFluidBuffers.find((buffer) => buffer.access === 'output' || buffer.access === 'both')
+                      : undefined
+                    const mixerExpectedFluidInputs = isMixer && selectedMachineRecipe
+                      ? selectedMachineRecipe.fluidInputs ?? (selectedMachineRecipe.fluidInput ? [selectedMachineRecipe.fluidInput] : [])
+                      : []
+                    const mixerExpectedFluidOutputs = isMixer && selectedMachineRecipe
+                      ? selectedMachineRecipe.fluidOutputs ?? (selectedMachineRecipe.fluidOutput ? [selectedMachineRecipe.fluidOutput] : [])
+                      : []
+                    const mixerFluidInputIds: Array<FluidId | undefined> = []
+                    if (isMixer) {
+                      const assignedFluidIds = new Set<FluidId>()
+                      mixerFluidInputBuffers.forEach((buffer, index) => {
+                        const expectedFluidId = mixerExpectedFluidInputs[index]?.id
+                        const fluidId = expectedFluidId && (process.fluids[expectedFluidId] ?? 0) > 0
+                          ? expectedFluidId
+                          : buffer.acceptedFluids.find((id) => !assignedFluidIds.has(id) && (process.fluids[id] ?? 0) > 0)
+                        mixerFluidInputIds.push(fluidId)
+                        if (fluidId) assignedFluidIds.add(fluidId)
+                      })
+                    }
+                    const mixerFluidOutputId = mixerExpectedFluidOutputs[0]?.id && (process.fluids[mixerExpectedFluidOutputs[0].id] ?? 0) > 0
+                      ? mixerExpectedFluidOutputs[0].id
+                      : mixerFluidOutputBuffer?.acceptedFluids.find((id) => !mixerFluidInputIds.includes(id) && (process.fluids[id] ?? 0) > 0)
                     const chemicalInputBuffers = isChemicalReactor
                       ? selectedMachineFluidBuffers.filter((buffer) => buffer.access === 'input' || buffer.access === 'both')
                       : []
@@ -8328,6 +8585,73 @@ function App() {
                     const chamberStyle = {
                       '--machine-hmi-chamber-image': `url("${machineUiChamberSrc(selectedMachine.machineId)}")`,
                     } as CSSProperties
+                    if (isMixer) {
+                      return (
+                        <div className="mixer-console">
+                          <div className="mixer-console-status">
+                            <span>Power</span>
+                            <strong>{statusLabel}</strong>
+                            <em>{bufferCurrent}/{bufferCapacity} EU</em>
+                          </div>
+                          <div className="mixer-console-body">
+                            <section className="mixer-console-inputs" aria-label="Mixer inputs">
+                              <span className="mixer-console-bank-label">Inputs</span>
+                              <div className="mixer-console-item-grid">
+                                {mixerInputSlotIds.map((slotId, index) => (
+                                  <ProcessItemSlot
+                                    slot={process[slotId]}
+                                    label={`Input ${index + 1}`}
+                                    onClick={() => handleProcessSlotPress(slotId)}
+                                    key={slotId}
+                                  />
+                                ))}
+                              </div>
+                              <div className="mixer-console-fluid-grid">
+                                {mixerFluidInputBuffers.map((buffer, index) => {
+                                  const fluidId = mixerFluidInputIds[index]
+                                  return (
+                                    <div className="mixer-console-fluid-port" key={buffer.id}>
+                                      <ProcessFluidSlot
+                                        fluidId={fluidId}
+                                        amount={fluidId ? process.fluids[fluidId] ?? 0 : 0}
+                                        label={`Fluid input ${index + 1}`}
+                                        ready={canUseFluidPort(buffer, 'input')}
+                                        onClick={() => handleFluidPortPress(buffer, 'input')}
+                                      />
+                                      <span>Fluid in {index + 1}</span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </section>
+                            <section className="mixer-console-outputs" aria-label="Mixer outputs">
+                              <span className="mixer-console-bank-label">Outputs</span>
+                              <div className="mixer-console-output-stack">
+                                <div className="mixer-console-output-port">
+                                  <ProcessItemSlot slot={process.output} label="Item output" onClick={() => handleProcessSlotPress('output')} />
+                                  <span>Item</span>
+                                </div>
+                                <div className="mixer-console-output-port">
+                                  <ProcessFluidSlot
+                                    fluidId={mixerFluidOutputId}
+                                    amount={mixerFluidOutputId ? process.fluids[mixerFluidOutputId] ?? 0 : 0}
+                                    label="Fluid output"
+                                    ready={Boolean(mixerFluidOutputBuffer && canUseFluidPort(mixerFluidOutputBuffer, 'output'))}
+                                    onClick={() => mixerFluidOutputBuffer && handleFluidPortPress(mixerFluidOutputBuffer, 'output')}
+                                  />
+                                  <span>Fluid</span>
+                                </div>
+                              </div>
+                            </section>
+                          </div>
+                          <div className="forge-action-rail" aria-label={`${machines[selectedMachine.machineId].name} progress ${Math.floor(progressPercent)} percent`}>
+                            <span style={{ width: `${progressPercent}%` }} />
+                            <strong>{process.activeRecipeId ? hmiRunningLabel : 'Load'}</strong>
+                            <em>{Math.floor(progressPercent)}%</em>
+                          </div>
+                        </div>
+                      )
+                    }
                     return (
                       <div
                         className={[
@@ -8396,7 +8720,7 @@ function App() {
                             <ProcessItemSlot slot={process.secondaryInput} label="Input 2" onClick={() => handleProcessSlotPress('secondaryInput')} />
                           )}
                           {!isChemicalReactor && Array.from({ length: hmiExtraInputCount }, (_, index) => {
-                            const slotId = assemblerExtraInputSlotIds[index]
+                            const slotId = hmiExtraInputSlotIds[index]
                             return (
                               <ProcessItemSlot
                                 slot={process[slotId]}
@@ -8452,9 +8776,10 @@ function App() {
                               ))}
                             </div>
                           ) : (
-                            <div className={machines[selectedMachine.machineId].itemOutputSlots === 2 ? 'machine-dual-output' : ''}>
-                              <ProcessItemSlot slot={process.output} label="Output 1" onClick={() => handleProcessSlotPress('output')} />
-                              {machines[selectedMachine.machineId].itemOutputSlots === 2 && <ProcessItemSlot slot={process.output2} label="Output 2" onClick={() => handleProcessSlotPress('output2')} />}
+                            <div className={(machines[selectedMachine.machineId].itemOutputSlots ?? 1) > 1 ? 'machine-dual-output' : ''}>
+                              {processOutputSlotIds.slice(0, machines[selectedMachine.machineId].itemOutputSlots ?? 1).map((slotId, index) => (
+                                <ProcessItemSlot slot={process[slotId]} label={`Output ${index + 1}`} onClick={() => handleProcessSlotPress(slotId)} key={slotId} />
+                              ))}
                             </div>
                           )}
                         </div>

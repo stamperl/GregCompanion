@@ -23,6 +23,7 @@ import {
   availableResourceAmount,
   availableUnplacedMachineCount,
   assignAutoMiner,
+  attachFabricationInterface,
   buyShopItem,
   boilerHasWater,
   boilerSteamCapacityMs,
@@ -97,6 +98,7 @@ import {
   removeMachineInstance,
   removeConductorLane,
   removeProcessSlot,
+  removeRecipeCard,
   removeMachineStorageSlot,
   removeLvBatteryFromBuffer,
   removeSurveyCardFromAutoMiner,
@@ -106,7 +108,6 @@ import {
   setFluidOutputDirection,
   setConfiguredProcessProgram,
   setConductorFaceSettings,
-  setFabricationInterfaceFace,
   setHopperOutputDirection,
   setLvItemOutputDirection,
   shopItemCooldownMs,
@@ -1026,7 +1027,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(15)
+    expect(state.version).toBe(16)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -1047,7 +1048,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(15)
+    expect(state.version).toBe(16)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1132,7 +1133,7 @@ describe('game engine', () => {
       }],
     }), 1000)
 
-    expect(state.version).toBe(15)
+    expect(state.version).toBe(16)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
     expect(state.machineInstances[0].process.output2).toBeNull()
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(0)
@@ -1155,6 +1156,29 @@ describe('game engine', () => {
 
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(4)
     expect(state.machineInstances[0].process.configuredRecipeId).toBeNull()
+  })
+
+  it('migrates removed rack frames into memory modules', () => {
+    const state = loadGame(JSON.stringify({
+      version: 15,
+      factoryFoundationLevel: 6,
+      machines: { rackFrame: 2 },
+      machineInstances: [{
+        uid: 'legacy-rack-frame',
+        machineId: 'rackFrame',
+        x: 1,
+        y: 1,
+        level: 1,
+      }],
+    }), 1000)
+
+    expect(state.machines.memoryModule).toBe(2)
+    expect(state.machineInstances).toContainEqual(expect.objectContaining({
+      uid: 'legacy-rack-frame',
+      machineId: 'memoryModule',
+      x: 1,
+      y: 1,
+    }))
   })
 
   it('migrates old empty saves to locked factory and clamps saved factory foundation levels', () => {
@@ -1255,6 +1279,7 @@ describe('game engine', () => {
       'lvCentrifuge',
       'lvCanner',
       'lvChemicalReactor',
+      'lvMixer',
       'lvAutoMiner',
       'cokeOven',
       'brickedBlastFurnace',
@@ -1263,9 +1288,8 @@ describe('game engine', () => {
       'planningController',
       'memoryModule',
       'dispatchModule',
-      'rackFrame',
+      'fabricationCable',
       'recipeEncoder',
-      'jobInterface',
       'autoFabricator',
     ]))
     expect(isReachGateFormed(state)).toBe(true)
@@ -1299,15 +1323,16 @@ describe('game engine', () => {
   it('loads a powered end-to-end recursive auto-crafting demonstration', () => {
     let state = createCreativeFactoryState(createInitialState(1000), 2000)
     const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
-    const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
+    const interfaceCable = state.machineInstances.find((instance) => instance.fabricationInterfaces?.east)!
+    const recipeInterface = interfaceCable.fabricationInterfaces!.east!
     const fabricator = state.machineInstances.find((instance) => instance.machineId === 'autoFabricator')!
     const rack = planningRackStructureForInstance(state, controller)
 
-    expect(rack?.memoryUnits).toBe(64)
+    expect(rack?.memoryUnits).toBe(192)
     expect(rack?.dispatchLanes).toBe(2)
-    expect(recipeInterface.fabricationFace).toBe('east')
-    expect(fabricator.x).toBe(recipeInterface.x + 1)
-    expect(fabricator.y).toBe(recipeInterface.y)
+    expect(recipeInterface.direction).toBe('east')
+    expect(fabricator.x).toBe(interfaceCable.x + 1)
+    expect(fabricator.y).toBe(interfaceCable.y)
     expect(state.recipeCards.map((card) => card.recipeId)).toEqual(['craft_planks', 'craft_sticks'])
     expect(state.recipeCards.every((card) => card.installedInUid === recipeInterface.uid)).toBe(true)
     expect(recipeInterface.installedRecipeCardUids).toEqual(state.recipeCards.map((card) => card.uid))
@@ -1318,7 +1343,7 @@ describe('game engine', () => {
       'craft_sticks',
     ])
     expect(controller.process.euStored).toBeGreaterThan(0)
-    expect(fabricator.process.euStored).toBeGreaterThan(0)
+    expect(fabricator.process.euStored).toBe(0)
 
     for (let step = 0; step < 4; step += 1) state = tickGame(state, 2100, 4100 + step * 2100).state
 
@@ -5949,7 +5974,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(15)
+    expect(state.version).toBe(16)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')
@@ -6005,6 +6030,34 @@ describe('game engine', () => {
 
     expect(state.machineInstances[0].process.fluids.liquidRubber).toBe(8)
     expect(state.recipeMilestones.lv_reactor_liquid_rubber).toBe(1)
+  })
+
+  it('loads and runs the three-item Phase Crystal recipe in the LV Mixer', () => {
+    let state = createFactoryState()
+    state.machines.lvMixer = 1
+    state.resources.chargedResonantQuartz = 1
+    state.resources.voidQuartz = 1
+    state.resources.redstoneDust = 1
+    state = placeMachineInstance(state, 'lvMixer', 0, 0)
+    const mixer = state.machineInstances[0]
+    const recipe = processRecipes.find((candidate) => candidate.id === 'lv_reactor_phase_crystal')!
+
+    expect(machines.lvMixer.itemOutputSlots).toBe(1)
+    expect(processRecipeInputLoadStatus(state, mixer.uid, recipe.id)).toMatchObject({ canLoad: true })
+
+    state = loadProcessRecipeInputs(state, mixer.uid, recipe.id)
+    expect(state.machineInstances[0].process.input).toEqual({ id: 'chargedResonantQuartz', amount: 1 })
+    expect(state.machineInstances[0].process.secondaryInput).toEqual({ id: 'voidQuartz', amount: 1 })
+    expect(state.machineInstances[0].process.extraInput1).toEqual({ id: 'redstoneDust', amount: 1 })
+
+    state.machineInstances[0].process.fluids.water = 1
+    state.machineInstances[0].process.euStored = 128
+    state = tickGame(state, 8000).state
+    state.machineInstances[0].process.euStored = 64
+    state = tickGame(state, 4000).state
+
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'phaseCrystal', amount: 2 })
+    expect(state.recipeMilestones.lv_reactor_phase_crystal).toBe(1)
   })
 
   it('powers the Chemical Reactor independently of its closed fluid outlet faces', () => {
@@ -6377,49 +6430,77 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.secondaryInput).toEqual({ id: 'signalImprintDie', amount: 1 })
   })
 
-  it('forms a planning rack and derives capacity from memory modules', () => {
-    let state = createFactoryState()
-    state.machines.planningController = 1
-    state.machines.memoryModule = 1
-    state.machines.dispatchModule = 1
-    state.machines.rackFrame = 1
-    state = placeMachineInstance(state, 'planningController', 0, 0)
-    state = placeMachineInstance(state, 'memoryModule', 1, 0)
-    state = placeMachineInstance(state, 'dispatchModule', 0, 1)
-    state = placeMachineInstance(state, 'rackFrame', 1, 1)
+  it('forms each supported planning rack footprint around at least one memory module', () => {
+    for (const [width, height] of [[1, 1], [2, 2], [3, 2], [3, 3]] as const) {
+      let state = createFactoryState()
+      state.machines.planningController = 1
+      state.machines.memoryModule = 8
+      state.machines.dispatchModule = 1
+      state = placeMachineInstance(state, 'planningController', 3, 3)
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          if (x === 0 && y === 0) continue
+          const machineId = x === 1 && y === 0 ? 'dispatchModule' : 'memoryModule'
+          state = placeMachineInstance(state, machineId, 3 + x, 3 + y)
+        }
+      }
 
-    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
-    const structure = planningRackStructureForInstance(state, controller)
+      const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+      const structure = planningRackStructureForInstance(state, controller)
 
-    expect(structure).not.toBeNull()
-    expect(structure?.memoryUnits).toBe(64)
-    expect(structure?.dispatchLanes).toBe(2)
+      expect(structure, `${width}x${height} rack`).not.toBeNull()
+      expect(structure?.width).toBe(width)
+      expect(structure?.height).toBe(height)
+      expect(structure?.memoryUnits).toBe(Math.max(1, width * height - 1) * 64)
+      expect(structure?.dispatchLanes).toBe(width * height > 1 ? 2 : 1)
+    }
   })
 
-  it('automatically selects a compatible free machine beside a Job Interface', () => {
+  it('does not form unsupported or incomplete planning rack footprints', () => {
+    let unsupported = createFactoryState()
+    unsupported.machines.planningController = 1
+    unsupported.machines.memoryModule = 3
+    unsupported = placeMachineInstance(unsupported, 'planningController', 3, 3)
+    unsupported = placeMachineInstance(unsupported, 'memoryModule', 4, 3)
+    unsupported = placeMachineInstance(unsupported, 'memoryModule', 5, 3)
+    unsupported = placeMachineInstance(unsupported, 'memoryModule', 6, 3)
+    const unsupportedController = unsupported.machineInstances.find((instance) => instance.machineId === 'planningController')!
+
+    let incomplete = createFactoryState()
+    incomplete.machines.planningController = 1
+    incomplete.machines.memoryModule = 1
+    incomplete.machines.dispatchModule = 1
+    incomplete = placeMachineInstance(incomplete, 'planningController', 3, 3)
+    incomplete = placeMachineInstance(incomplete, 'memoryModule', 4, 3)
+    incomplete = placeMachineInstance(incomplete, 'dispatchModule', 3, 4)
+    const incompleteController = incomplete.machineInstances.find((instance) => instance.machineId === 'planningController')!
+
+    expect(planningRackStructureForInstance(unsupported, unsupportedController)).toBeNull()
+    expect(planningRackStructureForInstance(incomplete, incompleteController)).toBeNull()
+  })
+
+  it('dispatches a processing pattern through a cable-mounted Job Interface Face', () => {
     let state = createFactoryState()
     state.machines.planningController = 1
-    state.machines.memoryModule = 1
-    state.machines.rackFrame = 2
     state.machines.recipeEncoder = 1
     state.machines.jobInterface = 1
-    state.machines.standardChest = 1
+    state.machines.fabricationCable = 3
     state.machines.lvFurnace = 1
     state = placeMachineInstance(state, 'planningController', 0, 0)
-    state = placeMachineInstance(state, 'memoryModule', 1, 0)
-    state = placeMachineInstance(state, 'rackFrame', 0, 1)
-    state = placeMachineInstance(state, 'rackFrame', 1, 1)
-    state = placeMachineInstance(state, 'recipeEncoder', 5, 0)
-    state = placeMachineInstance(state, 'standardChest', 3, 1)
-    state = placeMachineInstance(state, 'jobInterface', 3, 2)
-    state = placeMachineInstance(state, 'lvFurnace', 4, 2)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 2, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 3, 0)
+    state = placeMachineInstance(state, 'recipeEncoder', 2, 1)
+    state = placeMachineInstance(state, 'lvFurnace', 4, 0)
+    const interfaceCable = state.machineInstances.find((instance) => instance.x === 3 && instance.y === 0)!
+    state = attachFabricationInterface(state, interfaceCable.uid, 'east')
     state.resources.blankRecipeCard = 1
     state.resources.ironOre = 1
 
     const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
-    encoder.process.euStored = 64
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
     state = encodeProcessingRecipeCard(state, encoder.uid, 'smelt_iron_ingot')
-    const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
+    const recipeInterface = state.machineInstances.find((instance) => instance.uid === interfaceCable.uid)!.fabricationInterfaces!.east!
     state = installRecipeCard(state, recipeInterface.uid, state.recipeCards[0].uid)
     state = requestFabricationJob(state, state.recipeCards[0].uid, 1)
     state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
@@ -6441,26 +6522,24 @@ describe('game engine', () => {
     state.machines.jobInterface = 1
     state.machines.autoFabricator = 1
     state.machines.planningController = 1
-    state.machines.memoryModule = 1
-    state.machines.rackFrame = 2
+    state.machines.fabricationCable = 3
     state = placeMachineInstance(state, 'planningController', 0, 0)
-    state = placeMachineInstance(state, 'memoryModule', 1, 0)
-    state = placeMachineInstance(state, 'rackFrame', 0, 1)
-    state = placeMachineInstance(state, 'rackFrame', 1, 1)
-    state = placeMachineInstance(state, 'recipeEncoder', 3, 0)
-    state = placeMachineInstance(state, 'jobInterface', 3, 2)
-    state = placeMachineInstance(state, 'autoFabricator', 4, 2)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 2, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 3, 0)
+    state = placeMachineInstance(state, 'recipeEncoder', 2, 1)
+    state = placeMachineInstance(state, 'autoFabricator', 4, 0)
+    const interfaceCable = state.machineInstances.find((instance) => instance.x === 3 && instance.y === 0)!
+    state = attachFabricationInterface(state, interfaceCable.uid, 'east')
     state.resources.blankRecipeCard = 2
     state.resources.log = 1
 
     const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
-    encoder.process.euStored = 128
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
     state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_planks')
-    state.machineInstances.find((instance) => instance.uid === encoder.uid)!.process.euStored = 128
     state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_sticks')
 
-    const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
-    state = setFabricationInterfaceFace(state, recipeInterface.uid, 'east')
+    const recipeInterface = state.machineInstances.find((instance) => instance.uid === interfaceCable.uid)!.fabricationInterfaces!.east!
     for (const card of state.recipeCards) {
       state = installRecipeCard(state, recipeInterface.uid, card.uid)
     }
@@ -6479,7 +6558,6 @@ describe('game engine', () => {
 
     state = requestFabricationJob(state, sticksCard.uid, 4)
     state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
-    state.machineInstances.find((instance) => instance.machineId === 'autoFabricator')!.process.euStored = 128
 
     for (let step = 0; step < 5; step += 1) {
       state = tickGame(state, 2100).state
@@ -6487,6 +6565,116 @@ describe('game engine', () => {
 
     expect(state.fabricationJobs[0].status).toBe('complete')
     expect(state.resources.stick).toBeGreaterThanOrEqual(4)
+  })
+
+  it('bundles fabrication, item, and fluid conductors in one factory cell', () => {
+    let state = createFactoryState()
+    state.machines.itemConductor = 1
+    state.machines.fluidConductor = 1
+    state.machines.fabricationCable = 1
+
+    state = placeMachineInstance(state, 'fabricationCable', 2, 2)
+    state = placeMachineInstance(state, 'itemConductor', 2, 2)
+    state = placeMachineInstance(state, 'fluidConductor', 2, 2)
+
+    expect(state.machineInstances).toHaveLength(1)
+    expect(state.machineInstances[0].machineId).toBe('conductorBundle')
+    expect(state.machineInstances[0].fabricationCableInstalled).toBe(true)
+    expect(availableUnplacedMachineCount(state, 'itemConductor')).toBe(0)
+    expect(availableUnplacedMachineCount(state, 'fluidConductor')).toBe(0)
+    expect(availableUnplacedMachineCount(state, 'fabricationCable')).toBe(0)
+
+    state = removeConductorLane(state, state.machineInstances[0].uid, 'fluid')
+    expect(state.machineInstances[0].machineId).toBe('itemConductor')
+    expect(state.machineInstances[0].fabricationCableInstalled).toBe(true)
+  })
+
+  it('powers a connected Pattern Terminal only from its Planning Controller', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.fabricationCable = 2
+    state.machines.recipeEncoder = 1
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 2, 0)
+    state = placeMachineInstance(state, 'recipeEncoder', 2, 1)
+    state.resources.blankRecipeCard = 1
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+    const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
+    controller.process.euStored = 64
+
+    state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_planks')
+
+    expect(state.recipeCards).toHaveLength(1)
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)?.process.euStored).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === encoder.uid)?.process.euStored).toBe(0)
+
+    state = removeConductorLane(state, state.machineInstances.find((instance) => instance.x === 2 && instance.y === 0)!.uid, 'fabrication')
+    state.resources.blankRecipeCard = 1
+    state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.euStored = 64
+    state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_sticks')
+    expect(state.recipeCards).toHaveLength(1)
+  })
+
+  it('keeps duplicate encoded patterns as separate removable interface items', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.fabricationCable = 3
+    state.machines.recipeEncoder = 1
+    state.machines.autoFabricator = 1
+    state.machines.jobInterface = 1
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 2, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 3, 0)
+    state = placeMachineInstance(state, 'recipeEncoder', 2, 1)
+    state = placeMachineInstance(state, 'autoFabricator', 4, 0)
+    const cable = state.machineInstances.find((instance) => instance.x === 3 && instance.y === 0)!
+    state = attachFabricationInterface(state, cable.uid, 'east')
+    state.resources.blankRecipeCard = 2
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
+    const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
+    state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_planks')
+    state = encodeCraftingRecipeCard(state, encoder.uid, 'craft_planks')
+    const interfaceUid = state.machineInstances.find((instance) => instance.uid === cable.uid)!.fabricationInterfaces!.east!.uid
+    for (const card of state.recipeCards) state = installRecipeCard(state, interfaceUid, card.uid)
+
+    expect(new Set(state.recipeCards.map((card) => card.uid)).size).toBe(2)
+    expect(state.recipeCards.every((card) => card.installedInUid === interfaceUid)).toBe(true)
+
+    state = removeRecipeCard(state, state.recipeCards[0].uid)
+    expect(state.recipeCards.filter((card) => card.installedInUid === interfaceUid)).toHaveLength(1)
+    expect(state.recipeCards.filter((card) => !card.installedInUid)).toHaveLength(1)
+  })
+
+  it('returns legacy standalone Job Interfaces and preserves their encoded patterns', () => {
+    let legacy = createFactoryState()
+    legacy.version = 15
+    legacy.machines.furnace = 1
+    legacy.machines.jobInterface = 1
+    legacy = placeMachineInstance(legacy, 'furnace', 2, 2)
+    legacy.machineInstances[0].machineId = 'jobInterface'
+    legacy.machineInstances[0].uid = 'legacy-interface-1'
+    legacy.machineInstances[0].installedRecipeCardUids = ['card-1']
+    legacy.recipeCards = [{
+      uid: 'card-1',
+      kind: 'crafting',
+      name: 'Planks',
+      recipeId: 'craft_planks',
+      programNumber: 0,
+      itemInputs: [{ id: 'log', amount: 1 }],
+      fluidInputs: [],
+      itemOutputs: [{ id: 'plank', amount: 4 }],
+      fluidOutputs: [],
+      installedInUid: 'legacy-interface-1',
+    }]
+
+    const migrated = loadGame(JSON.stringify(legacy), 2000)
+
+    expect(migrated.machineInstances.some((instance) => instance.machineId === 'jobInterface')).toBe(false)
+    expect(migrated.machines.jobInterface).toBe(1)
+    expect(migrated.recipeCards[0].installedInUid).toBeUndefined()
+    expect(migrated.migrationNotices).toContain('fabrication-interface-faces')
   })
 })
 

@@ -66,7 +66,6 @@ SHEETS = [
             "planningController",
             "memoryModule",
             "dispatchModule",
-            "rackFrame",
         ],
     ),
 ]

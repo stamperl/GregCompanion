@@ -78,14 +78,16 @@ function loosePipeCapPoints(connections?: PipeConnections) {
   ]
 }
 
-export function MachineGlyph({ id, active = false, pipeConnections }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections }) {
+export function MachineGlyph({ id, active = false, pipeConnections, fabricationLane = false }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections; fabricationLane?: boolean }) {
   const [failed, setFailed] = useState(false)
-  const isConductor = isConductorMachine(id)
+  const hasFabricationLane = id === 'fabricationCable' || fabricationLane
+  const isConductor = isConductorMachine(id) || hasFabricationLane
   const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id) || isConductor
   const className = [
     'machine-glyph',
     isConnector && (pipeConnections || isConductor) ? 'machine-connector-glyph' : failed ? '' : 'machine-sprite-glyph',
     `machine-${id}`,
+    hasFabricationLane ? 'has-fabrication-lane' : '',
     active && !isConnector ? 'active' : '',
     isConnector ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
@@ -102,11 +104,13 @@ export function MachineGlyph({ id, active = false, pipeConnections }: { id: Mach
             <path className="conductor-trench" d={path} />
             {isItemConductorMachine(id) && <path className="conductor-lane conductor-item-lane" d={path} />}
             {isFluidConductorMachine(id) && <path className="conductor-lane conductor-fluid-lane" d={path} />}
+            {hasFabricationLane && <path className="conductor-lane conductor-fabrication-lane" d={path} />}
             <rect className="conductor-hub-shadow" x="12" y="13" width="17" height="17" />
             <rect className="conductor-hub-frame" x="12" y="12" width="16" height="16" />
             <rect className="conductor-hub-face" x="15" y="15" width="10" height="10" />
             {isItemConductorMachine(id) && <rect className="conductor-hub-indicator conductor-item-indicator" x="16" y="18" width="8" height="2" />}
             {isFluidConductorMachine(id) && <rect className="conductor-hub-indicator conductor-fluid-indicator" x="16" y="21" width="8" height="2" />}
+            {hasFabricationLane && <rect className="conductor-hub-indicator conductor-fabrication-indicator" x="16" y="15" width="8" height="2" />}
             <rect className="conductor-rivet" x="13" y="13" width="2" height="2" />
             <rect className="conductor-rivet" x="25" y="13" width="2" height="2" />
             <rect className="conductor-rivet" x="13" y="25" width="2" height="2" />

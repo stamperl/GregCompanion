@@ -14,6 +14,7 @@
     { "id": "diamondPickaxe", "review": "diamond-tools-v1", "status": "approved" },
     { "id": "diamondShovel", "review": "diamond-tools-v1", "status": "approved" },
     { "id": "cupronickelIngot", "review": "cupronickel-ingot-v1", "status": "approved" },
+    { "id": "lvMixer", "review": "lv-mixer-v1", "status": "approved" },
     { "id": "goldOre", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "resonantQuartz", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "voidQuartz", "review": "mv-fabrication-v1", "status": "pending" },
@@ -48,7 +49,6 @@
     { "id": "fluidStorageLink", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "planningController", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "memoryModule", "review": "mv-fabrication-v1", "status": "pending" },
-    { "id": "dispatchModule", "review": "mv-fabrication-v1", "status": "pending" },
-    { "id": "rackFrame", "review": "mv-fabrication-v1", "status": "pending" }
+    { "id": "dispatchModule", "review": "mv-fabrication-v1", "status": "pending" }
   ]
 }
