@@ -171,6 +171,7 @@ import {
   setConductorFaceSettings,
   setLvItemOutputDirection,
   setPipeSideMode,
+  setBatteryBufferInputDirection,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
   steamMachineInternalCapacityMs,
@@ -190,6 +191,7 @@ import {
   lvBatteryBufferEuCapacity,
   lvBatteryBufferOutputEuPerSecond,
   batteryBufferInstalledBatteries,
+  batteryBufferInputDirection,
   batteryBufferSlots,
   batteryEuCapacity,
   liquidSteamBoilerCapacityMs,
@@ -1071,12 +1073,14 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
   const pipePolarityForInstance = (instance: MachineInstance) => {
     const isSteamPipe = isSteamPipeMachine(instance.machineId)
     const isEuCable = isEuCableMachine(instance.machineId)
+    const isEuBuffer = isEuStorageMachine(instance.machineId)
+    const isEuRoute = isEuCable || isEuBuffer
     const isConductor = isConductorMachine(instance.machineId) || hasFabricationCable(instance)
     const isHopper = isItemHopperMachine(instance.machineId)
     const fluidFaces = isFluidOutletConfigurableMachine(instance.machineId)
       ? fluidOutputFacesForInstance(instance).filter((face) => face.cell.uid === instance.uid)
       : []
-    if (!isSteamPipe && !isEuCable && !isConductor && !isHopper && fluidFaces.length < 1) return null
+    if (!isSteamPipe && !isEuCable && !isEuBuffer && !isConductor && !isHopper && fluidFaces.length < 1) return null
 
     if (fluidFaces.length > 0) {
       const sides = fluidFaces.flatMap((face) => {
@@ -1120,8 +1124,8 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                 ((mode === 'output' || mode === 'both') && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))))
             : isConductor
               ? pipeConnectionsForInstance(instance)?.[direction === 'north' ? 'up' : direction === 'east' ? 'right' : direction === 'south' ? 'down' : 'left']
-              : (isEuCable ? machinesCanConnectEu(instance, neighbour) : machinesCanConnect(instance, neighbour)) &&
-              (isEuCable ? isEuNetworkMachine(neighbour.machineId) : isSteamPipeNeighbour(neighbour.machineId))),
+              : (isEuRoute ? machinesCanConnectEu(instance, neighbour) : machinesCanConnect(instance, neighbour)) &&
+              (isEuRoute ? isEuNetworkMachine(neighbour.machineId) : isSteamPipeNeighbour(neighbour.machineId))),
       )
       return {
         direction,
@@ -3568,7 +3572,7 @@ function App() {
     machines[selectedMachine.machineId].tier === 'lv' &&
     isFluidOutletConfigurableMachine(selectedMachine.machineId),
   )
-  const selectedMachineCanAutomate = selectedMachineCanAutomateItems || selectedMachineCanAutomateFluids || selectedMachine?.machineId === 'jobInterface'
+  const selectedMachineCanAutomate = selectedMachineCanAutomateItems || selectedMachineCanAutomateFluids || selectedMachine?.machineId === 'jobInterface' || Boolean(selectedMachine && isEuStorageMachine(selectedMachine.machineId))
   const selectedMachineFluidOutputDirections = selectedMachine && selectedMachineCanAutomateFluids
     ? pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output')
     : []
@@ -7749,14 +7753,54 @@ function App() {
                   >
                     <Route size={14} />
                     <span>{isMachineAutomationOpen ? 'Back to machine' : 'Automation'}</span>
-                    <strong>{selectedMachine.machineId === 'jobInterface'
+                    <strong>{isEuStorageMachine(selectedMachine.machineId)
+                      ? `${pipeDirectionOffsets[batteryBufferInputDirection(selectedMachine) ?? 'north'].label} in`
+                      : selectedMachine.machineId === 'jobInterface'
                       ? selectedMachine.fabricationFace ? pipeDirectionOffsets[selectedMachine.fabricationFace].label : 'Auto'
                       : showSelectedMachineFluidAutomation
                       ? selectedMachineFluidOutputDirections.length > 0 ? 'Ready' : 'Disabled'
                       : selectedMachineAutomationStatus?.label}</strong>
                   </button>
                 )}
-                {isMachineAutomationOpen && selectedMachine.machineId === 'jobInterface' ? (
+                {isMachineAutomationOpen && isEuStorageMachine(selectedMachine.machineId) ? (
+                  (() => {
+                    const inputDirection = batteryBufferInputDirection(selectedMachine) ?? 'north'
+                    const outputDirections = pipeDirections.filter((direction) => direction !== inputDirection)
+                    return <div className="lv-item-automation-hmi battery-buffer-automation">
+                      <div className="lv-automation-head">
+                        <span><small>EU input</small><strong>{pipeDirectionOffsets[inputDirection].label}</strong></span>
+                        <span className="lv-automation-state state-ready"><small>EU outputs</small><strong>{outputDirections.length} faces</strong></span>
+                      </div>
+                      <div className="lv-automation-grid" aria-label="Battery buffer input and output faces">
+                        {[-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => {
+                          const direction: PipeDirection | null = dx === 0 && dy === -1 ? 'north' : dx === 1 && dy === 0 ? 'east' : dx === 0 && dy === 1 ? 'south' : dx === -1 && dy === 0 ? 'west' : null
+                          const isCenter = dx === 0 && dy === 0
+                          if (!direction && !isCenter) return <span className="lv-automation-spacer" key={`${dx},${dy}`} />
+                          if (isCenter) return <span className="lv-automation-machine" key="center"><MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.euStored > 0} /><strong>{machines[selectedMachine.machineId].name}</strong></span>
+                          const offset = pipeDirectionOffsets[direction!]
+                          const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
+                          const isInput = direction === inputDirection
+                          return <button
+                              type="button"
+                              className={['lv-automation-face', 'buffer-power-face', direction, isInput ? 'selected input-face' : 'output-face'].filter(Boolean).join(' ')}
+                              aria-label={`${isInput ? '' : 'Set '}${offset.label} as battery buffer input${isInput ? ', currently selected' : ''}`}
+                              aria-pressed={isInput}
+                              onClick={() => setState((current) => setBatteryBufferInputDirection(current, selectedMachine.uid, direction!))}
+                              key={direction}
+                            >
+                              {neighbour ? <MachineGlyph id={neighbour.machineId} /> : <span className="lv-automation-empty" />}
+                              <b>{offset.label}</b>
+                              <span className={`buffer-face-mode ${isInput ? 'input' : 'output'}`}>{isInput ? 'IN' : 'OUT'}</span>
+                            </button>
+                        }))}
+                      </div>
+                      <div className="lv-automation-route-readout">
+                        <span><small>Input</small><strong>{pipeDirectionOffsets[inputDirection].label} only</strong></span>
+                        <span><small>Outputs</small><strong>{outputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')}</strong></span>
+                      </div>
+                    </div>
+                  })()
+                ) : isMachineAutomationOpen && selectedMachine.machineId === 'jobInterface' ? (
                   <div className="lv-item-automation-hmi fabrication-face-automation">
                     <div className="lv-automation-head">
                       <span><small>Machine face</small><strong>{selectedMachine.fabricationFace ? pipeDirectionOffsets[selectedMachine.fabricationFace].label : 'Automatic'}</strong></span>

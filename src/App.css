@@ -12225,6 +12225,34 @@ button.button-primary:disabled,
   top: 4px;
 }
 
+.lv-automation-face.buffer-power-face.output-face {
+  border-color: #497b80;
+  color: #a9e1e5;
+}
+
+.lv-automation-face.buffer-power-face.input-face {
+  border-color: #e7a14d;
+}
+
+.buffer-face-mode {
+  background: #173236;
+  border: 1px solid #497b80;
+  color: #a9e1e5;
+  font-size: 0.4rem;
+  font-weight: 950;
+  line-height: 1;
+  padding: 2px 3px;
+  position: absolute;
+  right: 3px;
+  top: 3px;
+}
+
+.buffer-face-mode.input {
+  background: #4c351b;
+  border-color: #e7a14d;
+  color: #ffe0aa;
+}
+
 .lv-automation-face.conflict {
   border-color: #b74d45;
 }

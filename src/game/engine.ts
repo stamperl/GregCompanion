@@ -683,6 +683,17 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
     }
     if (isEuStorageMachine(machineId)) {
       process.batterySlots = Array.from({ length: batteryBufferSlots(machineId) }, (_, index) => process.batterySlots[index] ?? null)
+      const inputDirection = pipeDirections.find((direction) => normalizedSideModes[direction] === 'input') ?? pipeDirections.find((direction) => {
+        const offset = pipeDirectionOffsets[direction]
+        const neighbour = migratedInstances.find((candidate) => candidate.x === x + offset.dx && candidate.y === y + offset.dy)
+        return Boolean(neighbour?.machineId && neighbour.machineId in machines && (
+          isEuCableMachine(neighbour.machineId as MachineId) || isEuProducerMachine(neighbour.machineId as MachineId)
+        ))
+      }) ?? 'north'
+      normalizedSideModes = Object.fromEntries(
+        pipeDirections.map((direction) => [direction, direction === inputDirection ? 'input' : 'output']),
+      ) as Partial<Record<PipeDirection, PipeSideMode>>
+      normalizedPipeDisabledSides = {}
     }
     normalized.push({
       uid: String(instance.uid),
@@ -2890,6 +2901,7 @@ function isConfigurableConnector(machineId: MachineId) {
     isSteamPipeMachine(machineId) ||
     isItemConductorMachine(machineId) ||
     isEuCableMachine(machineId) ||
+    isEuStorageMachine(machineId) ||
     isItemHopperMachine(machineId) ||
     isFluidOutletConfigurableMachine(machineId) ||
     machineId === 'lvEnergyHatch2A' ||
@@ -2915,6 +2927,13 @@ function setConnectorSideModeInPlace(instance: MachineInstance, direction: PipeD
   instance.pipeDisabledSides = disabledSides
 }
 
+function setBatteryBufferInputDirectionInPlace(instance: MachineInstance, inputDirection: PipeDirection) {
+  instance.pipeSideModes = Object.fromEntries(
+    pipeDirections.map((direction) => [direction, direction === inputDirection ? 'input' : 'output']),
+  ) as Partial<Record<PipeDirection, PipeSideMode>>
+  instance.pipeDisabledSides = {}
+}
+
 function directionBetween(from: MachineInstance, to: MachineInstance): PipeDirection | null {
   if (to.x === from.x && to.y === from.y - 1) return 'north'
   if (to.x === from.x + 1 && to.y === from.y) return 'east'
@@ -2930,6 +2949,7 @@ function connectorAllowsDirection(instance: MachineInstance, direction: PipeDire
 export function pipeSideMode(instance: MachineInstance, direction: PipeDirection): PipeSideMode {
   if (!isConfigurableConnector(instance.machineId)) return 'both'
   if (instance.pipeSideModes?.[direction]) return instance.pipeSideModes[direction]
+  if (isEuStorageMachine(instance.machineId)) return direction === 'north' ? 'input' : 'output'
   if (instance.pipeDisabledSides?.[direction]) return 'blocked'
   if (isFluidOutletConfigurableMachine(instance.machineId)) return 'blocked'
   return 'both'
@@ -2962,6 +2982,14 @@ export function machinesCanConnectEu(from: MachineInstance, to: MachineInstance)
     return connectorAllowsDirection(instance, side)
   }
   return allowsEuConnection(from, direction) && allowsEuConnection(to, oppositePipeDirection[direction])
+}
+
+function machinesCanFlowEu(from: MachineInstance, to: MachineInstance) {
+  const direction = directionBetween(from, to)
+  if (!direction || !machinesCanConnectEu(from, to)) return false
+  if (isEuStorageMachine(from.machineId) && pipeSideMode(from, direction) !== 'output') return false
+  if (isEuStorageMachine(to.machineId) && pipeSideMode(to, oppositePipeDirection[direction]) !== 'input') return false
+  return true
 }
 
 function machinesCanFlow(from: MachineInstance, to: MachineInstance) {
@@ -3555,10 +3583,7 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
 }
 
 function canEuFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
-  const context = activeTopologyFor(state)
-  const reachable = context?.cache.euReachability.get(source.uid)
-  if (reachable) return reachable.has(target.uid)
-  return connectedEuNetworkWithDistance(state, source).some((entry) => entry.instance.uid === target.uid)
+  return Boolean(euRouteBetween(state, source, target))
 }
 
 function flowCellsForInstance(state: GameState, instance: MachineInstance) {
@@ -3666,7 +3691,7 @@ function euRouteBetween(state: GameState, source: MachineInstance, target: Machi
 
     for (const position of adjacentPositions(state, current.x, current.y)) {
       const next = machineAt(state, position.x, position.y)
-      if (!next || previous.has(next.uid) || !machinesCanConnectEu(current, next)) continue
+      if (!next || previous.has(next.uid) || !machinesCanFlowEu(current, next)) continue
       if (!isEuNetworkMachine(next.machineId) && !isEuMultiblockBridge(state, next)) continue
       previous.set(next.uid, current.uid)
       queue.push(next)
@@ -3784,6 +3809,11 @@ function euNetworkCableAmps(state: GameState, start: MachineInstance) {
 
 export function batteryBufferSlots(machineId: MachineId) {
   return isEuStorageMachine(machineId) ? Math.max(1, machineEuAmps(machineId)) : 0
+}
+
+export function batteryBufferInputDirection(instance: MachineInstance): PipeDirection | null {
+  if (!isEuStorageMachine(instance.machineId)) return null
+  return pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'input') ?? 'north'
 }
 
 const bufferBatteryIds = ['sodiumBattery', 'lithiumBattery', 'lvBattery'] as const
@@ -4726,6 +4756,14 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
       setConnectorSideModeInPlace(placed, direction, 'both')
       setConnectorSideModeInPlace(neighbour, oppositePipeDirection[direction], 'both')
     }
+    if (isEuStorageMachine(machineId)) {
+      const adjacentEuDirection = pipeDirections.find((direction) => {
+        const offset = pipeDirectionOffsets[direction]
+        const neighbour = machineAt(next, x + offset.dx, y + offset.dy)
+        return Boolean(neighbour && (isEuCableMachine(neighbour.machineId) || isEuProducerMachine(neighbour.machineId)))
+      }) ?? 'north'
+      setBatteryBufferInputDirectionInPlace(placed, adjacentEuDirection)
+    }
   }
   next.machineInstances.push(placed)
   const arcStructure = arcBlastFurnaceStructureForInstance(next, placed)
@@ -4891,6 +4929,14 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isConfigurableConnector(instance.machineId) || !pipeSideModes.includes(mode)) return state
   if (isFluidOutletConfigurableMachine(instance.machineId) && mode !== 'output' && mode !== 'blocked') return state
+  if (isEuStorageMachine(instance.machineId)) {
+    if (mode !== 'input') return state
+    const next = cloneState(state)
+    const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)!
+    setBatteryBufferInputDirectionInPlace(nextInstance, direction)
+    next.lastSavedAt = Date.now()
+    return next
+  }
   const nextMode = isEuCableMachine(instance.machineId) && mode !== 'blocked' ? 'both' : mode
 
   const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
@@ -4918,6 +4964,12 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   nextInstance.pipeDisabledSides = disabledSides
   next.lastSavedAt = Date.now()
   return next
+}
+
+export function setBatteryBufferInputDirection(state: GameState, uid: string, direction: PipeDirection) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!instance || !isEuStorageMachine(instance.machineId)) return state
+  return setPipeSideMode(state, uid, direction, 'input')
 }
 
 export function setFluidOutputDirection(state: GameState, uid: string, direction: PipeDirection) {

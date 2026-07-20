@@ -764,7 +764,7 @@ export const machineRegistry = {
   lvBatteryBuffer: {
     id: 'lvBatteryBuffer',
     name: '1A LV Battery Buffer',
-    description: 'Stores one installed LV battery and outputs up to 1A.',
+    description: 'Stores one installed LV battery, accepts EU on one configured input face, and outputs up to 1A through the other three faces.',
     tier: 'lv',
     placeable: true,
     processKind: 'euStorage',
@@ -774,7 +774,7 @@ export const machineRegistry = {
   lvBatteryBuffer2A: {
     id: 'lvBatteryBuffer2A',
     name: '2A LV Battery Buffer',
-    description: 'Stores up to two LV batteries and outputs up to 2A.',
+    description: 'Stores up to two LV batteries, accepts EU on one configured input face, and outputs up to 2A through the other three faces.',
     tier: 'lv',
     placeable: true,
     processKind: 'euStorage',
@@ -784,7 +784,7 @@ export const machineRegistry = {
   lvBatteryBuffer4A: {
     id: 'lvBatteryBuffer4A',
     name: '4A LV Battery Buffer',
-    description: 'Stores up to four LV batteries and can feed the arc blast line.',
+    description: 'Stores up to four LV batteries and feeds the arc blast line through three output faces separate from its EU input.',
     tier: 'lv',
     placeable: true,
     processKind: 'euStorage',
@@ -794,7 +794,7 @@ export const machineRegistry = {
   lvBatteryBuffer8A: {
     id: 'lvBatteryBuffer8A',
     name: '8A LV Battery Buffer',
-    description: 'Stores up to eight LV batteries for larger LV power trunks.',
+    description: 'Stores up to eight LV batteries for larger LV power trunks, with one EU input face and three output faces.',
     tier: 'lv',
     placeable: true,
     processKind: 'euStorage',

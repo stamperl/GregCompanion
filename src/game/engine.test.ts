@@ -84,6 +84,7 @@ import {
   missingForQuantity,
   missingForRecipe,
   placeMachineInstance,
+  pipeDirections,
   planningRackStructureForInstance,
   previewFabricationRequest,
   processRecipeInputLoadStatus,
@@ -114,12 +115,14 @@ import {
   setConductorFaceSettings,
   setHopperOutputDirection,
   setLvItemOutputDirection,
+  setBatteryBufferInputDirection,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
   simulateOfflineProgress,
   setPipeSideMode,
   setPipeSideDisabled,
   pipeSideMode,
+  batteryBufferInputDirection,
   fluidPipeBufferCapacityLitres,
   steamMsPerLitre,
   steamPipeBufferCapacityMs,
@@ -4720,6 +4723,7 @@ describe('game engine', () => {
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
+    state = setBatteryBufferInputDirection(state, buffer.uid, 'west')
     state = installLvBatteryInBuffer(state, buffer.uid)
     state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 200
 
@@ -4735,6 +4739,48 @@ describe('game engine', () => {
     const nextWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
     expect(nextWiremill.process.output).toEqual({ id: 'tinWire', amount: 2 })
     expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(190)
+  })
+
+  it('gives LV battery buffers one input face and prevents EU output through it', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvBatteryBuffer = 1
+    state.machines.lvWiremill = 2
+    state.resources.sodiumBattery = 1
+    state = placeMachineInstance(state, 'lvBatteryBuffer', 1, 1)
+    state = placeMachineInstance(state, 'lvWiremill', 0, 1)
+    state = placeMachineInstance(state, 'lvWiremill', 2, 1)
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
+    const westMachine = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 1)!
+    const eastMachine = state.machineInstances.find((instance) => instance.x === 2 && instance.y === 1)!
+    state = setBatteryBufferInputDirection(state, buffer.uid, 'east')
+    state = installLvBatteryInBuffer(state, buffer.uid)
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 100
+
+    const configuredBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
+    expect(batteryBufferInputDirection(configuredBuffer)).toBe('east')
+    expect(pipeDirections.map((direction) => pipeSideMode(configuredBuffer, direction))).toEqual(['output', 'input', 'output', 'output'])
+    expect(availableConnectedEu(state, westMachine)).toBe(100)
+    expect(availableConnectedEu(state, eastMachine)).toBe(0)
+
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === westMachine.uid)!.process.euStored).toBe(32)
+    expect(state.machineInstances.find((instance) => instance.uid === eastMachine.uid)!.process.euStored).toBe(0)
+  })
+
+  it('infers a legacy battery buffer input from its adjacent EU supply cable', () => {
+    let state = createFactoryState(1000)
+    state.resources.tinCable = 1
+    state.machines.lvBatteryBuffer = 1
+    state = placeMachineInstance(state, 'tinCable', 1, 0)
+    state = placeMachineInstance(state, 'lvBatteryBuffer', 2, 0)
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
+    buffer.pipeSideModes = {}
+    buffer.pipeDisabledSides = {}
+
+    const loaded = loadGame(saveGame(state), 2000)
+    const migratedBuffer = loaded.machineInstances.find((instance) => instance.uid === buffer.uid)!
+    expect(batteryBufferInputDirection(migratedBuffer)).toBe('west')
+    expect(pipeDirections.filter((direction) => pipeSideMode(migratedBuffer, direction) === 'output')).toHaveLength(3)
   })
 
   it('fills an idle LV machine internal buffer before a valid recipe is loaded', () => {
