@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-12T13:44:30.023Z",
+  "generatedAt": "2026-07-20T15:34:37.836Z",
   "resources": [
     {
       "id": "log",
@@ -81,8 +81,20 @@
       "tier": "lv"
     },
     {
+      "id": "diamondAxe",
+      "label": "Diamond Axe",
+      "category": "tool",
+      "tier": "lv"
+    },
+    {
       "id": "diamondPickaxe",
       "label": "Diamond Pickaxe",
+      "category": "tool",
+      "tier": "lv"
+    },
+    {
+      "id": "diamondShovel",
+      "label": "Diamond Shovel",
       "category": "tool",
       "tier": "lv"
     },
@@ -195,6 +207,24 @@
       "tier": "lv"
     },
     {
+      "id": "goldOre",
+      "label": "Gold Ore",
+      "category": "raw",
+      "tier": "mv"
+    },
+    {
+      "id": "resonantQuartz",
+      "label": "Resonant Quartz",
+      "category": "raw",
+      "tier": "mv"
+    },
+    {
+      "id": "voidQuartz",
+      "label": "Void Quartz",
+      "category": "raw",
+      "tier": "mv"
+    },
+    {
       "id": "redstoneDust",
       "label": "Redstone Dust",
       "category": "dust",
@@ -223,6 +253,12 @@
       "label": "Crushed Bauxite Ore",
       "category": "raw",
       "tier": "lv"
+    },
+    {
+      "id": "crushedGoldOre",
+      "label": "Crushed Gold Ore",
+      "category": "raw",
+      "tier": "mv"
     },
     {
       "id": "coal",
@@ -333,6 +369,30 @@
       "tier": "lv"
     },
     {
+      "id": "goldDust",
+      "label": "Gold Dust",
+      "category": "dust",
+      "tier": "mv"
+    },
+    {
+      "id": "resonantQuartzDust",
+      "label": "Resonant Quartz Dust",
+      "category": "dust",
+      "tier": "mv"
+    },
+    {
+      "id": "voidQuartzDust",
+      "label": "Void Quartz Dust",
+      "category": "dust",
+      "tier": "mv"
+    },
+    {
+      "id": "phaseDust",
+      "label": "Phase Dust",
+      "category": "dust",
+      "tier": "mv"
+    },
+    {
       "id": "bronzeIngot",
       "label": "Bronze Ingot",
       "category": "ingot",
@@ -351,10 +411,22 @@
       "tier": "lv"
     },
     {
+      "id": "invarIngot",
+      "label": "Invar Ingot",
+      "category": "ingot",
+      "tier": "lv"
+    },
+    {
       "id": "aluminiumIngot",
       "label": "Aluminium Ingot",
       "category": "ingot",
       "tier": "lv"
+    },
+    {
+      "id": "goldIngot",
+      "label": "Gold Ingot",
+      "category": "ingot",
+      "tier": "mv"
     },
     {
       "id": "clay",
@@ -375,6 +447,12 @@
       "tier": "steam"
     },
     {
+      "id": "rubberPulp",
+      "label": "Rubber Pulp",
+      "category": "component",
+      "tier": "steam"
+    },
+    {
       "id": "pipeSealant",
       "label": "Pipe Sealant",
       "category": "component",
@@ -382,7 +460,7 @@
     },
     {
       "id": "rubber",
-      "label": "Rubber",
+      "label": "Rubber Bar",
       "category": "component",
       "tier": "steam"
     },
@@ -453,10 +531,22 @@
       "tier": "steam"
     },
     {
+      "id": "invarPlate",
+      "label": "Invar Plate",
+      "category": "plate",
+      "tier": "lv"
+    },
+    {
       "id": "aluminiumPlate",
       "label": "Aluminium Plate",
       "category": "plate",
       "tier": "lv"
+    },
+    {
+      "id": "goldPlate",
+      "label": "Gold Plate",
+      "category": "plate",
+      "tier": "mv"
     },
     {
       "id": "steelRod",
@@ -787,6 +877,132 @@
       "label": "LV Battery",
       "category": "component",
       "tier": "lv"
+    },
+    {
+      "id": "obsidian",
+      "label": "Obsidian",
+      "category": "raw",
+      "tier": "lv"
+    },
+    {
+      "id": "sulfurOre",
+      "label": "Sulfur Ore",
+      "category": "raw",
+      "tier": "lv"
+    },
+    {
+      "id": "sulfurDust",
+      "label": "Sulfur Dust",
+      "category": "dust",
+      "tier": "lv"
+    },
+    {
+      "id": "surveyKit",
+      "label": "Survey Kit",
+      "category": "component",
+      "tier": "lv"
+    },
+    {
+      "id": "emptySteelCell",
+      "label": "Empty Steel Cell",
+      "category": "component",
+      "tier": "lv"
+    },
+    {
+      "id": "chargedResonantQuartz",
+      "label": "Charged Resonant Quartz",
+      "category": "component",
+      "tier": "mv"
+    },
+    {
+      "id": "phaseCrystal",
+      "label": "Phase Crystal",
+      "category": "component",
+      "tier": "mv"
+    },
+    {
+      "id": "silicon",
+      "label": "Silicon",
+      "category": "component",
+      "tier": "mv"
+    },
+    {
+      "id": "hardenedDieBlank",
+      "label": "Hardened Die Blank",
+      "category": "component",
+      "tier": "mv"
+    },
+    {
+      "id": "signalImprintDie",
+      "label": "Signal Imprint Die",
+      "category": "tool",
+      "tier": "mv"
+    },
+    {
+      "id": "computationImprintDie",
+      "label": "Computation Imprint Die",
+      "category": "tool",
+      "tier": "mv"
+    },
+    {
+      "id": "structuralImprintDie",
+      "label": "Structural Imprint Die",
+      "category": "tool",
+      "tier": "mv"
+    },
+    {
+      "id": "siliconImprintDie",
+      "label": "Silicon Imprint Die",
+      "category": "tool",
+      "tier": "mv"
+    },
+    {
+      "id": "printedSignalCircuit",
+      "label": "Printed Signal Circuit",
+      "category": "circuit",
+      "tier": "mv"
+    },
+    {
+      "id": "printedComputationCircuit",
+      "label": "Printed Computation Circuit",
+      "category": "circuit",
+      "tier": "mv"
+    },
+    {
+      "id": "printedStructuralCircuit",
+      "label": "Printed Structural Circuit",
+      "category": "circuit",
+      "tier": "mv"
+    },
+    {
+      "id": "printedSilicon",
+      "label": "Printed Silicon",
+      "category": "circuit",
+      "tier": "mv"
+    },
+    {
+      "id": "signalProcessor",
+      "label": "Signal Processor",
+      "category": "circuit",
+      "tier": "mv"
+    },
+    {
+      "id": "computationProcessor",
+      "label": "Computation Processor",
+      "category": "circuit",
+      "tier": "mv"
+    },
+    {
+      "id": "structuralProcessor",
+      "label": "Structural Processor",
+      "category": "circuit",
+      "tier": "mv"
+    },
+    {
+      "id": "blankRecipeCard",
+      "label": "Blank Pattern",
+      "category": "circuit",
+      "tier": "mv"
     }
   ],
   "machines": [
@@ -811,6 +1027,11 @@
       "tier": "steam"
     },
     {
+      "id": "steelTank",
+      "label": "Steel Tank",
+      "tier": "lv"
+    },
+    {
       "id": "standardChest",
       "label": "Standard Chest",
       "tier": "steam"
@@ -832,8 +1053,28 @@
     },
     {
       "id": "ironPipe",
-      "label": "Iron Fluid Pipe",
+      "label": "Steel Fluid Pipe",
       "tier": "steam"
+    },
+    {
+      "id": "itemConductor",
+      "label": "Item Conductor",
+      "tier": "lv"
+    },
+    {
+      "id": "fluidConductor",
+      "label": "Fluid Conductor",
+      "tier": "lv"
+    },
+    {
+      "id": "conductorBundle",
+      "label": "Bundled Conductors",
+      "tier": "lv"
+    },
+    {
+      "id": "fabricationCable",
+      "label": "Fabrication Cable",
+      "tier": "mv"
     },
     {
       "id": "steamMacerator",
@@ -976,6 +1217,11 @@
       "tier": "lv"
     },
     {
+      "id": "lvMixer",
+      "label": "LV Mixer",
+      "tier": "lv"
+    },
+    {
       "id": "lvCentrifuge",
       "label": "LV Centrifuge",
       "tier": "lv"
@@ -988,6 +1234,51 @@
     {
       "id": "lvAutoMiner",
       "label": "LV Auto Miner",
+      "tier": "lv"
+    },
+    {
+      "id": "lvChemicalReactor",
+      "label": "LV Chemical Reactor",
+      "tier": "lv"
+    },
+    {
+      "id": "lvAirCollector",
+      "label": "LV Air Collector",
+      "tier": "lv"
+    },
+    {
+      "id": "reachGateCasing",
+      "label": "Reach Gate Casing",
+      "tier": "lv"
+    },
+    {
+      "id": "reachGate",
+      "label": "Reach Gate",
+      "tier": "lv"
+    },
+    {
+      "id": "lvEnergyHatch2A",
+      "label": "2A LV Energy Hatch",
+      "tier": "lv"
+    },
+    {
+      "id": "lvInputBus",
+      "label": "LV Input Bus",
+      "tier": "lv"
+    },
+    {
+      "id": "lvOutputBus",
+      "label": "LV Output Bus",
+      "tier": "lv"
+    },
+    {
+      "id": "lvFluidInputHatch",
+      "label": "LV Fluid Input Hatch",
+      "tier": "lv"
+    },
+    {
+      "id": "lvFluidOutputHatch",
+      "label": "LV Fluid Output Hatch",
       "tier": "lv"
     },
     {
@@ -1019,6 +1310,51 @@
       "id": "arcBlastFurnace",
       "label": "Arc Blast Furnace",
       "tier": "lv"
+    },
+    {
+      "id": "crystalEnergizer",
+      "label": "Crystal Energizer",
+      "tier": "mv"
+    },
+    {
+      "id": "circuitImprinter",
+      "label": "Circuit Imprinter",
+      "tier": "mv"
+    },
+    {
+      "id": "recipeEncoder",
+      "label": "Pattern Terminal",
+      "tier": "mv"
+    },
+    {
+      "id": "jobInterface",
+      "label": "Job Interface Face",
+      "tier": "mv"
+    },
+    {
+      "id": "autoFabricator",
+      "label": "Auto Fabricator",
+      "tier": "mv"
+    },
+    {
+      "id": "fluidStorageLink",
+      "label": "Fluid Storage Link",
+      "tier": "mv"
+    },
+    {
+      "id": "planningController",
+      "label": "Planning Controller",
+      "tier": "mv"
+    },
+    {
+      "id": "memoryModule",
+      "label": "Memory Module",
+      "tier": "mv"
+    },
+    {
+      "id": "dispatchModule",
+      "label": "Dispatch Module",
+      "tier": "mv"
     }
   ],
   "quests": [
@@ -1118,8 +1454,8 @@
       "chapter": "Steam Age"
     },
     {
-      "id": "factoryToolsQuest",
-      "label": "Pack factory tools",
+      "id": "transferWaterBucketQuest",
+      "label": "Move water by hand",
       "chapter": "Steam Age"
     },
     {
@@ -1140,6 +1476,21 @@
     {
       "id": "steamOrePrepQuest",
       "label": "Prepare richer ore feed",
+      "chapter": "Steam Age"
+    },
+    {
+      "id": "steamCompressorQuest",
+      "label": "Pressurize with steam",
+      "chapter": "Steam Age"
+    },
+    {
+      "id": "steamExtractorQuest",
+      "label": "Extract rubber feedstock",
+      "chapter": "Steam Age"
+    },
+    {
+      "id": "steamPressureReserveQuest",
+      "label": "Build a pressure reserve",
       "chapter": "Steam Age"
     },
     {
@@ -1214,7 +1565,7 @@
     },
     {
       "id": "extractRubberQuest",
-      "label": "Extract rubber",
+      "label": "Prepare rubber bars",
       "chapter": "LV Foundations"
     },
     {
@@ -1260,6 +1611,11 @@
     {
       "id": "buildSteamTurbineQuest",
       "label": "Build a steam turbine",
+      "chapter": "LV Foundations"
+    },
+    {
+      "id": "circuitStockpileQuest",
+      "label": "Batch the control circuits",
       "chapter": "LV Foundations"
     },
     {
@@ -1314,7 +1670,7 @@
     },
     {
       "id": "makeEmptyBatteryCellQuest",
-      "label": "Make empty battery cells",
+      "label": "Build the battery-alloy line",
       "chapter": "Blast Prep"
     },
     {
@@ -1348,11 +1704,6 @@
       "chapter": "Blast Prep"
     },
     {
-      "id": "buildLvBenderQuest",
-      "label": "Build the LV bender",
-      "chapter": "Blast Prep"
-    },
-    {
       "id": "runLvBenderQuest",
       "label": "Bend efficient plates",
       "chapter": "Blast Prep"
@@ -1366,6 +1717,16 @@
       "id": "runLvLatheQuest",
       "label": "Turn machine rods",
       "chapter": "Blast Prep"
+    },
+    {
+      "id": "buildLvCentrifugeQuest",
+      "label": "Build the LV centrifuge",
+      "chapter": "LV Foundations"
+    },
+    {
+      "id": "centrifugeByproductsQuest",
+      "label": "Keep every output clear",
+      "chapter": "LV Foundations"
     },
     {
       "id": "buildLvElectrolyzerQuest",
@@ -1385,6 +1746,36 @@
     {
       "id": "makeHeatingCoilsQuest",
       "label": "Wind heating coils",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "makeInvarQuest",
+      "label": "Alloy the controller shell",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "craftArcControllerQuest",
+      "label": "Build the Arc controller",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "craftArcItemBusesQuest",
+      "label": "Fit the item buses",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "craftArcEnergyHatchesQuest",
+      "label": "Fit two Energy Hatches",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "buildLvAssemblerForPortsQuest",
+      "label": "Automate port assembly",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "craftArcFluidHatchesQuest",
+      "label": "Prepare fluid ports",
       "chapter": "Blast Prep"
     },
     {
@@ -1411,6 +1802,196 @@
       "id": "firstAluminiumQuest",
       "label": "Establish aluminium output",
       "chapter": "Blast Prep"
+    },
+    {
+      "id": "buildConductorsQuest",
+      "label": "Bundle conductor lanes",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "buildLvAutoMinerQuest",
+      "label": "Build the LV Auto Miner",
+      "chapter": "LV Age"
+    },
+    {
+      "id": "craftSurveyKitQuest",
+      "label": "Build a Survey Kit",
+      "chapter": "LV Age"
+    },
+    {
+      "id": "encodeCoalSurveyCardQuest",
+      "label": "Encode a deposit profile",
+      "chapter": "LV Age"
+    },
+    {
+      "id": "gatherObsidianQuest",
+      "label": "Cut the gate anchors",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "craftReachGateQuest",
+      "label": "Craft Reach Gate Casings",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "formReachGateQuest",
+      "label": "Form the 2x2 Reach Gate",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "gatherSulfurQuest",
+      "label": "Mine a sulfur vent",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "encodeSulfurSurveyCardQuest",
+      "label": "Survey the sulfur vent",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "makeSulfurDustQuest",
+      "label": "Crush reactive sulfur",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "craftSteelCellsQuest",
+      "label": "Fold portable fluid cells",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "buildChemicalReactorQuest",
+      "label": "Build the Chemical Reactor",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "separateStickyResinQuest",
+      "label": "Separate sticky resin",
+      "chapter": "LV Foundations"
+    },
+    {
+      "id": "useGlueQuest",
+      "label": "Improve resistor batches",
+      "chapter": "LV Foundations"
+    },
+    {
+      "id": "makeLiquidRubberQuest",
+      "label": "React liquid rubber",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "transferLiquidRubberCellQuest",
+      "label": "Capture liquid rubber",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "insulateWithLiquidRubberQuest",
+      "label": "Feed liquid rubber into assembly",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "cureLiquidRubberQuest",
+      "label": "Choose the solid rubber route",
+      "chapter": "LV Foundations"
+    },
+    {
+      "id": "buildAirCollectorQuest",
+      "label": "Build an Air Collector",
+      "chapter": "LV Foundations"
+    },
+    {
+      "id": "separateAirQuest",
+      "label": "Separate air gases",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "routeSeparatedGasesQuest",
+      "label": "Give each gas a destination",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "makeSulfuricAcidQuest",
+      "label": "Produce sulfuric acid",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "diluteSulfuricAcidQuest",
+      "label": "Prepare diluted acid",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "etchCircuitBoardsQuest",
+      "label": "Etch circuit boards",
+      "chapter": "Shattered Reach"
+    },
+    {
+      "id": "runGasArcRecipesQuest",
+      "label": "Program gas-assisted blasting",
+      "chapter": "Blast Prep"
+    },
+    {
+      "id": "steelTankQuest",
+      "label": "Reinforce steam storage",
+      "chapter": "Coke & Steel"
+    },
+    {
+      "id": "findGoldQuest",
+      "label": "Survey conductive gold",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "findResonantQuartzQuest",
+      "label": "Find resonant quartz",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "findVoidQuartzQuest",
+      "label": "Recover void quartz",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "makeSiliconQuest",
+      "label": "Refine silicon",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "buildLvMixerQuest",
+      "label": "Build the LV Mixer",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "makePhaseCrystalQuest",
+      "label": "Stabilise phase crystal",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "makeProcessorDiesQuest",
+      "label": "Cut permanent imprint dies",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "buildCircuitImprinterQuest",
+      "label": "Build the Circuit Imprinter",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "makeProcessorsQuest",
+      "label": "Produce all processor grades",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "formPlanningRackQuest",
+      "label": "Form and connect a planning rack",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "encodeRecipeCardQuest",
+      "label": "Encode a physical pattern",
+      "chapter": "Auto Crafting"
+    },
+    {
+      "id": "runFabricationJobQuest",
+      "label": "Complete a fabrication job",
+      "chapter": "Auto Crafting"
     }
   ],
   "recipes": [
@@ -1742,7 +2323,43 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "firstDirt"
+      "unlockedBy": "buildFurnace"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_diamond_axe",
+      "name": "Craft Diamond Axe",
+      "description": "A hard crystal axe head mounted on steel rods.",
+      "tier": "lv",
+      "durationMs": 2200,
+      "inputs": [
+        {
+          "id": "diamond",
+          "amount": 3
+        },
+        {
+          "id": "steelRod",
+          "amount": 2
+        }
+      ],
+      "pattern": [
+        "diamond",
+        "diamond",
+        null,
+        "diamond",
+        "steelRod",
+        null,
+        null,
+        "steelRod",
+        null
+      ],
+      "outputs": [
+        {
+          "id": "diamondAxe",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
     },
     {
       "kind": "crafting",
@@ -1775,6 +2392,42 @@
       "outputs": [
         {
           "id": "diamondPickaxe",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_diamond_shovel",
+      "name": "Craft Diamond Shovel",
+      "description": "A hard crystal shovel head mounted on steel rods.",
+      "tier": "lv",
+      "durationMs": 2100,
+      "inputs": [
+        {
+          "id": "diamond",
+          "amount": 1
+        },
+        {
+          "id": "steelRod",
+          "amount": 2
+        }
+      ],
+      "pattern": [
+        null,
+        "diamond",
+        null,
+        null,
+        "steelRod",
+        null,
+        null,
+        "steelRod",
+        null
+      ],
+      "outputs": [
+        {
+          "id": "diamondShovel",
           "amount": 1
         }
       ],
@@ -2079,7 +2732,7 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "craftSticks"
+      "unlockedBy": "copperAndTin"
     },
     {
       "kind": "crafting",
@@ -2228,7 +2881,7 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "firstDirt"
+      "unlockedBy": "buildFoundation"
     },
     {
       "kind": "crafting",
@@ -2497,6 +3150,43 @@
     },
     {
       "kind": "crafting",
+      "id": "build_steel_tank",
+      "name": "Build Steel Tank",
+      "description": "Rivet eight steel plates around a bucket core to make a high-pressure storage block.",
+      "tier": "lv",
+      "durationMs": 9000,
+      "inputs": [
+        {
+          "id": "steelPlate",
+          "amount": 8
+        },
+        {
+          "id": "bucket",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "steelPlate",
+        "steelPlate",
+        "steelPlate",
+        "bucket",
+        "steelPlate",
+        "steelPlate",
+        "steelPlate",
+        "steelPlate"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "steelTank",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
       "id": "build_standard_chest",
       "name": "Standard Chest",
       "description": "A reinforced wooden chest for storing item stacks directly on the factory floor.",
@@ -2540,7 +3230,7 @@
       "kind": "crafting",
       "id": "build_hopper",
       "name": "Hopper",
-      "description": "An expensive early item feeder. Configure its output side with a wrench, then load items by hand.",
+      "description": "An expensive early item mover. Set one side to input and another to output so it can pull from a machine and push into the next stop.",
       "tier": "steam",
       "durationMs": 6200,
       "inputs": [
@@ -2670,30 +3360,30 @@
     {
       "kind": "crafting",
       "id": "build_iron_pipe",
-      "name": "Build Iron Steam Pipes",
-      "description": "Wide iron pipework for fast steam transfer.",
+      "name": "Build Steel Fluid Pipes",
+      "description": "Heavy steel pipework for fast steam and liquid transfer.",
       "tier": "steam",
       "durationMs": 4000,
       "inputs": [
         {
-          "id": "ironPlate",
+          "id": "steelPlate",
           "amount": 5
         },
         {
-          "id": "ironRod",
+          "id": "steelRod",
           "amount": 4
         }
       ],
       "pattern": [
-        "ironPlate",
-        "ironRod",
-        "ironPlate",
-        "ironRod",
-        "ironPlate",
-        "ironRod",
-        "ironPlate",
-        "ironRod",
-        "ironPlate"
+        "steelPlate",
+        "steelRod",
+        "steelPlate",
+        "steelRod",
+        "steelPlate",
+        "steelRod",
+        "steelPlate",
+        "steelRod",
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -2702,7 +3392,7 @@
           "amount": 4
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "unlockedBy": "steelPlateQuest"
     },
     {
       "kind": "crafting",
@@ -3091,7 +3781,7 @@
       "kind": "crafting",
       "id": "craft_lv_machine_hull",
       "name": "Craft LV Machine Hull",
-      "description": "Wrap the LV casing with tin wire and iron plate to make an electric machine hull.",
+      "description": "Wrap the LV casing with tin wire and steel plate to make an electric machine hull.",
       "tier": "lv",
       "durationMs": 6500,
       "inputs": [
@@ -3104,20 +3794,20 @@
           "amount": 4
         },
         {
-          "id": "ironPlate",
+          "id": "steelPlate",
           "amount": 4
         }
       ],
       "pattern": [
-        "ironPlate",
+        "steelPlate",
         "tinWire",
-        "ironPlate",
+        "steelPlate",
         "tinWire",
         "lvMachineCasing",
         "tinWire",
-        "ironPlate",
+        "steelPlate",
         "tinWire",
-        "ironPlate"
+        "steelPlate"
       ],
       "outputs": [
         {
@@ -3208,8 +3898,7 @@
         "rubber",
         "tinWire"
       ],
-      "outputs": [],
-      "machineOutputs": [
+      "outputs": [
         {
           "id": "tinCable",
           "amount": 4
@@ -3245,8 +3934,7 @@
         "rubber",
         "tinCable"
       ],
-      "outputs": [],
-      "machineOutputs": [
+      "outputs": [
         {
           "id": "tinCable2A",
           "amount": 3
@@ -3282,8 +3970,7 @@
         "rubber",
         "tinCable2A"
       ],
-      "outputs": [],
-      "machineOutputs": [
+      "outputs": [
         {
           "id": "tinCable4A",
           "amount": 3
@@ -3323,8 +4010,7 @@
         "rubber",
         "tinCable4A"
       ],
-      "outputs": [],
-      "machineOutputs": [
+      "outputs": [
         {
           "id": "tinCable8A",
           "amount": 3
@@ -3639,7 +4325,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -3688,7 +4374,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 4
         }
       ],
       "pattern": [
@@ -3737,7 +4423,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 8
         }
       ],
       "pattern": [
@@ -3843,7 +4529,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -3900,7 +4586,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -3953,7 +4639,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -3980,7 +4666,7 @@
       "kind": "crafting",
       "id": "build_lv_extractor",
       "name": "Build LV Extractor",
-      "description": "A sealed electric extractor for better rubber recovery from resin.",
+      "description": "A sealed electric extractor for pressing prepared rubber pulp into solid bars.",
       "tier": "lv",
       "durationMs": 9000,
       "inputs": [
@@ -4010,7 +4696,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -4063,7 +4749,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -4116,7 +4802,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -4169,7 +4855,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
@@ -4222,7 +4908,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 3
         }
       ],
       "pattern": [
@@ -4243,7 +4929,7 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "fillLvBatteryQuest"
+      "unlockedBy": "gatherBatteryMineralsQuest"
     },
     {
       "kind": "crafting",
@@ -4271,7 +4957,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 3
         }
       ],
       "pattern": [
@@ -4324,7 +5010,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 3
         }
       ],
       "pattern": [
@@ -4385,7 +5071,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 3
         }
       ],
       "pattern": [
@@ -4442,7 +5128,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 3
         }
       ],
       "pattern": [
@@ -4495,7 +5181,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 3
         }
       ],
       "pattern": [
@@ -4548,7 +5234,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 3
         },
         {
           "id": "ironPickaxe",
@@ -4658,14 +5344,22 @@
     {
       "kind": "crafting",
       "id": "build_arc_blast_furnace",
-      "name": "Assemble Arc Blast Furnace",
-      "description": "Stage eight heat-proof casings into four 2x2 factory-floor blast furnace blocks.",
+      "name": "Craft Arc Furnace Controller",
+      "description": "Build the blast controller around a heatproof core, Invar shell, and three LV circuits.",
       "tier": "lv",
-      "durationMs": 3000,
+      "durationMs": 12000,
       "inputs": [
         {
           "id": "heatProofCasing",
-          "amount": 8
+          "amount": 1
+        },
+        {
+          "id": "invarPlate",
+          "amount": 4
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 3
         }
       ],
       "catalysts": [
@@ -4681,21 +5375,311 @@
         }
       ],
       "pattern": [
+        "invarPlate",
+        "primitiveCircuit",
+        "invarPlate",
+        "primitiveCircuit",
         "heatProofCasing",
-        "heatProofCasing",
-        "heatProofCasing",
+        "primitiveCircuit",
+        "invarPlate",
+        "ironWrench",
+        "invarPlate"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "arcBlastFurnace",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "stage_arc_blast_furnace_casing",
+      "name": "Stage Arc Furnace Casing",
+      "description": "Fit one heatproof casing for placement around the Arc Furnace controller.",
+      "tier": "lv",
+      "durationMs": 1800,
+      "inputs": [
+        {
+          "id": "heatProofCasing",
+          "amount": 1
+        }
+      ],
+      "catalysts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        null,
+        null,
+        null,
+        null,
         "heatProofCasing",
         "ironWrench",
-        "heatProofCasing",
-        "heatProofCasing",
-        "heatProofCasing",
-        "heatProofCasing"
+        null,
+        null,
+        null
       ],
       "outputs": [],
       "machineOutputs": [
         {
           "id": "arcBlastFurnacePart",
-          "amount": 4
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "lv_energy_hatch_2a",
+      "name": "Craft 2A LV Energy Hatch",
+      "description": "Hand-fit a 2A LV Energy Hatch with extra parts and wrench work.",
+      "tier": "lv",
+      "durationMs": 5000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "tinCable2A",
+          "amount": 2
+        }
+      ],
+      "catalysts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "tinCable2A",
+        null,
+        "tinCable2A",
+        null,
+        "lvMachineHull",
+        "ironWrench",
+        null,
+        null,
+        null
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvEnergyHatch2A",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "lv_input_bus",
+      "name": "Craft LV Input Bus",
+      "description": "Hand-fit a LV Input Bus with extra parts and wrench work.",
+      "tier": "lv",
+      "durationMs": 5000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvConveyor",
+          "amount": 2
+        }
+      ],
+      "catalysts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "lvConveyor",
+        null,
+        "lvConveyor",
+        "ironWrench",
+        "lvMachineHull",
+        null,
+        null,
+        null,
+        null
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvInputBus",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "lv_output_bus",
+      "name": "Craft LV Output Bus",
+      "description": "Hand-fit a LV Output Bus with extra parts and wrench work.",
+      "tier": "lv",
+      "durationMs": 5000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvConveyor",
+          "amount": 2
+        }
+      ],
+      "catalysts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "lvConveyor",
+        null,
+        "lvConveyor",
+        null,
+        "lvMachineHull",
+        "ironWrench",
+        null,
+        null,
+        null
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvOutputBus",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "lv_fluid_input_hatch",
+      "name": "Craft LV Fluid Input Hatch",
+      "description": "Hand-fit a LV Fluid Input Hatch with extra parts and wrench work.",
+      "tier": "lv",
+      "durationMs": 5000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        }
+      ],
+      "catalysts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "lvPump",
+        null,
+        "lvPump",
+        "ironWrench",
+        "lvMachineHull",
+        null,
+        null,
+        null,
+        null
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvFluidInputHatch",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "steelPlateQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "lv_fluid_output_hatch",
+      "name": "Craft LV Fluid Output Hatch",
+      "description": "Hand-fit a LV Fluid Output Hatch with extra parts and wrench work.",
+      "tier": "lv",
+      "durationMs": 5000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        }
+      ],
+      "catalysts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "lvPump",
+        null,
+        "lvPump",
+        null,
+        "lvMachineHull",
+        "ironWrench",
+        null,
+        null,
+        null
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvFluidOutputHatch",
+          "amount": 1
         }
       ],
       "unlockedBy": "steelPlateQuest"
@@ -4857,7 +5841,7 @@
           "amount": 4
         }
       ],
-      "unlockedBy": "copperAndTin"
+      "unlockedBy": "craftMortar"
     },
     {
       "kind": "crafting",
@@ -6241,50 +7225,6 @@
     },
     {
       "kind": "crafting",
-      "id": "grind_carbon_dust",
-      "name": "Grind Carbon Dust",
-      "description": "Crush coal into carbon dust for crude resistors.",
-      "tier": "steam",
-      "durationMs": 1800,
-      "inputs": [
-        {
-          "id": "coal",
-          "amount": 1
-        }
-      ],
-      "catalysts": [
-        {
-          "id": "mortar",
-          "amount": 1
-        }
-      ],
-      "durabilityCosts": [
-        {
-          "id": "mortar",
-          "amount": 1
-        }
-      ],
-      "pattern": [
-        null,
-        "mortar",
-        null,
-        null,
-        "coal",
-        null,
-        null,
-        null,
-        null
-      ],
-      "outputs": [
-        {
-          "id": "carbonDust",
-          "amount": 1
-        }
-      ],
-      "unlockedBy": "steelPlateQuest"
-    },
-    {
-      "kind": "crafting",
       "id": "insulate_copper_wire",
       "name": "Insulate Copper Wire",
       "description": "Wrap copper wire in rubber for the first safe circuit wiring.",
@@ -6526,6 +7466,578 @@
         }
       ],
       "unlockedBy": "gatherBatteryMineralsQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_survey_kit",
+      "name": "Survey Kit",
+      "description": "A reusable field instrument blank that records one surveyed mineral profile.",
+      "tier": "lv",
+      "durationMs": 5200,
+      "inputs": [
+        {
+          "id": "steelScrew",
+          "amount": 2
+        },
+        {
+          "id": "glassTube",
+          "amount": 1
+        },
+        {
+          "id": "conductiveWire",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        },
+        {
+          "id": "steelPlate",
+          "amount": 2
+        },
+        {
+          "id": "redstoneDust",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelScrew",
+        "glassTube",
+        "steelScrew",
+        "conductiveWire",
+        "primitiveCircuit",
+        "conductiveWire",
+        "steelPlate",
+        "redstoneDust",
+        "steelPlate"
+      ],
+      "outputs": [
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "buildLvAutoMinerQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_coalSeam_survey_card",
+      "name": "Coal Seam Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Coal Seam mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "coal",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "coal",
+        "coal",
+        "coal",
+        "coal",
+        "surveyKit",
+        "coal",
+        "coal",
+        "coal",
+        "coal"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "coalSeam",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_redstoneVein_survey_card",
+      "name": "Redstone Vein Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Redstone Vein mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "redstoneDust",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "redstoneDust",
+        "redstoneDust",
+        "redstoneDust",
+        "redstoneDust",
+        "surveyKit",
+        "redstoneDust",
+        "redstoneDust",
+        "redstoneDust",
+        "redstoneDust"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "redstoneVein",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_diamondVein_survey_card",
+      "name": "Diamond Vein Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Diamond Vein mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "diamond",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "diamond",
+        "diamond",
+        "diamond",
+        "diamond",
+        "surveyKit",
+        "diamond",
+        "diamond",
+        "diamond",
+        "diamond"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "diamondVein",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_nickelVein_survey_card",
+      "name": "Nickel Vein Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Nickel Vein mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "nickelOre",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "nickelOre",
+        "nickelOre",
+        "nickelOre",
+        "nickelOre",
+        "surveyKit",
+        "nickelOre",
+        "nickelOre",
+        "nickelOre",
+        "nickelOre"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "nickelVein",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_bauxiteVein_survey_card",
+      "name": "Bauxite Vein Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Bauxite Vein mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "bauxiteOre",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "bauxiteOre",
+        "bauxiteOre",
+        "bauxiteOre",
+        "bauxiteOre",
+        "surveyKit",
+        "bauxiteOre",
+        "bauxiteOre",
+        "bauxiteOre",
+        "bauxiteOre"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "bauxiteVein",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_leadVein_survey_card",
+      "name": "Lead Vein Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Lead Vein mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "leadOre",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "leadOre",
+        "leadOre",
+        "leadOre",
+        "leadOre",
+        "surveyKit",
+        "leadOre",
+        "leadOre",
+        "leadOre",
+        "leadOre"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "leadVein",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_saltDeposit_survey_card",
+      "name": "Salt Deposit Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Salt Deposit mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "sodiumSalt",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "sodiumSalt",
+        "sodiumSalt",
+        "sodiumSalt",
+        "sodiumSalt",
+        "surveyKit",
+        "sodiumSalt",
+        "sodiumSalt",
+        "sodiumSalt",
+        "sodiumSalt"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "saltDeposit",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_obsidianDeposit_survey_card",
+      "name": "Obsidian Deposit Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Obsidian Deposit mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "obsidian",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "obsidian",
+        "obsidian",
+        "obsidian",
+        "obsidian",
+        "surveyKit",
+        "obsidian",
+        "obsidian",
+        "obsidian",
+        "obsidian"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "obsidianDeposit",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "encode_sulfurVent_survey_card",
+      "name": "Sulfur Vent Survey Card",
+      "description": "Consume one Survey Kit and eight samples to encode a reusable Sulfur Vent mining profile.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "sulfurOre",
+          "amount": 8
+        },
+        {
+          "id": "surveyKit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "sulfurOre",
+        "sulfurOre",
+        "sulfurOre",
+        "sulfurOre",
+        "surveyKit",
+        "sulfurOre",
+        "sulfurOre",
+        "sulfurOre",
+        "sulfurOre"
+      ],
+      "outputs": [],
+      "surveyCardOutput": "sulfurVent",
+      "unlockedBy": "craftSurveyKitQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_reach_gate_casing",
+      "name": "Reach Gate Casings",
+      "description": "Four resonant casings form a permanent 2x2 breach into the Shattered Reach.",
+      "tier": "lv",
+      "durationMs": 7000,
+      "inputs": [
+        {
+          "id": "obsidian",
+          "amount": 4
+        },
+        {
+          "id": "redstoneDust",
+          "amount": 4
+        },
+        {
+          "id": "flint",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "obsidian",
+        "redstoneDust",
+        "obsidian",
+        "redstoneDust",
+        "flint",
+        "redstoneDust",
+        "obsidian",
+        "redstoneDust",
+        "obsidian"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "reachGateCasing",
+          "amount": 4
+        }
+      ],
+      "unlockedBy": "gatherObsidianQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_empty_steel_cells",
+      "name": "Steel Fluid Cells",
+      "description": "Fold steel plates into two sealed 8L cells for moving process fluids by hand.",
+      "tier": "lv",
+      "durationMs": 3600,
+      "inputs": [
+        {
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
+          "id": "steelRing",
+          "amount": 2
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "steelRing",
+        "steelPlate",
+        "steelPlate",
+        null,
+        "steelPlate",
+        null,
+        "steelRing",
+        null
+      ],
+      "outputs": [
+        {
+          "id": "emptySteelCell",
+          "amount": 2
+        }
+      ],
+      "unlockedBy": "gatherSulfurQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_lv_mixer",
+      "name": "Build LV Mixer",
+      "description": "Drive a sealed six-slot mixing drum with twin LV motors and a metered fluid pump.",
+      "tier": "lv",
+      "durationMs": 10000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvMotor",
+          "amount": 2
+        },
+        {
+          "id": "lvPump",
+          "amount": 1
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 3
+        },
+        {
+          "id": "tinCable",
+          "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 2
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "lvMotor",
+        "steelPlate",
+        "tinCable",
+        "lvMachineHull",
+        "tinCable",
+        "lvPump",
+        "primitiveCircuit",
+        "lvMotor"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvMixer",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "firstAluminiumQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_lv_chemical_reactor",
+      "name": "Build LV Chemical Reactor",
+      "description": "Twin pumps, sealed glasswork, and LV control contain the first fluid-phase reactions.",
+      "tier": "lv",
+      "durationMs": 9000,
+      "inputs": [
+        {
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "glassTube",
+          "amount": 1
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 3
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "lvPump",
+        "steelPlate",
+        "glassTube",
+        "lvMachineHull",
+        "primitiveCircuit",
+        "steelPlate",
+        "lvPump",
+        "steelPlate"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvChemicalReactor",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "gatherSulfurQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_lv_air_collector",
+      "name": "Build LV Air Collector",
+      "description": "Seal twin pumps around an LV motor and control circuit to collect ambient air.",
+      "tier": "lv",
+      "durationMs": 9000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "lvMotor",
+          "amount": 1
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 3
+        },
+        {
+          "id": "tinCable",
+          "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 2
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "lvPump",
+        "steelPlate",
+        "tinCable",
+        "lvMachineHull",
+        "tinCable",
+        "lvPump",
+        "lvMotor",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvAirCollector",
+          "amount": 1
+        }
+      ],
+      "unlockedBy": "makeLvMotionPartsQuest"
     }
   ],
   "processRecipes": [
@@ -6560,23 +8072,6 @@
       },
       "output": {
         "id": "charcoal",
-        "amount": 1
-      }
-    },
-    {
-      "kind": "process",
-      "id": "smelt_stone",
-      "name": "Smelt Stone",
-      "description": "Fire cobblestone back into clean stone blocks.",
-      "tier": "manual",
-      "machineId": "furnace",
-      "durationMs": 8000,
-      "input": {
-        "id": "cobblestone",
-        "amount": 1
-      },
-      "output": {
-        "id": "stone",
         "amount": 1
       }
     },
@@ -7209,8 +8704,8 @@
     {
       "kind": "process",
       "id": "steam_extract_rubber",
-      "name": "Steam Extract Rubber",
-      "description": "Extract useful rubber from sticky resin.",
+      "name": "Steam Extract Rubber Pulp",
+      "description": "Extract sticky resin into rubber pulp ready for smelting or later chemical processing.",
       "tier": "steam",
       "machineId": "steamExtractor",
       "durationMs": 5000,
@@ -7220,7 +8715,7 @@
         "amount": 1
       },
       "output": {
-        "id": "rubber",
+        "id": "rubberPulp",
         "amount": 1
       }
     },
@@ -7272,7 +8767,7 @@
       "kind": "process",
       "id": "steam_alloy_red_alloy",
       "name": "Steam Alloy Red Alloy",
-      "description": "Alloy copper dust and redstone dust into the first red alloy ingot.",
+      "description": "Alloy copper dust and redstone dust into two red alloy ingots.",
       "tier": "steam",
       "machineId": "steamAlloySmelter",
       "durationMs": 9000,
@@ -7287,14 +8782,14 @@
       },
       "output": {
         "id": "redAlloyIngot",
-        "amount": 1
+        "amount": 2
       }
     },
     {
       "kind": "process",
       "id": "steam_alloy_red_alloy_ingot",
       "name": "Steam Alloy Red Alloy From Ingot",
-      "description": "Alloy a copper ingot with redstone dust into the first red alloy ingot.",
+      "description": "Alloy a copper ingot with redstone dust into two red alloy ingots.",
       "tier": "steam",
       "machineId": "steamAlloySmelter",
       "durationMs": 9000,
@@ -7309,7 +8804,7 @@
       },
       "output": {
         "id": "redAlloyIngot",
-        "amount": 1
+        "amount": 2
       }
     },
     {
@@ -7380,24 +8875,6 @@
       },
       "output": {
         "id": "charcoal",
-        "amount": 1
-      }
-    },
-    {
-      "kind": "process",
-      "id": "steam_furnace_stone",
-      "name": "Steam Furnace Stone",
-      "description": "Fire cobblestone back into clean stone blocks with steady steam heat.",
-      "tier": "steam",
-      "machineId": "steamFurnace",
-      "durationMs": 4000,
-      "steamCostLitres": 12,
-      "input": {
-        "id": "cobblestone",
-        "amount": 1
-      },
-      "output": {
-        "id": "stone",
         "amount": 1
       }
     },
@@ -8016,19 +9493,19 @@
     {
       "kind": "process",
       "id": "lv_extract_rubber",
-      "name": "LV Extract Rubber",
-      "description": "Extract more useful rubber from sticky resin with electric rollers.",
+      "name": "LV Extract Rubber Bars",
+      "description": "Press separated rubber pulp into solid rubber bars without furnace fuel.",
       "tier": "lv",
       "machineId": "lvExtractor",
       "durationMs": 4000,
       "euCost": 40,
       "input": {
-        "id": "rubberSap",
+        "id": "rubberPulp",
         "amount": 1
       },
       "output": {
         "id": "rubber",
-        "amount": 2
+        "amount": 1
       }
     },
     {
@@ -8911,6 +10388,308 @@
     },
     {
       "kind": "process",
+      "id": "lv_alloy_invar",
+      "name": "LV Alloy Invar",
+      "description": "Alloy two parts iron with one part nickel into stable controller metal.",
+      "tier": "lv",
+      "machineId": "lvAlloySmelter",
+      "durationMs": 9000,
+      "euCost": 128,
+      "input": {
+        "id": "ironDust",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "nickelDust",
+        "amount": 1
+      },
+      "output": {
+        "id": "invarIngot",
+        "amount": 3
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_bender_invar_plate",
+      "name": "Bend Invar Plate",
+      "description": "Press one Invar ingot into a stable controller plate.",
+      "tier": "lv",
+      "machineId": "lvBender",
+      "durationMs": 4500,
+      "euCost": 48,
+      "input": {
+        "id": "invarIngot",
+        "amount": 1
+      },
+      "output": {
+        "id": "invarPlate",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assemble_item_conductors",
+      "name": "Assemble Item Conductors",
+      "description": "Build two dense item-routing lanes from steel guides, powered conveyors, and insulated cable.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 12000,
+      "euCost": 128,
+      "input": {
+        "id": "steelRod",
+        "amount": 4
+      },
+      "secondaryInput": {
+        "id": "tinCable",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "lvConveyor",
+          "amount": 2
+        },
+        {
+          "id": "rubber",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "steelRod",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "itemConductor",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assemble_fluid_conductors",
+      "name": "Assemble Fluid Conductors",
+      "description": "Build two sealed fluid-routing lanes from steel rings, LV pumps, insulated cable, and chemical-resistant seals.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 12000,
+      "euCost": 128,
+      "input": {
+        "id": "steelRing",
+        "amount": 4
+      },
+      "secondaryInput": {
+        "id": "tinCable",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "pipeSealant",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "steelRing",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "fluidConductor",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_steel_tank",
+      "name": "Assemble Steel Tank",
+      "description": "Seal a reduced steel shell under pressure for a lower-waste tank build.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 9000,
+      "euCost": 160,
+      "input": {
+        "id": "steelPlate",
+        "amount": 6
+      },
+      "secondaryInput": {
+        "id": "bucket",
+        "amount": 1
+      },
+      "extraInputs": [
+        {
+          "id": "pipeSealant",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "steelPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "steelTank",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assemble_energy_hatch_2a",
+      "name": "Assemble 2A LV Energy Hatch",
+      "description": "Use powered assembly to fit a 2A LV Energy Hatch without hand-tool waste.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "tinCable2A",
+        "amount": 1
+      },
+      "fluidInput": {
+        "id": "glue",
+        "amount": 2
+      },
+      "output": {
+        "id": "lvMachineHull",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "lvEnergyHatch2A",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assemble_input_bus",
+      "name": "Assemble LV Input Bus",
+      "description": "Set Assembler Program 1 to fit a LV Input Bus without hand-tool waste.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "lvConveyor",
+        "amount": 1
+      },
+      "fluidInput": {
+        "id": "glue",
+        "amount": 2
+      },
+      "output": {
+        "id": "lvMachineHull",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "lvInputBus",
+        "amount": 1
+      },
+      "programNumber": 1,
+      "autoSelectable": false
+    },
+    {
+      "kind": "process",
+      "id": "lv_assemble_output_bus",
+      "name": "Assemble LV Output Bus",
+      "description": "Set Assembler Program 2 to fit a LV Output Bus without hand-tool waste.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "lvConveyor",
+        "amount": 1
+      },
+      "fluidInput": {
+        "id": "glue",
+        "amount": 2
+      },
+      "output": {
+        "id": "lvMachineHull",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "lvOutputBus",
+        "amount": 1
+      },
+      "programNumber": 2,
+      "autoSelectable": false
+    },
+    {
+      "kind": "process",
+      "id": "lv_assemble_fluid_input_hatch",
+      "name": "Assemble LV Fluid Input Hatch",
+      "description": "Set Assembler Program 3 to fit a LV Fluid Input Hatch without hand-tool waste.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "lvPump",
+        "amount": 1
+      },
+      "fluidInput": {
+        "id": "glue",
+        "amount": 2
+      },
+      "output": {
+        "id": "lvMachineHull",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "lvFluidInputHatch",
+        "amount": 1
+      },
+      "programNumber": 3,
+      "autoSelectable": false
+    },
+    {
+      "kind": "process",
+      "id": "lv_assemble_fluid_output_hatch",
+      "name": "Assemble LV Fluid Output Hatch",
+      "description": "Set Assembler Program 4 to fit a LV Fluid Output Hatch without hand-tool waste.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "lvPump",
+        "amount": 1
+      },
+      "fluidInput": {
+        "id": "glue",
+        "amount": 2
+      },
+      "output": {
+        "id": "lvMachineHull",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "lvFluidOutputHatch",
+        "amount": 1
+      },
+      "programNumber": 4,
+      "autoSelectable": false
+    },
+    {
+      "kind": "process",
       "id": "lv_assembler_insulated_copper_wire",
       "name": "LV Assemble Insulated Copper Wire",
       "description": "Apply rubber evenly around copper wire, saving rubber over hand wrapping.",
@@ -8935,7 +10714,7 @@
       "kind": "process",
       "id": "lv_assembler_resistors",
       "name": "LV Assemble Resistors",
-      "description": "Clamp carbon and copper wire into a larger resistor batch.",
+      "description": "Meter glue around carbon and copper wire for a reliable high-yield resistor batch.",
       "tier": "lv",
       "machineId": "lvAssembler",
       "durationMs": 4500,
@@ -8948,9 +10727,13 @@
         "id": "copperWire",
         "amount": 2
       },
+      "fluidInput": {
+        "id": "glue",
+        "amount": 2
+      },
       "output": {
         "id": "resistor",
-        "amount": 3
+        "amount": 6
       }
     },
     {
@@ -8968,28 +10751,104 @@
       },
       "secondaryInput": {
         "id": "copperWire",
+        "amount": 6
+      },
+      "output": {
+        "id": "basicBoard",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_acid_printed_circuit_board",
+      "name": "Etch Printed Circuit Boards",
+      "description": "Etch copper laminate with diluted acid into a four-board batch.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 12000,
+      "euCost": 192,
+      "input": {
+        "id": "woodenBoardBlank",
+        "amount": 4
+      },
+      "secondaryInput": {
+        "id": "copperPlate",
+        "amount": 2
+      },
+      "fluidInput": {
+        "id": "dilutedSulfuricAcid",
+        "amount": 8
+      },
+      "output": {
+        "id": "basicBoard",
+        "amount": 4
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_empty_battery_cells",
+      "name": "LV Assemble Empty Battery Cells",
+      "description": "Press lead liners and battery alloy around wired, rubber-sealed contacts for a two-cell batch.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 7000,
+      "euCost": 96,
+      "input": {
+        "id": "leadPlate",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "batteryAlloyPlate",
         "amount": 2
       },
       "extraInputs": [
         {
-          "id": "copperWire",
+          "id": "tinCable",
           "amount": 1
         },
         {
-          "id": "copperWire",
-          "amount": 1
-        },
-        {
-          "id": "copperWire",
-          "amount": 1
-        },
-        {
-          "id": "copperWire",
+          "id": "rubber",
           "amount": 1
         }
       ],
       "output": {
-        "id": "basicBoard",
+        "id": "emptyBatteryCell",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_aluminium_piston",
+      "name": "LV Assemble Lightweight Piston",
+      "description": "Fit aluminium drive parts around an LV motor for a light post-blast piston assembly.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 7000,
+      "euCost": 112,
+      "input": {
+        "id": "lvMotor",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumGear",
+        "amount": 1
+      },
+      "extraInputs": [
+        {
+          "id": "aluminiumRing",
+          "amount": 2
+        },
+        {
+          "id": "aluminiumScrew",
+          "amount": 2
+        },
+        {
+          "id": "aluminiumRod",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "lvPiston",
         "amount": 1
       }
     },
@@ -9079,9 +10938,35 @@
     },
     {
       "kind": "process",
+      "id": "collect_air",
+      "name": "Collect Ambient Air",
+      "description": "Power an Air Collector to compress a steady ambient air stream without consumable inputs.",
+      "tier": "lv",
+      "machineId": "lvAirCollector",
+      "durationMs": 1000,
+      "euCost": 8,
+      "input": {
+        "id": "emptySteelCell",
+        "amount": 1
+      },
+      "output": {
+        "id": "emptySteelCell",
+        "amount": 1
+      },
+      "fluidOnly": true,
+      "fluidOutputs": [
+        {
+          "id": "air",
+          "amount": 1,
+          "bufferId": "air"
+        }
+      ]
+    },
+    {
+      "kind": "process",
       "id": "lv_centrifuge_clay_aluminium",
-      "name": "LV Centrifuge Clay Slurry",
-      "description": "Spin clay and sand into a poor but renewable aluminium dust route.",
+      "name": "LV Centrifuge Clay",
+      "description": "Spin clay into a poor but renewable aluminium dust route.",
       "tier": "lv",
       "machineId": "lvCentrifuge",
       "durationMs": 14000,
@@ -9089,10 +10974,6 @@
       "input": {
         "id": "clay",
         "amount": 8
-      },
-      "secondaryInput": {
-        "id": "sand",
-        "amount": 2
       },
       "output": {
         "id": "aluminiumDust",
@@ -9115,7 +10996,74 @@
       "output": {
         "id": "aluminiumDust",
         "amount": 1
+      },
+      "secondaryOutput": {
+        "id": "flint",
+        "amount": 2
       }
+    },
+    {
+      "kind": "process",
+      "id": "lv_centrifuge_sticky_resin",
+      "name": "Separate Sticky Resin",
+      "description": "Separate sticky resin into workable rubber pulp and reusable glue.",
+      "tier": "lv",
+      "machineId": "lvCentrifuge",
+      "durationMs": 6000,
+      "euCost": 72,
+      "input": {
+        "id": "rubberSap",
+        "amount": 1
+      },
+      "output": {
+        "id": "rubberPulp",
+        "amount": 2
+      },
+      "fluidOutputs": [
+        {
+          "id": "glue",
+          "amount": 2,
+          "bufferId": "productA"
+        }
+      ]
+    },
+    {
+      "kind": "process",
+      "id": "lv_centrifuge_air",
+      "name": "Separate Air",
+      "description": "Spin compressed air into separate oxygen and nitrogen streams.",
+      "tier": "lv",
+      "machineId": "lvCentrifuge",
+      "durationMs": 8000,
+      "euCost": 96,
+      "input": {
+        "id": "emptySteelCell",
+        "amount": 1
+      },
+      "fluidInputs": [
+        {
+          "id": "air",
+          "amount": 8,
+          "bufferId": "feed"
+        }
+      ],
+      "output": {
+        "id": "emptySteelCell",
+        "amount": 1
+      },
+      "fluidOnly": true,
+      "fluidOutputs": [
+        {
+          "id": "oxygen",
+          "amount": 2,
+          "bufferId": "productA"
+        },
+        {
+          "id": "nitrogen",
+          "amount": 6,
+          "bufferId": "productB"
+        }
+      ]
     },
     {
       "kind": "process",
@@ -9125,9 +11073,7 @@
       "tier": "lv",
       "machineId": "arcBlastFurnace",
       "durationMs": 18000,
-      "euCost": 2304,
-      "minimumEuStored": 768,
-      "startupEu": 128,
+      "euCost": 2160,
       "requiredEuAmps": 4,
       "input": {
         "id": "aluminiumDust",
@@ -9146,9 +11092,7 @@
       "tier": "lv",
       "machineId": "arcBlastFurnace",
       "durationMs": 12000,
-      "euCost": 1536,
-      "minimumEuStored": 512,
-      "startupEu": 128,
+      "euCost": 1440,
       "requiredEuAmps": 4,
       "input": {
         "id": "ironIngot",
@@ -9158,6 +11102,56 @@
         "id": "steelIngot",
         "amount": 1
       }
+    },
+    {
+      "kind": "process",
+      "id": "arc_blast_oxygen_steel",
+      "name": "Oxygen Steel",
+      "description": "Use a programmed oxygen feed to accelerate steel production.",
+      "tier": "lv",
+      "machineId": "arcBlastFurnace",
+      "durationMs": 8000,
+      "euCost": 960,
+      "requiredEuAmps": 4,
+      "input": {
+        "id": "ironIngot",
+        "amount": 1
+      },
+      "fluidInput": {
+        "id": "oxygen",
+        "amount": 2
+      },
+      "output": {
+        "id": "steelIngot",
+        "amount": 1
+      },
+      "programNumber": 1,
+      "autoSelectable": false
+    },
+    {
+      "kind": "process",
+      "id": "arc_blast_nitrogen_aluminium",
+      "name": "Nitrogen Aluminium",
+      "description": "Use a programmed nitrogen atmosphere to accelerate aluminium production.",
+      "tier": "lv",
+      "machineId": "arcBlastFurnace",
+      "durationMs": 12000,
+      "euCost": 1440,
+      "requiredEuAmps": 4,
+      "input": {
+        "id": "aluminiumDust",
+        "amount": 1
+      },
+      "fluidInput": {
+        "id": "nitrogen",
+        "amount": 6
+      },
+      "output": {
+        "id": "aluminiumIngot",
+        "amount": 1
+      },
+      "programNumber": 2,
+      "autoSelectable": false
     },
     {
       "kind": "process",
@@ -9220,6 +11214,1153 @@
       "output": {
         "id": "steelIngot",
         "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_macerate_sulfur_ore",
+      "name": "Macerate Sulfur Ore",
+      "description": "Crush a Reach sulfur sample into two measures of reactive sulfur dust.",
+      "tier": "lv",
+      "machineId": "lvMacerator",
+      "durationMs": 6000,
+      "euCost": 64,
+      "input": {
+        "id": "sulfurOre",
+        "amount": 1
+      },
+      "output": {
+        "id": "sulfurDust",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "furnace_rubber_pulp",
+      "name": "Smelt Rubber Pulp",
+      "description": "Heat separated rubber pulp into a solid rubber bar.",
+      "tier": "lv",
+      "machineId": "furnace",
+      "durationMs": 8000,
+      "input": {
+        "id": "rubberPulp",
+        "amount": 1
+      },
+      "output": {
+        "id": "rubber",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "steam_furnace_rubber_pulp",
+      "name": "Steam Smelt Rubber Pulp",
+      "description": "Use steady steam heat to form rubber pulp into a bar.",
+      "tier": "lv",
+      "machineId": "steamFurnace",
+      "durationMs": 4000,
+      "steamCostLitres": 12,
+      "input": {
+        "id": "rubberPulp",
+        "amount": 1
+      },
+      "output": {
+        "id": "rubber",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_furnace_rubber_pulp",
+      "name": "LV Smelt Rubber Pulp",
+      "description": "Electrically heat rubber pulp into a solid bar.",
+      "tier": "lv",
+      "machineId": "lvFurnace",
+      "durationMs": 3000,
+      "euCost": 32,
+      "input": {
+        "id": "rubberPulp",
+        "amount": 1
+      },
+      "output": {
+        "id": "rubber",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_reactor_liquid_rubber",
+      "name": "React Liquid Rubber",
+      "description": "Cure separated rubber pulp with sulfur into a pumpable rubber compound.",
+      "tier": "lv",
+      "machineId": "lvChemicalReactor",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "rubberPulp",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "sulfurDust",
+        "amount": 1
+      },
+      "output": {
+        "id": "rubber",
+        "amount": 0
+      },
+      "fluidOutput": {
+        "id": "liquidRubber",
+        "amount": 8
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_reactor_sulfuric_acid",
+      "name": "Produce Sulfuric Acid",
+      "description": "React sulfur dust with water into concentrated sulfuric acid.",
+      "tier": "lv",
+      "machineId": "lvChemicalReactor",
+      "durationMs": 10000,
+      "euCost": 160,
+      "input": {
+        "id": "sulfurDust",
+        "amount": 1
+      },
+      "fluidInputs": [
+        {
+          "id": "water",
+          "amount": 8,
+          "bufferId": "feedA"
+        }
+      ],
+      "output": {
+        "id": "rubber",
+        "amount": 0
+      },
+      "fluidOutputs": [
+        {
+          "id": "sulfuricAcid",
+          "amount": 8,
+          "bufferId": "reaction"
+        }
+      ]
+    },
+    {
+      "kind": "process",
+      "id": "lv_reactor_diluted_sulfuric_acid",
+      "name": "Dilute Sulfuric Acid",
+      "description": "Blend concentrated acid with water for controlled circuit-board etching.",
+      "tier": "lv",
+      "machineId": "lvChemicalReactor",
+      "durationMs": 6000,
+      "euCost": 96,
+      "input": {
+        "id": "emptySteelCell",
+        "amount": 1
+      },
+      "fluidInputs": [
+        {
+          "id": "sulfuricAcid",
+          "amount": 4,
+          "bufferId": "feedA"
+        },
+        {
+          "id": "water",
+          "amount": 4,
+          "bufferId": "feedB"
+        }
+      ],
+      "output": {
+        "id": "emptySteelCell",
+        "amount": 1
+      },
+      "fluidOnly": true,
+      "fluidOutputs": [
+        {
+          "id": "dilutedSulfuricAcid",
+          "amount": 8,
+          "bufferId": "reaction"
+        }
+      ]
+    },
+    {
+      "kind": "process",
+      "id": "lv_macerate_gold_ore",
+      "name": "Crush Gold Ore",
+      "description": "Break dense gold ore into a richer early-MV feed.",
+      "tier": "mv",
+      "machineId": "lvMacerator",
+      "durationMs": 7000,
+      "euCost": 96,
+      "input": {
+        "id": "goldOre",
+        "amount": 1
+      },
+      "output": {
+        "id": "crushedGoldOre",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_macerate_crushed_gold",
+      "name": "Grind Crushed Gold",
+      "description": "Prepare crushed gold for clean electric smelting.",
+      "tier": "mv",
+      "machineId": "lvMacerator",
+      "durationMs": 6000,
+      "euCost": 80,
+      "input": {
+        "id": "crushedGoldOre",
+        "amount": 1
+      },
+      "output": {
+        "id": "goldDust",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_furnace_gold_dust",
+      "name": "Smelt Gold Dust",
+      "description": "Smelt refined gold dust into a processor-grade ingot.",
+      "tier": "mv",
+      "machineId": "lvFurnace",
+      "durationMs": 5000,
+      "euCost": 64,
+      "input": {
+        "id": "goldDust",
+        "amount": 1
+      },
+      "output": {
+        "id": "goldIngot",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_bender_gold_plate",
+      "name": "Bend Gold Plate",
+      "description": "Roll soft gold into a precise signal-circuit plate.",
+      "tier": "mv",
+      "machineId": "lvBender",
+      "durationMs": 4000,
+      "euCost": 48,
+      "input": {
+        "id": "goldIngot",
+        "amount": 1
+      },
+      "output": {
+        "id": "goldPlate",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_macerate_void_quartz",
+      "name": "Grind Void Quartz",
+      "description": "Reduce Reach-grown quartz into silicon feedstock.",
+      "tier": "mv",
+      "machineId": "lvMacerator",
+      "durationMs": 6000,
+      "euCost": 80,
+      "input": {
+        "id": "voidQuartz",
+        "amount": 1
+      },
+      "output": {
+        "id": "voidQuartzDust",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_macerate_resonant_quartz",
+      "name": "Grind Resonant Quartz",
+      "description": "Reduce Resonant Quartz into fine computation-grade dust.",
+      "tier": "mv",
+      "machineId": "lvMacerator",
+      "durationMs": 6000,
+      "euCost": 80,
+      "input": {
+        "id": "resonantQuartz",
+        "amount": 1
+      },
+      "output": {
+        "id": "resonantQuartzDust",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_furnace_silicon",
+      "name": "Smelt Silicon",
+      "description": "Refine Void Quartz dust into imprint-ready silicon.",
+      "tier": "mv",
+      "machineId": "lvFurnace",
+      "durationMs": 6000,
+      "euCost": 80,
+      "input": {
+        "id": "voidQuartzDust",
+        "amount": 1
+      },
+      "output": {
+        "id": "silicon",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "energize_resonant_quartz",
+      "name": "Charge Resonant Quartz",
+      "description": "Load one crystal with the controlled charge needed for phase synthesis.",
+      "tier": "mv",
+      "machineId": "crystalEnergizer",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "resonantQuartz",
+        "amount": 1
+      },
+      "output": {
+        "id": "chargedResonantQuartz",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_reactor_phase_crystal",
+      "name": "Grow Phase Crystals",
+      "description": "Blend charged and void quartz around a redstone signal in a measured water feed.",
+      "tier": "mv",
+      "machineId": "lvMixer",
+      "durationMs": 12000,
+      "euCost": 192,
+      "input": {
+        "id": "chargedResonantQuartz",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "voidQuartz",
+        "amount": 1
+      },
+      "extraInputs": [
+        {
+          "id": "redstoneDust",
+          "amount": 1
+        }
+      ],
+      "fluidInput": {
+        "id": "water",
+        "amount": 1
+      },
+      "output": {
+        "id": "phaseCrystal",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_macerate_phase_crystal",
+      "name": "Grind Phase Crystal",
+      "description": "Mill one phase crystal into bonding dust.",
+      "tier": "mv",
+      "machineId": "lvMacerator",
+      "durationMs": 5000,
+      "euCost": 64,
+      "input": {
+        "id": "phaseCrystal",
+        "amount": 1
+      },
+      "output": {
+        "id": "phaseDust",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_compress_die_blank",
+      "name": "Harden Die Blank",
+      "description": "Compress four steel plates into one permanent imprinting blank.",
+      "tier": "mv",
+      "machineId": "lvCompressor",
+      "durationMs": 8000,
+      "euCost": 128,
+      "input": {
+        "id": "steelPlate",
+        "amount": 4
+      },
+      "output": {
+        "id": "hardenedDieBlank",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_compress_signal_die",
+      "name": "Cut Signal Die",
+      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "tier": "mv",
+      "machineId": "lvCompressor",
+      "durationMs": 8000,
+      "euCost": 128,
+      "programNumber": 1,
+      "input": {
+        "id": "hardenedDieBlank",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "goldPlate",
+        "amount": 1
+      },
+      "output": {
+        "id": "signalImprintDie",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_compress_computation_die",
+      "name": "Cut Computation Die",
+      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "tier": "mv",
+      "machineId": "lvCompressor",
+      "durationMs": 8000,
+      "euCost": 128,
+      "programNumber": 2,
+      "input": {
+        "id": "hardenedDieBlank",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "resonantQuartz",
+        "amount": 1
+      },
+      "output": {
+        "id": "computationImprintDie",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_compress_structural_die",
+      "name": "Cut Structural Die",
+      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "tier": "mv",
+      "machineId": "lvCompressor",
+      "durationMs": 8000,
+      "euCost": 128,
+      "programNumber": 3,
+      "input": {
+        "id": "hardenedDieBlank",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "diamond",
+        "amount": 1
+      },
+      "output": {
+        "id": "structuralImprintDie",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_compress_silicon_die",
+      "name": "Cut Silicon Die",
+      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "tier": "mv",
+      "machineId": "lvCompressor",
+      "durationMs": 8000,
+      "euCost": 128,
+      "programNumber": 4,
+      "input": {
+        "id": "hardenedDieBlank",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "silicon",
+        "amount": 1
+      },
+      "output": {
+        "id": "siliconImprintDie",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "imprint_signal_circuit",
+      "name": "Print Signal Circuit",
+      "description": "Stamp a precise processor layer while retaining the installed die.",
+      "tier": "mv",
+      "machineId": "circuitImprinter",
+      "durationMs": 4000,
+      "euCost": 64,
+      "input": {
+        "id": "goldPlate",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "signalImprintDie",
+        "amount": 1
+      },
+      "output": {
+        "id": "printedSignalCircuit",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "imprint_computation_circuit",
+      "name": "Print Computation Circuit",
+      "description": "Stamp a precise processor layer while retaining the installed die.",
+      "tier": "mv",
+      "machineId": "circuitImprinter",
+      "durationMs": 4000,
+      "euCost": 64,
+      "input": {
+        "id": "resonantQuartz",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "computationImprintDie",
+        "amount": 1
+      },
+      "output": {
+        "id": "printedComputationCircuit",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "imprint_structural_circuit",
+      "name": "Print Structural Circuit",
+      "description": "Stamp a precise processor layer while retaining the installed die.",
+      "tier": "mv",
+      "machineId": "circuitImprinter",
+      "durationMs": 4000,
+      "euCost": 64,
+      "input": {
+        "id": "diamond",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "structuralImprintDie",
+        "amount": 1
+      },
+      "output": {
+        "id": "printedStructuralCircuit",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "imprint_silicon",
+      "name": "Print Silicon",
+      "description": "Stamp a precise processor layer while retaining the installed die.",
+      "tier": "mv",
+      "machineId": "circuitImprinter",
+      "durationMs": 4000,
+      "euCost": 64,
+      "input": {
+        "id": "silicon",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "siliconImprintDie",
+        "amount": 1
+      },
+      "output": {
+        "id": "printedSilicon",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "imprint_signal_processor",
+      "name": "Bond Signal Processor",
+      "description": "Bond a printed circuit to silicon with conductive phase dust.",
+      "tier": "mv",
+      "machineId": "circuitImprinter",
+      "durationMs": 8000,
+      "euCost": 192,
+      "input": {
+        "id": "printedSignalCircuit",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "printedSilicon",
+        "amount": 1
+      },
+      "extraInputs": [
+        {
+          "id": "phaseDust",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "signalProcessor",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "imprint_computation_processor",
+      "name": "Bond Computation Processor",
+      "description": "Bond a printed circuit to silicon with conductive phase dust.",
+      "tier": "mv",
+      "machineId": "circuitImprinter",
+      "durationMs": 8000,
+      "euCost": 192,
+      "input": {
+        "id": "printedComputationCircuit",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "printedSilicon",
+        "amount": 1
+      },
+      "extraInputs": [
+        {
+          "id": "phaseDust",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "computationProcessor",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "imprint_structural_processor",
+      "name": "Bond Structural Processor",
+      "description": "Bond a printed circuit to silicon with conductive phase dust.",
+      "tier": "mv",
+      "machineId": "circuitImprinter",
+      "durationMs": 8000,
+      "euCost": 192,
+      "input": {
+        "id": "printedStructuralCircuit",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "printedSilicon",
+        "amount": 1
+      },
+      "extraInputs": [
+        {
+          "id": "phaseDust",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "structuralProcessor",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_crystal_energizer",
+      "name": "Assemble Crystal Energizer",
+      "description": "Build the aluminium charging frame needed for phase-crystal synthesis.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 4
+      },
+      "extraInputs": [
+        {
+          "id": "redAlloyWire",
+          "amount": 2
+        },
+        {
+          "id": "glass",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "crystalEnergizer",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_circuit_imprinter",
+      "name": "Assemble Circuit Imprinter",
+      "description": "Brace a precision ram with aluminium and phase-stable guides.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 12000,
+      "euCost": 224,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 4
+      },
+      "extraInputs": [
+        {
+          "id": "lvPiston",
+          "amount": 2
+        },
+        {
+          "id": "phaseCrystal",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "circuitImprinter",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_blank_recipe_cards",
+      "name": "Assemble Blank Patterns",
+      "description": "Laminate phase-sensitive traces into four reusable instruction patterns.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 6000,
+      "euCost": 96,
+      "input": {
+        "id": "aluminiumPlate",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "glass",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "phaseDust",
+          "amount": 1
+        },
+        {
+          "id": "basicBoard",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "blankRecipeCard",
+        "amount": 4
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_recipe_encoder",
+      "name": "Assemble Pattern Terminal",
+      "description": "Assemble an aluminium fabrication-network component around its dedicated processor.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 4
+      },
+      "extraInputs": [
+        {
+          "id": "signalProcessor",
+          "amount": 1
+        },
+        {
+          "id": "glass",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "recipeEncoder",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_auto_fabricator",
+      "name": "Assemble Auto Fabricator",
+      "description": "Assemble an aluminium fabrication-network component around its dedicated processor.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 4
+      },
+      "extraInputs": [
+        {
+          "id": "signalProcessor",
+          "amount": 1
+        },
+        {
+          "id": "lvPiston",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "autoFabricator",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_fluid_storage_link",
+      "name": "Assemble Fluid Storage Link",
+      "description": "Assemble an aluminium fabrication-network component around its dedicated processor.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 4
+      },
+      "extraInputs": [
+        {
+          "id": "computationProcessor",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "fluidStorageLink",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_memory_module",
+      "name": "Assemble Memory Module",
+      "description": "Assemble an aluminium fabrication-network component around its dedicated processor.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 4
+      },
+      "extraInputs": [
+        {
+          "id": "computationProcessor",
+          "amount": 1
+        },
+        {
+          "id": "basicBoard",
+          "amount": 4
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "memoryModule",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_fabrication_cables",
+      "name": "Assemble Fabrication Cables",
+      "description": "Build four shielded planning-network lanes from aluminium conductors and phase-sensitive control traces.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 160,
+      "input": {
+        "id": "aluminiumPlate",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "tinCable",
+        "amount": 4
+      },
+      "extraInputs": [
+        {
+          "id": "redAlloyWire",
+          "amount": 4
+        },
+        {
+          "id": "phaseDust",
+          "amount": 1
+        },
+        {
+          "id": "rubber",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "fabricationCable",
+        "amount": 4
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_job_interface",
+      "name": "Assemble Job Interface Faces",
+      "description": "Build two compact machine faces for holding and dispatching physical encoded patterns.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "aluminiumPlate",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "tinCable",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "lvConveyor",
+          "amount": 2
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "signalProcessor",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "jobInterface",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_planning_controller",
+      "name": "Assemble Planning Controller",
+      "description": "Build the structural core that schedules a complete fabrication job.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 14000,
+      "euCost": 256,
+      "input": {
+        "id": "lvMachineHull",
+        "amount": 1
+      },
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 6
+      },
+      "extraInputs": [
+        {
+          "id": "tinCable8A",
+          "amount": 1
+        },
+        {
+          "id": "computationProcessor",
+          "amount": 1
+        },
+        {
+          "id": "structuralProcessor",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "planningController",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_dispatch_module",
+      "name": "Assemble Dispatch Module",
+      "description": "Add a structural scheduling lane for parallel fabrication work.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "aluminiumPlate",
+        "amount": 4
+      },
+      "secondaryInput": {
+        "id": "lvConveyor",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "signalProcessor",
+          "amount": 1
+        },
+        {
+          "id": "structuralProcessor",
+          "amount": 1
+        },
+        {
+          "id": "redAlloyWire",
+          "amount": 2
+        }
+      ],
+      "output": {
+        "id": "aluminiumPlate",
+        "amount": 0
+      },
+      "machineOutput": {
+        "id": "dispatchModule",
+        "amount": 1
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_liquid_tin_cable",
+      "name": "Insulate 1A Tin Cable",
+      "description": "Meter liquid rubber directly onto the conductor for a reliable low-waste insulation pass.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 6000,
+      "euCost": 96,
+      "input": {
+        "id": "tinWire",
+        "amount": 4
+      },
+      "fluidInput": {
+        "id": "liquidRubber",
+        "amount": 4
+      },
+      "output": {
+        "id": "tinCable",
+        "amount": 4
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_liquid_tin_cable_2a",
+      "name": "Insulate 2A Tin Cable",
+      "description": "Meter liquid rubber directly onto the conductor for a reliable low-waste insulation pass.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 6000,
+      "euCost": 96,
+      "input": {
+        "id": "tinCable",
+        "amount": 3
+      },
+      "fluidInput": {
+        "id": "liquidRubber",
+        "amount": 3
+      },
+      "output": {
+        "id": "tinCable2A",
+        "amount": 3
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_liquid_tin_cable_4a",
+      "name": "Insulate 4A Tin Cable",
+      "description": "Meter liquid rubber directly onto the conductor for a reliable low-waste insulation pass.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 6000,
+      "euCost": 96,
+      "input": {
+        "id": "tinCable2A",
+        "amount": 3
+      },
+      "fluidInput": {
+        "id": "liquidRubber",
+        "amount": 3
+      },
+      "output": {
+        "id": "tinCable4A",
+        "amount": 3
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_liquid_tin_cable_8a",
+      "name": "Insulate 8A Tin Cable",
+      "description": "Meter liquid rubber directly onto the conductor for a reliable low-waste insulation pass.",
+      "tier": "lv",
+      "machineId": "lvAssembler",
+      "durationMs": 6000,
+      "euCost": 96,
+      "input": {
+        "id": "tinCable4A",
+        "amount": 6
+      },
+      "fluidInput": {
+        "id": "liquidRubber",
+        "amount": 2
+      },
+      "output": {
+        "id": "tinCable8A",
+        "amount": 3
       }
     }
   ]

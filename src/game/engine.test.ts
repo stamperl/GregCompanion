@@ -2734,7 +2734,8 @@ describe('game engine', () => {
     state.resources.bronzeRod = 6
     state.resources.copperPlate = 5
     state.resources.copperRod = 7
-    state.resources.ironRod = 4
+    state.resources.steelPlate = 5
+    state.resources.steelRod = 4
     state.resources.steamCasing = 2
     state.resources.bronzeMortar = 2
     const unfiredBrick = recipes.find((recipe) => recipe.id === 'craft_unfired_brick')!

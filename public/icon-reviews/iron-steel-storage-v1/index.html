@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iron Tank and Steel Pipe Review</title>
+    <style>
+      body { margin: 0; background: #111315; color: #edf1f3; font: 16px system-ui, sans-serif; }
+      main { width: min(920px, calc(100% - 32px)); margin: 32px auto; }
+      h1 { font-size: 24px; letter-spacing: 0; }
+      h2 { margin: 0 0 12px; font-size: 18px; }
+      section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      figure { margin: 0; padding: 16px; border: 1px solid #3c454d; background: #20252a; }
+      .icon-preview { display: flex; align-items: end; justify-content: center; gap: 20px; min-height: 160px; background: #090b0d; }
+      .panel-preview { display: flex; justify-content: center; min-height: 360px; background: #090b0d; }
+      img { image-rendering: auto; object-fit: contain; max-width: 100%; }
+      .large { width: 128px; height: 128px; }
+      .slot { width: 40px; height: 40px; }
+      .panel { width: min(100%, 288px); aspect-ratio: 2 / 3; }
+      figcaption { margin-top: 10px; color: #bac5cc; }
+      @media (max-width: 680px) { section { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Iron Tank and Steel Pipe</h1>
+      <section>
+        <figure>
+          <h2>Iron Tank Icon</h2>
+          <div class="icon-preview">
+            <img class="large" src="ironTank-candidate.png" alt="Iron Tank icon candidate" />
+            <img class="slot" src="ironTank-candidate.png" alt="" />
+          </div>
+          <figcaption>Candidate v1 - approved in chat</figcaption>
+        </figure>
+        <figure>
+          <h2>Steel Fluid Pipe Icon</h2>
+          <div class="icon-preview">
+            <img class="large" src="steelPipe-candidate.png" alt="Steel Fluid Pipe icon candidate" />
+            <img class="slot" src="steelPipe-candidate.png" alt="" />
+          </div>
+          <figcaption>Candidate v1 - approved in chat</figcaption>
+        </figure>
+        <figure>
+          <h2>Iron Tank Terminal</h2>
+          <div class="panel-preview">
+            <img class="panel" src="ironTankPanel-candidate.jpg" alt="Iron Tank terminal background candidate" />
+          </div>
+          <figcaption>Candidate v1 - approved in chat</figcaption>
+        </figure>
+        <figure>
+          <h2>Steel Fluid Pipe Terminal</h2>
+          <div class="panel-preview">
+            <img class="panel" src="steelPipePanel-candidate.jpg" alt="Steel Fluid Pipe terminal background candidate" />
+          </div>
+          <figcaption>Candidate v1 - approved in chat</figcaption>
+        </figure>
+      </section>
+    </main>
+  </body>
+</html>

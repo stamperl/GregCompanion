@@ -8977,9 +8977,9 @@ button.craft-output:disabled {
 }
 
 .machine-ironPipe {
-  --m1: #9aa1a4;
-  --m2: #444b4e;
-  --m3: #d8dde0;
+  --m1: #687277;
+  --m2: #1e2528;
+  --m3: #b8c1c5;
 }
 
 .machine-tinCable {
@@ -11719,7 +11719,10 @@ button.button-primary:disabled,
   stroke: #b7854c;
 }
 
-.machine-ironPipe.machine-connector-glyph .pipe-body,
+.machine-ironPipe.machine-connector-glyph .pipe-body {
+  stroke: #667176;
+}
+
 .machine-tinCable.machine-connector-glyph .pipe-body {
   stroke: #aeb8bc;
 }
@@ -11837,10 +11840,10 @@ button.button-primary:disabled,
 }
 
 .machine-ironPipe.machine-connector-glyph {
-  --connector-dark: #252b2d;
-  --connector-mid: #858f91;
-  --connector-light: #cbd3d4;
-  --connector-core: #eef2f1;
+  --connector-dark: #151b1e;
+  --connector-mid: #667176;
+  --connector-light: #b8c1c5;
+  --connector-core: #d8dfe1;
 }
 
 .machine-tinCable.machine-connector-glyph {
@@ -18846,4 +18849,29 @@ button.button-primary:disabled,
     height: auto;
     width: 100%;
   }
+}
+
+/* Material-specific terminal art uses different live-media windows. */
+.furnace-modal.machine-steamTank-terminal .iron-tank-vessel > span {
+  bottom: 27%;
+  left: 33%;
+  top: 13%;
+  width: 9%;
+}
+
+.furnace-modal.machine-ironPipe-terminal .pipe-live-medium {
+  border-radius: 5px;
+  bottom: 50%;
+  height: auto;
+  left: 34%;
+  right: 34%;
+  top: 8%;
+}
+
+.furnace-modal.machine-ironPipe-terminal .pipe-hmi.contains-steam .pipe-live-medium {
+  border-radius: 5px;
+}
+
+.furnace-modal.machine-ironPipe-terminal .pipe-terminal-interface::after {
+  display: none;
 }
