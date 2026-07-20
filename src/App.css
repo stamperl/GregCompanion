@@ -16612,7 +16612,6 @@ button.button-primary:disabled,
   min-height: 300px;
 }
 
-.furnace-modal.machine-terminal .water-source-interface .utility-vessel > span,
 .furnace-modal.machine-terminal .iron-tank-vessel > span {
   background: linear-gradient(180deg, rgba(91, 214, 244, 0.08), rgba(34, 143, 194, 0.48));
   mix-blend-mode: screen;
@@ -17439,20 +17438,12 @@ button.button-primary:disabled,
 }
 
 /* Artwork-aligned live media windows. */
-.furnace-modal.machine-terminal .water-source-interface .utility-vessel > span,
 .furnace-modal.machine-terminal .iron-tank-vessel > span {
+  clip-path: inset(var(--vessel-empty-percent, 100%) 0 0);
   height: auto !important;
-  transform: scaleY(var(--vessel-fill-scale, 0));
-  transform-origin: bottom;
-  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.furnace-modal.machine-terminal .water-source-interface .utility-vessel > span {
-  bottom: 5%;
-  left: 7%;
-  right: 7%;
-  top: 50%;
-  width: auto;
+  transform: none;
+  transition: clip-path 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: clip-path;
 }
 
 .furnace-modal.machine-terminal .iron-tank-vessel > span {
@@ -17539,13 +17530,46 @@ button.button-primary:disabled,
 }
 
 /* The generated tank is empty; this is the only live liquid layer. */
+.furnace-modal.machine-terminal .iron-tank-vessel {
+  --tank-window-bottom: 27%;
+  --tank-window-left: 47.2%;
+  --tank-window-mask-x: 53.21%;
+  --tank-window-top: 13%;
+  --tank-window-width: 11.3%;
+  background-color: #050707;
+  background-image: none;
+  isolation: isolate;
+}
+
+.furnace-modal.machine-terminal .iron-tank-vessel::before {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.28)), var(--machine-panel-image);
+  background-position: center;
+  background-size: cover;
+  content: "";
+  inset: 0;
+  mask-composite: exclude;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-position: 0 0, var(--tank-window-mask-x) 32.5%;
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%, var(--tank-window-width) 60%;
+  pointer-events: none;
+  position: absolute;
+  -webkit-mask-composite: xor;
+  -webkit-mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  -webkit-mask-position: 0 0, var(--tank-window-mask-x) 32.5%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%, var(--tank-window-width) 60%;
+  z-index: 2;
+}
+
 .furnace-modal.machine-terminal .iron-tank-vessel > span {
   border-radius: 0 0 13px 13px;
-  bottom: 27%;
-  left: 47.2%;
+  bottom: var(--tank-window-bottom);
+  left: var(--tank-window-left);
   mix-blend-mode: screen;
-  top: 13%;
-  width: 11.3%;
+  top: var(--tank-window-top);
+  width: var(--tank-window-width);
+  z-index: 1;
 }
 
 /* Retire the earlier compact-gauge fallback now that buffers own their panel. */
@@ -18852,11 +18876,10 @@ button.button-primary:disabled,
 }
 
 /* Material-specific terminal art uses different live-media windows. */
-.furnace-modal.machine-steamTank-terminal .iron-tank-vessel > span {
-  bottom: 27%;
-  left: 33%;
-  top: 13%;
-  width: 9%;
+.furnace-modal.machine-steamTank-terminal .iron-tank-vessel {
+  --tank-window-left: 33%;
+  --tank-window-mask-x: 36.26%;
+  --tank-window-width: 9%;
 }
 
 .furnace-modal.machine-ironPipe-terminal .pipe-live-medium {

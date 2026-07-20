@@ -7924,7 +7924,6 @@ function App() {
                 ) : selectedMachine.machineId === 'well' ? (
                   <div className="well-interface water-source-interface utility-hmi">
                     <button type="button" className={`utility-vessel water-vessel native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
-                      <span style={{ '--vessel-fill-scale': metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128) / 100 } as CSSProperties} />
                       <MachineGlyph id="well" active />
                     </button>
                     <div className="utility-readout-grid well-instrument-stack">
@@ -7974,7 +7973,7 @@ function App() {
                       const fluidOutflow = currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0)
                       return <>
                         <button type="button" className={`utility-vessel iron-tank-vessel native-fluid-control ${isSteam ? 'steam-contents' : `fluid-contents fluid-${fluid!.id} ${gaseousFluidIds.has(fluid!.id) ? 'gaseous-fluid' : 'liquid-fluid'}`} ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
-                          <span style={{ '--vessel-fill-scale': metricFill(amount, capacity) / 100, '--fluid-color': isSteam ? '#72c9d8' : fluidVisualColor(fluid!.id) } as CSSProperties} />
+                          <span style={{ '--vessel-empty-percent': `${100 - metricFill(amount, capacity)}%`, '--fluid-color': isSteam ? '#72c9d8' : fluidVisualColor(fluid!.id) } as CSSProperties} />
                           <MachineGlyph id={selectedMachine.machineId} active={amount > 0} />
                           <strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong>
                         </button>
