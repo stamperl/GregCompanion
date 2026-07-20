@@ -51,7 +51,7 @@
     { "id": "memoryModule", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "dispatchModule", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "steelTank", "review": "steel-tank-v1", "status": "approved" },
-    { "id": "steamTank", "review": "iron-steel-storage-v1", "status": "approved" },
+    { "id": "steamTank", "review": "iron-tank-family-v2", "status": "approved" },
     { "id": "ironPipe", "review": "iron-steel-storage-v1", "status": "approved" },
     { "id": "ironTankPanel", "review": "iron-steel-storage-v1", "status": "approved" },
     { "id": "steelPipePanel", "review": "iron-steel-storage-v1", "status": "approved" }
