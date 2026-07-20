@@ -99,6 +99,7 @@ import {
   requestFabricationJob,
   removeMachineInstance,
   removeConductorLane,
+  removeFabricationInterface,
   removeProcessSlot,
   removeRecipeCard,
   removeMachineStorageSlot,
@@ -108,6 +109,7 @@ import {
   saveGame,
   sellShopItem,
   setFluidOutputDirection,
+  setFabricationInterfaceFace,
   setConfiguredProcessProgram,
   setConductorFaceSettings,
   setHopperOutputDirection,
@@ -6653,6 +6655,66 @@ describe('game engine', () => {
     expect(state.resources.ironIngot).toBe(1)
   })
 
+  it('places a standalone Job Interface on the cable network and dispatches through an automatic machine face', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.recipeEncoder = 1
+    state.machines.jobInterface = 1
+    state.machines.fabricationCable = 2
+    state.machines.lvFurnace = 1
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 2, 0)
+    state = placeMachineInstance(state, 'recipeEncoder', 1, 1)
+    state = placeMachineInstance(state, 'jobInterface', 2, 1)
+    state = placeMachineInstance(state, 'lvFurnace', 3, 1)
+    state.resources.blankRecipeCard = 1
+    state.resources.ironOre = 1
+
+    const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
+    const recipeInterface = state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
+    state = encodeProcessingRecipeCard(state, encoder.uid, 'smelt_iron_ingot')
+    state = installRecipeCard(state, recipeInterface.uid, state.recipeCards[0].uid)
+
+    expect(previewFabricationRequest(state, state.recipeCards[0].uid, 1).canStart).toBe(true)
+    state = setFabricationInterfaceFace(state, recipeInterface.uid, 'west')
+    expect(previewFabricationRequest(state, state.recipeCards[0].uid, 1).canStart).toBe(false)
+    state = setFabricationInterfaceFace(state, recipeInterface.uid, 'east')
+    state = requestFabricationJob(state, state.recipeCards[0].uid, 1)
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
+    state.machineInstances.find((instance) => instance.machineId === 'lvFurnace')!.process.euStored = 128
+
+    state = tickGame(state, 100).state
+    expect(state.fabricationJobs[0].steps[0].targetUid).toBe(state.machineInstances.find((instance) => instance.machineId === 'lvFurnace')!.uid)
+    state = tickGame(state, 5000).state
+    state = tickGame(state, 100).state
+    expect(state.fabricationJobs[0].status).toBe('complete')
+    expect(state.resources.ironIngot).toBe(1)
+  })
+
+  it('consumes the same Job Interface inventory for standalone blocks and cable faces', () => {
+    let state = createFactoryState()
+    state.machines.jobInterface = 2
+    state.machines.fabricationCable = 1
+    state.machines.lvFurnace = 1
+    state = placeMachineInstance(state, 'fabricationCable', 2, 2)
+    state = placeMachineInstance(state, 'lvFurnace', 3, 2)
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'fabricationCable')!
+
+    state = attachFabricationInterface(state, cable.uid, 'east')
+    expect(availableUnplacedMachineCount(state, 'jobInterface')).toBe(1)
+    state = placeMachineInstance(state, 'jobInterface', 0, 0)
+    expect(availableUnplacedMachineCount(state, 'jobInterface')).toBe(0)
+    expect(state.machineInstances.some((instance) => instance.machineId === 'jobInterface')).toBe(true)
+
+    const interfaceUid = state.machineInstances.find((instance) => instance.uid === cable.uid)!.fabricationInterfaces!.east!.uid
+    state = removeFabricationInterface(state, interfaceUid)
+    expect(availableUnplacedMachineCount(state, 'jobInterface')).toBe(1)
+    state = removeMachineInstance(state, state.machineInstances.find((instance) => instance.machineId === 'jobInterface')!.uid)
+    expect(availableUnplacedMachineCount(state, 'jobInterface')).toBe(2)
+  })
+
   it('runs a recursive crafting request from encoded recipe cards', () => {
     let state = createFactoryState()
     state.machines.recipeEncoder = 1
@@ -6784,7 +6846,7 @@ describe('game engine', () => {
     expect(state.recipeCards.filter((card) => !card.installedInUid)).toHaveLength(1)
   })
 
-  it('returns legacy standalone Job Interfaces and preserves their encoded patterns', () => {
+  it('preserves standalone Job Interfaces and their encoded patterns through save migration', () => {
     let legacy = createFactoryState()
     legacy.version = 15
     legacy.machines.furnace = 1
@@ -6808,10 +6870,10 @@ describe('game engine', () => {
 
     const migrated = loadGame(JSON.stringify(legacy), 2000)
 
-    expect(migrated.machineInstances.some((instance) => instance.machineId === 'jobInterface')).toBe(false)
+    expect(migrated.machineInstances.some((instance) => instance.machineId === 'jobInterface')).toBe(true)
     expect(migrated.machines.jobInterface).toBe(1)
-    expect(migrated.recipeCards[0].installedInUid).toBeUndefined()
-    expect(migrated.migrationNotices).toContain('fabrication-interface-faces')
+    expect(migrated.recipeCards[0].installedInUid).toBe('legacy-interface-1')
+    expect(migrated.machineInstances.find((instance) => instance.uid === 'legacy-interface-1')?.installedRecipeCardUids).toEqual(['card-1'])
   })
 })
 

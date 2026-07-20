@@ -423,6 +423,7 @@ function normalizeRecipeCards(parsed: unknown, machineInstances: MachineInstance
     const candidate = entry as Partial<RecipeCardInstance>
     if (!candidate.uid || seen.has(candidate.uid) || (candidate.kind !== 'crafting' && candidate.kind !== 'processing')) return []
     const installedInUid = candidate.installedInUid && machineInstances.some((instance) => (
+      (instance.machineId === 'jobInterface' && instance.uid === candidate.installedInUid) ||
       Object.values(instance.fabricationInterfaces ?? {}).some((attachment) => attachment?.uid === candidate.installedInUid)
     ))
       ? candidate.installedInUid
@@ -447,8 +448,11 @@ function normalizeRecipeCards(parsed: unknown, machineInstances: MachineInstance
 function normalizeFabricationJobs(parsed: unknown, cards: RecipeCardInstance[], machineInstances: MachineInstance[]): FabricationJob[] {
   if (!Array.isArray(parsed)) return []
   const seen = new Set<string>()
-  const interfaceUids = new Set(machineInstances.flatMap((instance) => Object.values(instance.fabricationInterfaces ?? {})
-    .flatMap((attachment) => attachment?.uid ? [attachment.uid] : [])))
+  const interfaceUids = new Set(machineInstances.flatMap((instance) => [
+    ...(instance.machineId === 'jobInterface' ? [instance.uid] : []),
+    ...Object.values(instance.fabricationInterfaces ?? {})
+      .flatMap((attachment) => attachment?.uid ? [attachment.uid] : []),
+  ]))
   return parsed.flatMap((entry): FabricationJob[] => {
     if (!entry || typeof entry !== 'object') return []
     const candidate = entry as Partial<FabricationJob>
@@ -1888,12 +1892,13 @@ export function attachFabricationInterface(state: GameState, cableUid: string, d
 
 export function removeFabricationInterface(state: GameState, interfaceUid: string) {
   const found = fabricationInterfaceByUid(state, interfaceUid)
-  if (!found || state.fabricationJobs.some((job) => (
+  if (!found || found.kind !== 'face' || state.fabricationJobs.some((job) => (
     job.status !== 'complete' && job.status !== 'cancelled' &&
     (job.interfaceUid === interfaceUid || job.steps.some((step) => step.interfaceUid === interfaceUid))
   ))) return state
   const next = cloneState(state)
-  const nextFound = fabricationInterfaceByUid(next, interfaceUid)!
+  const nextFound = fabricationInterfaceByUid(next, interfaceUid)
+  if (!nextFound || nextFound.kind !== 'face') return state
   for (const card of next.recipeCards.filter((candidate) => candidate.installedInUid === interfaceUid)) delete card.installedInUid
   const faces = { ...nextFound.cable.fabricationInterfaces }
   delete faces[nextFound.attachment.direction]
@@ -1903,13 +1908,14 @@ export function removeFabricationInterface(state: GameState, interfaceUid: strin
 }
 
 export function installRecipeCard(state: GameState, interfaceUid: string, cardUid: string) {
-  const interfaceFace = fabricationInterfaceByUid(state, interfaceUid)
+  const fabricationInterface = fabricationInterfaceByUid(state, interfaceUid)
   const card = state.recipeCards.find((candidate) => candidate.uid === cardUid && !candidate.installedInUid)
-  if (!interfaceFace || !card || interfaceFace.attachment.installedRecipeCardUids.length >= 9) return state
+  if (!fabricationInterface || !card || fabricationInterface.installedRecipeCardUids.length >= 9) return state
   const next = cloneState(state)
   const nextCard = next.recipeCards.find((candidate) => candidate.uid === cardUid)!
-  const nextFace = fabricationInterfaceByUid(next, interfaceUid)!
-  nextFace.attachment.installedRecipeCardUids.push(cardUid)
+  const nextInterface = fabricationInterfaceByUid(next, interfaceUid)!
+  if (nextInterface.kind === 'face') nextInterface.attachment.installedRecipeCardUids.push(cardUid)
+  else nextInterface.instance.installedRecipeCardUids = [...(nextInterface.instance.installedRecipeCardUids ?? []), cardUid]
   nextCard.installedInUid = interfaceUid
   return next
 }
@@ -1919,8 +1925,12 @@ export function removeRecipeCard(state: GameState, cardUid: string) {
   if (!card?.installedInUid || state.fabricationJobs.some((job) => job.steps.some((step) => step.cardUid === cardUid) && job.status !== 'complete' && job.status !== 'cancelled')) return state
   const next = cloneState(state)
   const nextCard = next.recipeCards.find((candidate) => candidate.uid === cardUid)!
-  const interfaceFace = fabricationInterfaceByUid(next, nextCard.installedInUid!)
-  if (interfaceFace) interfaceFace.attachment.installedRecipeCardUids = interfaceFace.attachment.installedRecipeCardUids.filter((uid) => uid !== cardUid)
+  const fabricationInterface = fabricationInterfaceByUid(next, nextCard.installedInUid!)
+  if (fabricationInterface?.kind === 'face') {
+    fabricationInterface.attachment.installedRecipeCardUids = fabricationInterface.attachment.installedRecipeCardUids.filter((uid) => uid !== cardUid)
+  } else if (fabricationInterface) {
+    fabricationInterface.instance.installedRecipeCardUids = (fabricationInterface.instance.installedRecipeCardUids ?? []).filter((uid) => uid !== cardUid)
+  }
   delete nextCard.installedInUid
   return next
 }
@@ -2001,11 +2011,28 @@ export function hasFabricationCable(instance: MachineInstance) {
   return instance.machineId === 'fabricationCable' || Boolean(instance.fabricationCableInstalled)
 }
 
+type FabricationNetworkInterface =
+  | {
+      kind: 'face'
+      uid: string
+      installedRecipeCardUids: string[]
+      priority: number
+      cable: MachineInstance
+      attachment: FabricationInterfaceAttachment
+    }
+  | {
+      kind: 'block'
+      uid: string
+      installedRecipeCardUids: string[]
+      priority: number
+      instance: MachineInstance
+    }
+
 export type FabricationNetwork = {
   rack: PlanningRackStructure
   cables: MachineInstance[]
   devices: MachineInstance[]
-  interfaces: Array<{ cable: MachineInstance; attachment: FabricationInterfaceAttachment }>
+  interfaces: FabricationNetworkInterface[]
 }
 
 function adjacentFabricationCables(state: GameState, instance: MachineInstance) {
@@ -2038,9 +2065,26 @@ export function fabricationNetworkForController(state: GameState, controllerUid:
       devices.set(device.uid, device)
     }
   }
-  const interfaces = cables.flatMap((cable) => Object.values(cable.fabricationInterfaces ?? {})
+  const faceInterfaces: FabricationNetworkInterface[] = cables.flatMap((cable) => Object.values(cable.fabricationInterfaces ?? {})
     .filter((attachment): attachment is FabricationInterfaceAttachment => Boolean(attachment))
-    .map((attachment) => ({ cable, attachment })))
+    .map((attachment) => ({
+      kind: 'face' as const,
+      uid: attachment.uid,
+      installedRecipeCardUids: attachment.installedRecipeCardUids,
+      priority: attachment.priority,
+      cable,
+      attachment,
+    })))
+  const blockInterfaces: FabricationNetworkInterface[] = [...devices.values()]
+    .filter((device) => device.machineId === 'jobInterface')
+    .map((instance) => ({
+      kind: 'block' as const,
+      uid: instance.uid,
+      installedRecipeCardUids: instance.installedRecipeCardUids ?? [],
+      priority: instance.fabricationPriority ?? 0,
+      instance,
+    }))
+  const interfaces = [...faceInterfaces, ...blockInterfaces]
   return { rack, cables, devices: [...devices.values()], interfaces }
 }
 
@@ -2056,22 +2100,53 @@ export function fabricationNetworkForDevice(state: GameState, deviceUid: string)
 }
 
 export function fabricationInterfaceByUid(state: GameState, interfaceUid: string) {
+  const standalone = state.machineInstances.find((instance) => instance.uid === interfaceUid && instance.machineId === 'jobInterface')
+  if (standalone) {
+    return {
+      kind: 'block' as const,
+      uid: standalone.uid,
+      installedRecipeCardUids: standalone.installedRecipeCardUids ?? [],
+      priority: standalone.fabricationPriority ?? 0,
+      instance: standalone,
+    }
+  }
   for (const instance of state.machineInstances) {
     for (const attachment of Object.values(instance.fabricationInterfaces ?? {})) {
-      if (attachment?.uid === interfaceUid) return { cable: instance, attachment }
+      if (attachment?.uid === interfaceUid) {
+        return {
+          kind: 'face' as const,
+          uid: attachment.uid,
+          installedRecipeCardUids: attachment.installedRecipeCardUids,
+          priority: attachment.priority,
+          cable: instance,
+          attachment,
+        }
+      }
     }
   }
   return null
 }
 
 export function fabricationNetworkForInterface(state: GameState, interfaceUid: string) {
-  return fabricationNetworks(state).find((network) => network.interfaces.some(({ attachment }) => attachment.uid === interfaceUid)) ?? null
+  return fabricationNetworks(state).find((network) => network.interfaces.some((fabricationInterface) => fabricationInterface.uid === interfaceUid)) ?? null
 }
 
-function fabricationInterfaceTarget(state: GameState, cable: MachineInstance, attachment: FabricationInterfaceAttachment, card: RecipeCardInstance) {
-  const offset = pipeDirectionOffsets[attachment.direction]
-  const target = machineAt(state, cable.x + offset.dx, cable.y + offset.dy)
-  return target && fabricationCardMatchesTarget(card, target) ? target : null
+function fabricationInterfaceTarget(state: GameState, fabricationInterface: FabricationNetworkInterface, card: RecipeCardInstance) {
+  if (fabricationInterface.kind === 'face') {
+    const offset = pipeDirectionOffsets[fabricationInterface.attachment.direction]
+    const target = machineAt(state, fabricationInterface.cable.x + offset.dx, fabricationInterface.cable.y + offset.dy)
+    return target && fabricationCardMatchesTarget(card, target) ? target : null
+  }
+  const directions = fabricationInterface.instance.fabricationFace
+    ? [fabricationInterface.instance.fabricationFace]
+    : pipeDirections
+  for (const direction of directions) {
+    const offset = pipeDirectionOffsets[direction]
+    const target = machineAt(state, fabricationInterface.instance.x + offset.dx, fabricationInterface.instance.y + offset.dy)
+    if (!target || hasFabricationCable(target) || planningRackStructureForPart(state, target)) continue
+    if (fabricationCardMatchesTarget(card, target)) return target
+  }
+  return null
 }
 
 function linkedTankControllers(state: GameState, network: FabricationNetwork) {
@@ -2143,8 +2218,8 @@ export type FabricationRequestPreview = {
 }
 
 function buildFabricationPlan(state: GameState, network: FabricationNetwork, rootCard: RecipeCardInstance, quantity: number): FabricationPlan | null {
-  const interfacePriorities = new Map(network.interfaces.map(({ attachment }) => [attachment.uid, attachment.priority]))
-  const networkInterfaceUids = new Set(network.interfaces.map(({ attachment }) => attachment.uid))
+  const interfacePriorities = new Map(network.interfaces.map((fabricationInterface) => [fabricationInterface.uid, fabricationInterface.priority]))
+  const networkInterfaceUids = new Set(network.interfaces.map((fabricationInterface) => fabricationInterface.uid))
   const installedCards = state.recipeCards
     .filter((card) => card.installedInUid && networkInterfaceUids.has(card.installedInUid))
     .sort((a, b) => {
@@ -2220,8 +2295,8 @@ export function previewFabricationRequest(state: GameState, cardUid: string, qua
   if (!card?.itemOutputs[0]) return { ...emptyPreview, reason: 'No installed pattern exposes this output.' }
   const network = fabricationNetworkForInterface(state, card.installedInUid!)
   if (!network) return { ...emptyPreview, reason: 'This pattern is not connected to a formed Planning Controller network.' }
-  const rootInterface = network.interfaces.find(({ attachment }) => attachment.uid === card.installedInUid)
-  const rootTarget = rootInterface ? fabricationInterfaceTarget(state, rootInterface.cable, rootInterface.attachment, card) : null
+  const rootInterface = network.interfaces.find((fabricationInterface) => fabricationInterface.uid === card.installedInUid)
+  const rootTarget = rootInterface ? fabricationInterfaceTarget(state, rootInterface, card) : null
   if (!rootTarget) return { ...emptyPreview, reason: 'The pattern interface is not attached to a compatible machine.' }
 
   const plan = buildFabricationPlan(state, network, card, requestedAmount)
@@ -2294,16 +2369,22 @@ export function requestFabricationJob(state: GameState, cardUid: string, quantit
 }
 
 export function setFabricationPriority(state: GameState, interfaceUid: string, priority: number) {
-  const interfaceFace = fabricationInterfaceByUid(state, interfaceUid)
-  if (!interfaceFace) return state
+  const fabricationInterface = fabricationInterfaceByUid(state, interfaceUid)
+  if (!fabricationInterface) return state
   const next = cloneState(state)
-  fabricationInterfaceByUid(next, interfaceUid)!.attachment.priority = Math.max(-10, Math.min(10, Math.floor(priority)))
+  const nextInterface = fabricationInterfaceByUid(next, interfaceUid)!
+  const nextPriority = Math.max(-10, Math.min(10, Math.floor(priority)))
+  if (nextInterface.kind === 'face') nextInterface.attachment.priority = nextPriority
+  else nextInterface.instance.fabricationPriority = nextPriority
   return next
 }
 
-/** @deprecated Job interfaces are now fixed cable-face attachments. */
-export function setFabricationInterfaceFace(state: GameState, _interfaceUid: string, _direction?: PipeDirection) {
-  return state
+export function setFabricationInterfaceFace(state: GameState, interfaceUid: string, direction?: PipeDirection) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === interfaceUid && candidate.machineId === 'jobInterface')
+  if (!instance || (direction && !pipeDirections.includes(direction))) return state
+  const next = cloneState(state)
+  next.machineInstances.find((candidate) => candidate.uid === interfaceUid)!.fabricationFace = direction
+  return next
 }
 
 function removeReservedItems(job: FabricationJob, amounts: ResourceAmount[]) {
@@ -4471,7 +4552,9 @@ export function availableUnplacedMachineCount(state: GameState, machineId: Machi
   const placed = machineId === 'fabricationCable'
     ? state.machineInstances.filter(hasFabricationCable).length
     : machineId === 'jobInterface'
-      ? state.machineInstances.reduce((sum, instance) => sum + Object.keys(instance.fabricationInterfaces ?? {}).length, 0)
+      ? state.machineInstances.reduce((sum, instance) => (
+          sum + (instance.machineId === 'jobInterface' ? 1 : 0) + Object.keys(instance.fabricationInterfaces ?? {}).length
+        ), 0)
       : state.machineInstances.filter((instance) => instance.machineId === machineId || (instance.machineId === 'conductorBundle' && (machineId === 'itemConductor' || machineId === 'fluidConductor'))).length
   return Math.max(0, state.machines[machineId] - placed)
 }
@@ -4610,8 +4693,6 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
     next.lastSavedAt = Date.now()
     return next
   }
-  if (machineId === 'jobInterface') return state
-
   const next = cloneState(state)
   if (isResourceBackedMachine(machineId)) next.resources[machineId] -= 1
   const placed: MachineInstance = {
@@ -4623,6 +4704,10 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
     process: emptyProcessState(),
   }
   if (machineId === 'fabricationCable') placed.fabricationCableInstalled = true
+  if (machineId === 'jobInterface') {
+    placed.installedRecipeCardUids = []
+    placed.fabricationPriority = 0
+  }
   if (machineId === 'standardChest') placed.process.storageSlots = Array.from({ length: 12 }, () => null)
   if (isEuStorageMachine(machineId)) placed.process.batterySlots = Array.from({ length: batteryBufferSlots(machineId) }, () => null)
   if (machineId === 'lvChemicalReactor') placed.process.fluidCapacityLitres = machineFluidCapacityLitres(machineId)
@@ -4884,6 +4969,14 @@ export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTarg
 export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
+  const ownedInterfaceUids = new Set([
+    ...(instance.machineId === 'jobInterface' ? [instance.uid] : []),
+    ...Object.values(instance.fabricationInterfaces ?? {}).flatMap((attachment) => attachment?.uid ? [attachment.uid] : []),
+  ])
+  if (state.fabricationJobs.some((job) => (
+    job.status !== 'complete' && job.status !== 'cancelled' &&
+    (job.interfaceUid && ownedInterfaceUids.has(job.interfaceUid) || job.steps.some((step) => step.interfaceUid && ownedInterfaceUids.has(step.interfaceUid)))
+  ))) return state
 
   const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
   if (arcStructure) {
@@ -4962,9 +5055,8 @@ export function removeMachineInstance(state: GameState, uid: string) {
   if (instance.surveyCardTarget) {
     next.surveyCards[instance.surveyCardTarget] = (next.surveyCards[instance.surveyCardTarget] ?? 0) + 1
   }
-  const removedInterfaceUids = new Set(Object.values(instance.fabricationInterfaces ?? {}).flatMap((attachment) => attachment?.uid ? [attachment.uid] : []))
   for (const card of next.recipeCards) {
-    if (card.installedInUid && removedInterfaceUids.has(card.installedInUid)) delete card.installedInUid
+    if (card.installedInUid && ownedInterfaceUids.has(card.installedInUid)) delete card.installedInUid
   }
   next.machineInstances = next.machineInstances.filter((candidate) => candidate.uid !== uid)
   delete next.autoMinerAssignments[uid]
@@ -6416,13 +6508,13 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
       continue
     }
     const card = state.recipeCards.find((candidate) => candidate.uid === activeStep.cardUid)
-    const interfaceFace = activeStep.interfaceUid
-      ? network.interfaces.find(({ attachment }) => attachment.uid === activeStep.interfaceUid)
+    const fabricationInterface = activeStep.interfaceUid
+      ? network.interfaces.find((candidate) => candidate.uid === activeStep.interfaceUid)
       : undefined
-    const target = card && interfaceFace
-      ? fabricationInterfaceTarget(state, interfaceFace.cable, interfaceFace.attachment, card)
+    const target = card && fabricationInterface
+      ? fabricationInterfaceTarget(state, fabricationInterface, card)
       : null
-    if (!card || !interfaceFace || !target) {
+    if (!card || !fabricationInterface || !target) {
       job.status = 'blocked'
       job.blockedReason = 'Pattern interface does not contain a compatible connected machine'
       continue
@@ -7146,8 +7238,10 @@ function migrateMachineInstances(
     machinesState.fabricationCable,
     instances.filter(hasFabricationCable).length,
   )
-  const legacyJobInterfaces = instances.filter((instance) => instance.machineId === 'jobInterface')
-  machinesState.jobInterface = Math.max(machinesState.jobInterface, legacyJobInterfaces.length)
+  const placedJobInterfaces = instances.reduce((sum, instance) => (
+    sum + (instance.machineId === 'jobInterface' ? 1 : 0) + Object.keys(instance.fabricationInterfaces ?? {}).length
+  ), 0)
+  machinesState.jobInterface = Math.max(machinesState.jobInterface, placedJobInterfaces)
   for (const instance of instances) {
     if (isEuStorageMachine(instance.machineId) && instance.process.input?.id === 'lvBattery') {
       instance.process.input = { id: 'sodiumBattery', amount: instance.process.input.amount }
@@ -7165,9 +7259,7 @@ function migrateMachineInstances(
       migrationNotices.push('coke-oven-multiblock')
     }
   }
-  let migratedInstances = (legacyCokeOvenSave ? instances.filter((instance) => instance.machineId !== 'cokeOven') : instances)
-    .filter((instance) => instance.machineId !== 'jobInterface')
-  if (legacyJobInterfaces.length > 0) migrationNotices.push('fabrication-interface-faces')
+  let migratedInstances = legacyCokeOvenSave ? instances.filter((instance) => instance.machineId !== 'cokeOven') : instances
   if (legacyBatteryBufferSave) {
     const placedBuffers = migratedInstances.filter((instance) => isEuStorageMachine(instance.machineId))
     let filledPlacedBuffers = 0
@@ -7401,6 +7493,9 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     }
     const recipeCards = normalizeRecipeCards(parsed.recipeCards, machineInstances)
     for (const instance of machineInstances) {
+      if (instance.machineId === 'jobInterface') {
+        instance.installedRecipeCardUids = recipeCards.filter((card) => card.installedInUid === instance.uid).map((card) => card.uid).slice(0, 9)
+      }
       for (const attachment of Object.values(instance.fabricationInterfaces ?? {})) {
         if (attachment) attachment.installedRecipeCardUids = recipeCards.filter((card) => card.installedInUid === attachment.uid).map((card) => card.uid).slice(0, 9)
       }

@@ -830,7 +830,7 @@ function offlineProgressNotice(offline: OfflineProgressResult) {
 }
 
 function migrationNoticeText(notices: string[]) {
-  if (notices.includes('fabrication-interface-faces')) return 'Standalone Job Interfaces were returned to Factory Parts. Their encoded patterns are safe in Pattern Inventory and can be installed after attaching a Job Interface Face to Fabrication Cable.'
+  if (notices.includes('fabrication-interface-faces')) return 'Job Interfaces can now be placed as network blocks or consumed as Fabrication Cable faces. Encoded patterns remain safe in Pattern Inventory.'
   if (notices.includes('portable-fluid-containers')) return 'Buckets and Steel Cells now keep their exact fluid and fill level. Legacy filled cells were converted, and old overfilled buckets were safely limited to their new 1L capacity.'
   if (notices.includes('centrifuge-single-input')) return 'LV Centrifuges now use one item input. Anything left in the old second input slot has been returned to storage.'
   if (notices.includes('arc-furnace-3x3')) return 'Arc Furnaces now use flexible 3x3 structures. Legacy furnaces were dismantled and their heatproof casings returned so you can build the new controller, buses, and Energy Hatches.'
@@ -3233,8 +3233,8 @@ function App() {
     .filter((card) => card.installedInUid && fabricationNetworkForInterface(state, card.installedInUid))
     .slice()
     .sort((a, b) => {
-      const aPriority = a.installedInUid ? fabricationInterfaceByUid(state, a.installedInUid)?.attachment.priority ?? 0 : 0
-      const bPriority = b.installedInUid ? fabricationInterfaceByUid(state, b.installedInUid)?.attachment.priority ?? 0 : 0
+      const aPriority = a.installedInUid ? fabricationInterfaceByUid(state, a.installedInUid)?.priority ?? 0 : 0
+      const bPriority = b.installedInUid ? fabricationInterfaceByUid(state, b.installedInUid)?.priority ?? 0 : 0
       return bPriority - aPriority || a.uid.localeCompare(b.uid)
     })
   const selectedInstalledPattern = selectedRecipe
@@ -3308,8 +3308,9 @@ function App() {
     ? processRecipes.find((recipe) => recipe.machineId === selectedMachine.machineId && recipe.programNumber === selectedMachine.process.configuredProgramNumber)
     : undefined
   const selectedMachinePopupRecipes = selectedMachine ? processRecipesForMachine(selectedMachine.machineId, processRecipes) : []
-  const selectedInterfaceCards = selectedFabricationAttachment
-    ? state.recipeCards.filter((card) => card.installedInUid === selectedFabricationAttachment.uid)
+  const selectedInterfaceUid = selectedFabricationAttachment?.uid ?? (selectedMachine?.machineId === 'jobInterface' ? selectedMachine.uid : undefined)
+  const selectedInterfaceCards = selectedInterfaceUid
+    ? state.recipeCards.filter((card) => card.installedInUid === selectedInterfaceUid)
     : []
   const availableRecipeCards = state.recipeCards.filter((card) => !card.installedInUid)
   const selectedPlanningRack = selectedMachine?.machineId === 'planningController'
@@ -3317,8 +3318,8 @@ function App() {
     : null
   const selectedFabricationJobs = selectedMachine?.machineId === 'planningController'
     ? state.fabricationJobs.filter((job) => job.controllerUid === selectedMachine.uid)
-    : selectedFabricationAttachment
-      ? state.fabricationJobs.filter((job) => job.interfaceUid === selectedFabricationAttachment.uid || job.steps.some((step) => step.interfaceUid === selectedFabricationAttachment.uid))
+    : selectedInterfaceUid
+      ? state.fabricationJobs.filter((job) => job.interfaceUid === selectedInterfaceUid || job.steps.some((step) => step.interfaceUid === selectedInterfaceUid))
       : []
   const selectedMachineRecipeCount = selectedMachinePopupRecipes.length
   const clampedMachinePopupRecipeIndex = Math.min(

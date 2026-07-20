@@ -1163,10 +1163,10 @@ export const machineRegistry = {
   },
   jobInterface: {
     id: 'jobInterface',
-    name: 'Job Interface Face',
-    description: 'Attaches to a Fabrication Cable face, holds physical encoded patterns, and dispatches work to the machine on that face.',
+    name: 'Job Interface',
+    description: 'Places as a network block or attaches to a Fabrication Cable face, then holds physical encoded patterns and dispatches work to an adjacent machine.',
     tier: 'mv',
-    placeable: false,
+    placeable: true,
     processKind: 'fabricationInterface',
   },
   autoFabricator: {
@@ -5523,8 +5523,8 @@ export const processRecipes: ProcessRecipe[] = [
   },
   {
     id: 'lv_assembler_job_interface',
-    name: 'Assemble Job Interface Faces',
-    description: 'Build two compact machine faces for holding and dispatching physical encoded patterns.',
+    name: 'Assemble Job Interfaces',
+    description: 'Build two interfaces that can be placed as network blocks or consumed as compact Fabrication Cable faces.',
     tier: 'mv',
     machineId: 'lvAssembler',
     durationMs: 10000,
@@ -7497,7 +7497,7 @@ export const quests: Quest[] = [
     chapterId: 'mvFoundations',
     chapter: 'Auto Crafting',
     title: 'Complete a fabrication job',
-    description: 'Attach a Job Interface Face to Fabrication Cable beside the target machine, load one encoded pattern into that face, then open the factory Terminal and request the pattern output.',
+    description: 'Place a Job Interface beside Fabrication Cable and a target machine, or consume one by attaching it directly to a cable face. Load one encoded pattern, then request its output from the factory Terminal.',
     position: { x: 1710, y: 80 },
     icon: { type: 'machine', id: 'jobInterface' },
     prerequisites: ['encodeRecipeCardQuest'],
