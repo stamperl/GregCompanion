@@ -617,7 +617,7 @@ export const machineRegistry = {
   fluidConductor: {
     id: 'fluidConductor',
     name: 'Fluid Conductor',
-    description: 'A configurable late-LV fluid network with channels, priorities, and round-robin distribution.',
+    description: 'A configurable late-LV liquid and steam network with channels, priorities, and round-robin distribution.',
     tier: 'lv',
     placeable: true,
     glyphKey: 'conductor',

@@ -135,6 +135,7 @@ import {
   steelTankFluidCapacityLitres,
   steamNetworkMetrics,
   steamTurbineEuCapacity,
+  steamTurbineSteamUseLitresPerSecond,
   terminalAvailableAmount,
   tickGame,
   topUpCreativeState,
@@ -2888,6 +2889,68 @@ describe('game engine', () => {
     }
 
     expect(recipes.find((recipe) => recipe.id === 'build_furnace')?.pattern?.filter(Boolean)).toHaveLength(8)
+  })
+
+  it('routes steam through fluid conductors using configured channels and faces', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.fluidConductor = 2
+    state.machines.steelTank = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'fluidConductor', 1, 0)
+    state = placeMachineInstance(state, 'fluidConductor', 2, 0)
+    state = placeMachineInstance(state, 'steelTank', 3, 0)
+
+    const sourceTank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const targetMachine = state.machineInstances.find((instance) => instance.machineId === 'steelTank')!
+    const [sourceConductor, targetConductor] = state.machineInstances.filter((instance) => instance.machineId === 'fluidConductor')
+    sourceTank.process.steamStoredMs = 96 * steamMsPerLitre
+    targetMachine.process.steamStoredMs = 0
+    state = setConductorFaceSettings(state, sourceConductor.uid, 'fluid', 'west', { mode: 'input', channel: 2 })
+    state = setConductorFaceSettings(state, targetConductor.uid, 'fluid', 'east', { mode: 'output', channel: 2 })
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!.process.steamStoredMs).toBe(32 * steamMsPerLitre)
+    expect(state.machineInstances.find((instance) => instance.uid === targetMachine.uid)!.process.steamStoredMs).toBe(64 * steamMsPerLitre)
+
+    const blockedSource = state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!
+    const blockedTarget = state.machineInstances.find((instance) => instance.uid === targetMachine.uid)!
+    blockedTarget.process.steamStoredMs = 0
+    state = setConductorFaceSettings(state, targetConductor.uid, 'fluid', 'east', { channel: 1 })
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === blockedSource.uid)!.process.steamStoredMs).toBe(32 * steamMsPerLitre)
+    expect(state.machineInstances.find((instance) => instance.uid === blockedTarget.uid)!.process.steamStoredMs).toBe(0)
+  })
+
+  it('feeds Steam Turbines through fluid conductors and exposes the connected demand', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.fluidConductor = 2
+    state.machines.steamTurbine = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'fluidConductor', 1, 0)
+    state = placeMachineInstance(state, 'fluidConductor', 2, 0)
+    state = placeMachineInstance(state, 'steamTurbine', 3, 0)
+
+    const sourceTank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    const [sourceConductor, targetConductor] = state.machineInstances.filter((instance) => instance.machineId === 'fluidConductor')
+    sourceTank.process.steamStoredMs = 128 * steamMsPerLitre
+    turbine.process.steamStoredMs = 0
+    turbine.process.euStored = 0
+    state = setConductorFaceSettings(state, sourceConductor.uid, 'fluid', 'west', { mode: 'input', channel: 3 })
+    state = setConductorFaceSettings(state, targetConductor.uid, 'fluid', 'east', { mode: 'output', channel: 3 })
+
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.steamStoredMs).toBe(32 * steamMsPerLitre)
+    state = tickGame(state, 2000).state
+
+    const runningTurbine = state.machineInstances.find((instance) => instance.uid === turbine.uid)!
+    const metrics = steamNetworkMetrics(state, state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!)
+    expect(runningTurbine.process.euStored).toBe(64)
+    expect(runningTurbine.process.steamStoredMs).toBe(32 * steamMsPerLitre)
+    expect(metrics.networkSize).toBe(4)
+    expect(metrics.demandLitresPerSecond).toBe(steamTurbineSteamUseLitresPerSecond)
   })
 
   it('uses mirrored wrench positions for LV input and output port recipes', () => {
