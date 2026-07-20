@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Click Foundry r1.1.0 Patch Notes</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #2c2419; background: #fff; font-family: Georgia, "Times New Roman", serif; font-size: 13px; line-height: 1.48; }
+      .page { min-height: calc(297mm - 28mm); padding: 24px; border: 5px solid #2f271c; outline: 2px solid #efe7c6; background: linear-gradient(90deg, rgba(255,255,255,.12), transparent 18%, transparent 82%, rgba(0,0,0,.08)), #c7b98e; break-after: page; }
+      .page:last-child { break-after: auto; }
+      .hero { display: grid; grid-template-columns: 96px 1fr; gap: 18px; align-items: center; padding-bottom: 16px; border-bottom: 4px solid #4a3924; }
+      .logo { width: 96px; height: 96px; image-rendering: pixelated; border: 3px solid #4a3924; background: #b4a57e; }
+      .eyebrow { margin: 0 0 4px; color: #a95e25; font-family: Arial, sans-serif; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+      h1, h2 { margin: 0; font-family: Arial, sans-serif; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+      h1 { font-size: 28px; line-height: 1; }
+      .subtitle { margin: 8px 0 0; max-width: 650px; font-size: 14px; font-weight: 700; }
+      section { margin-top: 16px; padding: 14px; border: 2px solid #6d6041; background: rgba(239,231,198,.45); }
+      h2 { margin-bottom: 8px; color: #3b3123; font-size: 15px; }
+      ul { margin: 0; padding-left: 20px; }
+      li { break-inside: avoid; margin: 7px 0; }
+      .footer { margin-top: 18px; padding-top: 10px; border-top: 3px solid #4a3924; color: #55452f; font-family: Arial, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    
+    <main class="page">
+      <header class="hero">
+        <img class="logo" src="assets/click-foundry-logo-512.png" alt="Click Foundry logo">
+        <div>
+          <p class="eyebrow">Click Foundry release notes</p>
+          <h1>r1.1.0 Fabrication Networks</h1>
+          <p class="subtitle">Gameplay-facing changes for the public build. Share the PDF version as click-foundry-r1.1.0-patch-notes.pdf.</p>
+        </div>
+      </header>
+      <section>
+        <h2>Patch Notes</h2>
+        <ul>
+          <li>Steam progression now demands sustained boiler, fuel, water, pipe, and buffer capacity, while LV circuits and aluminium remain deliberately expensive production bottlenecks.</li>
+<li>Iron Tanks now use a clear light-steel vessel design, and the new costlier Steel Tank stores three times as much fluid or steam with matching industrial artwork.</li>
+<li>Steel Fluid Pipes replace the old iron material path, fluids and EU now bottleneck per network segment, pipes maintain internal buffers, cables draw on demand, and Fluid Conductors can transport steam.</li>
+<li>Chest and Hopper terminals now use searchable three-row inventories, Hopper input and output routing works with storage and machines, and LV battery buffers expose one protected input face plus three output faces.</li>
+<li>Machine terminals now share consistent universal item and fluid slots, automation controls, program settings, phone-safe layouts, and clearer live load, flow, EU, steam, and blocked-state feedback.</li>
+<li>The new LV Mixer uses a six-slot item grid, two fluid inputs, and separate item and fluid outputs for recipes such as phase-crystal production.</li>
+<li>Rubber processing now separates Sticky Resin into Rubber Pulp and Glue, supports solid and liquid rubber routes, improves resistor and multiblock assembly yields, and teaches the alternatives through revised quests.</li>
+<li>Air collection, Centrifuge gas separation, sulfuric-acid chemistry, oxygen and nitrogen blast recipes, and multi-output fluid automation now form complete LV processing lines.</li>
+        </ul>
+      </section>
+      <footer class="footer">Click Foundry r1.1.0 - 2026-07-20 - Page 1 of 2 - Public GitHub Pages build</footer>
+    </main>
+
+    <main class="page">
+      <header class="hero">
+        <img class="logo" src="assets/click-foundry-logo-512.png" alt="Click Foundry logo">
+        <div>
+          <p class="eyebrow">Click Foundry release notes</p>
+          <h1>r1.1.0 Fabrication Networks</h1>
+          <p class="subtitle">Gameplay-facing changes for the public build. Share the PDF version as click-foundry-r1.1.0-patch-notes.pdf.</p>
+        </div>
+      </header>
+      <section>
+        <h2>Patch Notes Continued</h2>
+        <ul>
+          <li>Late-LV Item and Fluid Conductors provide configurable insert and extract faces, channels, priorities, round-robin routing, shared cells, direct multiblock port access, and independent lane removal.</li>
+<li>The early-MV fabrication line adds Gold, Resonant Quartz, Void Quartz, Phase Crystals, Silicon, imprint dies, printed circuits, processors, and dedicated Crystal Energizer and Circuit Imprinter machines.</li>
+<li>A powered fabrication network now links Planning Controllers, flexible 1x1 through 3x3 memory racks, Fabrication Cable, Pattern Terminals, Job Interfaces, Auto Fabricators, and Fluid Storage Links.</li>
+<li>Pattern encoding now mirrors a physical crafting and processing workflow: insert a blank card, fill the grid or process slots from the Recipe Book, encode it, then install the real pattern in a Job Interface.</li>
+<li>Crafting requests open directly from stored terminal items, recursively plan missing intermediates, reserve materials, show compact live job status, and safely recover items and fluids when cancelled or disconnected.</li>
+<li>Job Interfaces work as standalone blocks or cable-mounted machine faces, automatically choose a compatible free face, consume real interface items, and dispatch through formed Arc Furnace buses and hatches.</li>
+<li>Quest chapters were rebuilt for clearer Steam, rubber, battery-alloy, multiblock, and Auto Crafting progression, with completable objectives, useful optional guidance, stable map layout, and saved scroll position.</li>
+<li>The creative factory now includes a powered end-to-end recursive fabrication demonstration, while save migration preserves programs, routing, interfaces, installed patterns, active jobs, reserved materials, and legacy structures.</li>
+        </ul>
+      </section>
+      <footer class="footer">Click Foundry r1.1.0 - 2026-07-20 - Page 2 of 2 - Public GitHub Pages build</footer>
+    </main>
+  </body>
+</html>
