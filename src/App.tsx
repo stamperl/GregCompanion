@@ -67,6 +67,7 @@ import {
   isSteamNetworkMachine,
   isSteamPipeMachine,
   isSteamPoweredMachine,
+  isTankStorageMachine,
   machines,
   processRecipes,
   questChapters,
@@ -185,6 +186,7 @@ import {
   steamTankCapacityMsForInstance,
   steamTankFluidCapacityLitresForInstance,
   steamTankStructureForInstance,
+  steamNetworkMetrics,
   lvBatteryBufferEuCapacity,
   lvBatteryBufferOutputEuPerSecond,
   batteryBufferInstalledBatteries,
@@ -410,6 +412,7 @@ const machineOrder: MachineId[] = [
   'well',
   'steamBoiler',
   'steamTank',
+  'steelTank',
   'standardChest',
   'hopper',
   'copperPipe',
@@ -665,7 +668,10 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   steamMaceratorQuest: { x: 770, y: 115 },
   steamForgeHammerQuest: { x: 945, y: 115 },
   steamOrePrepQuest: { x: 945, y: 20 },
-  steamUtilityBranch: { x: 1120, y: 115 },
+  steamCompressorQuest: { x: 1120, y: 115 },
+  steamExtractorQuest: { x: 1120, y: 500 },
+  steamPressureReserveQuest: { x: 1295, y: 115 },
+  steamUtilityBranch: { x: 1470, y: 115 },
   treeTapQuest: { x: 770, y: 320 },
   cokeOvenBrickQuest: { x: 945, y: 320 },
   cokeOvenQuest: { x: 1120, y: 320 },
@@ -676,6 +682,7 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   buildBbfQuest: { x: 1820, y: 230 },
   firstSteel: { x: 1995, y: 230 },
   steelPlateQuest: { x: 2170, y: 230 },
+  steelTankQuest: { x: 2345, y: 350 },
   findRedstone: { x: 70, y: 220 },
   smeltRedAlloy: { x: 245, y: 220 },
   cutRedAlloyWireQuest: { x: 420, y: 220 },
@@ -915,6 +922,7 @@ function RecipePatternPreview({
             key={index}
           >
             <PixelIcon id={slot.id} />
+            {(slot.amount ?? 1) > 1 && <span className="item-count pattern-item-count">{slot.amount}</span>}
           </button>
         )
       })}
@@ -1131,7 +1139,7 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
         const isFormedArcInspection = false
         const showFormedArc = isFormedArcController && !isFormedArcInspection
         const multiblockController = instance ? controllerForMultiblockPart(instance) : null
-        const tankStructure = instance?.machineId === 'steamTank' ? steamTankStructureForInstance(state, instance) : null
+        const tankStructure = instance && isTankStorageMachine(instance.machineId) ? steamTankStructureForInstance(state, instance) : null
         const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
         const isTankStructureController = Boolean(tankStructure && instance && tankStructure.controller.uid === instance.uid && tankStructure.area > 1)
         const isTankStructureChild = Boolean(tankStructure && instance && tankStructure.controller.uid !== instance.uid)
@@ -1768,7 +1776,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     const outputLabel = outputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')
     return process.activeRecipeId ? `Feeding ${outputLabel}` : `Ready ${outputLabel}`
   }
-  if (instance.machineId === 'steamTank') {
+  if (isTankStorageMachine(instance.machineId)) {
     const storedFluid = storedFluids(process)[0]
     if (storedFluid) return `Holding ${fluidLabel(storedFluid.id).toLowerCase()}`
     return process.steamStoredMs > 0 ? 'Holding steam' : 'Empty tank'
@@ -2527,14 +2535,15 @@ function App() {
         instance.process.fluidCapacityLitres = 128
         instance.process.fluids.water = reviewState === 'active' ? 64 : 112
       }
-      if (reviewMachineId === 'steamTank') {
-        instance.process.steamCapacityMs = steamTankCapacityMs
+      if (isTankStorageMachine(reviewMachineId)) {
+        const reviewTankCapacityMs = (machines[reviewMachineId].steamCapacityLitres ?? 0) * 1000
+        instance.process.steamCapacityMs = reviewTankCapacityMs
         if (reviewState === 'filled') {
           instance.process.steamStoredMs = 0
-          instance.process.fluidCapacityLitres = steamTankFluidCapacityLitresForInstance(reviewGame, instance) || ironTankFluidCapacityLitres
+          instance.process.fluidCapacityLitres = steamTankFluidCapacityLitresForInstance(reviewGame, instance) || machines[reviewMachineId].fluidCapacityLitres || ironTankFluidCapacityLitres
           instance.process.fluids.creosote = instance.process.fluidCapacityLitres * 0.85
         } else {
-          instance.process.steamStoredMs = reviewState === 'active' ? steamTankCapacityMs / 2 : steamTankCapacityMs * 0.85
+          instance.process.steamStoredMs = reviewState === 'active' ? reviewTankCapacityMs / 2 : reviewTankCapacityMs * 0.85
         }
       }
       if (isSteamPoweredMachine(reviewMachineId) || reviewMachineId === 'steamTurbine') {
@@ -3264,9 +3273,16 @@ function App() {
     ? Object.values(gatherTargets).filter((target) => canAutoMinerTarget(selectedMachine.machineId, target.id))
     : []
   const selectedSteamTankCapacityMs =
-    selectedMachine?.machineId === 'steamTank' ? steamTankCapacityMsForInstance(state, selectedMachine) || steamTankCapacityMs : steamTankCapacityMs
+    selectedMachine && isTankStorageMachine(selectedMachine.machineId)
+      ? steamTankCapacityMsForInstance(state, selectedMachine) || (machines[selectedMachine.machineId].steamCapacityLitres ?? 0) * 1000
+      : steamTankCapacityMs
   const selectedSteamTankFluidCapacityLitres =
-    selectedMachine?.machineId === 'steamTank' ? steamTankFluidCapacityLitresForInstance(state, selectedMachine) || ironTankFluidCapacityLitres : ironTankFluidCapacityLitres
+    selectedMachine && isTankStorageMachine(selectedMachine.machineId)
+      ? steamTankFluidCapacityLitresForInstance(state, selectedMachine) || machines[selectedMachine.machineId].fluidCapacityLitres || ironTankFluidCapacityLitres
+      : ironTankFluidCapacityLitres
+  const selectedSteamNetworkMetrics = selectedMachine && isSteamNetworkMachine(selectedMachine.machineId)
+    ? steamNetworkMetrics(state, selectedMachine)
+    : null
   const selectedPipeConfig = state.machineInstances.find((instance) => instance.uid === selectedPipeConfigUid) ?? null
   const selectedConductorFace = selectedPipeConfig && selectedConductorLane !== 'fabrication' && isConductorMachine(selectedPipeConfig.machineId)
     ? conductorFaceSettings(selectedPipeConfig, selectedConductorLane, selectedConductorDirection)
@@ -3347,7 +3363,7 @@ function App() {
 
   useEffect(() => {
     setMachineTerminalMode(
-      selectedMachine?.machineId === 'steamTank' ||
+      (selectedMachine ? isTankStorageMachine(selectedMachine.machineId) : false) ||
       selectedMachine?.machineId === 'lvFluidInputHatch' ||
       selectedMachine?.machineId === 'lvFluidOutputHatch'
         ? 'fluids'
@@ -3438,7 +3454,7 @@ function App() {
     } else if (selectedMachine.machineId === 'steamBoiler') {
       addSteamMetric('Steam', process.steamStoredMs, boilerSteamCapacityMs)
       addRateMetric('Makes', boilerSteamProductionLitresPerSecond, 'L/s', 'supply', 'boiler rate')
-    } else if (selectedMachine.machineId === 'steamTank') {
+    } else if (isTankStorageMachine(selectedMachine.machineId)) {
       if (process.steamStoredMs > 0) addSteamMetric('Steam', process.steamStoredMs, selectedSteamTankCapacityMs)
       addStoredFluidMetrics(process, selectedSteamTankFluidCapacityLitres)
     } else if (selectedMachine.machineId === 'cokeOven') {
@@ -3569,7 +3585,7 @@ function App() {
     selectedMachine.machineId === 'furnace' ||
     selectedMachine.machineId === 'well' ||
     selectedMachine.machineId === 'steamBoiler' ||
-    selectedMachine.machineId === 'steamTank' ||
+    isTankStorageMachine(selectedMachine.machineId) ||
     selectedMachine.machineId === 'planningController' ||
     isItemAutomationMachine(selectedMachine.machineId) ||
     isSteamPipeMachine(selectedMachine.machineId) ||
@@ -3632,7 +3648,7 @@ function App() {
         (isSteamPoweredMachine(selectedMachine.machineId) ||
           isSteamPipeMachine(selectedMachine.machineId) ||
           selectedMachine.machineId === 'steamBoiler' ||
-          selectedMachine.machineId === 'steamTank' ||
+          isTankStorageMachine(selectedMachine.machineId) ||
           selectedMachine.machineId === 'steamAutoMiner' ||
           isLiquidSteamBoilerMachine(selectedMachine.machineId) ||
           machines[selectedMachine.machineId].tier === 'steam')
@@ -5979,7 +5995,12 @@ function App() {
                     onDrop={(event) => handleDropOnCraftSlot(event, index)}
                     key={`${slot?.id ?? 'empty'}-${slot?.ghost ? 'ghost' : 'real'}-${index}`}
                   >
-                    {slot && <PixelIcon id={slot.id} />}
+                    {slot && (
+                      <>
+                        <PixelIcon id={slot.id} />
+                        {(slot.amount ?? 1) > 1 && <span className="item-count craft-slot-count">{slot.amount}</span>}
+                      </>
+                    )}
                   </button>
                 ))}
               </div>
@@ -6088,7 +6109,12 @@ function App() {
                         onClick={() => handlePatternCraftSlot(index)}
                         key={`${slot?.id ?? 'empty'}-${index}`}
                       >
-                        {slot && <PixelIcon id={slot.id} />}
+                        {slot && (
+                          <>
+                            <PixelIcon id={slot.id} />
+                            {(slot.amount ?? 1) > 1 && <span className="item-count craft-slot-count">{slot.amount}</span>}
+                          </>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -7926,7 +7952,7 @@ function App() {
                     </div>
                     <div className="boiler-load-rail"><span style={{ width: `${selectedMachine.process.fuelDurationMs > 0 ? metricFill(selectedMachine.process.fuelRemainingMs, selectedMachine.process.fuelDurationMs) : 0}%` }} /><strong>Load</strong><em>{selectedMachine.process.activeRecipeId ? 'Making steam' : machineStatus(state, selectedMachine)}</em></div>
                   </div>
-                ) : selectedMachine.machineId === 'steamTank' ? (
+                ) : isTankStorageMachine(selectedMachine.machineId) ? (
                   <div className="well-interface tank-terminal-interface utility-hmi iron-tank-hmi">
                     {(() => {
                       const fluid = selectedMachineStoredFluids[0]
@@ -7938,14 +7964,38 @@ function App() {
                       return <>
                         <button type="button" className={`utility-vessel iron-tank-vessel native-fluid-control ${isSteam ? 'steam-contents' : `fluid-contents fluid-${fluid!.id} ${gaseousFluidIds.has(fluid!.id) ? 'gaseous-fluid' : 'liquid-fluid'}`} ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
                           <span style={{ '--vessel-fill-scale': metricFill(amount, capacity) / 100, '--fluid-color': isSteam ? '#72c9d8' : fluidVisualColor(fluid!.id) } as CSSProperties} />
-                          <MachineGlyph id="steamTank" active={amount > 0} />
+                          <MachineGlyph id={selectedMachine.machineId} active={amount > 0} />
                           <strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong>
                         </button>
                         <div className="utility-readout-grid">
                           <span><small>Contents</small><strong>{isSteam ? 'Steam' : fluidLabel(fluid!.id)}</strong><em>Single fluid tank</em></span>
                           <span><small>Stored</small><strong>{formatLitres(amount)}L</strong><em>{formatLitres(capacity)}L max</em></span>
-                          <span><small>Structure</small><strong>{selectedMachine.level > 1 ? `${selectedMachine.level} blocks` : 'Single tank'}</strong><em>Capacity scales with size</em></span>
-                          <span><small>Output</small><strong>{outputFaces.join(', ') || 'Closed'}</strong><em>{formatAmount(fluidOutflow)}L/s live · {machines[selectedMachine.machineId].fluidOutputLitresPerSecond ?? 0}L/s max</em></span>
+                          <span>
+                            <small>{isSteam ? 'Network' : 'Output'}</small>
+                            <strong>
+                              {isSteam
+                                ? selectedSteamNetworkMetrics && selectedSteamNetworkMetrics.networkSize > 1
+                                  ? `${formatAmount(selectedSteamNetworkMetrics.generationLitresPerSecond)} in / ${formatAmount(selectedSteamNetworkMetrics.demandLitresPerSecond)} out`
+                                  : 'Isolated'
+                                : outputFaces.join(', ') || 'Closed'}
+                            </strong>
+                            <em>{selectedMachine.level > 1 ? `${selectedMachine.level} block structure` : 'Single tank'} | {outputFaces.join(', ') || 'closed'} faces</em>
+                          </span>
+                          <span>
+                            <small>{isSteam ? 'Pressure' : 'Flow'}</small>
+                            <strong>{isSteam && selectedSteamNetworkMetrics ? `${selectedSteamNetworkMetrics.netLitresPerSecond >= 0 ? '+' : ''}${formatAmount(selectedSteamNetworkMetrics.netLitresPerSecond)}L/s` : `${formatAmount(fluidOutflow)}L/s`}</strong>
+                            <em>
+                              {isSteam
+                                ? selectedSteamNetworkMetrics?.networkSize === 1
+                                  ? 'No active network'
+                                  : selectedSteamNetworkMetrics?.reserveSeconds === null
+                                    ? 'Stable reserve'
+                                    : selectedSteamNetworkMetrics
+                                      ? `${formatDuration(selectedSteamNetworkMetrics.reserveSeconds * 1000)} remaining`
+                                      : 'Disconnected'
+                                : `${machines[selectedMachine.machineId].fluidOutputLitresPerSecond ?? 0}L/s max`}
+                            </em>
+                          </span>
                         </div>
                       </>
                     })()}

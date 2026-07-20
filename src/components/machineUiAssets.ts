@@ -33,6 +33,7 @@ const machineUiPanelFiles: Partial<Record<MachineId, string>> = {
   well: 'well-panel-v2.jpg',
   steamBoiler: 'steam-boiler-panel-v2.jpg',
   steamTank: 'iron-tank-panel-v3.jpg',
+  steelTank: 'iron-tank-panel-v3.jpg',
   standardChest: 'item-logistics-panel.webp',
   hopper: 'item-logistics-panel.webp',
   copperPipe: 'universal-pipe-panel-v2.jpg',

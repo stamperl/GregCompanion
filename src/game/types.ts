@@ -172,6 +172,7 @@ export type MachineId =
   | 'well'
   | 'steamBoiler'
   | 'steamTank'
+  | 'steelTank'
   | 'standardChest'
   | 'hopper'
   | 'copperPipe'
@@ -262,6 +263,9 @@ export type QuestId =
   | 'storageAutomationQuest'
   | 'steamMaceratorQuest'
   | 'steamForgeHammerQuest'
+  | 'steamCompressorQuest'
+  | 'steamExtractorQuest'
+  | 'steamPressureReserveQuest'
   | 'steamOrePrepQuest'
   | 'steamUtilityBranch'
   | 'treeTapQuest'
@@ -274,6 +278,7 @@ export type QuestId =
   | 'buildBbfQuest'
   | 'firstSteel'
   | 'steelPlateQuest'
+  | 'steelTankQuest'
   | 'findRedstone'
   | 'smeltRedAlloy'
   | 'cutRedAlloyWireQuest'
@@ -286,6 +291,7 @@ export type QuestId =
   | 'pulpWoodQuest'
   | 'pressCircuitBoard'
   | 'firstLvCircuit'
+  | 'circuitStockpileQuest'
   | 'buildSteamTurbineQuest'
   | 'makeTinCableQuest'
   | 'routeLvPowerQuest'
@@ -496,6 +502,7 @@ export type EquipmentState = Record<EquipmentSlotId, ResourceId | null>
 export type CraftSlot = {
   id: ResourceId
   ghost?: boolean
+  amount?: number
 } | null
 
 export type ResourceAmount = {
@@ -690,6 +697,7 @@ export type QuestObjective =
   | { type: 'surveyCard'; id: GatherTargetId; amount: number; label?: string }
   | { type: 'recipe'; id: string; amount: number; label?: string }
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
+  | { type: 'installedBattery'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }
   | { type: 'fluidTransfer'; direction: 'fill' | 'drain'; kind: FluidContainerKind; fluidId: FluidId; amountLitres: number; machineId?: MachineId; label?: string }
   | { type: 'fabrication'; id: 'cardEncoded' | 'rackFormed' | 'jobComplete'; amount: number; label?: string }

@@ -21,7 +21,7 @@ import {
   tools,
 } from './content'
 import { questKind } from './engine'
-import type { FluidAmount, MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount } from './types'
+import type { FluidAmount, MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount, ResourceId } from './types'
 
 const appCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../App.css'), 'utf8')
 const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../public')
@@ -218,9 +218,15 @@ describe('content validation', () => {
         for (const id of recipe.pattern.filter((item): item is NonNullable<typeof item> => Boolean(item))) {
           expect(resourceLabels, `${recipe.id} pattern references unknown resource ${id}`).toHaveProperty(id)
         }
-        expect(patternCounts(recipe.pattern), `${recipe.id} pattern should match declared inputs and catalysts`).toEqual(
-          resourceAmountCounts([...recipe.inputs, ...(recipe.catalysts ?? [])]),
-        )
+        const pattern = patternCounts(recipe.pattern)
+        const declared = resourceAmountCounts([...recipe.inputs, ...(recipe.catalysts ?? [])])
+        for (const id of Object.keys(pattern) as ResourceId[]) {
+          const amount = pattern[id] ?? 0
+          expect(declared[id], `${recipe.id} pattern should not show more ${id} slots than its declared amount`).toBeGreaterThanOrEqual(amount)
+        }
+        for (const id of Object.keys(declared) as ResourceId[]) {
+          expect(pattern[id], `${recipe.id} pattern should show every declared input or catalyst (${id})`).toBeGreaterThan(0)
+        }
       }
     }
   })
