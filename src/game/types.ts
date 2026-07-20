@@ -304,7 +304,6 @@ export type QuestId =
   | 'creosoteBoilerQuest'
   | 'buildLvWiremillQuest'
   | 'runLvWiremillQuest'
-  | 'buildLvBenderQuest'
   | 'runLvBenderQuest'
   | 'buildLvLatheQuest'
   | 'runLvLatheQuest'

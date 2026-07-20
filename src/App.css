@@ -5880,6 +5880,15 @@ button.craft-output:disabled {
   white-space: nowrap;
 }
 
+.forge-status-readout {
+  grid-template-columns: 46px minmax(0, 1fr);
+}
+
+.forge-status-readout strong {
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
 .lv-forge-hmi .forge-readout strong {
   color: #7de9ff;
   text-shadow: 0 0 8px rgba(85, 207, 255, 0.26);
@@ -11023,7 +11032,7 @@ button.recipe-jump-slot {
 
   .quest-map-scroll {
     box-sizing: border-box;
-    height: clamp(190px, calc(100svh - var(--sticky-header-height) - var(--bottom-nav-clearance) - 170px), 430px);
+    height: clamp(190px, calc(100svh - var(--top-safe-clearance) - var(--bottom-nav-clearance) - 300px), 430px);
     max-height: none;
     min-height: 0;
     overflow: hidden;
@@ -17806,6 +17815,18 @@ button.button-primary:disabled,
   box-shadow: inset 0 -3px #c5a85a;
 }
 
+.item-bus-slot-grid {
+  align-items: center;
+  display: grid;
+  justify-content: center;
+  min-height: 138px;
+}
+
+.item-bus-slot-grid .process-slot {
+  height: 72px;
+  width: 72px;
+}
+
 .fluid-container-tint {
   position: absolute;
   right: 3px;
@@ -17877,10 +17898,13 @@ button.button-primary:disabled,
   border-bottom-color: #070908;
   border-right-color: #070908;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 2px 0 rgba(0, 0, 0, 0.35);
+  min-height: 58px;
+  padding: 5px 6px 7px;
 }
 .pipe-config-modal:has(.conductor-config) .modal-head .eyebrow { color: #d7bd64; }
 .pipe-config-modal:has(.conductor-config) .modal-head h2 {
   color: #fff1b9;
+  line-height: 1.2;
   text-shadow: 1px 1px 0 #050605;
 }
 .conductor-config {
@@ -18299,12 +18323,16 @@ button.button-primary:disabled,
   }
 
   .machine-terminal-actions button {
-    min-height: 32px;
-    padding: 3px 6px;
+    min-height: 44px;
+    padding: 5px 6px;
   }
 
   .machine-terminal-tabs {
-    min-height: 32px;
+    min-height: 44px;
+  }
+
+  .machine-terminal-tabs button {
+    min-height: 44px;
   }
 
   .machine-terminal .processing-storage,

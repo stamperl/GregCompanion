@@ -62,6 +62,7 @@ import {
   isItemStorageMachine,
   isLiquidSteamBoilerMachine,
   isPlaceableMachine,
+  isProgrammableProcessMachine,
   isResourceBackedMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
@@ -76,6 +77,7 @@ import {
   shopItems,
   tools,
 } from './game/content'
+import { routeQuestConnection, type QuestMapRect } from './game/questMap'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -704,7 +706,6 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   buildTwoAmpCableQuest: { x: 3690, y: 190 },
   buildFourAmpCableQuest: { x: 3870, y: 190 },
   buildFourAmpBufferQuest: { x: 4050, y: 190 },
-  buildLvBenderQuest: { x: 2790, y: 350 },
   runLvBenderQuest: { x: 2970, y: 350 },
   buildLvLatheQuest: { x: 2790, y: 500 },
   runLvLatheQuest: { x: 2970, y: 500 },
@@ -723,6 +724,10 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   buildArcBlastFurnaceQuest: { x: 5310, y: 510 },
   bufferArcBlastFurnaceQuest: { x: 5490, y: 510 },
   firstAluminiumQuest: { x: 5670, y: 360 },
+  buildConductorsQuest: { x: 5850, y: 510 },
+  buildLvAutoMinerQuest: { x: 2970, y: 50 },
+  craftSurveyKitQuest: { x: 3150, y: 50 },
+  encodeCoalSurveyCardQuest: { x: 3330, y: 50 },
 }
 
 const multiblockQuestPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>> = {
@@ -1587,6 +1592,7 @@ function missingResourceLine(state: GameState, costs: ResourceAmount[]) {
 function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
   if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
+  if (isItemBusMachine(machineId)) return machineId === 'lvInputBus' && slotId === 'input'
   const flexibleInputSlotIds: readonly ProcessSlotId[] = machineId === 'lvMixer' ? mixerInputSlotIds : assemblerInputSlotIds
   if ((machineId === 'lvAssembler' || machineId === 'lvMixer') && flexibleInputSlotIds.includes(slotId)) {
     return processRecipes.some(
@@ -1715,6 +1721,8 @@ function findSelectedProcessRecipe(instance: MachineInstance | null) {
 
 function machineUsesProcessStorage(machineId: MachineId) {
   if (isAutoMinerMachine(machineId)) return false
+  if (machines[machineId].processKind === 'fabricationController') return false
+  if (machineId === 'lvOutputBus') return false
   if (isItemAutomationMachine(machineId)) return true
   if (isEuStorageMachine(machineId)) return true
   return (
@@ -1836,13 +1844,14 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     return process.activeRecipeId ? 'Blasting' : 'Ready'
   }
   if (instance.machineId === 'arcBlastFurnace') {
+    const formedStructure = arcBlastFurnaceStructureForInstance(state, instance)
     if (!recipe) return 'No input'
     if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
     const missingFluid = (recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])).find((fluid) => (process.fluids[fluid.id] ?? 0) < fluid.amount)
     if (missingFluid) return `Needs ${fluidLabel(missingFluid.id)}`
     const minimumEuStored = recipe.minimumEuStored ?? 0
     if (minimumEuStored > 0 && process.progressMs === 0 && process.euStored + availableConnectedEuStorage(state, instance) < minimumEuStored) return 'Waiting for buffer'
-    if (recipe.requiredEuAmps && availableConnectedEuAmps(state, instance) < recipe.requiredEuAmps) return `Needs ${recipe.requiredEuAmps}A route`
+    if (!formedStructure && recipe.requiredEuAmps && availableConnectedEuAmps(state, instance) < recipe.requiredEuAmps) return `Needs ${recipe.requiredEuAmps}A route`
     if (process.euStored + availableConnectedEu(state, instance) < 1) return 'Underpowered'
     return process.activeRecipeId ? 'Blasting' : 'Ready'
   }
@@ -2126,6 +2135,21 @@ function QuestBook({
   const questY = (quest: Quest) => questPosition(quest).y + offsetY
   const mapWidth = Math.max(360, ...chapterQuests.map((quest) => questX(quest) + questNodeSize(quest) + mapMargin))
   const mapHeight = Math.max(160, ...chapterQuests.map((quest) => questY(quest) + questNodeSize(quest) + mapMargin))
+  const questRect = (quest: Quest): QuestMapRect => ({
+    left: questX(quest),
+    top: questY(quest),
+    width: questNodeSize(quest),
+    height: questNodeSize(quest),
+  })
+  const questConnectionPath = (parent: Quest, child: Quest) => routeQuestConnection(
+    questRect(parent),
+    questRect(child),
+    chapterQuests
+      .filter((candidate) => candidate.id !== parent.id && candidate.id !== child.id)
+      .map(questRect),
+    mapWidth,
+    mapHeight,
+  ).path
   const clampZoom = (zoom: number) => Math.max(0.55, Math.min(1.35, zoom))
   const clampMapView = (view: { x: number; y: number; zoom: number }, viewport?: { width: number; height: number }) => {
     if (!viewport) return view
@@ -2351,22 +2375,7 @@ function QuestBook({
                 const parentStatus = questStatus(state, parent)
                 const childStatus = questStatus(state, quest)
                 const className = `${parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'} ${questKind(quest)}`
-                const parentSize = questNodeSize(parent)
-                const childSize = questNodeSize(quest)
-                const parentCenterX = questX(parent) + parentSize / 2
-                const parentCenterY = questY(parent) + parentSize / 2
-                const childCenterX = questX(quest) + childSize / 2
-                const childCenterY = questY(quest) + childSize / 2
-                const horizontal = Math.abs(childCenterX - parentCenterX) >= Math.abs(childCenterY - parentCenterY)
-                const movingRight = childCenterX >= parentCenterX
-                const movingDown = childCenterY >= parentCenterY
-                const startX = horizontal ? parentCenterX + (movingRight ? parentSize / 2 : -parentSize / 2) : parentCenterX
-                const startY = horizontal ? parentCenterY : parentCenterY + (movingDown ? parentSize / 2 : -parentSize / 2)
-                const endX = horizontal ? childCenterX - (movingRight ? childSize / 2 : -childSize / 2) : childCenterX
-                const endY = horizontal ? childCenterY : childCenterY - (movingDown ? childSize / 2 : -childSize / 2)
-                const path = horizontal
-                  ? `M ${startX} ${startY} H ${(startX + endX) / 2} V ${endY} H ${endX}`
-                  : `M ${startX} ${startY} V ${(startY + endY) / 2} H ${endX} V ${endY}`
+                const path = questConnectionPath(parent, quest)
                 return (
                   <g key={`${parent.id}-${quest.id}`}>
                     <path className="quest-line-shadow" d={path} />
@@ -2561,7 +2570,7 @@ function App() {
         instance.process.input = null
         instance.process.output = null
         instance.process.output2 = null
-        instance.process.fluids.air = reviewState === 'active' ? 4 : 0
+        instance.process.fluids.air = reviewState === 'active' ? 8 : 0
         instance.process.fluids.oxygen = reviewState === 'active' ? 8 : 20
         instance.process.fluids.nitrogen = reviewState === 'active' ? 16 : 28
         instance.process.activeRecipeId = reviewState === 'active' ? 'lv_centrifuge_air' : null
@@ -2724,7 +2733,9 @@ function App() {
   const [isMachineAutomationOpen, setIsMachineAutomationOpen] = useState(false)
   const [isAutoMinerTargetOpen, setIsAutoMinerTargetOpen] = useState(false)
   const [selectedPipeConfigUid, setSelectedPipeConfigUid] = useState<string | null>(reviewStartsInConductorRouting ? reviewSetup?.uid ?? null : null)
-  const [selectedConductorLane, setSelectedConductorLane] = useState<'item' | 'fluid' | 'fabrication'>('item')
+  const [selectedConductorLane, setSelectedConductorLane] = useState<'item' | 'fluid' | 'fabrication'>(
+    reviewStartsInConductorRouting && isFluidConductorMachine(reviewMachineId!) ? 'fluid' : 'item',
+  )
   const [selectedConductorDirection, setSelectedConductorDirection] = useState<PipeDirection>('north')
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
@@ -3335,7 +3346,13 @@ function App() {
   }
 
   useEffect(() => {
-    setMachineTerminalMode(selectedMachine?.machineId === 'lvFluidInputHatch' || selectedMachine?.machineId === 'lvFluidOutputHatch' ? 'fluids' : 'items')
+    setMachineTerminalMode(
+      selectedMachine?.machineId === 'steamTank' ||
+      selectedMachine?.machineId === 'lvFluidInputHatch' ||
+      selectedMachine?.machineId === 'lvFluidOutputHatch'
+        ? 'fluids'
+        : 'items',
+    )
     setSelectedFluidContainerKey(null)
     setIsMachineRecipePopupOpen(false)
     setSelectedMachinePopupRecipeIndex(0)
@@ -3553,6 +3570,7 @@ function App() {
     selectedMachine.machineId === 'well' ||
     selectedMachine.machineId === 'steamBoiler' ||
     selectedMachine.machineId === 'steamTank' ||
+    selectedMachine.machineId === 'planningController' ||
     isItemAutomationMachine(selectedMachine.machineId) ||
     isSteamPipeMachine(selectedMachine.machineId) ||
     isEuCableMachine(selectedMachine.machineId) ||
@@ -4242,6 +4260,7 @@ function App() {
     const warnings = []
     if (selectedMachineMultiblock) warnings.push(`This will disassemble the entire ${machines[selectedMachineMultiblock.spec.controller].name} structure and return its blocks.`)
     if (storedFluids(selectedMachineSource.process).some((fluid) => fluid.amount > 0)) warnings.push('Stored fluid will be discarded.')
+    if ((selectedMachine?.process.steamStoredMs ?? selectedMachineSource.process.steamStoredMs) > 0) warnings.push('Stored steam will be vented.')
     if (selectedMachineSource.surveyCardTarget) warnings.push(`The installed ${gatherTargets[selectedMachineSource.surveyCardTarget].name} Survey Card will be returned to inventory.`)
     if (warnings.length > 0 && !window.confirm(`${warnings.join('\n\n')}\n\nContinue?`)) return
     const uid = selectedMachineSource.uid
@@ -7544,7 +7563,7 @@ function App() {
                   </div>
                 )}
                 <div className="machine-terminal-body">
-                {machines[selectedMachine.machineId].tier === 'lv' && !isEuStorageMachine(selectedMachine.machineId) && (
+                {isProgrammableProcessMachine(selectedMachine.machineId) && (
                   <div className="machine-program-control" aria-label={`${machines[selectedMachine.machineId].name} program`}>
                     <button
                       type="button"
@@ -7826,11 +7845,15 @@ function App() {
                   </div>
                 ) : isItemAutomationMachine(selectedMachine.machineId) ? (
                   <div className={`furnace-interface ${selectedMachine.machineId}-process-interface item-automation-interface`}>
-                    <div className={isItemStorageMachine(selectedMachine.machineId) ? 'indexed-storage-grid chest-storage-grid' : 'furnace-inputs'}>
+                    <div className={isItemStorageMachine(selectedMachine.machineId) ? 'indexed-storage-grid chest-storage-grid' : isItemBusMachine(selectedMachine.machineId) ? 'item-bus-slot-grid' : 'furnace-inputs'}>
                       {isItemStorageMachine(selectedMachine.machineId) ? (
                         selectedMachine.process.storageSlots.map((slot, index) => (
                           <ProcessItemSlot slot={slot} label={`Slot ${index + 1}`} onClick={() => handleStorageSlotPress(selectedMachine.uid, index, slot)} key={`storage-${index}`} />
                         ))
+                      ) : isItemBusMachine(selectedMachine.machineId) ? (
+                        selectedMachine.machineId === 'lvInputBus'
+                          ? <ProcessItemSlot slot={selectedMachine.process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
+                          : <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />
                       ) : (
                         <>
                           <ProcessItemSlot slot={selectedMachine.process.input} label="Slot 1" onClick={() => handleProcessSlotPress('input')} />
@@ -8740,7 +8763,7 @@ function App() {
                             <span>Time</span>
                             <strong>{timeValue}</strong>
                           </div>
-                          <div className="forge-readout">
+                          <div className="forge-readout forge-status-readout">
                             <span>{hmiSystemLabel}</span>
                             <strong>{statusLabel === 'Running' ? 'OK' : statusLabel}</strong>
                           </div>

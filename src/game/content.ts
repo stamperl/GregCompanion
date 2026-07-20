@@ -1284,6 +1284,12 @@ export function isEuBlastMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'euBlastProcess'
 }
 
+export function isProgrammableProcessMachine(machineId: MachineId) {
+  const processKind = machineRegistry[machineId].processKind
+  return machineRegistry[machineId].tier === 'lv' &&
+    (processKind === 'euBlastProcess' || (processKind === 'euProcess' && machineId !== 'lvAirCollector' && machineId !== 'lvAutoMiner'))
+}
+
 export function isLiquidSteamBoilerMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'liquidSteamBoiler'
 }
@@ -6629,29 +6635,16 @@ export const quests: Quest[] = [
     rewards: {},
   },
   {
-    id: 'buildLvBenderQuest',
-    chapterId: 'blastPrep',
-    chapter: 'Blast Prep',
-    title: 'Build the LV bender',
-    description: 'The bender makes plates at one ingot per plate. This becomes required once aluminium and blast infrastructure start eating steel.',
-    position: { x: 1150, y: 140 },
-    icon: { type: 'machine', id: 'lvBender' },
-    prerequisites: ['fillLvBatteryQuest'],
-    requirements: {
-      machines: [{ id: 'lvBender', amount: 1 }],
-    },
-    rewards: {},
-  },
-  {
     id: 'runLvBenderQuest',
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Bend efficient plates',
-    description: 'Run the bender so LV starts paying back the hammer tax. Efficient steel plates make the next machines less painful.',
+    description: 'Use the bender from the battery-alloy line to make efficient Steel Plates. This starts paying back the hammer tax before aluminium and blast infrastructure consume your steel reserve.',
     position: { x: 1330, y: 140 },
     icon: { type: 'resource', id: 'steelPlate' },
-    prerequisites: ['buildLvBenderQuest'],
+    prerequisites: ['fillLvBatteryQuest'],
     requirements: {
+      machines: [{ id: 'lvBender', amount: 1 }],
       resources: [{ id: 'steelPlate', amount: 8 }],
     },
     rewards: {},

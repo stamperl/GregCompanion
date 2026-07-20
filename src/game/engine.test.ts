@@ -711,6 +711,9 @@ describe('game engine', () => {
     const aluminium = quests.find((quest) => quest.id === 'firstAluminiumQuest')!
 
     expect(questKind(bender)).toBe('main')
+    expect(quests.some((quest) => String(quest.id) === 'buildLvBenderQuest')).toBe(false)
+    expect(bender.prerequisites).toEqual(['fillLvBatteryQuest'])
+    expect(bender.requirements.machines).toEqual([{ id: 'lvBender', amount: 1 }])
     expect(questKind(lathe)).toBe('main')
     expect(questKind(bauxite)).toBe('main')
     expect(questKind(aluminiumDust)).toBe('main')
@@ -6309,7 +6312,7 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(0)
   })
 
-  it('stores reserved programs 0-10 on any LV machine', () => {
+  it('stores reserved programs 0-10 on LV processing machines', () => {
     let state = createFactoryState()
     state.machines.lvMacerator = 1
     state = placeMachineInstance(state, 'lvMacerator', 0, 0)
@@ -6340,7 +6343,7 @@ describe('game engine', () => {
     expect(unchanged.machineInstances[0].process.configuredProgramNumber).toBe(0)
   })
 
-  it('pauses autonomous LV production on an unused program', () => {
+  it('rejects programs on autonomous LV utilities and keeps legacy saves running', () => {
     let state = createFactoryState()
     state.machines.lvAirCollector = 1
     state.machines.lvAutoMiner = 1
@@ -6348,16 +6351,39 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'lvAutoMiner', 1, 0)
     const collector = state.machineInstances.find((instance) => instance.machineId === 'lvAirCollector')!
     const miner = state.machineInstances.find((instance) => instance.machineId === 'lvAutoMiner')!
-    state = setConfiguredProcessProgram(state, collector.uid, 1)
-    state = setConfiguredProcessProgram(state, miner.uid, 1)
+    expect(setConfiguredProcessProgram(state, collector.uid, 1)).toBe(state)
+    expect(setConfiguredProcessProgram(state, miner.uid, 1)).toBe(state)
+    collector.process.configuredProgramNumber = 1
+    miner.process.configuredProgramNumber = 1
     state = assignAutoMiner(state, miner.uid, 'stone')
     state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.euStored = 64
     state.machineInstances.find((instance) => instance.uid === miner.uid)!.process.euStored = 64
 
     state = tickGame(state, lvAutoMinerActionMs * 8).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air ?? 0).toBe(0)
-    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)!.process.output).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air ?? 0).toBeGreaterThan(0)
+    expect(state.machineInstances.find((instance) => instance.uid === miner.uid)!.process.output).not.toBeNull()
+  })
+
+  it('uses one functional stack for each LV item bus', () => {
+    let state = createFactoryState()
+    state.machines.lvInputBus = 1
+    state.machines.lvOutputBus = 1
+    state.resources.ironIngot = 3
+    state = placeMachineInstance(state, 'lvInputBus', 0, 0)
+    state = placeMachineInstance(state, 'lvOutputBus', 1, 0)
+    const inputBus = state.machineInstances.find((instance) => instance.machineId === 'lvInputBus')!
+    const outputBus = state.machineInstances.find((instance) => instance.machineId === 'lvOutputBus')!
+
+    state = insertProcessSlot(state, inputBus.uid, 'input', 'ironIngot', 2)
+    expect(state.machineInstances.find((instance) => instance.uid === inputBus.uid)!.process.input).toEqual({ id: 'ironIngot', amount: 2 })
+    expect(insertProcessSlot(state, outputBus.uid, 'input', 'ironIngot', 1)).toBe(state)
+
+    state.machineInstances.find((instance) => instance.uid === outputBus.uid)!.process.output = { id: 'steelIngot', amount: 1 }
+    state = collectProcessOutput(state, outputBus.uid, 0)
+
+    expect(state.machineInstances.find((instance) => instance.uid === outputBus.uid)!.process.output).toBeNull()
+    expect(state.resources.steelIngot).toBe(1)
   })
 
   it('allows portable containers to withdraw fluid from an input hatch', () => {

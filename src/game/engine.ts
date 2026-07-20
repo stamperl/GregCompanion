@@ -23,6 +23,7 @@ import {
   isItemHopperMachine,
   isItemStorageMachine,
   isLiquidSteamBoilerMachine,
+  isProgrammableProcessMachine,
   isResourceBackedMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
@@ -4901,6 +4902,7 @@ export function crowbarRemoveMachineInstance(state: GameState, uid: string) {
 export function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
   if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
+  if (isItemBusMachine(machineId)) return machineId === 'lvInputBus' && slotId === 'input'
   const flexibleInputSlotIds: readonly ProcessSlotId[] = machineId === 'lvMixer' ? mixerInputSlotIds : assemblerInputSlotIds
   if ((machineId === 'lvAssembler' || machineId === 'lvMixer') && flexibleInputSlotIds.includes(slotId)) {
     return processRecipes.some(
@@ -5943,8 +5945,7 @@ export function setConfiguredProcessProgram(state: GameState, uid: string, progr
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (
     !instance ||
-    machines[instance.machineId].tier !== 'lv' ||
-    isEuStorageMachine(instance.machineId) ||
+    !isProgrammableProcessMachine(instance.machineId) ||
     !Number.isInteger(programNumber) ||
     programNumber < 0 ||
     programNumber > 10 ||
@@ -5961,7 +5962,7 @@ export function setConfiguredProcessProgram(state: GameState, uid: string, progr
 }
 
 function canRunAutomaticLvProgram(instance: MachineInstance) {
-  return machines[instance.machineId].tier !== 'lv' || instance.process.configuredProgramNumber === 0
+  return !isProgrammableProcessMachine(instance.machineId) || instance.process.configuredProgramNumber === 0
 }
 
 function tickLvItemAutomation(state: GameState, source: MachineInstance, elapsedMs: number) {
