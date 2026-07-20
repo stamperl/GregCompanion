@@ -3359,6 +3359,7 @@ function App() {
     ? selectedFluidContainerKey.slice('empty:'.length) as FluidContainerKind
     : null
   const selectedContainerKind = selectedEmptyFluidContainerKind ?? selectedFluidContainerGroup?.kind
+  const selectedMachineId = selectedMachine?.machineId
   const canUseFluidPort = (buffer: MachineFluidBufferView, direction: 'input' | 'output') => {
     if (!selectedMachine) return false
     const isManualHatchTransfer = machines[selectedMachine.machineId].processKind === 'fluidHatch'
@@ -3377,9 +3378,9 @@ function App() {
 
   useEffect(() => {
     setMachineTerminalMode(
-      (selectedMachine ? isTankStorageMachine(selectedMachine.machineId) : false) ||
-      selectedMachine?.machineId === 'lvFluidInputHatch' ||
-      selectedMachine?.machineId === 'lvFluidOutputHatch'
+      (selectedMachineId ? isTankStorageMachine(selectedMachineId) : false) ||
+      selectedMachineId === 'lvFluidInputHatch' ||
+      selectedMachineId === 'lvFluidOutputHatch'
         ? 'fluids'
         : 'items',
     )
@@ -3388,7 +3389,7 @@ function App() {
     setSelectedMachinePopupRecipeIndex(0)
     setMachineRecipeLoadNotice('')
     setMachineInventorySearch('')
-  }, [selectedMachine?.machineId, selectedMachineUid])
+  }, [selectedMachineId, selectedMachineUid])
 
   useEffect(() => {
     if (listedRecipeGroups.length < 1) {
@@ -4711,6 +4712,11 @@ function App() {
 
   const handleLoadPatternRecipe = (recipe: Recipe) => {
     if (recipe.recipeType === 'processing') {
+      const processRecipe = processRecipes.find((candidate) => candidate.id === recipe.id)
+      if (processRecipe?.machineOutput) {
+        setTerminalNotice('Factory-part recipes use machine automation, not fabrication patterns.')
+        return
+      }
       setEncoderRecipeKind('processing')
       setPatternItemInputs(recipe.inputs.map((amount) => ({ ...amount })))
       setPatternFluidInputs(recipe.fluidInputs?.map((amount) => ({ ...amount })) ?? [])
@@ -6468,7 +6474,9 @@ function App() {
                         onClick={() => isPatternRecipeBookOpen ? handleLoadPatternRecipe(selectedRecipe) : handleRecipeBrowserAction(selectedRecipe)}
                       >
                         {isPatternRecipeBookOpen
-                          ? selectedRecipe.recipeType === 'processing' || recipeFitsTerminalGrid(selectedRecipe) ? 'Fill pattern' : 'Cannot encode this recipe'
+                          ? selectedRecipe.recipeType === 'processing' && selectedProcessRecipe?.machineOutput
+                            ? 'Factory parts cannot be encoded'
+                            : selectedRecipe.recipeType === 'processing' || recipeFitsTerminalGrid(selectedRecipe) ? 'Fill pattern' : 'Cannot encode this recipe'
                           : isFactoryFloorLayoutRecipe(selectedRecipe)
                           ? 'Create factory parts'
                           : recipeOpensProcessView(selectedRecipe)
@@ -6493,7 +6501,7 @@ function App() {
                             Request craft
                           </button>
                         )}
-                        {!isPatternRecipeBookOpen && placedPatternTerminal && !state.recipeCards.some((card) => card.recipeId === selectedRecipe.id) && (
+                        {!isPatternRecipeBookOpen && placedPatternTerminal && !selectedProcessRecipe?.machineOutput && !state.recipeCards.some((card) => card.recipeId === selectedRecipe.id) && (
                           <button
                             type="button"
                             className="fabrication-command"

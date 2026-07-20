@@ -6181,6 +6181,7 @@ export const quests: Quest[] = [
         { id: 'cokeOven', amount: 1 },
         { id: 'steamTank', amount: 1 },
       ],
+      fluidTransfers: [{ direction: 'fill', kind: 'any', fluidId: 'creosote', amountLitres: 1, machineId: 'cokeOven' }],
     },
     rewards: {},
   },

@@ -6,6 +6,7 @@ const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.u
 const contentPath = path.join(root, 'src/game/content.ts')
 const resourcesDir = path.join(root, 'public/game-icons/resources')
 const machinesDir = path.join(root, 'public/game-icons/machines')
+const approvalsPath = path.join(root, 'public/icon-reviews/approvals.json')
 
 function registryKeys(source, exportName) {
   const start = source.indexOf(`export const ${exportName}`)
@@ -63,10 +64,14 @@ function checkSet(kind, ids, dir) {
 const source = readFileSync(contentPath, 'utf8')
 const resourceIds = registryKeys(source, 'resourceRegistry')
 const machineIds = registryKeys(source, 'machineRegistry')
+const approvals = JSON.parse(readFileSync(approvalsPath, 'utf8')).approvals ?? []
 const codeNativeMachineIds = new Set(['itemConductor', 'fluidConductor', 'conductorBundle', 'fabricationCable'])
 const failures = [
   ...checkSet('resource', resourceIds, resourcesDir),
   ...checkSet('machine', machineIds.filter((id) => !codeNativeMachineIds.has(id)), machinesDir),
+  ...approvals
+    .filter((approval) => approval.status !== 'approved')
+    .map((approval) => `approval ${approval.id}: status is ${approval.status}`),
 ]
 
 if (failures.length > 0) {

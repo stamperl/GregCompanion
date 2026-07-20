@@ -16,6 +16,7 @@ import {
   isEuPoweredMachine,
   isEuProducerMachine,
   isEuStorageMachine,
+  isFluidHatchMachine,
   isItemBusMachine,
   isConductorMachine,
   isFluidConductorMachine,
@@ -1808,6 +1809,7 @@ function fabricationProcessRecipeForMachine(card: RecipeCardInstance, machineId:
 }
 
 export function fabricationCardSupportsMachine(card: RecipeCardInstance, machineId: MachineId) {
+  if (machineId === 'furnace') return false
   return card.kind === 'crafting'
     ? machineId === 'autoFabricator'
     : Boolean(fabricationProcessRecipeForMachine(card, machineId))
@@ -1844,7 +1846,7 @@ export function encodeCraftingRecipeCard(state: GameState, encoderUid: string, r
 export function encodeProcessingRecipeCard(state: GameState, encoderUid: string, recipeId: string) {
   const encoder = state.machineInstances.find((instance) => instance.uid === encoderUid && instance.machineId === 'recipeEncoder')
   const network = encoder ? fabricationNetworkForDevice(state, encoder.uid) : null
-  const recipe = processRecipes.find((candidate) => candidate.id === recipeId)
+  const recipe = processRecipes.find((candidate) => candidate.id === recipeId && !candidate.machineOutput)
   if (!encoder || !network || !recipe || availableResourceAmount(state, 'blankRecipeCard') < 1 || network.rack.controller.process.euStored < 64) return state
   const next = subtractResources(state, [{ id: 'blankRecipeCard', amount: 1 }])
   const nextController = next.machineInstances.find((instance) => instance.uid === network.rack.controller.uid)!
@@ -2143,10 +2145,16 @@ export function fabricationNetworkForInterface(state: GameState, interfaceUid: s
 }
 
 function fabricationInterfaceTarget(state: GameState, fabricationInterface: FabricationNetworkInterface, card: RecipeCardInstance) {
+  const compatibleTarget = (target: MachineInstance | undefined) => {
+    if (!target) return null
+    const arcStructure = arcBlastFurnaceStructureForInstance(state, target)
+    const resolved = arcStructure?.formed ? arcStructure.controller : target
+    return fabricationCardMatchesTarget(card, resolved) ? resolved : null
+  }
   if (fabricationInterface.kind === 'face') {
     const offset = pipeDirectionOffsets[fabricationInterface.attachment.direction]
     const target = machineAt(state, fabricationInterface.cable.x + offset.dx, fabricationInterface.cable.y + offset.dy)
-    return target && fabricationCardMatchesTarget(card, target) ? target : null
+    return compatibleTarget(target)
   }
   const directions = fabricationInterface.instance.fabricationFace
     ? [fabricationInterface.instance.fabricationFace]
@@ -2155,7 +2163,8 @@ function fabricationInterfaceTarget(state: GameState, fabricationInterface: Fabr
     const offset = pipeDirectionOffsets[direction]
     const target = machineAt(state, fabricationInterface.instance.x + offset.dx, fabricationInterface.instance.y + offset.dy)
     if (!target || hasFabricationCable(target) || planningRackStructureForPart(state, target)) continue
-    if (fabricationCardMatchesTarget(card, target)) return target
+    const resolved = compatibleTarget(target)
+    if (resolved) return resolved
   }
   return null
 }
@@ -2447,8 +2456,15 @@ export function cancelFabricationJob(state: GameState, jobUid: string) {
   }
   nextJob.reservedItems = []
   nextJob.reservedFluids = nextJob.reservedFluids.filter((amount) => amount.amount > 0)
+  if (nextJob.reservedFluids.length > 0) {
+    nextJob.status = 'blocked'
+    nextJob.blockedReason = network
+      ? 'Linked fluid storage is full; clear capacity and cancel again'
+      : 'Reconnect the Planning Controller network to recover reserved fluids'
+    return next
+  }
   nextJob.status = 'cancelled'
-  nextJob.blockedReason = nextJob.reservedFluids.length ? 'Fluid storage full; recovery remains pending' : undefined
+  nextJob.blockedReason = undefined
   return next
 }
 
@@ -4071,13 +4087,29 @@ function nextFluidContainerUid(state: GameState, kind: FluidContainerKind) {
   return `${prefix}-${index}`
 }
 
-export function fluidTransferMilestoneKey(direction: 'fill' | 'drain', kind: FluidContainerKind, fluidId: FluidId, machineId?: MachineId) {
+export function fluidTransferMilestoneKey(direction: 'fill' | 'drain', kind: FluidContainerKind | 'any', fluidId: FluidId, machineId?: MachineId) {
   return [direction, kind, fluidId, machineId ?? 'any'].join(':')
 }
 
 function recordFluidTransfer(state: GameState, direction: 'fill' | 'drain', kind: FluidContainerKind, fluidId: FluidId, machineId: MachineId, amountLitres: number) {
   const amount = normalizeLitres(amountLitres)
-  for (const key of [fluidTransferMilestoneKey(direction, kind, fluidId), fluidTransferMilestoneKey(direction, kind, fluidId, machineId)]) {
+  for (const key of [
+    fluidTransferMilestoneKey(direction, kind, fluidId),
+    fluidTransferMilestoneKey(direction, kind, fluidId, machineId),
+    fluidTransferMilestoneKey(direction, 'any', fluidId),
+    fluidTransferMilestoneKey(direction, 'any', fluidId, machineId),
+  ]) {
+    state.fluidTransferMilestones[key] = normalizeLitres((state.fluidTransferMilestones[key] ?? 0) + amount)
+  }
+}
+
+function recordAutomatedFluidTransfer(state: GameState, source: MachineInstance, fluidId: FluidId, amountLitres: number) {
+  const amount = normalizeLitres(amountLitres)
+  if (amount <= 0) return
+  for (const key of [
+    fluidTransferMilestoneKey('fill', 'any', fluidId),
+    fluidTransferMilestoneKey('fill', 'any', fluidId, source.machineId),
+  ]) {
     state.fluidTransferMilestones[key] = normalizeLitres((state.fluidTransferMilestones[key] ?? 0) + amount)
   }
 }
@@ -4403,6 +4435,7 @@ function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, 
   source.process.fluids[fluidId] = stored - moved
   spendTickBudget(activeFluidTransferBudgets, sourceBudgetKey, moved)
   recordFluidSourceFlow(source, fluidId, moved)
+  recordAutomatedFluidTransfer(state, source, fluidId, moved)
   return moved
 }
 
@@ -5024,13 +5057,20 @@ export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTarg
 export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
+  const protectedArcControllerUid = arcControllerNearInstance(state, instance)?.uid
   const ownedInterfaceUids = new Set([
     ...(instance.machineId === 'jobInterface' ? [instance.uid] : []),
     ...Object.values(instance.fabricationInterfaces ?? {}).flatMap((attachment) => attachment?.uid ? [attachment.uid] : []),
   ])
   if (state.fabricationJobs.some((job) => (
     job.status !== 'complete' && job.status !== 'cancelled' &&
-    (job.interfaceUid && ownedInterfaceUids.has(job.interfaceUid) || job.steps.some((step) => step.interfaceUid && ownedInterfaceUids.has(step.interfaceUid)))
+    (
+      job.controllerUid === uid ||
+      job.steps.some((step) => step.targetUid === uid) ||
+      (protectedArcControllerUid && job.steps.some((step) => step.targetUid === protectedArcControllerUid)) ||
+      (job.interfaceUid && ownedInterfaceUids.has(job.interfaceUid)) ||
+      job.steps.some((step) => step.interfaceUid && ownedInterfaceUids.has(step.interfaceUid))
+    )
   ))) return state
 
   const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
@@ -6251,6 +6291,8 @@ function removableInventorySlots(instance: MachineInstance) {
   }
   if (isItemHopperMachine(instance.machineId)) {
     for (const slotId of hopperStorageSlotIds) slots.push({ get: () => instance.process[slotId], set: (slot) => { instance.process[slotId] = slot } })
+  } else if (instance.machineId === 'lvOutputBus') {
+    slots.push({ get: () => instance.process.output, set: (slot) => { instance.process.output = slot } })
   } else if (!isItemBusMachine(instance.machineId)) {
     const outputCount = machines[instance.machineId].itemOutputSlots ?? 1
     for (const slotId of processOutputSlotIds.slice(0, outputCount)) {
@@ -6261,7 +6303,13 @@ function removableInventorySlots(instance: MachineInstance) {
 }
 
 function insertOneIntoInventory(instance: MachineInstance, resourceId: ResourceId) {
-  if (isItemBusMachine(instance.machineId)) return false
+  if (instance.machineId === 'lvOutputBus') return false
+  if (instance.machineId === 'lvInputBus') {
+    const slot = instance.process.input
+    if (slot && (slot.id !== resourceId || slot.amount >= processStackLimit)) return false
+    instance.process.input = slot ? { id: resourceId, amount: slot.amount + 1 } : { id: resourceId, amount: 1 }
+    return true
+  }
   if (instance.process.storageSlots.length > 0) {
     const existingIndex = instance.process.storageSlots.findIndex((slot) => slot?.id === resourceId && slot.amount < processStackLimit)
     const targetIndex = existingIndex >= 0 ? existingIndex : instance.process.storageSlots.findIndex((slot) => !slot)
@@ -6320,7 +6368,10 @@ function conductorEndpoints(state: GameState, network: MachineInstance[], lane: 
     const offset = pipeDirectionOffsets[direction]
     const adjacent = machineAt(state, conductor.x + offset.dx, conductor.y + offset.dy)
     if (!adjacent || isConductorMachine(adjacent.machineId)) return []
-    return [{ conductor, direction, adjacent: hopperFeedTarget(state, adjacent), settings }]
+    const preservesDedicatedPort = lane === 'item'
+      ? isItemBusMachine(adjacent.machineId)
+      : isFluidHatchMachine(adjacent.machineId)
+    return [{ conductor, direction, adjacent: preservesDedicatedPort ? adjacent : hopperFeedTarget(state, adjacent), settings }]
   }))
 }
 
@@ -6443,6 +6494,7 @@ function tickFluidConductorNetwork(state: GameState, network: MachineInstance[],
         if (transfer <= 0) continue
         source.adjacent.process.fluids[fluidId] = normalizeLitres((source.adjacent.process.fluids[fluidId] ?? 0) - transfer)
         target.adjacent.process.fluids[fluidId] = normalizeLitres((target.adjacent.process.fluids[fluidId] ?? 0) + transfer)
+        recordAutomatedFluidTransfer(state, source.adjacent, fluidId, transfer)
         remaining = normalizeLitres(remaining - transfer)
         cursor += 1
         if (source.settings.roundRobin) break
@@ -6543,7 +6595,19 @@ function processSlotsAreEmpty(process: MachineProcessState) {
     !process.activeRecipeId
 }
 
-function loadFabricationProcessBatch(job: FabricationJob, target: MachineInstance, recipe: ProcessRecipe) {
+function fabricationTargetIsEmpty(state: GameState, target: MachineInstance) {
+  if (!processSlotsAreEmpty(target.process)) return false
+  if (target.machineId !== 'arcBlastFurnace') return true
+  const structure = arcBlastFurnaceStructureForInstance(state, target)
+  return Boolean(
+    structure?.formed &&
+    !structure.inputBus?.process.input &&
+    !structure.outputBus?.process.output &&
+    (!structure.fluidOutputHatch || storedFluidTypes(structure.fluidOutputHatch.process).length === 0),
+  )
+}
+
+function loadFabricationProcessBatch(state: GameState, job: FabricationJob, target: MachineInstance, recipe: ProcessRecipe) {
   const itemInputs = combineResourceAmounts([
     recipe.input,
     ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
@@ -6551,35 +6615,42 @@ function loadFabricationProcessBatch(job: FabricationJob, target: MachineInstanc
     ...(recipe.fuelInput ? [recipe.fuelInput] : []),
   ].filter((amount) => amount.amount > 0))
   const fluidInputs = recipeFluidInputs(recipe)
+  const arcStructure = target.machineId === 'arcBlastFurnace' ? arcBlastFurnaceStructureForInstance(state, target) : null
+  if (arcStructure && (!arcStructure.formed || !arcStructure.inputBus || (fluidInputs.length > 0 && !arcStructure.fluidInputHatch))) return false
   if (!removeReservedItems(job, itemInputs) || !removeReservedFluids(job, fluidInputs)) return false
   target.process.configuredProgramNumber = recipe.programNumber ?? 0
-  target.process.input = recipe.input.amount > 0 ? { ...recipe.input } : null
-  target.process.secondaryInput = recipe.secondaryInput ? { ...recipe.secondaryInput } : null
+  const itemProcess = arcStructure?.inputBus?.process ?? target.process
+  const fluidProcess = arcStructure?.fluidInputHatch?.process ?? target.process
+  itemProcess.input = recipe.input.amount > 0 ? { ...recipe.input } : null
+  itemProcess.secondaryInput = recipe.secondaryInput ? { ...recipe.secondaryInput } : null
   const extraInputSlotIds = recipe.machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   extraInputSlotIds.forEach((slotId, index) => {
-    target.process[slotId] = recipe.extraInputs?.[index] ? { ...recipe.extraInputs[index] } : null
+    itemProcess[slotId] = recipe.extraInputs?.[index] ? { ...recipe.extraInputs[index] } : null
   })
-  target.process.fuel = recipe.fuelInput ? { ...recipe.fuelInput } : null
-  for (const fluid of fluidInputs) target.process.fluids[fluid.id] = (target.process.fluids[fluid.id] ?? 0) + fluid.amount
+  itemProcess.fuel = recipe.fuelInput ? { ...recipe.fuelInput } : null
+  for (const fluid of fluidInputs) fluidProcess.fluids[fluid.id] = (fluidProcess.fluids[fluid.id] ?? 0) + fluid.amount
   return true
 }
 
-function collectFabricationProcessBatch(job: FabricationJob, target: MachineInstance, recipe: ProcessRecipe, card: RecipeCardInstance) {
+function collectFabricationProcessBatch(state: GameState, job: FabricationJob, target: MachineInstance, recipe: ProcessRecipe, card: RecipeCardInstance) {
   const actualItems = recipeItemOutputs(recipe).filter((amount) => amount.amount > 0)
   const declaredItems = cardItemOutputs(card)
   const actualKey = actualItems.map((amount) => `${amount.id}:${amount.amount}`).sort().join('|')
   const declaredKey = declaredItems.map((amount) => `${amount.id}:${amount.amount}`).sort().join('|')
   if (actualKey !== declaredKey) return 'Encoded outputs do not match the machine recipe'
-  const slots = processOutputSlotIds.map((slotId) => target.process[slotId])
+  const arcStructure = target.machineId === 'arcBlastFurnace' ? arcBlastFurnaceStructureForInstance(state, target) : null
+  const itemProcess = arcStructure?.outputBus?.process ?? target.process
+  const fluidProcess = arcStructure?.fluidOutputHatch?.process ?? target.process
+  const slots = processOutputSlotIds.map((slotId) => itemProcess[slotId])
   if (!actualItems.every((amount) => slots.some((slot) => slot?.id === amount.id && slot.amount >= amount.amount))) return null
   const actualFluids = recipeFluidOutputs(recipe)
-  if (!actualFluids.every((amount) => (target.process.fluids[amount.id] ?? 0) >= amount.amount)) return null
+  if (!actualFluids.every((amount) => (fluidProcess.fluids[amount.id] ?? 0) >= amount.amount)) return null
 
   for (const amount of actualItems) {
-    const slotId = processOutputSlotIds.find((candidate) => target.process[candidate]?.id === amount.id)
-    if (slotId) target.process[slotId] = decrementProcessSlot(target.process[slotId], amount.amount)
+    const slotId = processOutputSlotIds.find((candidate) => itemProcess[candidate]?.id === amount.id)
+    if (slotId) itemProcess[slotId] = decrementProcessSlot(itemProcess[slotId], amount.amount)
   }
-  for (const amount of actualFluids) target.process.fluids[amount.id] = Math.max(0, (target.process.fluids[amount.id] ?? 0) - amount.amount)
+  for (const amount of actualFluids) fluidProcess.fluids[amount.id] = Math.max(0, (fluidProcess.fluids[amount.id] ?? 0) - amount.amount)
   addReservedItems(job, actualItems)
   addReservedFluids(job, actualFluids)
   const die = target.process.secondaryInput
@@ -6698,7 +6769,7 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
       continue
     }
     if (!activeStep.dispatched) {
-      if (!processSlotsAreEmpty(target.process)) {
+      if (!fabricationTargetIsEmpty(state, target)) {
         job.status = 'blocked'
         job.blockedReason = 'Adjacent machine must be empty before dispatch'
         continue
@@ -6708,7 +6779,7 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
         job.progressMs += elapsedMs
         if (job.progressMs < fluidTransferMs) continue
       }
-      if (!loadFabricationProcessBatch(job, target, recipe)) {
+      if (!loadFabricationProcessBatch(state, job, target, recipe)) {
         job.status = 'blocked'
         job.blockedReason = 'Reserved processing inputs are incomplete'
         continue
@@ -6718,7 +6789,7 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
       continue
     }
     if (target.process.activeRecipeId) continue
-    const collection = collectFabricationProcessBatch(job, target, recipe, card)
+    const collection = collectFabricationProcessBatch(state, job, target, recipe, card)
     if (collection === null) continue
     if (collection) {
       job.status = 'blocked'
@@ -7067,6 +7138,7 @@ export function questObjectiveLabel(objective: QuestObjective) {
   if (objective.type === 'factoryFoundation') return `Factory foundation level ${objective.level}`
   if (objective.type === 'installedBattery') return `Batteries installed in ${machines[objective.id].name}`
   if (objective.type === 'fluidTransfer') {
+    if (objective.kind === 'any') return objective.label ?? `Route ${fluidLabels[objective.fluidId]}`
     const container = objective.kind === 'bucket' ? 'Bucket' : 'Steel Cell'
     const action = objective.direction === 'fill' ? 'Fill' : 'Drain'
     return `${action} ${container} with ${objective.fluidId === 'liquidRubber' ? 'Liquid Rubber' : objective.fluidId[0].toUpperCase() + objective.fluidId.slice(1)}`

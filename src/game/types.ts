@@ -653,7 +653,7 @@ export type Quest = {
     recipes?: Array<{ id: string; amount: number }>
     fluidTransfers?: Array<{
       direction: 'fill' | 'drain'
-      kind: FluidContainerKind
+      kind: FluidContainerKind | 'any'
       fluidId: FluidId
       amountLitres: number
       machineId?: MachineId
@@ -700,7 +700,7 @@ export type QuestObjective =
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'installedBattery'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }
-  | { type: 'fluidTransfer'; direction: 'fill' | 'drain'; kind: FluidContainerKind; fluidId: FluidId; amountLitres: number; machineId?: MachineId; label?: string }
+  | { type: 'fluidTransfer'; direction: 'fill' | 'drain'; kind: FluidContainerKind | 'any'; fluidId: FluidId; amountLitres: number; machineId?: MachineId; label?: string }
   | { type: 'fabrication'; id: 'cardEncoded' | 'rackFormed' | 'jobComplete'; amount: number; label?: string }
 
 export type Machine = {
