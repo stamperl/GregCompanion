@@ -821,10 +821,11 @@ describe('game engine', () => {
   it('branches LV separation, gases, and sulfur chemistry without optional gates', () => {
     const quest = (id: QuestId) => quests.find((candidate) => candidate.id === id)!
 
-    expect(quest('buildLvCentrifugeQuest').prerequisites).toEqual(['makeLvMotionPartsQuest'])
+    expect(quest('buildLvCentrifugeQuest').prerequisites).toEqual(['buildFourAmpBufferQuest'])
     expect(quest('separateStickyResinQuest').prerequisites).toEqual(['buildLvCentrifugeQuest', 'treeTapQuest'])
-    expect(quest('buildAirCollectorQuest').prerequisites).toEqual(['buildLvCentrifugeQuest', 'makeLvMotionPartsQuest'])
+    expect(quest('buildAirCollectorQuest').prerequisites).toEqual(['buildLvCentrifugeQuest'])
     expect(quest('separateAirQuest').prerequisites).toEqual(['buildAirCollectorQuest'])
+    expect(quest('useGlueQuest').prerequisites).toEqual(['buildLvAssemblerForPortsQuest'])
     expect(quest('buildChemicalReactorQuest').prerequisites).toEqual(['makeSulfurDustQuest', 'makeLvMotionPartsQuest'])
     expect(quest('makeLiquidRubberQuest').prerequisites).toEqual(['buildChemicalReactorQuest', 'separateStickyResinQuest'])
     expect(quest('craftArcItemBusesQuest').prerequisites).toEqual(['buildLvAssemblerForPortsQuest'])
