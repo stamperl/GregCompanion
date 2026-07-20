@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-17",
+  "updatedAt": "2026-07-20",
   "approvals": [
     { "id": "rubberPulp", "review": "lv-chemistry-v1", "status": "approved" },
     { "id": "lvAirCollector", "review": "lv-chemistry-v1", "status": "approved" },
@@ -49,6 +49,7 @@
     { "id": "fluidStorageLink", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "planningController", "review": "mv-fabrication-v1", "status": "pending" },
     { "id": "memoryModule", "review": "mv-fabrication-v1", "status": "pending" },
-    { "id": "dispatchModule", "review": "mv-fabrication-v1", "status": "pending" }
+    { "id": "dispatchModule", "review": "mv-fabrication-v1", "status": "pending" },
+    { "id": "steelTank", "review": "steel-tank-v1", "status": "approved" }
   ]
 }
