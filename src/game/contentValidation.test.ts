@@ -104,6 +104,15 @@ function expectQuestObjectiveReferences(objective: QuestObjective, context: stri
     expect([...recipes, ...processRecipes].some((recipe) => recipe.id === objective.id), `${context} references unknown recipe ${objective.id}`).toBe(true)
     expect(objective.amount, `${context} recipe amount should be positive`).toBeGreaterThan(0)
   }
+  if (objective.type === 'recipeAny') {
+    expect(objective.ids.length, `${context} should list alternative recipes`).toBeGreaterThan(1)
+    expect(new Set(objective.ids).size, `${context} should not repeat alternative recipes`).toBe(objective.ids.length)
+    expect(objective.label.trim(), `${context} should explain the alternative route`).not.toBe('')
+    for (const recipeId of objective.ids) {
+      expect([...recipes, ...processRecipes].some((recipe) => recipe.id === recipeId), `${context} references unknown recipe ${recipeId}`).toBe(true)
+    }
+    expect(objective.amount, `${context} recipe amount should be positive`).toBeGreaterThan(0)
+  }
 }
 
 describe('content validation', () => {
@@ -361,6 +370,54 @@ describe('content validation', () => {
       for (const prerequisiteId of quest.prerequisites ?? []) {
         const prerequisite = questById.get(prerequisiteId)!
         expect(questKind(prerequisite), `${quest.id} should not depend on optional ${prerequisiteId}`).not.toBe('optional')
+      }
+    }
+  })
+
+  it('only exposes recipe and machine objectives after a production route is unlocked', () => {
+    const questById = new Map(quests.map((quest) => [quest.id, quest]))
+    const prerequisitesFor = (questId: (typeof quests)[number]['id'], result = new Set<string>()): Set<string> => {
+      for (const prerequisiteId of questById.get(questId)?.prerequisites ?? []) {
+        if (result.has(prerequisiteId)) continue
+        result.add(prerequisiteId)
+        prerequisitesFor(prerequisiteId, result)
+      }
+      return result
+    }
+    const recipeAvailableToQuest = (questId: (typeof quests)[number]['id'], recipeId: string) => {
+      const recipe = [...recipes, ...processRecipes].find((candidate) => candidate.id === recipeId)
+      const unlockedBy = recipe && 'unlockedBy' in recipe ? recipe.unlockedBy : undefined
+      return Boolean(recipe && (!unlockedBy || prerequisitesFor(questId).has(unlockedBy)))
+    }
+
+    for (const quest of quests) {
+      const recipeObjectives = [
+        ...(quest.requirements.recipes ?? []).map((requirement) => requirement.id),
+        ...(quest.objectives ?? []).flatMap((objective) => objective.type === 'recipe'
+          ? [objective.id]
+          : objective.type === 'recipeAny'
+            ? objective.ids
+            : []),
+      ]
+      for (const recipeId of recipeObjectives) {
+        expect(recipeAvailableToQuest(quest.id, recipeId), `${quest.id} should not appear before ${recipeId} is unlocked`).toBe(true)
+      }
+
+      for (const requirement of quest.requirements.machines ?? []) {
+        const craftingSources = recipes.filter((recipe) =>
+          recipe.machineOutputs?.some((output) => output.id === requirement.id)
+          || recipe.outputs.some((output) => output.id === requirement.id),
+        )
+        const processSources = processRecipes.filter((recipe) => recipe.machineOutput?.id === requirement.id)
+        const knownSources = [...craftingSources, ...processSources]
+        if (!knownSources.length) continue
+        expect(
+          knownSources.some((recipe) => {
+            const unlockedBy = 'unlockedBy' in recipe ? recipe.unlockedBy : undefined
+            return !unlockedBy || prerequisitesFor(quest.id).has(unlockedBy)
+          }),
+          `${quest.id} should not appear before ${requirement.id} can be built`,
+        ).toBe(true)
       }
     }
   })

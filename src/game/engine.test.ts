@@ -90,6 +90,7 @@ import {
   processStackLimit,
   questKind,
   questObjectiveProgress,
+  questObjectiveProgressRows,
   questProgress,
   questScripReward,
   questStatus,
@@ -472,6 +473,33 @@ describe('game engine', () => {
     expect(state.claimedQuests).toEqual(['punchTree', 'craftPlanks'])
   })
 
+  it('keeps historical quest completion authoritative after objectives change', () => {
+    const state = createInitialState(1000)
+    const quest = quests.find((candidate) => candidate.id === 'makeEmptyBatteryCellQuest')!
+    state.completedQuests = [quest.id]
+    state.claimedQuests = [quest.id]
+
+    expect(questProgress(state, quest)).toBe(1)
+    expect(questObjectiveProgressRows(state, quest).every((progress) => progress.complete)).toBe(true)
+  })
+
+  it('credits any valid production route in an alternative-recipe objective', () => {
+    const cases = [
+      ['cureLiquidRubberQuest', 'lv_furnace_rubber_pulp'],
+      ['makeEmptyBatteryCellQuest', 'lv_alloy_battery_alloy_dust'],
+      ['insulateWithLiquidRubberQuest', 'lv_assembler_liquid_tin_cable_4a'],
+    ] as const
+
+    for (const [questId, recipeId] of cases) {
+      const state = createInitialState(1000)
+      const quest = quests.find((candidate) => candidate.id === questId)!
+      const objective = quest.objectives!.find((candidate) => candidate.type === 'recipeAny')!
+      expect(questObjectiveProgress(state, objective).complete, questId).toBe(false)
+      state.recipeMilestones[recipeId] = 1
+      expect(questObjectiveProgress(state, objective).complete, questId).toBe(true)
+    }
+  })
+
   it('unlocks the shop after the getting started gate and buys only discovered resources', () => {
     let state = createInitialState(1000)
     const logShopItem = shopItems.find((item) => item.id === 'log')!
@@ -727,14 +755,15 @@ describe('game engine', () => {
     expect(diamondPick.prerequisites).toEqual(['bufferLvPowerQuest'])
     expect(batteryMinerals.prerequisites).toEqual(['makeDiamondPickQuest'])
     expect(emptyCell.prerequisites).toEqual(['gatherBatteryMineralsQuest'])
-    expect(emptyCell.requirements.machines).toEqual([
-      { id: 'lvAlloySmelter', amount: 1 },
-      { id: 'lvBender', amount: 1 },
+    expect(emptyCell.objectives?.filter((objective) => objective.type === 'machine')).toEqual([
+      { type: 'machine', id: 'lvAlloySmelter', amount: 1, progressMode: 'lifetime' },
+      { type: 'machine', id: 'lvBender', amount: 1, progressMode: 'lifetime' },
     ])
-    expect(emptyCell.requirements.recipes).toEqual([
-      { id: 'lv_alloy_battery_alloy_ingots', amount: 1 },
-      { id: 'lv_bender_battery_alloy_plate', amount: 4 },
-    ])
+    expect(emptyCell.objectives?.find((objective) => objective.type === 'recipeAny')).toMatchObject({
+      ids: ['lv_alloy_battery_alloy_dust', 'lv_alloy_battery_alloy_ingots'],
+      amount: 1,
+    })
+    expect(emptyCell.objectives).toContainEqual({ type: 'recipe', id: 'lv_bender_battery_alloy_plate', amount: 4 })
     expect(canner.prerequisites).toEqual(['makeEmptyBatteryCellQuest'])
     expect(filledBattery.prerequisites).toEqual(['buildLvCannerQuest'])
     expect(fourAmpCable.prerequisites).toEqual(['buildTwoAmpCableQuest'])

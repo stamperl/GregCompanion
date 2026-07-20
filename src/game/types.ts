@@ -696,6 +696,7 @@ export type QuestObjective =
   | { type: 'machine'; id: MachineId; amount: number; label?: string; progressMode?: 'current' | 'lifetime' }
   | { type: 'surveyCard'; id: GatherTargetId; amount: number; label?: string }
   | { type: 'recipe'; id: string; amount: number; label?: string }
+  | { type: 'recipeAny'; ids: string[]; amount: number; label: string }
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'installedBattery'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }

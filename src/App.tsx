@@ -155,7 +155,7 @@ import {
   processRecipeInputLoadStatus,
   questProgress,
   questObjectiveProgress,
-  questObjectives,
+  questObjectiveProgressRows,
   questKind,
   questScripReward,
   questStatus,
@@ -2024,7 +2024,7 @@ function QuestDetail({
   const status = questStatus(state, quest)
   const claimed = state.claimedQuests.includes(quest.id)
   const claimReady = status === 'completed' && !claimed
-  const progressRows = questObjectives(quest).map((objective) => questObjectiveProgress(state, objective))
+  const progressRows = questObjectiveProgressRows(state, quest)
   const kind = questKind(quest)
   const scripReward = questScripReward(quest)
   const rewardResources = quest.rewards.resources ?? []
@@ -2062,7 +2062,7 @@ function QuestDetail({
               onSelectResource={onSelectResource}
               onSelectMachine={onSelectMachine}
               onOpenFactory={onOpenFactory}
-              key={`${progress.objective.type}-${'id' in progress.objective ? progress.objective.id : progress.objective.type === 'factoryFoundation' ? progress.objective.level : `${progress.objective.kind}-${progress.objective.fluidId}-${progress.objective.direction}`}`}
+              key={`${progress.objective.type}-${'id' in progress.objective ? progress.objective.id : 'ids' in progress.objective ? progress.objective.ids.join('-') : progress.objective.type === 'factoryFoundation' ? progress.objective.level : `${progress.objective.kind}-${progress.objective.fluidId}-${progress.objective.direction}`}`}
             />
           ))}
         </div>
@@ -5445,27 +5445,29 @@ function App() {
         </header>
       )}
 
-      <div className="achievement-toast-stack" aria-label="Quest achievements" aria-live="polite">
-        {achievementToasts.map((toast) => (
-          <button
-            type="button"
-            className="achievement-toast"
-            onPointerDown={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              handleAchievementToastClick(toast)
-            }}
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-            }}
-            key={toast.id}
-          >
-            <span>Quest complete</span>
-            <strong>{toast.title}</strong>
-          </button>
-        ))}
-      </div>
+      {!selectedQuestId && (
+        <div className="achievement-toast-stack" aria-label="Quest achievements" aria-live="polite">
+          {achievementToasts.map((toast) => (
+            <button
+              type="button"
+              className="achievement-toast"
+              onPointerDown={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                handleAchievementToastClick(toast)
+              }}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+              key={toast.id}
+            >
+              <span>Quest complete</span>
+              <strong>{toast.title}</strong>
+            </button>
+          ))}
+        </div>
+      )}
 
       {offlineNotice && (
         <div className="offline-progress-notice" aria-live="polite">

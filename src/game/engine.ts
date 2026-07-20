@@ -6803,6 +6803,9 @@ function questObjectiveCurrent(state: GameState, objective: QuestObjective) {
     return (state.surveyCards[objective.id] ?? 0) + installedCards
   }
   if (objective.type === 'recipe') return state.recipeMilestones[objective.id] ?? 0
+  if (objective.type === 'recipeAny') {
+    return objective.ids.reduce((total, recipeId) => total + (state.recipeMilestones[recipeId] ?? 0), 0)
+  }
   if (objective.type === 'fabrication') {
     const milestoneId = objective.id === 'cardEncoded'
       ? 'fabrication_card_encoded'
@@ -6835,6 +6838,7 @@ export function questObjectiveLabel(objective: QuestObjective) {
   if (objective.type === 'resource') return resourceLabels[objective.id]
   if (objective.type === 'surveyCard') return `${gatherTargets[objective.id].name} Survey Card`
   if (objective.type === 'recipe') return processRecipes.find((recipe) => recipe.id === objective.id)?.name ?? recipes.find((recipe) => recipe.id === objective.id)?.name ?? objective.id
+  if (objective.type === 'recipeAny') return objective.label
   if (objective.type === 'fabrication') {
     return objective.id === 'cardEncoded' ? 'Fabrication pattern encoded' : objective.id === 'rackFormed' ? 'Planning rack formed' : 'Fabrication job completed'
   }
@@ -6860,6 +6864,15 @@ export function questObjectiveProgress(state: GameState, objective: QuestObjecti
   }
 }
 
+export function questObjectiveProgressRows(state: GameState, quest: Quest): QuestObjectiveProgress[] {
+  const completed = state.completedQuests.includes(quest.id)
+  return questObjectives(quest).map((objective) => {
+    const progress = questObjectiveProgress(state, objective)
+    if (!completed || progress.complete) return progress
+    return { ...progress, current: progress.required, complete: true }
+  })
+}
+
 export function questPrerequisitesMet(state: GameState, quest: Quest) {
   return (quest.prerequisites ?? []).every((questId) => state.completedQuests.includes(questId))
 }
@@ -6869,9 +6882,9 @@ function questPrerequisitesMetBySet(completedQuests: Set<QuestId>, quest: Quest)
 }
 
 export function questProgress(state: GameState, quest: Quest) {
-  const objectives = questObjectives(quest)
-  if (!objectives.length) return 1
-  return objectives.filter((objective) => questObjectiveProgress(state, objective).complete).length / objectives.length
+  const progressRows = questObjectiveProgressRows(state, quest)
+  if (!progressRows.length) return 1
+  return progressRows.filter((progress) => progress.complete).length / progressRows.length
 }
 
 export function questStatus(state: GameState, quest: Quest): QuestStatus {
