@@ -5429,7 +5429,7 @@ describe('game engine', () => {
         { id: 'tinRod', amount: 4 },
         { id: cableId, amount: 2 },
         { id: 'redAlloyWire', amount: 1 },
-        { id: 'primitiveCircuit', amount: outputId === 'lvBatteryBuffer' ? 1 : outputId === 'lvBatteryBuffer2A' ? 2 : 4 },
+        { id: 'primitiveCircuit', amount: 1 },
       ])
       expect(recipe?.machineInputs, recipeId).toBeUndefined()
       expect(recipe?.pattern, recipeId).toEqual(['tinRod', 'redAlloyWire', 'tinRod', cableId, 'lvMachineHull', cableId, 'tinRod', 'primitiveCircuit', 'tinRod'])
@@ -5443,7 +5443,7 @@ describe('game engine', () => {
       { id: 'aluminiumPlate', amount: 4 },
       { id: 'tinCable8A', amount: 2 },
       { id: 'redAlloyWire', amount: 1 },
-      { id: 'primitiveCircuit', amount: 8 },
+      { id: 'primitiveCircuit', amount: 1 },
     ])
     expect(eightAmpRecipe?.pattern).toEqual([
       'aluminiumPlate', 'redAlloyWire', 'aluminiumPlate',

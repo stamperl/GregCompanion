@@ -178,6 +178,17 @@ describe('content validation', () => {
     }
   })
 
+  it('uses one Basic Electronic Circuit in each standard LV machine recipe', () => {
+    const standardLvMachineRecipes = recipes.filter((recipe) => (
+      recipe.id.startsWith('build_lv_') || recipe.id.startsWith('craft_lv_')
+    ) && recipe.machineOutputs?.length)
+
+    for (const recipe of standardLvMachineRecipes) {
+      const circuitAmount = recipe.inputs.find((input) => input.id === 'primitiveCircuit')?.amount ?? 0
+      expect(circuitAmount, `${recipe.id} should not stack Basic Electronic Circuits in the crafting grid`).toBeLessThanOrEqual(1)
+    }
+  })
+
   it('has generated item and machine icon assets for every content record', () => {
     for (const id of Object.keys(resourceRegistry)) {
       const iconPath = resolve(publicDir, 'game-icons/resources', `${id}.png`)
