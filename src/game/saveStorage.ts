@@ -28,6 +28,7 @@ export const saveSlots: Array<{ id: SaveSlotId; label: string }> = [
 ]
 
 const saveIndexKey = `${saveKey}:index`
+const creativeTestSaveKey = `${saveKey}:creative-test`
 
 function slotSaveKey(slotId: SaveSlotId) {
   return `${saveKey}:${slotId}`
@@ -181,6 +182,19 @@ export async function hasSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {
 
 export async function persistGameState(state: GameState, slotId: SaveSlotId = defaultSaveSlotId, now = networkTimeProvider.now() ?? state.lastSavedAt) {
   await writeRawSave(saveGame(state, now, networkTimeProvider.isVerified()), slotId, now)
+}
+
+export async function loadCreativeTestGame(now = localTimeProvider.now()) {
+  const raw = await readStorageKey(creativeTestSaveKey)
+  return raw ? loadGame(raw, now) : null
+}
+
+export async function persistCreativeTestGame(state: GameState, now = localTimeProvider.now()) {
+  await writeStorageKey(creativeTestSaveKey, saveGame(state, now, false))
+}
+
+export async function clearCreativeTestGame() {
+  await removeStorageKey(creativeTestSaveKey)
 }
 
 export async function clearSavedGame(slotId: SaveSlotId = defaultSaveSlotId) {

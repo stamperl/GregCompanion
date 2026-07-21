@@ -116,14 +116,14 @@ import {
   setConductorFaceSettings,
   setHopperOutputDirection,
   setLvItemOutputDirection,
-  setBatteryBufferInputDirection,
+  setBatteryBufferOutputDirection,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
   simulateOfflineProgress,
   setPipeSideMode,
   setPipeSideDisabled,
   pipeSideMode,
-  batteryBufferInputDirection,
+  batteryBufferOutputDirection,
   fluidPipeBufferCapacityLitres,
   steamMsPerLitre,
   steamPipeBufferCapacityMs,
@@ -1095,7 +1095,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(17)
+    expect(state.version).toBe(18)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -1116,7 +1116,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(17)
+    expect(state.version).toBe(18)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1201,7 +1201,7 @@ describe('game engine', () => {
       }],
     }), 1000)
 
-    expect(state.version).toBe(17)
+    expect(state.version).toBe(18)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
     expect(state.machineInstances[0].process.output2).toBeNull()
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(0)
@@ -4810,7 +4810,7 @@ describe('game engine', () => {
     const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
-    state = setBatteryBufferInputDirection(state, buffer.uid, 'west')
+    state = setBatteryBufferOutputDirection(state, buffer.uid, 'east')
     state = installLvBatteryInBuffer(state, buffer.uid)
     state.machineInstances.find((instance) => instance.uid === turbine.uid)!.process.euStored = 200
 
@@ -4828,7 +4828,7 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored).toBeLessThan(190)
   })
 
-  it('gives LV battery buffers one input face and prevents EU output through it', () => {
+  it('gives LV battery buffers three input faces and one selected EU output', () => {
     let state = createFactoryState(1000)
     state.machines.lvBatteryBuffer = 1
     state.machines.lvWiremill = 2
@@ -4839,19 +4839,19 @@ describe('game engine', () => {
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer')!
     const westMachine = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 1)!
     const eastMachine = state.machineInstances.find((instance) => instance.x === 2 && instance.y === 1)!
-    state = setBatteryBufferInputDirection(state, buffer.uid, 'east')
+    state = setBatteryBufferOutputDirection(state, buffer.uid, 'east')
     state = installLvBatteryInBuffer(state, buffer.uid)
     state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 100
 
     const configuredBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
-    expect(batteryBufferInputDirection(configuredBuffer)).toBe('east')
-    expect(pipeDirections.map((direction) => pipeSideMode(configuredBuffer, direction))).toEqual(['output', 'input', 'output', 'output'])
-    expect(availableConnectedEu(state, westMachine)).toBe(100)
-    expect(availableConnectedEu(state, eastMachine)).toBe(0)
+    expect(batteryBufferOutputDirection(configuredBuffer)).toBe('east')
+    expect(pipeDirections.map((direction) => pipeSideMode(configuredBuffer, direction))).toEqual(['input', 'output', 'input', 'input'])
+    expect(availableConnectedEu(state, westMachine)).toBe(0)
+    expect(availableConnectedEu(state, eastMachine)).toBe(100)
 
     state = tickGame(state, 1000).state
-    expect(state.machineInstances.find((instance) => instance.uid === westMachine.uid)!.process.euStored).toBe(32)
-    expect(state.machineInstances.find((instance) => instance.uid === eastMachine.uid)!.process.euStored).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === westMachine.uid)!.process.euStored).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === eastMachine.uid)!.process.euStored).toBe(32)
   })
 
   it('infers a legacy battery buffer input from its adjacent EU supply cable', () => {
@@ -4866,8 +4866,8 @@ describe('game engine', () => {
 
     const loaded = loadGame(saveGame(state), 2000)
     const migratedBuffer = loaded.machineInstances.find((instance) => instance.uid === buffer.uid)!
-    expect(batteryBufferInputDirection(migratedBuffer)).toBe('west')
-    expect(pipeDirections.filter((direction) => pipeSideMode(migratedBuffer, direction) === 'output')).toHaveLength(3)
+    expect(batteryBufferOutputDirection(migratedBuffer)).toBe('west')
+    expect(pipeDirections.filter((direction) => pipeSideMode(migratedBuffer, direction) === 'output')).toHaveLength(1)
   })
 
   it('fills an idle LV machine internal buffer before a valid recipe is loaded', () => {
@@ -5007,6 +5007,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'tinCable4A', 1, 0)
     state = placeMachineInstance(state, 'lvWiremill', 2, 0)
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer4A')!
+    state = setBatteryBufferOutputDirection(state, buffer.uid, 'east')
     const wiremill = state.machineInstances.find((instance) => instance.machineId === 'lvWiremill')!
     for (let index = 0; index < 4; index += 1) state = installLvBatteryInBuffer(state, buffer.uid)
     state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
@@ -5034,6 +5035,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'lvWiremill', 3, 2)
     const cableAt = (x: number, y: number) => state.machineInstances.find((instance) => isEuCableMachine(instance.machineId) && instance.x === x && instance.y === y)!
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer4A')!
+    state = setBatteryBufferOutputDirection(state, buffer.uid, 'east')
     for (let index = 0; index < 4; index += 1) state = installLvBatteryInBuffer(state, buffer.uid)
     state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
 
@@ -5117,6 +5119,33 @@ describe('game engine', () => {
     expect(boiler.process.fluids.creosote).toBe(20 - 5 * liquidSteamBoilerCreosoteUseLitresPerSecond)
   })
 
+  it('pulls water from an exporting tank through a configured pipe into a solid fuel boiler', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.copperPipe = 1
+    state.machines.steamBoiler = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamBoiler', 2, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    state = setFluidOutputDirection(state, tank.uid, 'east')
+    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+    state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.water = 64
+    state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.fuel = { id: 'coal', amount: 1 }
+    expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === tank.uid)!, 'east')).toBe('output')
+    expect(boilerHasWater(state, state.machineInstances.find((instance) => instance.uid === boiler.uid)!)).toBe(true)
+
+    state = tickGame(state, 1000).state
+
+    const nextTank = state.machineInstances.find((instance) => instance.uid === tank.uid)!
+    const nextBoiler = state.machineInstances.find((instance) => instance.uid === boiler.uid)!
+    expect(nextTank.process.fluids.water).toBeLessThan(64)
+    expect(nextBoiler.process.steamStoredMs).toBeGreaterThan(0)
+  })
+
   it('limits liquid steam boiler creosote pulls by pipe transfer rate', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1
@@ -5163,6 +5192,8 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'lvBatteryBuffer2A', 2, 0)
     const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
     const buffers = state.machineInstances.filter((instance) => instance.machineId === 'lvBatteryBuffer2A')
+    state = setBatteryBufferOutputDirection(state, buffers.find((buffer) => buffer.x === 0)!.uid, 'east')
+    state = setBatteryBufferOutputDirection(state, buffers.find((buffer) => buffer.x === 2)!.uid, 'south')
     for (const buffer of buffers) {
       state = installLvBatteryInBuffer(state, buffer.uid)
       state = installLvBatteryInBuffer(state, buffer.uid)
@@ -5202,6 +5233,7 @@ describe('game engine', () => {
     state = setPipeSideMode(state, leftCable.uid, 'south', 'both')
     state = setPipeSideMode(state, rightCable.uid, 'south', 'both')
     const buffer = state.machineInstances.find((instance) => instance.machineId === 'lvBatteryBuffer4A')!
+    state = setBatteryBufferOutputDirection(state, buffer.uid, 'east')
     for (let index = 0; index < 4; index += 1) state = installLvBatteryInBuffer(state, buffer.uid)
     state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
     const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
@@ -6274,7 +6306,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(17)
+    expect(state.version).toBe(18)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')

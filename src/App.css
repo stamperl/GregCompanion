@@ -7469,6 +7469,11 @@ button.craft-output:disabled {
   justify-content: center;
 }
 
+.home-save-tools .home-bug-report {
+  grid-column: 1 / -1;
+  text-decoration: none;
+}
+
 .visually-hidden-file-input {
   height: 1px;
   opacity: 0;

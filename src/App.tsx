@@ -1,6 +1,7 @@
 import {
   Axe,
   BookOpen,
+  Bug,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -171,7 +172,7 @@ import {
   setConductorFaceSettings,
   setLvItemOutputDirection,
   setPipeSideMode,
-  setBatteryBufferInputDirection,
+  setBatteryBufferOutputDirection,
   shopItemCooldownMs,
   shopItemCooldownRemainingMs,
   steamMachineInternalCapacityMs,
@@ -191,7 +192,7 @@ import {
   lvBatteryBufferEuCapacity,
   lvBatteryBufferOutputEuPerSecond,
   batteryBufferInstalledBatteries,
-  batteryBufferInputDirection,
+  batteryBufferOutputDirection,
   batteryBufferSlots,
   batteryEuCapacity,
   liquidSteamBoilerCapacityMs,
@@ -245,12 +246,14 @@ import {
   loadSavedGame,
   loadSavedGamePreservingSaveTime,
   loadSavedGameWithOfflineProgress,
+  loadCreativeTestGame,
   persistGameState,
+  persistCreativeTestGame,
   renameSaveSlot,
   type SaveSlotId,
   type SaveSlotSummary,
 } from './game/saveStorage'
-import { deploymentInfo, hasNewerDeployment, reloadLatestDeployment } from './game/deployment'
+import { deploymentInfo, githubBugReportUrl, hasNewerDeployment, isCreativeTestBuild, reloadLatestDeployment } from './game/deployment'
 import { localTimeProvider, networkTimeProvider } from './game/time'
 import {
   groupRecipesByOutput,
@@ -832,6 +835,7 @@ function offlineProgressNotice(offline: OfflineProgressResult) {
 }
 
 function migrationNoticeText(notices: string[]) {
+  if (notices.includes('lv-buffer-face-contract')) return 'LV Battery Buffers now accept EU on three faces and export through one selected face. Existing buffer directions were preserved as the new output face.'
   if (notices.includes('fabrication-interface-faces')) return 'Job Interfaces can now be placed as network blocks or consumed as Fabrication Cable faces. Encoded patterns remain safe in Pattern Inventory.'
   if (notices.includes('portable-fluid-containers')) return 'Buckets and Steel Cells now keep their exact fluid and fill level. Legacy filled cells were converted, and old overfilled buckets were safely limited to their new 1L capacity.'
   if (notices.includes('centrifuge-single-input')) return 'LV Centrifuges now use one item input. Anything left in the old second input slot has been returned to storage.'
@@ -1930,7 +1934,7 @@ function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
   if (targetId === 'ironVein') {
     return hasToolTierUnlocked(state, 'stonePickaxe') || hasToolTierUnlocked(state, 'ironPickaxe')
   }
-  if (targetId === 'leadVein' || targetId === 'saltDeposit') return hasToolTierUnlocked(state, 'diamondPickaxe')
+  if (targetId === 'leadVein' || targetId === 'saltDeposit' || targetId === 'goldVein' || targetId === 'resonantQuartzSeam' || targetId === 'voidQuartzOutcrop') return hasToolTierUnlocked(state, 'diamondPickaxe')
   if (targetId === 'obsidianDeposit') return hasToolTierUnlocked(state, 'diamondPickaxe')
   if (targetId === 'sulfurVent') return isReachGateFormed(state) && hasToolTierUnlocked(state, 'ironPickaxe')
   return hasToolTierUnlocked(state, 'ironPickaxe')
@@ -3042,6 +3046,12 @@ function App() {
   }, [hasLoadedSave, isCreativeMode, page, selectedSaveSlotId, state])
 
   useEffect(() => {
+    if (!hasLoadedSave || !isCreativeMode || !isCreativeTestBuild || page === 'home') return
+    const timer = window.setTimeout(() => void persistCreativeTestGame(state), autoSaveIntervalMs)
+    return () => window.clearTimeout(timer)
+  }, [hasLoadedSave, isCreativeMode, page, state])
+
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         backgroundedAtRef.current = networkTimeProvider.now() ?? stateRef.current.lastSavedAt
@@ -3362,18 +3372,18 @@ function App() {
   const selectedMachineId = selectedMachine?.machineId
   const canUseFluidPort = (buffer: MachineFluidBufferView, direction: 'input' | 'output') => {
     if (!selectedMachine) return false
-    const isManualHatchTransfer = machines[selectedMachine.machineId].processKind === 'fluidHatch'
     if (direction === 'output') {
-      if (!selectedContainerKind || (!isManualHatchTransfer && buffer.access !== 'output' && buffer.access !== 'both')) return false
+      if (!selectedContainerKind) return false
       const fluidId = buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
       return Boolean(fluidId && (!selectedFluidContainerGroup || (
         selectedFluidContainerGroup.fluidId === fluidId &&
         selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind]
       )))
     }
-    if (!selectedFluidContainerGroup || (!isManualHatchTransfer && buffer.access !== 'input' && buffer.access !== 'both')) return false
-    return buffer.acceptedFluids.includes(selectedFluidContainerGroup.fluidId) &&
-      (selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) < buffer.capacityLitres
+    if (!selectedFluidContainerGroup) return false
+    if (!buffer.acceptedFluids.includes(selectedFluidContainerGroup.fluidId)) return false
+    const stored = selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0
+    return (stored > 0 && selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind]) || stored < buffer.capacityLitres
   }
 
   useEffect(() => {
@@ -3995,6 +4005,16 @@ function App() {
     if (!selectedMachine || !canUseFluidPort(buffer, direction)) return
     if (direction === 'input') {
       if (!selectedFluidContainerGroup) return
+      const canTopUpSelected = selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind] &&
+        (selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) > 0
+      if (canTopUpSelected) {
+        setState((current) => fillPortableFluidContainer(current, selectedMachine.uid, selectedFluidContainerGroup.kind, {
+          containerUid: selectedFluidContainerGroup.containerUid,
+          fluidId: selectedFluidContainerGroup.fluidId,
+          bufferId: buffer.id,
+        }))
+        return
+      }
       setState((current) => drainPortableFluidContainer(current, selectedMachine.uid, selectedFluidContainerGroup.containerUid, buffer.id))
       return
     }
@@ -4309,20 +4329,6 @@ function App() {
     const outputIndex = processOutputSlotIds.indexOf(slotId as typeof processOutputSlotIds[number])
     if (outputIndex >= 0 && !isItemHopperMachine(selectedMachine.machineId)) {
       setState((current) => collectProcessOutput(current, selectedMachine.uid, outputIndex as 0 | 1))
-      return
-    }
-    if (slot && slot.id === selectedResource) {
-      const max = Math.min(processStackLimit - slot.amount, availableResourceAmount(state, selectedResource))
-      if (max < 1) {
-        setFactoryNotice(`${resourceLabels[selectedResource]} slot is full.`)
-        return
-      }
-      setPendingProcessInsert({
-        uid: selectedMachine.uid,
-        slotId,
-        resourceId: selectedResource,
-        quantity: suggestedProcessInsertQuantity(selectedMachine, slotId, selectedResource, max),
-      })
       return
     }
     if (slot) {
@@ -5073,7 +5079,7 @@ function App() {
   }
 
   const handleLoadCreativeFactory = async () => {
-    if (!import.meta.env.DEV || isEnteringGame) return
+    if (!isCreativeTestBuild || isEnteringGame) return
     setEntryLoadingMessage('Loading creative factory')
     setIsEnteringGame(true)
     await waitForEntryLoadingPaint()
@@ -5081,13 +5087,14 @@ function App() {
     cancelPendingSave()
     try {
       const now = localTimeProvider.now()
-      const creativeFactory = createCreativeFactoryState(createInitialState(now), now)
+      const creativeFactory = await loadCreativeTestGame(now) ?? createCreativeFactoryState(createInitialState(now), now)
+      await persistCreativeTestGame(creativeFactory, now)
       setIsCreativeMode(true)
       stateRef.current = creativeFactory
       setState(creativeFactory)
       knownCompletedQuestsRef.current = new Set(creativeFactory.completedQuests)
       handleClearGrid()
-      setOfflineNotice('Dev creative factory loaded. It will not overwrite the selected save.')
+      setOfflineNotice('Creative Test loaded from its separate save. Player saves are unchanged.')
       setOfflinePrompt('')
       setMigrationPrompt('')
       setTerminalNotice('')
@@ -5149,7 +5156,10 @@ function App() {
 
   const handleManualSave = async () => {
     if (isCreativeMode) {
-      addFloatText('creative not saved')
+      if (isCreativeTestBuild) {
+        await persistCreativeTestGame(state)
+        addFloatText('creative saved')
+      }
       return
     }
     cancelPendingSave()
@@ -5451,16 +5461,16 @@ function App() {
             <button type="button" className="icon-button" aria-label="Save game" title={`Save ${selectedSaveSlotId.replace('slot-', '')}`} onClick={handleManualSave}>
               <Save size={18} />
             </button>
-            <button
+            {isCreativeTestBuild && <button
               type="button"
               className={isCreativeMode ? 'creative-toggle active' : 'creative-toggle'}
               aria-pressed={isCreativeMode}
               aria-label={isCreativeMode ? 'Turn creative mode off' : 'Turn creative mode on'}
-              title={isCreativeMode ? 'Creative mode on - not saving' : 'Creative mode'}
+              title={isCreativeMode ? 'Creative Test mode on' : 'Creative Test mode'}
               onClick={handleToggleCreativeMode}
             >
               <Sparkles size={18} />
-            </button>
+            </button>}
           </div>
         </header>
       )}
@@ -5699,7 +5709,7 @@ function App() {
             <button type="button" className="home-action primary" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleContinueFromHome}>
               {isUpdateAvailable ? 'Update Required' : isEnteringGame ? 'Loading save...' : `Continue ${selectedSaveLabel}`}
             </button>
-            {import.meta.env.DEV && (
+            {isCreativeTestBuild && (
               <button type="button" className="home-action" disabled={!hasLoadedSave || isEnteringGame} onClick={handleLoadCreativeFactory}>
                 {isEnteringGame ? 'Loading...' : 'Load Creative Factory'}
               </button>
@@ -5717,6 +5727,10 @@ function App() {
               <Upload size={16} />
               Import
             </button>
+            <a className="home-action home-bug-report" href={githubBugReportUrl({ page, machineId: selectedMachine?.machineId })} target="_blank" rel="noreferrer">
+              <Bug size={16} />
+              Report Bug
+            </a>
             <input
               ref={importSaveInputRef}
               type="file"
@@ -7762,7 +7776,7 @@ function App() {
                     <Route size={14} />
                     <span>{isMachineAutomationOpen ? 'Back to machine' : 'Automation'}</span>
                     <strong>{isEuStorageMachine(selectedMachine.machineId)
-                      ? `${pipeDirectionOffsets[batteryBufferInputDirection(selectedMachine) ?? 'north'].label} in`
+                      ? `${pipeDirectionOffsets[batteryBufferOutputDirection(selectedMachine) ?? 'north'].label} out`
                       : selectedMachine.machineId === 'jobInterface'
                       ? selectedMachine.fabricationFace ? pipeDirectionOffsets[selectedMachine.fabricationFace].label : 'Auto'
                       : showSelectedMachineFluidAutomation
@@ -7772,12 +7786,12 @@ function App() {
                 )}
                 {isMachineAutomationOpen && isEuStorageMachine(selectedMachine.machineId) ? (
                   (() => {
-                    const inputDirection = batteryBufferInputDirection(selectedMachine) ?? 'north'
-                    const outputDirections = pipeDirections.filter((direction) => direction !== inputDirection)
+                    const outputDirection = batteryBufferOutputDirection(selectedMachine) ?? 'north'
+                    const inputDirections = pipeDirections.filter((direction) => direction !== outputDirection)
                     return <div className="lv-item-automation-hmi battery-buffer-automation">
                       <div className="lv-automation-head">
-                        <span><small>EU input</small><strong>{pipeDirectionOffsets[inputDirection].label}</strong></span>
-                        <span className="lv-automation-state state-ready"><small>EU outputs</small><strong>{outputDirections.length} faces</strong></span>
+                        <span><small>EU inputs</small><strong>{inputDirections.length} faces</strong></span>
+                        <span className="lv-automation-state state-ready"><small>EU output</small><strong>{pipeDirectionOffsets[outputDirection].label}</strong></span>
                       </div>
                       <div className="lv-automation-grid" aria-label="Battery buffer input and output faces">
                         {[-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => {
@@ -7787,24 +7801,24 @@ function App() {
                           if (isCenter) return <span className="lv-automation-machine" key="center"><MachineGlyph id={selectedMachine.machineId} active={selectedMachine.process.euStored > 0} /><strong>{machines[selectedMachine.machineId].name}</strong></span>
                           const offset = pipeDirectionOffsets[direction!]
                           const neighbour = state.machineInstances.find((candidate) => candidate.x === selectedMachine.x + offset.dx && candidate.y === selectedMachine.y + offset.dy)
-                          const isInput = direction === inputDirection
+                          const isOutput = direction === outputDirection
                           return <button
                               type="button"
-                              className={['lv-automation-face', 'buffer-power-face', direction, isInput ? 'selected input-face' : 'output-face'].filter(Boolean).join(' ')}
-                              aria-label={`${isInput ? '' : 'Set '}${offset.label} as battery buffer input${isInput ? ', currently selected' : ''}`}
-                              aria-pressed={isInput}
-                              onClick={() => setState((current) => setBatteryBufferInputDirection(current, selectedMachine.uid, direction!))}
+                              className={['lv-automation-face', 'buffer-power-face', direction, isOutput ? 'selected output-face' : 'input-face'].filter(Boolean).join(' ')}
+                              aria-label={`${isOutput ? '' : 'Set '}${offset.label} as battery buffer output${isOutput ? ', currently selected' : ''}`}
+                              aria-pressed={isOutput}
+                              onClick={() => setState((current) => setBatteryBufferOutputDirection(current, selectedMachine.uid, direction!))}
                               key={direction}
                             >
                               {neighbour ? <MachineGlyph id={neighbour.machineId} /> : <span className="lv-automation-empty" />}
                               <b>{offset.label}</b>
-                              <span className={`buffer-face-mode ${isInput ? 'input' : 'output'}`}>{isInput ? 'IN' : 'OUT'}</span>
+                              <span className={`buffer-face-mode ${isOutput ? 'output' : 'input'}`}>{isOutput ? 'OUT' : 'IN'}</span>
                             </button>
                         }))}
                       </div>
                       <div className="lv-automation-route-readout">
-                        <span><small>Input</small><strong>{pipeDirectionOffsets[inputDirection].label} only</strong></span>
-                        <span><small>Outputs</small><strong>{outputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')}</strong></span>
+                        <span><small>Inputs</small><strong>{inputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')}</strong></span>
+                        <span><small>Output</small><strong>{pipeDirectionOffsets[outputDirection].label} only</strong></span>
                       </div>
                     </div>
                   })()

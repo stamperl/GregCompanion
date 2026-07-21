@@ -95,7 +95,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 17
+export const currentSaveVersion = 18
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -604,7 +604,12 @@ function isInsideGridSize(grid: { width: number; height: number }, x: number, y:
   return x >= 0 && x < grid.width && y >= 0 && y < grid.height
 }
 
-function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undefined, foundationLevel: number, legacyHopperImplicitInputs = false) {
+function normalizeMachineInstances(
+  instances: Partial<MachineInstance>[] | undefined,
+  foundationLevel: number,
+  legacyHopperImplicitInputs = false,
+  legacyBatteryBufferFaceContract = false,
+) {
   if (!instances) return []
   const grid = factoryFoundationSizes[clampFactoryFoundationLevel(foundationLevel)] ?? factoryFoundationSizes[0]
   const occupied = new Set<string>()
@@ -684,7 +689,8 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
     }
     if (isEuStorageMachine(machineId)) {
       process.batterySlots = Array.from({ length: batteryBufferSlots(machineId) }, (_, index) => process.batterySlots[index] ?? null)
-      const inputDirection = pipeDirections.find((direction) => normalizedSideModes[direction] === 'input') ?? pipeDirections.find((direction) => {
+      const configuredDirection = pipeDirections.find((direction) => normalizedSideModes[direction] === (legacyBatteryBufferFaceContract ? 'input' : 'output'))
+      const outputDirection = (legacyBatteryBufferFaceContract && configuredDirection ? oppositePipeDirection[configuredDirection] : configuredDirection) ?? pipeDirections.find((direction) => {
         const offset = pipeDirectionOffsets[direction]
         const neighbour = migratedInstances.find((candidate) => candidate.x === x + offset.dx && candidate.y === y + offset.dy)
         return Boolean(neighbour?.machineId && neighbour.machineId in machines && (
@@ -692,7 +698,7 @@ function normalizeMachineInstances(instances: Partial<MachineInstance>[] | undef
         ))
       }) ?? 'north'
       normalizedSideModes = Object.fromEntries(
-        pipeDirections.map((direction) => [direction, direction === inputDirection ? 'input' : 'output']),
+        pipeDirections.map((direction) => [direction, direction === outputDirection ? 'output' : 'input']),
       ) as Partial<Record<PipeDirection, PipeSideMode>>
       normalizedPipeDisabledSides = {}
     }
@@ -1144,7 +1150,7 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
     if (state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
     return tools.ironPickaxe
   }
-  if ((targetId === 'leadVein' || targetId === 'saltDeposit') && state.equipment.pickaxe === 'diamondPickaxe') {
+  if ((targetId === 'leadVein' || targetId === 'saltDeposit' || targetId === 'goldVein' || targetId === 'resonantQuartzSeam' || targetId === 'voidQuartzOutcrop') && state.equipment.pickaxe === 'diamondPickaxe') {
     return tools.diamondPickaxe
   }
   if (targetId === 'obsidianDeposit' && state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
@@ -1468,6 +1474,12 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
 
   const batteryBuffers = state.machineInstances.filter((instance) => isEuStorageMachine(instance.machineId))
   for (const buffer of batteryBuffers) {
+    const creativeOutput = buffer.y === 2 ? 'south'
+      : buffer.x === 5 && buffer.y === 6 ? 'east'
+      : buffer.x === 9 && buffer.y === 7 ? 'west'
+      : buffer.x === 10 && buffer.y === 10 ? 'east'
+      : 'north'
+    state = setBatteryBufferOutputDirection(state, buffer.uid, creativeOutput)
     for (let index = 0; index < batteryBufferSlots(buffer.machineId); index += 1) {
       state = installLvBatteryInBuffer(state, buffer.uid, index % 2 === 0 ? 'lithiumBattery' : 'sodiumBattery')
     }
@@ -2915,6 +2927,7 @@ export function isFluidOutletConfigurableMachine(machineId: MachineId) {
 function isConfigurableConnector(machineId: MachineId) {
   return (
     isSteamPipeMachine(machineId) ||
+    isTankStorageMachine(machineId) ||
     isItemConductorMachine(machineId) ||
     isEuCableMachine(machineId) ||
     isEuStorageMachine(machineId) ||
@@ -2943,9 +2956,9 @@ function setConnectorSideModeInPlace(instance: MachineInstance, direction: PipeD
   instance.pipeDisabledSides = disabledSides
 }
 
-function setBatteryBufferInputDirectionInPlace(instance: MachineInstance, inputDirection: PipeDirection) {
+function setBatteryBufferOutputDirectionInPlace(instance: MachineInstance, outputDirection: PipeDirection) {
   instance.pipeSideModes = Object.fromEntries(
-    pipeDirections.map((direction) => [direction, direction === inputDirection ? 'input' : 'output']),
+    pipeDirections.map((direction) => [direction, direction === outputDirection ? 'output' : 'input']),
   ) as Partial<Record<PipeDirection, PipeSideMode>>
   instance.pipeDisabledSides = {}
 }
@@ -2965,7 +2978,8 @@ function connectorAllowsDirection(instance: MachineInstance, direction: PipeDire
 export function pipeSideMode(instance: MachineInstance, direction: PipeDirection): PipeSideMode {
   if (!isConfigurableConnector(instance.machineId)) return 'both'
   if (instance.pipeSideModes?.[direction]) return instance.pipeSideModes[direction]
-  if (isEuStorageMachine(instance.machineId)) return direction === 'north' ? 'input' : 'output'
+  if (isEuStorageMachine(instance.machineId)) return direction === 'north' ? 'output' : 'input'
+  if (isTankStorageMachine(instance.machineId)) return 'both'
   if (instance.pipeDisabledSides?.[direction]) return 'blocked'
   if (isFluidOutletConfigurableMachine(instance.machineId)) return 'blocked'
   return 'both'
@@ -3413,7 +3427,7 @@ function hasConnectedWaterSource(state: GameState, boiler: MachineInstance) {
 
 export function boilerHasWater(state: GameState, boiler: MachineInstance) {
   if (boiler.machineId !== 'steamBoiler' && !isLiquidSteamBoilerMachine(boiler.machineId)) return false
-  return (boiler.process.fluids.water ?? 0) > 0 || hasAdjacentWaterSource(state, boiler) || hasConnectedWaterSource(state, boiler)
+  return (boiler.process.fluids.water ?? 0) > 0 || connectedFluidSources(state, boiler, 'water').some((source) => (source.process.fluids.water ?? 0) > 0) || hasAdjacentWaterSource(state, boiler) || hasConnectedWaterSource(state, boiler)
 }
 
 export function currentWellWaterFlowLitresPerSecond(state: GameState, well: MachineInstance) {
@@ -3827,9 +3841,9 @@ export function batteryBufferSlots(machineId: MachineId) {
   return isEuStorageMachine(machineId) ? Math.max(1, machineEuAmps(machineId)) : 0
 }
 
-export function batteryBufferInputDirection(instance: MachineInstance): PipeDirection | null {
+export function batteryBufferOutputDirection(instance: MachineInstance): PipeDirection | null {
   if (!isEuStorageMachine(instance.machineId)) return null
-  return pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'input') ?? 'north'
+  return pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'output') ?? 'north'
 }
 
 const bufferBatteryIds = ['sodiumBattery', 'lithiumBattery', 'lvBattery'] as const
@@ -4067,7 +4081,6 @@ function canExportFluidSource(instance: MachineInstance) {
 
 function connectedFluidOutputTargets(state: GameState, source: MachineInstance, fluidId: FluidId) {
   const targets = connectedFluidStorage(state, source, fluidId)
-  if (isTankStorageMachine(source.machineId)) return targets.filter((target) => isLiquidSteamBoilerMachine(target.machineId))
   return targets
 }
 
@@ -4141,10 +4154,7 @@ export function fillPortableFluidContainer(
   const existing = options.containerUid ? state.fluidContainers.find((container) => container.uid === options.containerUid && container.kind === kind) : undefined
   if (options.containerUid && !existing) return state
   if (!existing && availableResourceAmount(state, emptyContainerResource(kind)) < 1) return state
-  const isManualHatchTransfer = machines[source.machineId].processKind === 'fluidHatch'
-  const outputBuffers = machineFluidBuffersForInstance(state, source).filter(
-    (buffer) => isManualHatchTransfer || buffer.access === 'output' || buffer.access === 'both',
-  )
+  const outputBuffers = machineFluidBuffersForInstance(state, source)
   const selectedFluid = existing?.fluidId ?? options.fluidId ?? outputBuffers.flatMap((buffer) => buffer.acceptedFluids).find((fluidId) => (source.process.fluids[fluidId] ?? 0) > 0)
   if (!selectedFluid) return state
   const outputBuffer = outputBuffers.find((buffer) => (!options.bufferId || buffer.id === options.bufferId) && buffer.acceptedFluids.includes(selectedFluid))
@@ -4176,15 +4186,14 @@ export function drainPortableFluidContainer(state: GameState, machineUid: string
   if (!targetInstance || !container) return state
   const target = manualFluidTarget(state, targetInstance)
   if (target.machineId === 'lvCentrifuge' && target.process.input) return state
-  const isManualHatchTransfer = machines[target.machineId].processKind === 'fluidHatch'
   const inputBuffer = machineFluidBuffersForInstance(state, target).find((buffer) =>
     (!bufferId || buffer.id === bufferId) &&
-    (isManualHatchTransfer || buffer.access === 'input' || buffer.access === 'both') &&
     buffer.acceptedFluids.includes(container.fluidId),
   )
   const storedTypes = storedFluidTypes(target.process)
-  const canAcceptManualHatchFluid = isManualHatchTransfer && (storedTypes.length < 1 || storedTypes.every((id) => id === container.fluidId))
-  if (!inputBuffer || (!canAcceptManualHatchFluid && !canStoreFluid(state, target, container.fluidId))) return state
+  const requiresSingleFluid = isTankStorageMachine(target.machineId) || inputBuffer?.fluidRule === 'any'
+  const canAcceptFluid = !requiresSingleFluid || storedTypes.length < 1 || storedTypes.every((id) => id === container.fluidId)
+  if (!inputBuffer || !canAcceptFluid) return state
   const transfer = normalizeLitres(Math.min(container.amountLitres, inputBuffer.capacityLitres - (target.process.fluids[container.fluidId] ?? 0)))
   if (transfer <= 0) return state
 
@@ -4785,6 +4794,10 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   if (isConfigurableConnector(machineId)) {
     placed.pipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
     placed.pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
+    if (isTankStorageMachine(machineId)) {
+      placed.pipeDisabledSides = {}
+      placed.pipeSideModes = {}
+    }
     for (const direction of pipeDirections) {
       const offset = pipeDirectionOffsets[direction]
       const neighbour = machineAt(next, x + offset.dx, y + offset.dy)
@@ -4798,7 +4811,7 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
         const neighbour = machineAt(next, x + offset.dx, y + offset.dy)
         return Boolean(neighbour && (isEuCableMachine(neighbour.machineId) || isEuProducerMachine(neighbour.machineId)))
       }) ?? 'north'
-      setBatteryBufferInputDirectionInPlace(placed, adjacentEuDirection)
+      setBatteryBufferOutputDirectionInPlace(placed, oppositePipeDirection[adjacentEuDirection])
     }
   }
   next.machineInstances.push(placed)
@@ -4966,10 +4979,10 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   if (!instance || !isConfigurableConnector(instance.machineId) || !pipeSideModes.includes(mode)) return state
   if (isFluidOutletConfigurableMachine(instance.machineId) && mode !== 'output' && mode !== 'blocked') return state
   if (isEuStorageMachine(instance.machineId)) {
-    if (mode !== 'input') return state
+    if (mode !== 'output') return state
     const next = cloneState(state)
     const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)!
-    setBatteryBufferInputDirectionInPlace(nextInstance, direction)
+    setBatteryBufferOutputDirectionInPlace(nextInstance, direction)
     next.lastSavedAt = Date.now()
     return next
   }
@@ -5002,15 +5015,15 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   return next
 }
 
-export function setBatteryBufferInputDirection(state: GameState, uid: string, direction: PipeDirection) {
+export function setBatteryBufferOutputDirection(state: GameState, uid: string, direction: PipeDirection) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isEuStorageMachine(instance.machineId)) return state
-  return setPipeSideMode(state, uid, direction, 'input')
+  return setPipeSideMode(state, uid, direction, 'output')
 }
 
 export function setFluidOutputDirection(state: GameState, uid: string, direction: PipeDirection) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!instance || !isFluidOutletConfigurableMachine(instance.machineId)) return state
+  if (!instance || (!isFluidOutletConfigurableMachine(instance.machineId) && !isTankStorageMachine(instance.machineId))) return state
 
   const nextMode: PipeSideMode = pipeSideMode(instance, direction) === 'output' ? 'blocked' : 'output'
   const next = cloneState(state)
@@ -5426,11 +5439,15 @@ function tickFurnaceProcess(instance: MachineInstance, elapsedMs: number) {
   }
 }
 
-function tickSteamBoiler(instance: MachineInstance, elapsedMs: number) {
+function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const process = instance.process
   process.steamCapacityMs = boilerSteamCapacityMs
   process.fluidCapacityLitres = machineFluidCapacity(instance.machineId)
   process.steamStoredMs = Math.min(process.steamStoredMs, boilerSteamCapacityMs)
+  const waterFree = Math.max(0, process.fluidCapacityLitres - (process.fluids.water ?? 0))
+  if (waterFree > 0) {
+    process.fluids.water = normalizeLitres((process.fluids.water ?? 0) + pullFluidFromConnectedSources(state, instance, 'water', waterFree, elapsedMs))
+  }
   if ((process.fluids.water ?? 0) <= 0) {
     process.activeRecipeId = null
     return
@@ -6836,7 +6853,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       instance.process.fluidCapacityLitres = wellWaterCapacityLitres
     }
     if (instance.machineId === 'furnace') tickFurnaceProcess(instance, elapsedMs)
-    if (instance.machineId === 'steamBoiler') tickSteamBoiler(instance, elapsedMs)
+    if (instance.machineId === 'steamBoiler') tickSteamBoiler(next, instance, elapsedMs)
     if (isTankStorageMachine(instance.machineId)) {
       const tankStructure = steamTankStructureForInstance(next, instance)
       if (tankStructure && tankStructure.controller.uid !== instance.uid) {
@@ -7422,11 +7439,12 @@ function migrateMachineInstances(
   legacyBatteryBufferSave: boolean,
   legacyArcFurnaceSave: boolean,
   legacyHopperImplicitInputs: boolean,
+  legacyBatteryBufferFaceContract: boolean,
   migrationNotices: string[],
   parsedInstances?: Partial<MachineInstance>[],
 ) {
   const coalescedInstances = parsedInstances ? coalesceConductorInstances(parsedInstances) : undefined
-  const instances = normalizeMachineInstances(coalescedInstances, foundationLevel, legacyHopperImplicitInputs)
+  const instances = normalizeMachineInstances(coalescedInstances, foundationLevel, legacyHopperImplicitInputs, legacyBatteryBufferFaceContract)
   machinesState.itemConductor = Math.max(
     machinesState.itemConductor,
     instances.filter((instance) => isItemConductorMachine(instance.machineId)).length,
@@ -7585,6 +7603,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     const legacyBatteryBufferSave = parsedVersion < 3
     const legacyArcFurnaceSave = parsedVersion < 5
     const legacyHopperImplicitInputs = parsedVersion < 11
+    const legacyBatteryBufferFaceContract = parsedVersion < 18
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
     const parsedResources = (parsed.resources ?? {}) as Partial<Record<string, number>>
@@ -7597,9 +7616,13 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       legacyBatteryBufferSave,
       legacyArcFurnaceSave,
       legacyHopperImplicitInputs,
+      legacyBatteryBufferFaceContract,
       migrationNotices,
       parsed.machineInstances,
     )
+    if (legacyBatteryBufferFaceContract && machineInstances.some((instance) => isEuStorageMachine(instance.machineId))) {
+      migrationNotices.push('lv-buffer-face-contract')
+    }
     if (parsedVersion < 13) {
       let returnedCentrifugeInput = false
       for (const instance of machineInstances) {

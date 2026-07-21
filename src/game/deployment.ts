@@ -20,6 +20,37 @@ export const deploymentInfo = {
   version: commitSha === 'local' ? 'local' : commitSha.slice(0, 7),
 }
 
+export const isCreativeTestBuild = deploymentInfo.channel === 'home-dev' || deploymentInfo.channel === 'remote-dev'
+
+export function githubBugReportUrl(context: { page?: string; machineId?: string } = {}) {
+  const platform = typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent
+  const viewport = typeof window === 'undefined' ? 'unknown' : `${window.innerWidth}x${window.innerHeight}`
+  const body = [
+    '## What happened?',
+    '',
+    'Describe the problem here.',
+    '',
+    '## Steps to reproduce',
+    '',
+    '1. ',
+    '',
+    '## Expected result',
+    '',
+    '',
+    '## Build diagnostics',
+    '',
+    `- Channel: ${deploymentInfo.channel}`,
+    `- Revision: ${deploymentInfo.revision}`,
+    `- Build: ${deploymentInfo.version}`,
+    `- View: ${context.page ?? 'unknown'}`,
+    `- Machine: ${context.machineId ?? 'none'}`,
+    `- Viewport: ${viewport}`,
+    `- Platform: ${platform}`,
+  ].join('\n')
+  const params = new URLSearchParams({ title: '[Bug] ', body, labels: 'bug' })
+  return `https://github.com/stamperl/GregCompanion/issues/new?${params.toString()}`
+}
+
 function currentBundleUrl() {
   if (typeof document === 'undefined') return ''
   return document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/index-"]')?.src ?? ''

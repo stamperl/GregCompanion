@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInitialState } from './content'
 import { saveGame } from './engine'
-import { clearRawSave, exportSavedGame, importSavedGame, listSaveSlots, loadSavedGamePreservingSaveTime, loadSavedGameWithOfflineProgress, persistGameState, renameSaveSlot, writeRawSave } from './saveStorage'
+import { clearRawSave, exportSavedGame, importSavedGame, listSaveSlots, loadCreativeTestGame, loadSavedGamePreservingSaveTime, loadSavedGameWithOfflineProgress, persistCreativeTestGame, persistGameState, renameSaveSlot, writeRawSave } from './saveStorage'
 
 function installLocalStorage() {
   const storage = new Map<string, string>()
@@ -98,5 +98,18 @@ describe('save storage', () => {
     const persisted = JSON.parse((await exportSavedGame('slot-1'))!)
     expect(persisted.lastSavedAt).toBe(7000)
     expect((await listSaveSlots()).find((slot) => slot.id === 'slot-1')?.updatedAt).toBe(new Date(7000).toISOString())
+  })
+
+  it('keeps the creative test factory separate from player save slots', async () => {
+    const player = createInitialState(1000)
+    player.resources.log = 3
+    const creative = createInitialState(2000)
+    creative.resources.log = 256
+    await persistGameState(player, 'slot-1', 1000)
+    await persistCreativeTestGame(creative, 2000)
+
+    expect((await loadCreativeTestGame(2000))?.resources.log).toBe(256)
+    expect(await exportSavedGame('slot-1')).toContain('"log":3')
+    expect((await listSaveSlots()).filter((slot) => slot.exists)).toHaveLength(1)
   })
 })
