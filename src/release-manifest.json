@@ -1,23 +1,8 @@
 {
-  "revision": "1.1.0",
-  "date": "2026-07-20",
-  "title": "Fabrication Networks",
+  "revision": "1.1.1",
+  "date": "2026-07-21",
+  "title": "LV Circuit Recipe Correction",
   "notes": [
-    "Steam progression now demands sustained boiler, fuel, water, pipe, and buffer capacity, while LV circuits and aluminium remain deliberately expensive production bottlenecks.",
-    "Iron Tanks now use a clear light-steel vessel design, and the new costlier Steel Tank stores three times as much fluid or steam with matching industrial artwork.",
-    "Steel Fluid Pipes replace the old iron material path, fluids and EU now bottleneck per network segment, pipes maintain internal buffers, cables draw on demand, and Fluid Conductors can transport steam.",
-    "Chest and Hopper terminals now use searchable three-row inventories, Hopper input and output routing works with storage and machines, and LV battery buffers expose one protected input face plus three output faces.",
-    "Machine terminals now share consistent universal item and fluid slots, automation controls, program settings, phone-safe layouts, and clearer live load, flow, EU, steam, and blocked-state feedback.",
-    "The new LV Mixer uses a six-slot item grid, two fluid inputs, and separate item and fluid outputs for recipes such as phase-crystal production.",
-    "Rubber processing now separates Sticky Resin into Rubber Pulp and Glue, supports solid and liquid rubber routes, improves resistor and multiblock assembly yields, and teaches the alternatives through revised quests.",
-    "Air collection, Centrifuge gas separation, sulfuric-acid chemistry, oxygen and nitrogen blast recipes, and multi-output fluid automation now form complete LV processing lines.",
-    "Late-LV Item and Fluid Conductors provide configurable insert and extract faces, channels, priorities, round-robin routing, shared cells, direct multiblock port access, and independent lane removal.",
-    "The early-MV fabrication line adds Gold, Resonant Quartz, Void Quartz, Phase Crystals, Silicon, imprint dies, printed circuits, processors, and dedicated Crystal Energizer and Circuit Imprinter machines.",
-    "A powered fabrication network now links Planning Controllers, flexible 1x1 through 3x3 memory racks, Fabrication Cable, Pattern Terminals, Job Interfaces, Auto Fabricators, and Fluid Storage Links.",
-    "Pattern encoding now mirrors a physical crafting and processing workflow: insert a blank card, fill the grid or process slots from the Recipe Book, encode it, then install the real pattern in a Job Interface.",
-    "Crafting requests open directly from stored terminal items, recursively plan missing intermediates, reserve materials, show compact live job status, and safely recover items and fluids when cancelled or disconnected.",
-    "Job Interfaces work as standalone blocks or cable-mounted machine faces, automatically choose a compatible free face, consume real interface items, and dispatch through formed Arc Furnace buses and hatches.",
-    "Quest chapters were rebuilt for clearer Steam, rubber, battery-alloy, multiblock, and Auto Crafting progression, with completable objectives, useful optional guidance, stable map layout, and saved scroll position.",
-    "The creative factory now includes a powered end-to-end recursive fabrication demonstration, while save migration preserves programs, routing, interfaces, installed patterns, active jobs, reserved materials, and legacy structures."
+    "Standard LV machines and every LV battery buffer now require one Basic Electronic Circuit instead of stacking several circuits in the crafting grid; the Arc Furnace controller retains its intended three-circuit requirement."
   ]
 }
