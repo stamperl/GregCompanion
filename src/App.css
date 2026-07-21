@@ -16856,6 +16856,34 @@ button.button-primary:disabled,
   padding: 7px;
 }
 
+.furnace-modal.machine-terminal .buffer-live-flow {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 7px;
+}
+
+.furnace-modal.machine-terminal .buffer-live-flow span {
+  background: rgba(4, 12, 14, 0.92);
+  border: 1px solid #477f89;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 6px;
+}
+
+.furnace-modal.machine-terminal .buffer-live-flow small {
+  color: #d8c56e;
+  font: 900 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.furnace-modal.machine-terminal .buffer-live-flow strong {
+  color: #78e5ee;
+  font: 900 0.66rem "Courier New", ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
 .furnace-modal.machine-terminal .turbine-generator-stage {
   background-image: linear-gradient(rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.18)), var(--machine-panel-image);
   background-position: center;

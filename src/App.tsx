@@ -192,6 +192,7 @@ import {
   lvBatteryBufferEuCapacity,
   lvBatteryBufferOutputEuPerSecond,
   batteryBufferInstalledBatteries,
+  batteryBufferLiveEuRates,
   batteryBufferOutputDirection,
   batteryBufferSlots,
   batteryEuCapacity,
@@ -3491,8 +3492,10 @@ function App() {
     } else if (isEuStorageMachine(selectedMachine.machineId)) {
       const installedBatteries = batteryBufferInstalledBatteries(selectedMachine)
       const batterySlots = batteryBufferSlots(selectedMachine.machineId)
+      const liveRates = batteryBufferLiveEuRates(selectedMachine)
       addEuMetric('Stored EU', process.euStored, process.euCapacity || batterySlots * lvBatteryBufferEuCapacity)
-      addRateMetric('Output', installedBatteries * lvBatteryBufferOutputEuPerSecond, ' EU/s', 'supply', `${installedBatteries}/${batterySlots} cells`)
+      addRateMetric('Input', liveRates.inputEuPerSecond, ' EU/s', 'supply', 'live charge')
+      addRateMetric('Output', liveRates.outputEuPerSecond, ' EU/s', 'usage', `${installedBatteries * lvBatteryBufferOutputEuPerSecond} EU/s max`)
     } else if (isEuProducerMachine(selectedMachine.machineId)) {
       addEuMetric('Stored EU', process.euStored, steamTurbineEuCapacity)
       addSteamSupplyMetric(availableConnectedSteam(state, selectedMachine))
@@ -8150,8 +8153,13 @@ function App() {
                       {(() => {
                         const installedCount = batteryBufferInstalledBatteries(selectedMachine)
                         const slotCount = batteryBufferSlots(selectedMachine.machineId)
+                        const liveRates = batteryBufferLiveEuRates(selectedMachine)
                         return (
                           <>
+                      <div className="buffer-live-flow" aria-label="Live battery buffer power flow">
+                        <span><small>Input</small><strong>{formatAmount(liveRates.inputEuPerSecond)} EU/s</strong></span>
+                        <span><small>Output</small><strong>{formatAmount(liveRates.outputEuPerSecond)} EU/s</strong></span>
+                      </div>
                       <div className="buffer-cell-grid" aria-label="Installed buffer batteries">
                         {Array.from({ length: slotCount }).map((_, index) => {
                           const batteryId = selectedMachine.process.batterySlots[index]
@@ -8178,7 +8186,7 @@ function App() {
                         })}
                       </div>
                       <span>
-                        Cells {installedCount}/{slotCount} | {formatAmount(selectedMachine.process.euCapacity)} EU total | Output {Math.min(installedCount, slotCount) * lvBatteryBufferOutputEuPerSecond} EU/s
+                        Cells {installedCount}/{slotCount} | {formatAmount(selectedMachine.process.euCapacity)} EU total | {Math.min(installedCount, slotCount) * lvBatteryBufferOutputEuPerSecond} EU/s max
                       </span>
                           </>
                         )

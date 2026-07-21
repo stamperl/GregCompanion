@@ -854,6 +854,8 @@ export type MachineProcessState = {
   euStored: number
   euCapacity: number
   euFlowPerSecond?: number
+  euInputPerSecond?: number
+  euOutputPerSecond?: number
   fluids: Partial<Record<FluidId, number>>
   fluidCapacityLitres: number
   fluidFlowLitresPerSecond?: number

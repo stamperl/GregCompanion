@@ -124,6 +124,7 @@ import {
   setPipeSideDisabled,
   pipeSideMode,
   batteryBufferOutputDirection,
+  batteryBufferLiveEuRates,
   fluidPipeBufferCapacityLitres,
   steamMsPerLitre,
   steamPipeBufferCapacityMs,
@@ -4818,6 +4819,8 @@ describe('game engine', () => {
     const chargedBuffer = state.machineInstances.find((instance) => instance.uid === buffer.uid)!
     const primedWiremill = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!
     expect(chargedBuffer.process.euStored + primedWiremill.process.euStored).toBe(190)
+    expect(batteryBufferLiveEuRates(chargedBuffer).inputEuPerSecond).toBeGreaterThan(0)
+    expect(batteryBufferLiveEuRates(chargedBuffer).outputEuPerSecond).toBeGreaterThan(0)
     expect(availableConnectedEuStorage(state, primedWiremill)).toBe(chargedBuffer.process.euStored)
 
     state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)

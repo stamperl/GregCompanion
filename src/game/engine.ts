@@ -187,6 +187,8 @@ let activeEuTransferBudgets: Map<string, number> | null = null
 let activeFluidTransferBudgets: Map<string, number> | null = null
 let activeSteamSegmentFlows: Map<string, number> | null = null
 let activeEuSegmentFlows: Map<string, number> | null = null
+let activeEuInputFlows: Map<string, number> | null = null
+let activeEuOutputFlows: Map<string, number> | null = null
 let activeFluidSegmentFlows: Map<string, Partial<Record<FluidId, number>>> | null = null
 let activeFluidSourceFlows: Map<string, Partial<Record<FluidId, number>>> | null = null
 let activeTransferElapsedMs = 0
@@ -365,6 +367,8 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     euStored: process.euStored,
     euCapacity: process.euCapacity,
     euFlowPerSecond: process.euFlowPerSecond,
+    euInputPerSecond: process.euInputPerSecond,
+    euOutputPerSecond: process.euOutputPerSecond,
     fluids: { ...process.fluids },
     fluidCapacityLitres: process.fluidCapacityLitres,
     fluidFlowLitresPerSecond: process.fluidFlowLitresPerSecond,
@@ -546,6 +550,8 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     euStored: Math.max(0, process.euStored ?? 0),
     euCapacity: Math.max(0, Math.floor(process.euCapacity ?? 0)),
     euFlowPerSecond: typeof process.euFlowPerSecond === 'number' ? Math.max(0, process.euFlowPerSecond) : undefined,
+    euInputPerSecond: typeof process.euInputPerSecond === 'number' ? Math.max(0, process.euInputPerSecond) : undefined,
+    euOutputPerSecond: typeof process.euOutputPerSecond === 'number' ? Math.max(0, process.euOutputPerSecond) : undefined,
     fluids: normalizeFluidStore(process.fluids),
     fluidCapacityLitres: Math.max(0, Math.floor(process.fluidCapacityLitres ?? 0)),
     fluidFlowLitresPerSecond: typeof process.fluidFlowLitresPerSecond === 'number' ? Math.max(0, process.fluidFlowLitresPerSecond) : undefined,
@@ -4084,6 +4090,23 @@ function connectedFluidOutputTargets(state: GameState, source: MachineInstance, 
   return targets
 }
 
+function recordEuTransfer(source: MachineInstance, target: MachineInstance, sourceDraw: number, delivered: number) {
+  if (activeEuOutputFlows && isEuStorageMachine(source.machineId) && sourceDraw > 0) {
+    activeEuOutputFlows.set(source.uid, (activeEuOutputFlows.get(source.uid) ?? 0) + sourceDraw)
+  }
+  if (activeEuInputFlows && isEuStorageMachine(target.machineId) && delivered > 0) {
+    activeEuInputFlows.set(target.uid, (activeEuInputFlows.get(target.uid) ?? 0) + delivered)
+  }
+}
+
+export function batteryBufferLiveEuRates(instance: MachineInstance) {
+  if (!isEuStorageMachine(instance.machineId)) return { inputEuPerSecond: 0, outputEuPerSecond: 0 }
+  return {
+    inputEuPerSecond: Math.max(0, instance.process.euInputPerSecond ?? 0),
+    outputEuPerSecond: Math.max(0, instance.process.euOutputPerSecond ?? 0),
+  }
+}
+
 function freeFluidCapacity(state: GameState, instance: MachineInstance, fluidId: FluidId) {
   const capacity = fluidCapacityForFluid(state, instance, fluidId, 'input')
   return Math.max(0, capacity - (instance.process.fluids[fluidId] ?? 0))
@@ -4410,6 +4433,10 @@ function tickPipeDisplayBuffers(state: GameState) {
       instance.process.euFlowPerSecond = flowEu
       instance.process.euStored = flowEu > 0 ? Math.min(capacity, availableEu, Math.max(flowEu * 0.5, capacity * 0.35)) : 0
     }
+    if (isEuStorageMachine(instance.machineId)) {
+      instance.process.euInputPerSecond = (activeEuInputFlows?.get(instance.uid) ?? 0) / elapsedSeconds
+      instance.process.euOutputPerSecond = (activeEuOutputFlows?.get(instance.uid) ?? 0) / elapsedSeconds
+    }
   }
 }
 
@@ -4550,6 +4577,7 @@ function consumeConnectedEuFromProducers(state: GameState, instance: MachineInst
     if (delivered <= 0) continue
 
     producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
+    recordEuTransfer(producer.instance, instance, delivered + routeLoss, delivered)
     spendTickBudget(activeEuTransferBudgets, budgetKey, delivered)
     spendEuRoute(route, delivered)
     remaining -= delivered
@@ -4587,6 +4615,7 @@ function consumeConnectedEu(state: GameState, instance: MachineInstance, amount:
     if (delivered <= 0) continue
 
     producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
+    recordEuTransfer(producer.instance, instance, delivered + routeLoss, delivered)
     spendTickBudget(activeEuTransferBudgets, budgetKey, delivered)
     spendEuRoute(route, delivered)
     remaining -= delivered
@@ -6829,6 +6858,8 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     activeFluidTransferBudgets = new Map()
     activeSteamSegmentFlows = new Map()
     activeEuSegmentFlows = new Map()
+    activeEuInputFlows = new Map()
+    activeEuOutputFlows = new Map()
     activeFluidSegmentFlows = new Map()
     activeFluidSourceFlows = new Map()
     activeTransferElapsedMs = elapsedMs
@@ -6946,6 +6977,8 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     activeFluidTransferBudgets = null
     activeSteamSegmentFlows = null
     activeEuSegmentFlows = null
+    activeEuInputFlows = null
+    activeEuOutputFlows = null
     activeFluidSegmentFlows = null
     activeFluidSourceFlows = null
     activeTransferElapsedMs = 0
