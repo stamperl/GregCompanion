@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-20T15:34:37.836Z",
+  "generatedAt": "2026-07-21T07:34:31.449Z",
   "resources": [
     {
       "id": "log",
@@ -1328,7 +1328,7 @@
     },
     {
       "id": "jobInterface",
-      "label": "Job Interface Face",
+      "label": "Job Interface",
       "tier": "mv"
     },
     {
@@ -1530,12 +1530,12 @@
     },
     {
       "id": "bbfCasingsQuest",
-      "label": "Craft BBF casings",
+      "label": "Craft Bricked Blast Furnace casings",
       "chapter": "Coke & Steel"
     },
     {
       "id": "buildBbfQuest",
-      "label": "Form the BBF multiblock",
+      "label": "Form the Bricked Blast Furnace",
       "chapter": "Coke & Steel"
     },
     {
@@ -1670,7 +1670,7 @@
     },
     {
       "id": "makeEmptyBatteryCellQuest",
-      "label": "Build the battery-alloy line",
+      "label": "Make an Empty Battery Cell",
       "chapter": "Blast Prep"
     },
     {
@@ -1790,7 +1790,7 @@
     },
     {
       "id": "buildArcBlastFurnaceQuest",
-      "label": "Form the Arc Furnace multiblock",
+      "label": "Form the Arc Blast Furnace",
       "chapter": "Blast Prep"
     },
     {
@@ -1935,7 +1935,7 @@
     },
     {
       "id": "findGoldQuest",
-      "label": "Survey conductive gold",
+      "label": "Mine conductive gold",
       "chapter": "Auto Crafting"
     },
     {
@@ -1960,7 +1960,7 @@
     },
     {
       "id": "makePhaseCrystalQuest",
-      "label": "Stabilise phase crystal",
+      "label": "Build phase crystals",
       "chapter": "Auto Crafting"
     },
     {
@@ -4325,7 +4325,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4374,7 +4374,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 4
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4423,7 +4423,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 8
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4529,7 +4529,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4586,7 +4586,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4639,7 +4639,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4696,7 +4696,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4749,7 +4749,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4802,7 +4802,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4855,7 +4855,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 2
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4908,7 +4908,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4957,7 +4957,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         }
       ],
       "pattern": [
@@ -5010,7 +5010,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         }
       ],
       "pattern": [
@@ -5071,7 +5071,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         }
       ],
       "pattern": [
@@ -5128,7 +5128,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         }
       ],
       "pattern": [
@@ -5181,7 +5181,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         }
       ],
       "pattern": [
@@ -5234,7 +5234,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         },
         {
           "id": "ironPickaxe",
@@ -7906,7 +7906,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         },
         {
           "id": "tinCable",
@@ -7959,7 +7959,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         },
         {
           "id": "lvMachineHull",
@@ -8008,7 +8008,7 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 3
+          "amount": 1
         },
         {
           "id": "tinCable",
@@ -12158,8 +12158,8 @@
     {
       "kind": "process",
       "id": "lv_assembler_job_interface",
-      "name": "Assemble Job Interface Faces",
-      "description": "Build two compact machine faces for holding and dispatching physical encoded patterns.",
+      "name": "Assemble Job Interfaces",
+      "description": "Build two interfaces that can be placed as network blocks or consumed as compact Fabrication Cable faces.",
       "tier": "mv",
       "machineId": "lvAssembler",
       "durationMs": 10000,
