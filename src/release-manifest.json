@@ -1,8 +1,12 @@
 {
-  "revision": "1.1.1",
+  "revision": "1.1.2",
   "date": "2026-07-21",
-  "title": "LV Circuit Recipe Correction",
+  "title": "Factory Routing Fixes",
   "notes": [
-    "Standard LV machines and every LV battery buffer now require one Basic Electronic Circuit instead of stacking several circuits in the crafting grid; the Arc Furnace controller retains its intended three-circuit requirement."
+    "Iron and Steel Tanks now supply water through configured pipe networks so Solid Fuel Boilers can run reliably from stored water.",
+    "LV Battery Buffers now accept EU on three faces and export through one selected face; existing saves migrate their routing safely.",
+    "Permanent imprint dies are now cut in the Circuit Imprinter, while the LV Compressor remains responsible for Hardened Die Blanks.",
+    "Machine fluid slots now support withdrawing from inputs, returning fluids to inputs, and topping partially filled Steel Cells up to 8L; output slots remain withdrawal-only.",
+    "Gold and Resonant Quartz veins now remain hidden until the Diamond Pickaxe tier, and the Home screen includes a Report Bug link with build details."
   ]
 }
