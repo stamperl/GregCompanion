@@ -5831,12 +5831,66 @@ button.craft-output:disabled {
 }
 
 .centrifuge-hmi {
-  grid-template-columns: 72px minmax(0, 1fr) 116px;
+  grid-template-columns: 102px minmax(0, 1fr) 104px;
+}
+
+.centrifuge-input-pair {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, 42px);
+}
+
+.centrifuge-port {
+  align-items: center;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-width: 0;
+}
+
+.centrifuge-port > span {
+  color: #d9cc84;
+  font: 900 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1;
+  max-width: 46px;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.centrifuge-port .process-slot-label {
+  display: none;
+}
+
+.centrifuge-port .process-slot {
+  box-sizing: border-box;
+  height: 48px;
+  width: 42px;
+}
+
+.centrifuge-hmi .forge-readout {
+  align-content: center;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 2px 4px;
+}
+
+.centrifuge-hmi .forge-readout span {
+  font-size: 0.52rem;
+}
+
+.centrifuge-hmi .forge-readout strong {
+  font-size: 0.64rem;
+  text-align: left;
 }
 
 .centrifuge-universal-outputs .process-slot {
   height: 48px;
   width: 48px;
+}
+
+.centrifuge-universal-outputs {
+  align-items: start;
 }
 
 .process-slot .fluid-icon {
@@ -18397,7 +18451,23 @@ button.button-primary:disabled,
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-color: #d9cc84 #101514;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.machine-terminal-body::-webkit-scrollbar {
+  width: 7px;
+}
+
+.machine-terminal-body::-webkit-scrollbar-track {
+  background: #101514;
+  border-left: 1px solid #46524d;
+}
+
+.machine-terminal-body::-webkit-scrollbar-thumb {
+  background: #d9cc84;
+  border: 1px solid #6e612b;
 }
 
 .machine-terminal-body > * {

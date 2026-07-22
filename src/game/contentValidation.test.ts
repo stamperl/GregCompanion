@@ -304,6 +304,20 @@ describe('content validation', () => {
     }
   })
 
+  it('keeps the deliberate LV air-processing bottleneck', () => {
+    const collectAir = processRecipes.find((recipe) => recipe.id === 'collect_air')!
+    const separateAir = processRecipes.find((recipe) => recipe.id === 'lv_centrifuge_air')!
+
+    expect(collectAir).toMatchObject({ durationMs: 80000, euCost: 128 })
+    expect(collectAir.fluidOutputs).toEqual([{ id: 'air', amount: 16, bufferId: 'output' }])
+    expect(separateAir).toMatchObject({ durationMs: 45000, euCost: 540 })
+    expect(separateAir.fluidInputs).toEqual([{ id: 'air', amount: 8, bufferId: 'feed' }])
+    expect(separateAir.fluidOutputs).toEqual([
+      { id: 'oxygen', amount: 2, bufferId: 'productA' },
+      { id: 'nitrogen', amount: 4, bufferId: 'productB' },
+    ])
+  })
+
   it('gives refined LV materials an intentional recipe consumer', () => {
     const consumedResources = new Set([
       ...recipes.flatMap((recipe) => [

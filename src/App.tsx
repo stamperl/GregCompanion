@@ -839,7 +839,7 @@ function migrationNoticeText(notices: string[]) {
   if (notices.includes('lv-buffer-face-contract')) return 'LV Battery Buffers now accept EU on three faces and export through one selected face. Existing buffer directions were preserved as the new output face.'
   if (notices.includes('fabrication-interface-faces')) return 'Job Interfaces can now be placed as network blocks or consumed as Fabrication Cable faces. Encoded patterns remain safe in Pattern Inventory.'
   if (notices.includes('portable-fluid-containers')) return 'Buckets and Steel Cells now keep their exact fluid and fill level. Legacy filled cells were converted, and old overfilled buckets were safely limited to their new 1L capacity.'
-  if (notices.includes('centrifuge-single-input')) return 'LV Centrifuges now use one item input. Anything left in the old second input slot has been returned to storage.'
+  if (notices.includes('centrifuge-single-input')) return 'LV Centrifuges now use one item input plus a separate fluid and gas input. Anything left in the old second item slot has been returned to storage.'
   if (notices.includes('arc-furnace-3x3')) return 'Arc Furnaces now use flexible 3x3 structures. Legacy furnaces were dismantled and their heatproof casings returned so you can build the new controller, buses, and Energy Hatches.'
   if (notices.includes('survey-card-inventory')) return 'Survey Cards are now physical LV Auto Miner inventory items. Cards assigned by an older save have been moved into their miner without losing the target or card.'
   if (!notices.includes('coke-oven-multiblock')) return ''
@@ -1638,6 +1638,7 @@ function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId
     return processRecipes.some(
       (recipe) =>
         recipe.machineId === machineId &&
+        !recipe.fluidOnly &&
         (recipe.input.id === resourceId || Boolean(recipe.secondaryInput && recipe.secondaryInput.id === resourceId)) &&
         (machineId !== 'steamAlloySmelter' || resourceId.endsWith('Ingot') || resourceId.endsWith('Dust')),
     )
@@ -2601,8 +2602,8 @@ function App() {
         instance.process.fluids.oxygen = reviewState === 'active' ? 8 : 20
         instance.process.fluids.nitrogen = reviewState === 'active' ? 16 : 28
         instance.process.activeRecipeId = reviewState === 'active' ? 'lv_centrifuge_air' : null
-        instance.process.durationMs = reviewState === 'active' ? 8000 : 0
-        instance.process.progressMs = reviewState === 'active' ? 4000 : 0
+        instance.process.durationMs = reviewState === 'active' ? 45000 : 0
+        instance.process.progressMs = reviewState === 'active' ? 22500 : 0
       }
       if (reviewMachineId === 'lvAirCollector') {
         instance.process.input = null
@@ -8870,14 +8871,23 @@ function App() {
                               onClick={() => handleProcessSlotPress(index === 0 ? 'input' : 'secondaryInput')}
                               key={`chemical-input-${index}`}
                             />
-                          )) : isCentrifuge && !process.input && centrifugeInputBuffer && (centrifugeInputFluidId || machineTerminalMode === 'fluids') ? (
-                            <ProcessFluidSlot
-                              fluidId={centrifugeInputFluidId}
-                              amount={centrifugeInputFluidId ? process.fluids[centrifugeInputFluidId] ?? 0 : 0}
-                              label="Input"
-                              ready={nativeFluidControlReady(centrifugeInputBuffer.id, 'input')}
-                              onClick={() => handleNativeFluidControl(centrifugeInputBuffer.id, 'input')}
-                            />
+                          )) : isCentrifuge && centrifugeInputBuffer ? (
+                            <div className="centrifuge-input-pair">
+                              <div className="centrifuge-port">
+                                <ProcessItemSlot slot={process.input} label="Item input" onClick={() => handleProcessSlotPress('input')} />
+                                <span>Item</span>
+                              </div>
+                              <div className="centrifuge-port">
+                                <ProcessFluidSlot
+                                  fluidId={centrifugeInputFluidId}
+                                  amount={centrifugeInputFluidId ? process.fluids[centrifugeInputFluidId] ?? 0 : 0}
+                                  label="Fluid or gas input"
+                                  ready={nativeFluidControlReady(centrifugeInputBuffer.id, 'input')}
+                                  onClick={() => handleNativeFluidControl(centrifugeInputBuffer.id, 'input')}
+                                />
+                                <span>Fluid/Gas</span>
+                              </div>
+                            </div>
                           ) : (
                             <ProcessItemSlot slot={process.input} label="Input" onClick={() => handleProcessSlotPress('input')} />
                           )}
@@ -8923,21 +8933,25 @@ function App() {
                           ) : isCentrifuge ? (
                             <div className="machine-dual-output centrifuge-universal-outputs">
                               {centrifugeOutputChannels.map((channel, index) => channel?.kind === 'fluid' ? (
-                                <ProcessFluidSlot
-                                  fluidId={channel.fluidId}
-                                  amount={channel.amount}
-                                  label={`Output ${index + 1}`}
-                                  ready={nativeFluidControlReady(channel.bufferId, 'output')}
-                                  onClick={() => handleNativeFluidControl(channel.bufferId, 'output')}
-                                  key={`fluid-${channel.bufferId}`}
-                                />
+                                <div className="centrifuge-port" key={`fluid-${channel.bufferId}`}>
+                                  <ProcessFluidSlot
+                                    fluidId={channel.fluidId}
+                                    amount={channel.amount}
+                                    label={`Output ${index + 1}`}
+                                    ready={nativeFluidControlReady(channel.bufferId, 'output')}
+                                    onClick={() => handleNativeFluidControl(channel.bufferId, 'output')}
+                                  />
+                                  <span>{channel.fluidId ? fluidLabels[channel.fluidId] : `Output ${index + 1}`}</span>
+                                </div>
                               ) : (
-                                <ProcessItemSlot
-                                  slot={channel?.kind === 'item' ? channel.slot : null}
-                                  label={`Output ${index + 1}`}
-                                  onClick={() => handleProcessSlotPress(index === 0 ? 'output' : 'output2')}
-                                  key={`item-output-${index}`}
-                                />
+                                <div className="centrifuge-port" key={`item-output-${index}`}>
+                                  <ProcessItemSlot
+                                    slot={channel?.kind === 'item' ? channel.slot : null}
+                                    label={`Output ${index + 1}`}
+                                    onClick={() => handleProcessSlotPress(index === 0 ? 'output' : 'output2')}
+                                  />
+                                  <span>Output {index + 1}</span>
+                                </div>
                               ))}
                             </div>
                           ) : (

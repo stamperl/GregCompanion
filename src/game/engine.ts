@@ -182,6 +182,8 @@ export const lvAutoMinerActionDamage = 16
 export const lvAutoMinerActionMs = 4000
 export const lvAutoMinerEuUse = 16
 
+const airCollectorRecipe = processRecipes.find((recipe) => recipe.id === 'collect_air')
+
 let activeSteamTransferBudgets: Map<string, number> | null = null
 let activeEuTransferBudgets: Map<string, number> | null = null
 let activeFluidTransferBudgets: Map<string, number> | null = null
@@ -2694,16 +2696,6 @@ function recipeFluidOutputs(recipe: ProcessRecipe) {
   return recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
 }
 
-function hasStoredRecipeFluidInput(machineId: MachineId, process: MachineProcessState) {
-  const inputFluidIds = new Set(
-    processRecipes
-      .filter((recipe) => recipe.machineId === machineId)
-      .flatMap(recipeFluidInputs)
-      .map((fluid) => fluid.id),
-  )
-  return [...inputFluidIds].some((fluidId) => (process.fluids[fluidId] ?? 0) > 0)
-}
-
 function centrifugeFluidOutputChannelIndex(fluidId: FluidId) {
   for (const recipe of processRecipes) {
     if (recipe.machineId !== 'lvCentrifuge') continue
@@ -3507,7 +3499,6 @@ function storedFluidTypes(process: MachineProcessState) {
 }
 
 function canStoreFluid(state: GameState, instance: MachineInstance, fluidId: FluidId) {
-  if (instance.machineId === 'lvCentrifuge' && instance.process.input) return false
   const capacity = fluidCapacityForFluid(state, instance, fluidId, 'input')
   if (capacity < 1) return false
   const buffer = compatibleFluidBuffer(state, instance, fluidId, 'input')
@@ -4216,7 +4207,6 @@ export function drainPortableFluidContainer(state: GameState, machineUid: string
   const container = state.fluidContainers.find((candidate) => candidate.uid === containerUid)
   if (!targetInstance || !container) return state
   const target = manualFluidTarget(state, targetInstance)
-  if (target.machineId === 'lvCentrifuge' && target.process.input) return state
   const inputBuffer = machineFluidBuffersForInstance(state, target).find((buffer) =>
     (!bufferId || buffer.id === bufferId) &&
     buffer.acceptedFluids.includes(container.fluidId),
@@ -5244,6 +5234,7 @@ export function canResourceEnterProcessSlot(machineId: MachineId, slotId: Proces
     return processRecipes.some(
       (recipe) =>
         recipe.machineId === machineId &&
+        !recipe.fluidOnly &&
         (recipe.input.id === resourceId || Boolean(recipe.secondaryInput && recipe.secondaryInput.id === resourceId)) &&
         (machineId !== 'steamAlloySmelter' || isAlloySmelterIngredient(resourceId)),
     )
@@ -5278,8 +5269,6 @@ export function insertProcessSlot(state: GameState, uid: string, slotId: Process
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !canResourceEnterProcessSlot(instance.machineId, slotId, resourceId)) return state
   if (processOutputSlotIds.includes(slotId as typeof processOutputSlotIds[number]) && !isItemHopperMachine(instance.machineId)) return state
-  if (instance.machineId === 'lvCentrifuge' && slotId === 'input' && hasStoredRecipeFluidInput(instance.machineId, instance.process)) return state
-
   const owner = arcProcessSlotOwner(state, instance, slotId)
   const currentSlot = owner.process[slotId]
   if (currentSlot && currentSlot.id !== resourceId) return state
@@ -6024,7 +6013,6 @@ type HopperPullCandidate =
   | { source: MachineInstance; sourceSlotId: (typeof processOutputSlotIds)[number]; sourceStorageSlotIndex?: never; hopperSlotId: HopperStorageSlotId; stored: NonNullable<ProcessSlot> }
 
 function hopperTargetSlot(machineId: MachineId, process: MachineProcessState, resourceId: ResourceId): Exclude<ProcessSlotId, 'output'> | null {
-  if (machineId === 'lvCentrifuge' && hasStoredRecipeFluidInput(machineId, process)) return null
   const slotIds: Array<Exclude<ProcessSlotId, 'output'>> = ['input', 'secondaryInput', 'fuel']
   return slotIds.find((slotId) => canResourceEnterProcessSlot(machineId, slotId, resourceId) && processSlotAcceptsItem(process[slotId], resourceId)) ?? null
 }
@@ -6061,18 +6049,23 @@ function tickAirCollector(state: GameState, instance: MachineInstance, elapsedMs
   fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   const capacity = machineFluidCapacityLitres(instance.machineId)
   const freeAir = Math.max(0, capacity - (process.fluids.air ?? 0))
-  const collected = Math.min(elapsedMs / 1000, process.euStored / 8, freeAir)
+  const durationMs = airCollectorRecipe?.durationMs ?? 80000
+  const outputLitres = airCollectorRecipe?.fluidOutputs?.find((output) => output.id === 'air')?.amount ?? 16
+  const euCost = airCollectorRecipe?.euCost ?? 128
+  const litresPerMs = outputLitres / durationMs
+  const euPerLitre = euCost / outputLitres
+  const collected = Math.min(elapsedMs * litresPerMs, process.euStored / euPerLitre, freeAir)
   if (collected <= 0) {
     process.activeRecipeId = null
-    process.durationMs = 1000
+    process.durationMs = durationMs
     process.progressMs = 0
     return
   }
-  process.euStored -= collected * 8
+  process.euStored -= collected * euPerLitre
   process.fluids.air = (process.fluids.air ?? 0) + collected
   process.activeRecipeId = 'collect_air'
-  process.durationMs = 1000
-  process.progressMs = Math.min(999, process.progressMs + elapsedMs)
+  process.durationMs = durationMs
+  process.progressMs = (process.progressMs + collected / litresPerMs) % durationMs
   pushFluidToConnectedStorage(state, instance, 'air', elapsedMs)
 }
 
@@ -6204,7 +6197,6 @@ export function isLvItemAutomationMachine(machineId: MachineId) {
 }
 
 function lvAutomationTargetSlot(target: MachineInstance, resourceId: ResourceId): Exclude<ProcessSlotId, 'output'> | null {
-  if (target.machineId === 'lvCentrifuge' && hasStoredRecipeFluidInput(target.machineId, target.process)) return null
   const slotIds: Array<Exclude<ProcessSlotId, 'output'>> = ['input', 'secondaryInput', ...mixerExtraInputSlotIds, 'fuel']
   return slotIds.find((slotId) => canResourceEnterProcessSlot(target.machineId, slotId, resourceId) && processSlotAcceptsItem(target.process[slotId], resourceId)) ?? null
 }

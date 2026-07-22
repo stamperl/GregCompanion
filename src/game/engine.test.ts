@@ -6542,14 +6542,17 @@ describe('game engine', () => {
     centrifuge.process.fluids.air = 8
     centrifuge.process.euStored = 128
 
-    state = tickGame(state, 8000).state
+    for (let cycle = 0; cycle < 5; cycle += 1) {
+      state.machineInstances[0].process.euStored = 128
+      state = tickGame(state, 9000).state
+    }
 
     expect(state.machineInstances[0].process.fluids.air).toBe(0)
     expect(state.machineInstances[0].process.fluids.oxygen).toBe(2)
-    expect(state.machineInstances[0].process.fluids.nitrogen).toBe(6)
+    expect(state.machineInstances[0].process.fluids.nitrogen).toBe(4)
   })
 
-  it('uses one Centrifuge input channel for either items or fluids', () => {
+  it('keeps the Centrifuge item and fluid input channels independent', () => {
     let state = createFactoryState()
     state.machines.lvCentrifuge = 1
     state.resources.rubberSap = 1
@@ -6557,14 +6560,12 @@ describe('game engine', () => {
     const centrifuge = state.machineInstances[0]
     centrifuge.process.fluids.air = 8
 
-    expect(insertProcessSlot(state, centrifuge.uid, 'input', 'rubberSap', 1)).toBe(state)
-
-    centrifuge.process.fluids.air = 0
     state = insertProcessSlot(state, centrifuge.uid, 'input', 'rubberSap', 1)
     state.fluidContainers.push({ uid: 'test-air-cell', kind: 'steelCell', fluidId: 'air', amountLitres: 8 })
+    state = drainPortableFluidContainer(state, centrifuge.uid, 'test-air-cell', 'feed')
 
-    expect(drainPortableFluidContainer(state, centrifuge.uid, 'test-air-cell', 'feed')).toBe(state)
-    expect(state.machineInstances[0].process.fluids.air).toBe(0)
+    expect(state.machineInstances[0].process.input).toEqual({ id: 'rubberSap', amount: 1 })
+    expect(state.machineInstances[0].process.fluids.air).toBe(16)
   })
 
   it('blocks Centrifuge recipes whose shared output channels contain another product', () => {
@@ -6589,7 +6590,7 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'lvAirCollector', 0, 0)
     state.machineInstances[0].process.euStored = 64
 
-    state = tickGame(state, 8000).state
+    state = tickGame(state, 40000).state
 
     expect(state.machineInstances[0].process.fluids.air).toBe(8)
     expect(state.machineInstances[0].process.euStored).toBe(0)
@@ -6603,12 +6604,13 @@ describe('game engine', () => {
     state = placeMachineInstance(state, 'lvCentrifuge', 1, 0)
     const collector = state.machineInstances.find((instance) => instance.machineId === 'lvAirCollector')!
     const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    centrifuge.process.input = { id: 'rubberSap', amount: 1 }
     collector.process.euStored = 64
     state = setFluidOutputDirection(state, collector.uid, 'east')
 
     expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!, 'west')).toBe('input')
 
-    state = tickGame(state, 8000).state
+    state = tickGame(state, 40000).state
 
     expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air).toBe(0)
     expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air).toBe(8)
@@ -6619,16 +6621,17 @@ describe('game engine', () => {
     state.machines.lvAirCollector = 1
     state.machines.copperPipe = 1
     state.machines.lvCentrifuge = 1
-    state = placeMachineInstance(state, 'lvAirCollector', 0, 0)
-    state = placeMachineInstance(state, 'copperPipe', 1, 0)
-    state = placeMachineInstance(state, 'lvCentrifuge', 2, 0)
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 0, 1)
+    state = placeMachineInstance(state, 'lvAirCollector', 0, 2)
     const collector = state.machineInstances.find((instance) => instance.machineId === 'lvAirCollector')!
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
     const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    centrifuge.process.input = { id: 'rubberSap', amount: 1 }
     collector.process.fluids.air = 8
-    state = setFluidOutputDirection(state, collector.uid, 'east')
-    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
-    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+    state = setFluidOutputDirection(state, collector.uid, 'north')
+    state = setPipeSideMode(state, pipe.uid, 'south', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'north', 'output')
 
     state = tickGame(state, 1000).state
 
