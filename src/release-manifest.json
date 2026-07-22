@@ -1,12 +1,13 @@
 {
-  "revision": "1.1.2",
-  "date": "2026-07-21",
-  "title": "Factory Routing Fixes",
+  "revision": "1.1.3",
+  "date": "2026-07-22",
+  "title": "Machine Processing Fixes",
   "notes": [
-    "Iron and Steel Tanks now supply water through configured pipe networks so Solid Fuel Boilers can run reliably from stored water.",
-    "LV Battery Buffers now accept EU on three faces and export through one selected face; existing saves migrate their routing safely.",
-    "Permanent imprint dies are now cut in the Circuit Imprinter, while the LV Compressor remains responsible for Hardened Die Blanks.",
-    "Machine fluid slots now support withdrawing from inputs, returning fluids to inputs, and topping partially filled Steel Cells up to 8L; output slots remain withdrawal-only.",
-    "Gold and Resonant Quartz veins now remain hidden until the Diamond Pickaxe tier, and the Home screen includes a Report Bug link with build details."
+    "LV Battery Buffers now show live input and output draw so power bottlenecks are easier to diagnose.",
+    "Fluid-capable machines now allow fluids to be withdrawn from input slots with compatible portable containers.",
+    "LV Air Collectors now route Air through standard fluid pipes and directly into adjacent Centrifuges; Air collection and separation run as deliberate completed batches with corrected timings and yields.",
+    "LV Centrifuges now provide separate item and fluid or gas inputs with a phone-safe terminal layout.",
+    "Machine terminal load bars now remain visible on supported phone sizes without requiring page scrolling.",
+    "LV Assembler recipes now expose one real output, keep completed machine parts in the output slot until collected, and no longer display or grant placeholder outputs while crafting."
   ]
 }
