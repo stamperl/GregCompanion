@@ -18449,12 +18449,15 @@ button.button-primary:disabled,
 }
 
 .machine-terminal-body {
+  box-sizing: border-box;
   display: grid;
   gap: 10px;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding-bottom: 8px;
+  scroll-padding-bottom: 8px;
   scrollbar-color: #d9cc84 #101514;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
