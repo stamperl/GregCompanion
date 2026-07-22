@@ -4828,7 +4828,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'lvConveyor', amount: 2 },
       { id: 'rubber', amount: 2 },
     ],
-    output: { id: 'steelRod', amount: 0 },
     machineOutput: { id: 'itemConductor', amount: 2 },
   },
   {
@@ -4845,7 +4844,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'lvPump', amount: 2 },
       { id: 'pipeSealant', amount: 2 },
     ],
-    output: { id: 'steelRing', amount: 0 },
     machineOutput: { id: 'fluidConductor', amount: 2 },
   },
   {
@@ -4859,7 +4857,6 @@ export const processRecipes: ProcessRecipe[] = [
     input: { id: 'steelPlate', amount: 6 },
     secondaryInput: { id: 'bucket', amount: 1 },
     extraInputs: [{ id: 'pipeSealant', amount: 2 }],
-    output: { id: 'steelPlate', amount: 0 },
     machineOutput: { id: 'steelTank', amount: 1 },
   },
   ...([
@@ -4881,7 +4878,6 @@ export const processRecipes: ProcessRecipe[] = [
     input: { id: 'lvMachineHull' as const, amount: 1 },
     secondaryInput: { id: componentId, amount: 1 },
     fluidInput: { id: 'glue' as const, amount: 2 },
-    output: { id: 'lvMachineHull' as const, amount: 0 },
     machineOutput: { id: machineId, amount: 1 },
     ...(programNumber === undefined ? {} : { programNumber, autoSelectable: false }),
   })),
@@ -5220,7 +5216,6 @@ export const processRecipes: ProcessRecipe[] = [
     euCost: 128,
     input: { id: 'rubberPulp', amount: 2 },
     secondaryInput: { id: 'sulfurDust', amount: 1 },
-    output: { id: 'rubber', amount: 0 },
     fluidOutput: { id: 'liquidRubber', amount: 8 },
   },
   {
@@ -5233,7 +5228,6 @@ export const processRecipes: ProcessRecipe[] = [
     euCost: 160,
     input: { id: 'sulfurDust', amount: 1 },
     fluidInputs: [{ id: 'water', amount: 8, bufferId: 'feedA' }],
-    output: { id: 'rubber', amount: 0 },
     fluidOutputs: [{ id: 'sulfuricAcid', amount: 8, bufferId: 'reaction' }],
   },
   {
@@ -5443,7 +5437,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'glass', amount: 2 },
       { id: 'primitiveCircuit', amount: 1 },
     ],
-    output: { id: 'aluminiumPlate', amount: 0 },
     machineOutput: { id: 'crystalEnergizer', amount: 1 },
   },
   {
@@ -5461,7 +5454,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'phaseCrystal', amount: 2 },
       { id: 'primitiveCircuit', amount: 1 },
     ],
-    output: { id: 'aluminiumPlate', amount: 0 },
     machineOutput: { id: 'circuitImprinter', amount: 1 },
   },
   {
@@ -5499,7 +5491,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: processorId, amount: 1 },
       { id: componentId, amount: componentAmount },
     ],
-    output: { id: 'aluminiumPlate', amount: 0 },
     machineOutput: { id: machineId, amount: 1 },
   })),
   {
@@ -5517,7 +5508,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'phaseDust', amount: 1 },
       { id: 'rubber', amount: 2 },
     ],
-    output: { id: 'aluminiumPlate', amount: 0 },
     machineOutput: { id: 'fabricationCable', amount: 4 },
   },
   {
@@ -5535,7 +5525,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'lvPump', amount: 2 },
       { id: 'signalProcessor', amount: 1 },
     ],
-    output: { id: 'aluminiumPlate', amount: 0 },
     machineOutput: { id: 'jobInterface', amount: 2 },
   },
   {
@@ -5553,7 +5542,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'computationProcessor', amount: 1 },
       { id: 'structuralProcessor', amount: 1 },
     ],
-    output: { id: 'aluminiumPlate', amount: 0 },
     machineOutput: { id: 'planningController', amount: 1 },
   },
   {
@@ -5571,7 +5559,6 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'structuralProcessor', amount: 1 },
       { id: 'redAlloyWire', amount: 2 },
     ],
-    output: { id: 'aluminiumPlate', amount: 0 },
     machineOutput: { id: 'dispatchModule', amount: 1 },
   },
   ...([

@@ -622,7 +622,7 @@ export type ProcessRecipe = {
   fluidInputs?: FluidAmount[]
   minimumEuStored?: number
   startupEu?: number
-  output: ResourceAmount
+  output?: ResourceAmount
   secondaryOutput?: ResourceAmount
   machineOutput?: MachineAmount
   fluidOutput?: FluidAmount
@@ -838,6 +838,7 @@ export type MachineProcessState = {
   fuel: ProcessSlot
   output: ProcessSlot
   output2: ProcessSlot
+  machineOutput: MachineAmount | null
   storageSlots: ProcessSlot[]
   batterySlots: Array<ResourceId | null>
   activeRecipeId: string | null

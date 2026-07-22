@@ -98,6 +98,7 @@ import {
   canCraft,
   claimAllQuestRewards,
   claimQuestReward,
+  collectProcessMachineOutput,
   collectProcessOutput,
   conductorFaceSettings,
   createCreativeFactoryState,
@@ -537,7 +538,7 @@ function machineHasAutomatableItemOutputs(machineId: MachineId) {
   return processRecipes.some((recipe) =>
     recipe.machineId === machineId &&
     !recipe.fluidOnly &&
-    (recipe.output.amount > 0 || Boolean(recipe.secondaryOutput?.amount)),
+    (Boolean(recipe.output?.amount) || Boolean(recipe.secondaryOutput?.amount)),
   )
 }
 
@@ -1417,7 +1418,7 @@ function recipePrimaryOutput(recipe: Recipe): RecipeDisplayOutput {
 }
 
 function processRecipePrimaryOutput(recipe: ProcessRecipe): RecipeDisplayOutput {
-  if (!recipe.fluidOnly && recipe.output.amount > 0) {
+  if (!recipe.fluidOnly && recipe.output && recipe.output.amount > 0) {
     return {
       kind: 'resource',
       id: recipe.output.id,
@@ -1454,7 +1455,9 @@ function processRecipePatternAmounts(recipe: ProcessRecipe) {
   ].filter((amount) => amount.amount > 0)
   const itemOutputs = recipe.fluidOnly
     ? []
-    : [recipe.output, ...(recipe.secondaryOutput ? [recipe.secondaryOutput] : [])].filter((amount) => amount.amount > 0)
+    : [recipe.output, recipe.secondaryOutput].filter(
+        (amount): amount is ResourceAmount => Boolean(amount && amount.amount > 0),
+      )
   const fluidInputs = recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])
   const fluidOutputs = recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
   return { itemInputs, itemOutputs, fluidInputs, fluidOutputs }
@@ -1843,7 +1846,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   }
   if (instance.machineId === 'cokeOven') {
     if (!recipe) return 'No input'
-    if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    if (process.output && recipe.output && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
     if (recipe.fluidOutput && (process.fluids[recipe.fluidOutput.id] ?? 0) + recipe.fluidOutput.amount > (process.fluidCapacityLitres || cokeOvenFluidCapacityLitres)) {
       return 'Creosote full'
     }
@@ -1867,13 +1870,13 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if (blastRecipe.fuelInput && (!process.fuel || process.fuel.amount < blastRecipe.fuelInput.amount)) {
       return `Needs ${blastRecipe.fuelInput.amount} ${resourceLabels[blastRecipe.fuelInput.id]}`
     }
-    if (process.output && (process.output.id !== blastRecipe.output.id || process.output.amount + blastRecipe.output.amount > processStackLimit)) return 'Output full'
+    if (process.output && blastRecipe.output && (process.output.id !== blastRecipe.output.id || process.output.amount + blastRecipe.output.amount > processStackLimit)) return 'Output full'
     return process.activeRecipeId ? 'Blasting' : 'Ready'
   }
   if (instance.machineId === 'arcBlastFurnace') {
     const formedStructure = arcBlastFurnaceStructureForInstance(state, instance)
     if (!recipe) return 'No input'
-    if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    if (process.output && recipe.output && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
     const missingFluid = (recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])).find((fluid) => (process.fluids[fluid.id] ?? 0) < fluid.amount)
     if (missingFluid) return `Needs ${fluidLabel(missingFluid.id)}`
     const minimumEuStored = recipe.minimumEuStored ?? 0
@@ -1884,7 +1887,7 @@ function machineStatus(state: GameState, instance: MachineInstance) {
   }
   if (isSteamPoweredMachine(instance.machineId)) {
     if (!recipe) return 'No input'
-    if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+    if (process.output && recipe.output && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
     if (process.steamStoredMs + availableConnectedSteam(state, instance) < 1) return 'No steam'
     return process.activeRecipeId ? 'Running' : 'Ready'
   }
@@ -1896,13 +1899,17 @@ function machineStatus(state: GameState, instance: MachineInstance) {
       return Boolean(slot && (slot.id !== output.id || slot.amount + output.amount > processStackLimit))
     })
     if (blockedOutputIndex >= 0) return `Output ${blockedOutputIndex + 1} full`
+    if (recipe.machineOutput && process.machineOutput && (
+      process.machineOutput.id !== recipe.machineOutput.id ||
+      process.machineOutput.amount + recipe.machineOutput.amount > processStackLimit
+    )) return 'Output full'
     const missingFluid = (recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])).find((fluid) => (process.fluids[fluid.id] ?? 0) < fluid.amount)
     if (missingFluid) return `Needs ${fluidLabel(missingFluid.id)}`
     if (process.euStored + availableConnectedEu(state, instance) < 1) return 'No power'
     return process.activeRecipeId ? 'Running' : 'Ready'
   }
   if (!recipe) return 'No input'
-  if (process.output && recipe && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
+  if (process.output && recipe.output && (process.output.id !== recipe.output.id || process.output.amount + recipe.output.amount > processStackLimit)) return 'Output full'
   if (!process.fuel && process.fuelRemainingMs < 1) return 'No fuel'
   return process.activeRecipeId ? 'Smelting' : 'Ready'
 }
@@ -2678,10 +2685,15 @@ function App() {
         instance.process.progressMs = reviewState === 'active' ? instance.process.durationMs / 2 : 0
         instance.process.activeRecipeId = reviewState === 'active' && target ? `auto_mine_${target.id}` : null
       }
+      if (reviewMachineId === 'lvAssembler' && reviewState === 'filled') {
+        instance.process.activeRecipeId = null
+        instance.process.progressMs = 0
+        instance.process.machineOutput = { id: 'itemConductor', amount: 2 }
+      }
     }
     if (reviewState === 'blocked') {
       const recipe = processRecipes.find((candidate) => candidate.machineId === reviewMachineId)
-      instance.process.output = { id: recipe?.output.id ?? instance.process.output?.id ?? 'ironIngot', amount: processStackLimit }
+      instance.process.output = { id: recipe?.output?.id ?? instance.process.output?.id ?? 'ironIngot', amount: processStackLimit }
       const structure = reviewMachineId === 'arcBlastFurnace' ? arcBlastFurnaceStructureForInstance(reviewGame, instance) : null
       if (structure?.outputBus) structure.outputBus.process.output = { ...instance.process.output }
     }
@@ -3192,7 +3204,9 @@ function App() {
         (recipe) => {
           const itemOutputs = recipe.fluidOnly
             ? []
-            : [recipe.output, ...(recipe.secondaryOutput ? [recipe.secondaryOutput] : [])]
+            : [recipe.output, recipe.secondaryOutput].filter(
+                (output): output is ResourceAmount => Boolean(output),
+              )
           const fluidOutputs = recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
           return recipe.name.toLowerCase().includes(query) ||
             itemOutputs.some((output) => output.amount > 0 && resourceLabels[output.id].toLowerCase().includes(query)) ||
@@ -4365,6 +4379,11 @@ function App() {
       resourceId: selectedResource,
       quantity: suggestedProcessInsertQuantity(selectedMachine, slotId, selectedResource, max),
     })
+  }
+
+  const handleMachineOutputPress = () => {
+    if (!selectedMachine?.process.machineOutput) return
+    setState((current) => collectProcessMachineOutput(current, selectedMachine.uid))
   }
 
   const handleAdjustProcessQuantity = (delta: number) => {
@@ -7675,7 +7694,7 @@ function App() {
                 )}
                 {!isMachineAutomationOpen && machineTerminalMode === 'items' && machineUsesProcessStorage(selectedMachine.machineId) && (
                 <>
-                  <div className={selectedMachineUsesTerminalInventory ? 'machine-inventory-browser' : undefined}>
+                  <div className={selectedMachineUsesTerminalInventory ? 'machine-inventory-browser' : 'machine-process-inventory-browser'}>
                     {selectedMachineUsesTerminalInventory && (
                       <input
                         className="terminal-search machine-inventory-search"
@@ -7713,6 +7732,9 @@ function App() {
                       </span>
                     )}
                     </div>
+                    {!selectedMachineUsesTerminalInventory && displayedFurnaceStorageResources.length > 7 && (
+                      <ChevronRight className="machine-storage-scroll-cue" size={18} aria-hidden="true" />
+                    )}
                   </div>
                   <div className={selectedMachineStorageResource ? 'machine-selected-item active' : 'machine-selected-item'} aria-live="polite">
                     <span>Selected</span>
@@ -8393,8 +8415,10 @@ function App() {
                       </span>
                       <span>
                         <small>Time</small>
-                        <strong>{selectedMachineProcessTimeLabel || '--'}</strong>
-                        <em>{selectedMachine.process.activeRecipeId ? 'Craft remaining' : 'Awaiting recipe'}</em>
+                        <strong>{selectedMachine.process.machineOutput || selectedMachine.process.output ? 'Complete' : selectedMachineProcessTimeLabel || '--'}</strong>
+                        <em>{selectedMachine.process.machineOutput || selectedMachine.process.output
+                          ? 'Collect output'
+                          : selectedMachine.process.activeRecipeId ? 'Craft remaining' : 'Awaiting recipe'}</em>
                       </span>
                       <span>
                         <small>Power</small>
@@ -8422,11 +8446,16 @@ function App() {
                       <em>{Math.floor(selectedMachineProgressPercent)}%</em>
                     </div>
                     <div className="assembler-output-lot" aria-label="Assembler output">
-                      {selectedMachineRecipe?.machineOutput && !selectedMachine.process.output ? (
-                        <span className="process-slot filled" aria-label={`${machines[selectedMachineRecipe.machineOutput.id].name} will be sent to Factory Parts`}>
-                          <MachineGlyph id={selectedMachineRecipe.machineOutput.id} />
-                          <span className="process-slot-label">Factory Parts</span>
-                        </span>
+                      {selectedMachine.process.machineOutput ? (
+                        <button
+                          type="button"
+                          className="process-slot filled machine-process-output"
+                          aria-label={`Collect ${selectedMachine.process.machineOutput.amount} ${machines[selectedMachine.process.machineOutput.id].name}`}
+                          onClick={handleMachineOutputPress}
+                        >
+                          <MachineGlyph id={selectedMachine.process.machineOutput.id} />
+                          <span className="item-count">{formatAmount(selectedMachine.process.machineOutput.amount)}</span>
+                        </button>
                       ) : <ProcessItemSlot slot={selectedMachine.process.output} label="Output" onClick={() => handleProcessSlotPress('output')} />}
                     </div>
                   </div>
@@ -9170,7 +9199,7 @@ function App() {
                         {(!selectedMachinePopupRecipe.fluidOnly ? [
                           selectedMachinePopupRecipe.output,
                           ...(selectedMachinePopupRecipe.secondaryOutput ? [selectedMachinePopupRecipe.secondaryOutput] : []),
-                        ] : []).map((amount) => (
+                        ].filter((amount): amount is ResourceAmount => Boolean(amount)) : []).map((amount) => (
                           <div className="machine-recipe-popup-product" key={amount.id}>
                             <div className="mini-slot">
                               <RecipeDisplayIcon output={{ kind: 'resource', id: amount.id, amount: amount.amount, label: resourceLabels[amount.id] }} />

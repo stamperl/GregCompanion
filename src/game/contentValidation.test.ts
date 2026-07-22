@@ -290,17 +290,28 @@ describe('content validation', () => {
       if (recipe.machineOutput) {
         expect(machines, `${recipe.id} machine output should exist`).toHaveProperty(recipe.machineOutput.id)
         expect(recipe.machineOutput.amount, `${recipe.id} machine output amount should be positive`).toBeGreaterThan(0)
-      } else {
-        if (recipe.output.amount === 0 && (recipe.fluidOutput || recipe.fluidOutputs?.length)) {
-          expect(resourceLabels, `${recipe.id} placeholder output should reference a known resource`).toHaveProperty(recipe.output.id)
-        } else {
-          expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
-        }
       }
+      if (recipe.output) expectResourceAmountReferences([recipe.output], `${recipe.id} output`)
+      const realOutputCount = [recipe.output, recipe.secondaryOutput].filter((output) => output && output.amount > 0).length
+        + (recipe.machineOutput ? 1 : 0)
+        + (recipe.fluidOutput ? 1 : 0)
+        + (recipe.fluidOutputs?.length ?? 0)
+      expect(realOutputCount, `${recipe.id} should have at least one real output`).toBeGreaterThan(0)
       if (recipe.fluidInput) expectFluidAmountReferences([recipe.fluidInput], `${recipe.id} fluid input`)
       if (recipe.fluidOutput) expectFluidAmountReferences([recipe.fluidOutput], `${recipe.id} fluid output`)
       if (recipe.fluidInputs) expectFluidAmountReferences(recipe.fluidInputs, `${recipe.id} fluid inputs`)
       if (recipe.fluidOutputs) expectFluidAmountReferences(recipe.fluidOutputs, `${recipe.id} fluid outputs`)
+    }
+  })
+
+  it('keeps each LV Assembler recipe to one real output', () => {
+    for (const recipe of processRecipes.filter((candidate) => candidate.machineId === 'lvAssembler')) {
+      const outputCount = [recipe.output, recipe.secondaryOutput].filter((output) => output && output.amount > 0).length
+        + (recipe.machineOutput ? 1 : 0)
+        + (recipe.fluidOutput ? 1 : 0)
+        + (recipe.fluidOutputs?.length ?? 0)
+      expect(outputCount, `${recipe.id} should expose exactly one output`).toBe(1)
+      expect(recipe.output?.amount ?? 1, `${recipe.id} should not use a zero-value placeholder output`).toBeGreaterThan(0)
     }
   })
 

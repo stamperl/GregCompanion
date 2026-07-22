@@ -39,6 +39,7 @@ import {
   canCraft,
   claimAllQuestRewards,
   claimQuestReward,
+  collectProcessMachineOutput,
   collectProcessOutput,
   conductorFaceSettings,
   crowbarRemoveMachineInstance,
@@ -2722,7 +2723,7 @@ describe('game engine', () => {
   })
 
   it('does not expose obsolete Stone recipes after Stone was folded into Cobblestone', () => {
-    expect(processRecipes.some((recipe) => recipe.output.id === 'stone' && recipe.output.amount > 0)).toBe(false)
+    expect(processRecipes.some((recipe) => recipe.output?.id === 'stone' && recipe.output.amount > 0)).toBe(false)
   })
 
   it('continues furnace processing during offline progress and respects full outputs', () => {
@@ -4510,12 +4511,12 @@ describe('game engine', () => {
   it('lets the steam furnace smelt every primitive furnace input', () => {
     const steamFurnaceOutputs = new Set(
       processRecipes
-        .filter((recipe) => recipe.machineId === 'steamFurnace')
-        .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output.id}:${recipe.output.amount}`),
+        .filter((recipe) => recipe.machineId === 'steamFurnace' && recipe.output)
+        .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output!.id}:${recipe.output!.amount}`),
     )
     const missingSteamRecipes = processRecipes
-      .filter((recipe) => recipe.machineId === 'furnace')
-      .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output.id}:${recipe.output.amount}`)
+      .filter((recipe) => recipe.machineId === 'furnace' && recipe.output)
+      .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output!.id}:${recipe.output!.amount}`)
       .filter((recipeKey) => !steamFurnaceOutputs.has(recipeKey))
 
     expect(missingSteamRecipes).toEqual([])
@@ -4663,7 +4664,7 @@ describe('game engine', () => {
   it('defines alloy smelter recipes as ingot outputs only', () => {
     const alloyRecipes = processRecipes.filter((recipe) => recipe.machineId === 'steamAlloySmelter')
 
-    expect(alloyRecipes.every((recipe) => recipe.output.id.endsWith('Ingot'))).toBe(true)
+    expect(alloyRecipes.every((recipe) => recipe.output?.id.endsWith('Ingot'))).toBe(true)
     expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_bronze')?.output).toEqual({ id: 'bronzeIngot', amount: 3 })
     expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_bronze')?.secondaryInput).toEqual({ id: 'tinDust', amount: 1 })
     expect(processRecipes.find((recipe) => recipe.id === 'steam_alloy_red_alloy')?.output).toEqual({ id: 'redAlloyIngot', amount: 2 })
@@ -5269,9 +5270,15 @@ describe('game engine', () => {
 
     state = tickGame(state, 8000).state
 
-    expect(state.machines.lvInputBus).toBe(1)
+    expect(state.machines.lvInputBus).toBe(0)
+    expect(state.machineInstances[0].process.machineOutput).toEqual({ id: 'lvInputBus', amount: 1 })
     expect(state.machineInstances[0].process.input).toBeNull()
     expect(state.machineInstances[0].process.secondaryInput).toBeNull()
+
+    state = collectProcessMachineOutput(state, assembler.uid)
+
+    expect(state.machines.lvInputBus).toBe(1)
+    expect(state.machineInstances[0].process.machineOutput).toBeNull()
   })
 
   it('moves Arc items through outward-facing buses at one item per second', () => {
@@ -5408,7 +5415,7 @@ describe('game engine', () => {
       recipe.outputs.some((output) => output.id === 'cupronickelIngot'),
     )
     const machineRecipes = processRecipes.filter((recipe) =>
-      recipe.output.id === 'cupronickelIngot' ||
+      recipe.output?.id === 'cupronickelIngot' ||
       recipe.secondaryOutput?.id === 'cupronickelIngot',
     )
 
@@ -6860,11 +6867,24 @@ describe('game engine', () => {
 
     assembler = state.machineInstances[0]
     state = loadProcessRecipeInputs(state, assembler.uid, 'lv_assemble_output_bus')
-    state = tickGame(state, 8000).state
+    const outputBusRecipe = processRecipes.find((recipe) => recipe.id === 'lv_assemble_output_bus')!
+    state = tickGame(state, outputBusRecipe.durationMs / 2).state
+
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('lv_assemble_output_bus')
+    expect(state.machineInstances[0].process.machineOutput).toBeNull()
+    expect(state.machines.lvOutputBus).toBe(0)
+
+    state = tickGame(state, outputBusRecipe.durationMs).state
 
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(2)
     expect(state.machines.lvInputBus).toBe(0)
+    expect(state.machines.lvOutputBus).toBe(0)
+    expect(state.machineInstances[0].process.machineOutput).toEqual({ id: 'lvOutputBus', amount: 1 })
+
+    state = collectProcessMachineOutput(state, assembler.uid)
+
     expect(state.machines.lvOutputBus).toBe(1)
+    expect(state.machineInstances[0].process.machineOutput).toBeNull()
   })
 
   it('keeps Circuit Imprinter dies after stamping components', () => {

@@ -319,6 +319,7 @@ function emptyProcessState(): MachineProcessState {
     fuel: null,
     output: null,
     output2: null,
+    machineOutput: null,
     storageSlots: [],
     batterySlots: [],
     activeRecipeId: null,
@@ -353,6 +354,7 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     fuel: cloneProcessSlot(process.fuel),
     output: cloneProcessSlot(process.output),
     output2: cloneProcessSlot(process.output2),
+    machineOutput: process.machineOutput ? { ...process.machineOutput } : null,
     storageSlots: process.storageSlots.map(cloneProcessSlot),
     batterySlots: [...process.batterySlots],
     activeRecipeId: process.activeRecipeId,
@@ -518,6 +520,14 @@ function normalizeProcessSlot(slot: unknown): ProcessSlot {
   return amount > 0 ? { id: candidate.id, amount } : null
 }
 
+function normalizeProcessMachineOutput(output: unknown): MachineAmount | null {
+  if (!output || typeof output !== 'object') return null
+  const candidate = output as Partial<MachineAmount>
+  if (!candidate.id || !(candidate.id in machines)) return null
+  const amount = Math.min(processStackLimit, Math.floor(candidate.amount ?? 0))
+  return amount > 0 ? { id: candidate.id, amount } : null
+}
+
 function normalizeProcessState(process?: Partial<MachineProcessState>): MachineProcessState {
   if (!process) return emptyProcessState()
   const legacyProgramNumber = processRecipes.find((recipe) => recipe.id === process.configuredRecipeId)?.programNumber
@@ -532,6 +542,7 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     fuel: normalizeProcessSlot(process.fuel),
     output: normalizeProcessSlot(process.output),
     output2: normalizeProcessSlot(process.output2),
+    machineOutput: normalizeProcessMachineOutput(process.machineOutput),
     storageSlots: Array.isArray(process.storageSlots) ? process.storageSlots.map(normalizeProcessSlot).slice(0, 12) : [],
     batterySlots: Array.isArray(process.batterySlots)
       ? process.batterySlots.map((id) => (id && isBufferBatteryId(id) ? id : null)).slice(0, 8)
@@ -2772,7 +2783,7 @@ function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, sec
 
   if (!secondaryInput) return undefined
   if (recipe.machineId === 'steamAlloySmelter') {
-    if (!isAlloySmelterIngredient(recipe.input.id) || !isAlloySmelterIngredient(recipe.secondaryInput.id) || !isAlloySmelterOutput(recipe.output.id)) return undefined
+    if (!recipe.output || !isAlloySmelterIngredient(recipe.input.id) || !isAlloySmelterIngredient(recipe.secondaryInput.id) || !isAlloySmelterOutput(recipe.output.id)) return undefined
   }
   if (processSlotCanPay(input, recipe.input) && processSlotCanPay(secondaryInput, recipe.secondaryInput)) {
     return { recipe, inputCost: recipe.input, secondaryInputCost: recipe.secondaryInput }
@@ -2807,6 +2818,18 @@ function findProcessRecipeForInputAndFuel(machineId: MachineId, input: ProcessSl
 function canOutputAccept(output: ProcessSlot, produced: ResourceAmount) {
   if (!output) return true
   return output.id === produced.id && output.amount + produced.amount <= processStackLimit
+}
+
+function canMachineOutputAccept(output: MachineAmount | null, produced?: MachineAmount) {
+  if (!produced) return true
+  if (!output) return true
+  return output.id === produced.id && output.amount + produced.amount <= processStackLimit
+}
+
+function addToMachineOutput(output: MachineAmount | null, produced: MachineAmount) {
+  return output
+    ? { id: output.id, amount: output.amount + produced.amount }
+    : { ...produced }
 }
 
 function canRecipeItemOutputsAccept(process: MachineProcessState, recipe: ProcessRecipe) {
@@ -5187,6 +5210,9 @@ export function removeMachineInstance(state: GameState, uid: string) {
   ].filter(
     (slot): slot is NonNullable<ProcessSlot> => Boolean(slot),
   )
+  if (instance.process.machineOutput) {
+    next.machines[instance.process.machineOutput.id] += instance.process.machineOutput.amount
+  }
   if (instance.surveyCardTarget) {
     next.surveyCards[instance.surveyCardTarget] = (next.surveyCards[instance.surveyCardTarget] ?? 0) + 1
   }
@@ -5406,6 +5432,21 @@ export function collectProcessOutput(state: GameState, uid: string, outputIndex:
   return next
 }
 
+export function collectProcessMachineOutput(state: GameState, uid: string) {
+  const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
+  const output = instance?.process.machineOutput
+  if (!instance || !output) return state
+
+  const next = cloneState(state)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  if (!nextInstance) return state
+  next.machines[output.id] += output.amount
+  nextInstance.process.machineOutput = null
+  recordMachineMilestones(next, [output])
+  next.lastSavedAt = Date.now()
+  return next
+}
+
 function consumeProcessFuel(process: MachineProcessState) {
   if (process.fuelRemainingMs > 0) return true
   if (!process.fuel) return false
@@ -5439,7 +5480,7 @@ function tickFurnaceProcess(instance: MachineInstance, elapsedMs: number) {
       }
       break
     }
-    if (!canOutputAccept(process.output, recipe.output)) {
+    if (!recipe.output || !canOutputAccept(process.output, recipe.output)) {
       process.activeRecipeId = null
       if (process.fuelRemainingMs > 0) {
         remainingMs -= burnProcessFuel(process, remainingMs)
@@ -5512,7 +5553,7 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
   while (remainingMs > 0) {
     const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(instance.machineId, process))
     const recipe = match?.recipe
-    if (!recipe || !canOutputAccept(process.output, recipe.output)) {
+    if (!match || !recipe?.output || !canOutputAccept(process.output, recipe.output)) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
@@ -5707,7 +5748,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   while (remainingMs > 0) {
     const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(instance.machineId, process), process.configuredProgramNumber)
     const recipe = match?.recipe
-    if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || !canCentrifugeUniversalOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(process, recipe))) {
+    if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || !canMachineOutputAccept(process.machineOutput, recipe.machineOutput) || !canCentrifugeUniversalOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(process, recipe))) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
@@ -5813,8 +5854,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
       })
     }
     if (recipe.machineOutput) {
-      state.machines[recipe.machineOutput.id] += recipe.machineOutput.amount
-      recordMachineMilestones(state, [recipe.machineOutput])
+      process.machineOutput = addToMachineOutput(process.machineOutput, recipe.machineOutput)
     } else {
       addRecipeItemOutputs(process, recipe)
     }
@@ -5856,7 +5896,7 @@ function tickCokeOven(state: GameState, instance: MachineInstance, elapsedMs: nu
   let remainingMs = elapsedMs
   while (remainingMs > 0) {
     const recipe = findProcessRecipeForInput(instance.machineId, process.input)
-    if (!recipe || !canOutputAccept(process.output, recipe.output) || !canFluidOutputAccept(process, recipe)) {
+    if (!recipe?.output || !canOutputAccept(process.output, recipe.output) || !canFluidOutputAccept(process, recipe)) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
@@ -5889,7 +5929,7 @@ function tickBrickedBlastFurnace(instance: MachineInstance, elapsedMs: number) {
 
   while (remainingMs > 0) {
     const recipe = findProcessRecipeForInputAndFuel(instance.machineId, process.input, process.fuel)
-    if (!recipe || !canOutputAccept(process.output, recipe.output)) {
+    if (!recipe?.output || !canOutputAccept(process.output, recipe.output)) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
