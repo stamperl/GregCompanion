@@ -3381,6 +3381,9 @@ function App() {
         selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind]
       )))
     }
+    if (selectedEmptyFluidContainerKind) {
+      return buffer.acceptedFluids.some((fluidId) => (selectedMachine.process.fluids[fluidId] ?? 0) > 0)
+    }
     if (!selectedFluidContainerGroup) return false
     if (!buffer.acceptedFluids.includes(selectedFluidContainerGroup.fluidId)) return false
     const stored = selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0
@@ -4007,17 +4010,21 @@ function App() {
   const handleFluidPortPress = (buffer: MachineFluidBufferView, direction: 'input' | 'output') => {
     if (!selectedMachine || !canUseFluidPort(buffer, direction)) return
     if (direction === 'input') {
-      if (!selectedFluidContainerGroup) return
-      const canTopUpSelected = selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind] &&
-        (selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) > 0
-      if (canTopUpSelected) {
-        setState((current) => fillPortableFluidContainer(current, selectedMachine.uid, selectedFluidContainerGroup.kind, {
-          containerUid: selectedFluidContainerGroup.containerUid,
-          fluidId: selectedFluidContainerGroup.fluidId,
+      const canTopUpSelected = Boolean(selectedFluidContainerGroup &&
+        selectedFluidContainerGroup.amountLitres < fluidContainerCapacities[selectedFluidContainerGroup.kind] &&
+        (selectedMachine.process.fluids[selectedFluidContainerGroup.fluidId] ?? 0) > 0)
+      if (selectedEmptyFluidContainerKind || canTopUpSelected) {
+        const kind = selectedEmptyFluidContainerKind ?? selectedFluidContainerGroup?.kind
+        if (!kind) return
+        const fluidId = selectedFluidContainerGroup?.fluidId ?? buffer.acceptedFluids.find((id) => (selectedMachine.process.fluids[id] ?? 0) > 0)
+        setState((current) => fillPortableFluidContainer(current, selectedMachine.uid, kind, {
+          containerUid: selectedFluidContainerGroup?.containerUid,
+          fluidId,
           bufferId: buffer.id,
         }))
         return
       }
+      if (!selectedFluidContainerGroup) return
       setState((current) => drainPortableFluidContainer(current, selectedMachine.uid, selectedFluidContainerGroup.containerUid, buffer.id))
       return
     }

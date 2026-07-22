@@ -6740,6 +6740,43 @@ describe('game engine', () => {
     expect(state.fluidContainers).toHaveLength(0)
   })
 
+  it.each([
+    ['lvAssembler', 'input', 'glue'],
+    ['lvMixer', 'feed-a', 'water'],
+    ['lvCentrifuge', 'feed', 'air'],
+    ['lvChemicalReactor', 'feedA', 'water'],
+  ] as const)('withdraws fluid from the %s input buffer into an empty Steel Cell', (machineId, bufferId, fluidId) => {
+    let state = createFactoryState()
+    state.machines[machineId] = 1
+    state.resources.emptySteelCell = 1
+    state = placeMachineInstance(state, machineId, 0, 0)
+    state.machineInstances[0].process.fluids[fluidId] = 4
+
+    state = fillPortableFluidContainer(state, state.machineInstances[0].uid, 'steelCell', { fluidId, bufferId })
+
+    expect(state.machineInstances[0].process.fluids[fluidId]).toBe(0)
+    expect(state.resources.emptySteelCell).toBe(0)
+    expect(state.fluidContainers).toContainEqual(expect.objectContaining({ kind: 'steelCell', fluidId, amountLitres: 4 }))
+  })
+
+  it('tops up a partial Steel Cell from a machine input before draining it back into the machine', () => {
+    let state = createFactoryState()
+    state.machines.lvAssembler = 1
+    state = placeMachineInstance(state, 'lvAssembler', 0, 0)
+    const assembler = state.machineInstances[0]
+    assembler.process.fluids.glue = 4
+    state.fluidContainers.push({ uid: 'partial-glue-cell', kind: 'steelCell', fluidId: 'glue', amountLitres: 6 })
+
+    state = fillPortableFluidContainer(state, assembler.uid, 'steelCell', {
+      containerUid: 'partial-glue-cell',
+      fluidId: 'glue',
+      bufferId: 'input',
+    })
+
+    expect(state.machineInstances[0].process.fluids.glue).toBe(2)
+    expect(state.fluidContainers[0]).toMatchObject({ fluidId: 'glue', amountLitres: 8 })
+  })
+
   it('uses Assembler programs to distinguish matching bus and hatch inputs', () => {
     const programs = processRecipes
       .filter((recipe) => recipe.machineId === 'lvAssembler' && recipe.programNumber !== undefined)
