@@ -2309,7 +2309,7 @@ describe('game engine', () => {
 
     expect(configured.itemOutputDirection).toBe('east')
     expect(pipeSideMode(configured, 'south')).toBe('output')
-    expect(pipeSideMode(configured, 'east')).toBe('blocked')
+    expect(pipeSideMode(configured, 'east')).toBe('input')
 
     state = tickGame(state, 2000).state
 
@@ -2318,7 +2318,7 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.machineId === 'steamTank')!.process.fluids.glue).toBe(8)
   })
 
-  it('connects a configured cable to a Centrifuge without opening a fluid face', () => {
+  it('connects a configured cable to a Centrifuge independently of its automatic fluid input face', () => {
     let state = createFactoryState(1000)
     state.machines.lvCentrifuge = 1
     state.resources.tinCable = 1
@@ -2331,7 +2331,7 @@ describe('game engine', () => {
     const configuredCentrifuge = state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!
 
     expect(pipeSideMode(configuredCable, 'east')).toBe('both')
-    expect(pipeSideMode(configuredCentrifuge, 'west')).toBe('blocked')
+    expect(pipeSideMode(configuredCentrifuge, 'west')).toBe('input')
     expect(machinesCanConnectEu(configuredCable, configuredCentrifuge)).toBe(true)
   })
 
@@ -6593,6 +6593,48 @@ describe('game engine', () => {
 
     expect(state.machineInstances[0].process.fluids.air).toBe(8)
     expect(state.machineInstances[0].process.euStored).toBe(0)
+  })
+
+  it('automatically sends Air directly from an Air Collector output into a Centrifuge input face', () => {
+    let state = createFactoryState()
+    state.machines.lvAirCollector = 1
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvAirCollector', 0, 0)
+    state = placeMachineInstance(state, 'lvCentrifuge', 1, 0)
+    const collector = state.machineInstances.find((instance) => instance.machineId === 'lvAirCollector')!
+    const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    collector.process.euStored = 64
+    state = setFluidOutputDirection(state, collector.uid, 'east')
+
+    expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!, 'west')).toBe('input')
+
+    state = tickGame(state, 8000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air).toBe(8)
+  })
+
+  it('automatically sends Air through a configured standard fluid pipe into a Centrifuge input face', () => {
+    let state = createFactoryState()
+    state.machines.lvAirCollector = 1
+    state.machines.copperPipe = 1
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvAirCollector', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'lvCentrifuge', 2, 0)
+    const collector = state.machineInstances.find((instance) => instance.machineId === 'lvAirCollector')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    collector.process.fluids.air = 8
+    state = setFluidOutputDirection(state, collector.uid, 'east')
+    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air).toBe(8)
+    expect(state.machineInstances.find((instance) => instance.uid === pipe.uid)!.process.fluidFlowLitresPerSecond).toBe(8)
   })
 
   it('requires both acid and water before producing diluted sulfuric acid', () => {

@@ -2930,6 +2930,10 @@ export function isFluidOutletConfigurableMachine(machineId: MachineId) {
   return machineId === 'cokeOven' || machineId === 'cokeOvenPart' || machineId === 'lvChemicalReactor' || machineId === 'lvCentrifuge' || machineId === 'lvAirCollector'
 }
 
+function machineAcceptsFluidInput(machineId: MachineId) {
+  return (machines[machineId].fluidBuffers ?? []).some((buffer) => buffer.access === 'input' || buffer.access === 'both')
+}
+
 function isConfigurableConnector(machineId: MachineId) {
   return (
     isSteamPipeMachine(machineId) ||
@@ -2983,11 +2987,15 @@ function connectorAllowsDirection(instance: MachineInstance, direction: PipeDire
 
 export function pipeSideMode(instance: MachineInstance, direction: PipeDirection): PipeSideMode {
   if (!isConfigurableConnector(instance.machineId)) return 'both'
-  if (instance.pipeSideModes?.[direction]) return instance.pipeSideModes[direction]
+  const configuredMode = instance.pipeSideModes?.[direction]
+  if (configuredMode) {
+    if (configuredMode === 'blocked' && isFluidOutletConfigurableMachine(instance.machineId) && machineAcceptsFluidInput(instance.machineId)) return 'input'
+    return configuredMode
+  }
   if (isEuStorageMachine(instance.machineId)) return direction === 'north' ? 'output' : 'input'
   if (isTankStorageMachine(instance.machineId)) return 'both'
   if (instance.pipeDisabledSides?.[direction]) return 'blocked'
-  if (isFluidOutletConfigurableMachine(instance.machineId)) return 'blocked'
+  if (isFluidOutletConfigurableMachine(instance.machineId)) return machineAcceptsFluidInput(instance.machineId) ? 'input' : 'blocked'
   return 'both'
 }
 
