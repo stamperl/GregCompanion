@@ -136,8 +136,8 @@ describe('content validation', () => {
 
     for (const [id, label] of Object.entries(resourceLabels)) {
       expect(label.trim(), `resource ${id} should have a label`).not.toBe('')
-      expect(appCss, `resource ${id} should have a .pixel-${id} icon class`).toContain(`.pixel-${id}`)
     }
+    expect(appCss, 'missing PNGs should use one generic resource fallback').toContain('.missing-item-icon')
 
     for (const [id, machine] of Object.entries(machineRegistry)) {
       expect(machine.id, `machine record ${id} should match its key`).toBe(id)

@@ -7,6 +7,7 @@ const contentPath = path.join(root, 'src/game/content.ts')
 const resourcesDir = path.join(root, 'public/game-icons/resources')
 const machinesDir = path.join(root, 'public/game-icons/machines')
 const approvalsPath = path.join(root, 'public/icon-reviews/approvals.json')
+const codeNativeMachineIconsPath = path.join(root, 'src/components/codeNativeMachineIcons.json')
 
 function registryKeys(source, exportName) {
   const start = source.indexOf(`export const ${exportName}`)
@@ -65,7 +66,7 @@ const source = readFileSync(contentPath, 'utf8')
 const resourceIds = registryKeys(source, 'resourceRegistry')
 const machineIds = registryKeys(source, 'machineRegistry')
 const approvals = JSON.parse(readFileSync(approvalsPath, 'utf8')).approvals ?? []
-const codeNativeMachineIds = new Set(['itemConductor', 'fluidConductor', 'conductorBundle', 'fabricationCable'])
+const codeNativeMachineIds = new Set(JSON.parse(readFileSync(codeNativeMachineIconsPath, 'utf8')))
 const failures = [
   ...checkSet('resource', resourceIds, resourcesDir),
   ...checkSet('machine', machineIds.filter((id) => !codeNativeMachineIds.has(id)), machinesDir),

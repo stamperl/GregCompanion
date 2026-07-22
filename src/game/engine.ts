@@ -1429,10 +1429,6 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'arcBlastFurnacePart', x: 15, y: 13 },
 ]
 
-function machineAtPosition(state: GameState, x: number, y: number) {
-  return state.machineInstances.find((instance) => instance.x === x && instance.y === y)
-}
-
 function setAllPipeSidesOpen(state: GameState, instance: MachineInstance) {
   let next = state
   for (const direction of pipeDirections) next = setPipeSideMode(next, instance.uid, direction, 'both')
@@ -1443,7 +1439,7 @@ function placeCreativeFactoryMachine(state: GameState, placement: CreativeFactor
   const next = cloneState(state)
   next.machines[placement.id] = Math.max(next.machines[placement.id] ?? 0, availableUnplacedMachineCount(next, placement.id) + 1)
   const placed = placeMachineInstance(next, placement.id, placement.x, placement.y)
-  if (!machineAtPosition(placed, placement.x, placement.y)) {
+  if (!machineAt(placed, placement.x, placement.y)) {
     throw new Error(`Could not place creative factory machine ${placement.id} at ${placement.x},${placement.y}`)
   }
   return placed
@@ -1477,9 +1473,9 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     if (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId)) state = setAllPipeSidesOpen(state, instance)
   }
 
-  const cokeOutputCell = machineAtPosition(state, 1, 8)
+  const cokeOutputCell = machineAt(state, 1, 8)
   if (cokeOutputCell) state = setFluidOutputDirection(state, cokeOutputCell.uid, 'east')
-  const reactor = machineAtPosition(state, 13, 4)
+  const reactor = machineAt(state, 13, 4)
   if (reactor) state = setFluidOutputDirection(state, reactor.uid, 'south')
   const hoppers = state.machineInstances.filter((instance) => instance.machineId === 'hopper')
   if (hoppers[0]) {
@@ -1653,13 +1649,13 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     [fluidTransferMilestoneKey('drain', 'steelCell', 'liquidRubber')]: fluidContainerCapacities.steelCell,
   }
 
-  const recipeEncoder = machineAtPosition(state, 8, 6)
-  const interfaceCable = machineAtPosition(state, 8, 5)
+  const recipeEncoder = machineAt(state, 8, 6)
+  const interfaceCable = machineAt(state, 8, 5)
   if (!recipeEncoder || recipeEncoder.machineId !== 'recipeEncoder' || !interfaceCable || !hasFabricationCable(interfaceCable)) {
     throw new Error('Creative auto-crafting setup is incomplete')
   }
   state.machines.jobInterface = Math.max(1, state.machines.jobInterface)
-  const creativeController = machineAtPosition(state, 6, 6)
+  const creativeController = machineAt(state, 6, 6)
   if (creativeController?.machineId === 'planningController') creativeController.process.euStored = creativeController.process.euCapacity
   state = attachFabricationInterface(state, interfaceCable.uid, 'east')
   const interfaceFace = state.machineInstances.find((instance) => instance.uid === interfaceCable.uid)?.fabricationInterfaces?.east

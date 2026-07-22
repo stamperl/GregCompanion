@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createNetworkTimeProvider, deviceClockToleranceMs, networkTimeEndpoint } from './time'
+import { createNetworkTimeProvider, deviceClockToleranceMs, networkTimeEndpoint, networkTimeTimeoutMs } from './time'
 
 describe('network time provider', () => {
   it('synchronizes once and advances from a monotonic clock', async () => {
@@ -88,5 +88,22 @@ describe('network time provider', () => {
     await provider.sync()
 
     expect(provider.deviceClockMismatch()).toBe(true)
+  })
+
+  it('abandons a blocked network-time request after 1.5 seconds', async () => {
+    vi.useFakeTimers()
+    const fetchImpl = vi.fn((_input: string, init?: RequestInit) => new Promise<Pick<Response, 'ok' | 'text'>>((_, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+    }))
+    const provider = createNetworkTimeProvider(fetchImpl, () => 0)
+    const synchronization = provider.sync()
+
+    await vi.advanceTimersByTimeAsync(networkTimeTimeoutMs - 1)
+    expect(provider.now()).toBeNull()
+    await vi.advanceTimersByTimeAsync(1)
+
+    await expect(synchronization).resolves.toBeNull()
+    expect(fetchImpl.mock.calls[0]?.[1]?.signal?.aborted).toBe(true)
+    vi.useRealTimers()
   })
 })

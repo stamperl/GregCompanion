@@ -14,7 +14,7 @@ export type NetworkTimeProvider = {
 
 export const networkTimeEndpoint = 'https://www.cloudflare.com/cdn-cgi/trace'
 export const deviceClockToleranceMs = 2 * 60 * 1000
-const networkTimeTimeoutMs = 5000
+export const networkTimeTimeoutMs = 1500
 const earliestAcceptedNetworkTimeMs = Date.UTC(2024, 0, 1)
 const latestAcceptedNetworkTimeMs = Date.UTC(2100, 0, 1)
 
