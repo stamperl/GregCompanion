@@ -6547,7 +6547,7 @@ describe('game engine', () => {
       state = tickGame(state, 9000).state
     }
 
-    expect(state.machineInstances[0].process.fluids.air).toBe(0)
+    expect(state.machineInstances[0].process.fluids.air ?? 0).toBe(0)
     expect(state.machineInstances[0].process.fluids.oxygen).toBe(2)
     expect(state.machineInstances[0].process.fluids.nitrogen).toBe(4)
   })
@@ -6584,7 +6584,7 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.fluids.nitrogen ?? 0).toBe(0)
   })
 
-  it('collects Air autonomously while powered', () => {
+  it('releases one 16L Air batch only after the full powered 80-second cycle', () => {
     let state = createFactoryState()
     state.machines.lvAirCollector = 1
     state = placeMachineInstance(state, 'lvAirCollector', 0, 0)
@@ -6592,8 +6592,15 @@ describe('game engine', () => {
 
     state = tickGame(state, 40000).state
 
-    expect(state.machineInstances[0].process.fluids.air).toBe(8)
+    expect(state.machineInstances[0].process.fluids.air ?? 0).toBe(0)
+    expect(state.machineInstances[0].process.progressMs).toBe(40000)
     expect(state.machineInstances[0].process.euStored).toBe(0)
+
+    state.machineInstances[0].process.euStored = 64
+    state = tickGame(state, 40000).state
+
+    expect(state.machineInstances[0].process.fluids.air).toBe(16)
+    expect(state.machineInstances[0].process.progressMs).toBe(0)
   })
 
   it('automatically sends Air directly from an Air Collector output into a Centrifuge input face', () => {
@@ -6612,8 +6619,13 @@ describe('game engine', () => {
 
     state = tickGame(state, 40000).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air).toBe(0)
-    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air).toBe(8)
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air ?? 0).toBe(0)
+
+    state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.euStored = 64
+    state = tickGame(state, 40000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air ?? 0).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air).toBe(16)
   })
 
   it('automatically sends Air through a configured standard fluid pipe into a Centrifuge input face', () => {
@@ -6738,7 +6750,7 @@ describe('game engine', () => {
 
     state = tickGame(state, lvAutoMinerActionMs * 8).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.fluids.air ?? 0).toBeGreaterThan(0)
+    expect(state.machineInstances.find((instance) => instance.uid === collector.uid)!.process.progressMs).toBeGreaterThan(0)
     expect(state.machineInstances.find((instance) => instance.uid === miner.uid)!.process.output).not.toBeNull()
   })
 

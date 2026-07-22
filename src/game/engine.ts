@@ -6047,25 +6047,33 @@ function hopperInputDirections(instance: MachineInstance) {
 function tickAirCollector(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const process = instance.process
   fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+  pushFluidToConnectedStorage(state, instance, 'air', elapsedMs)
   const capacity = machineFluidCapacityLitres(instance.machineId)
   const freeAir = Math.max(0, capacity - (process.fluids.air ?? 0))
   const durationMs = airCollectorRecipe?.durationMs ?? 80000
   const outputLitres = airCollectorRecipe?.fluidOutputs?.find((output) => output.id === 'air')?.amount ?? 16
   const euCost = airCollectorRecipe?.euCost ?? 128
-  const litresPerMs = outputLitres / durationMs
-  const euPerLitre = euCost / outputLitres
-  const collected = Math.min(elapsedMs * litresPerMs, process.euStored / euPerLitre, freeAir)
-  if (collected <= 0) {
+  process.durationMs = durationMs
+  if (freeAir < outputLitres) {
     process.activeRecipeId = null
-    process.durationMs = durationMs
-    process.progressMs = 0
     return
   }
-  process.euStored -= collected * euPerLitre
-  process.fluids.air = (process.fluids.air ?? 0) + collected
+
+  const euPerMs = euCost / durationMs
+  const poweredMs = Math.min(elapsedMs, process.euStored / euPerMs)
+  if (poweredMs <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+
+  process.euStored -= poweredMs * euPerMs
+  process.progressMs = Math.min(durationMs, Math.max(0, process.progressMs) + poweredMs)
   process.activeRecipeId = 'collect_air'
-  process.durationMs = durationMs
-  process.progressMs = (process.progressMs + collected / litresPerMs) % durationMs
+  if (process.progressMs < durationMs) return
+
+  process.fluids.air = (process.fluids.air ?? 0) + outputLitres
+  process.progressMs = 0
+  process.activeRecipeId = null
   pushFluidToConnectedStorage(state, instance, 'air', elapsedMs)
 }
 

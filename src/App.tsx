@@ -2610,8 +2610,8 @@ function App() {
         instance.process.fluidCapacityLitres = 32
         instance.process.fluids.air = reviewState === 'active' ? 16 : 28
         instance.process.activeRecipeId = reviewState === 'active' ? 'collect_air' : null
-        instance.process.durationMs = reviewState === 'active' ? 1000 : 0
-        instance.process.progressMs = reviewState === 'active' ? 500 : 0
+        instance.process.durationMs = reviewState === 'active' ? 80000 : 0
+        instance.process.progressMs = reviewState === 'active' ? 40000 : 0
       }
       if (reviewMachineId === 'lvFluidInputHatch' || reviewMachineId === 'lvFluidOutputHatch') {
         instance.process.fluidCapacityLitres = 64
@@ -8885,7 +8885,7 @@ function App() {
                                   ready={nativeFluidControlReady(centrifugeInputBuffer.id, 'input')}
                                   onClick={() => handleNativeFluidControl(centrifugeInputBuffer.id, 'input')}
                                 />
-                                <span>Fluid/Gas</span>
+                                <span>Fluid</span>
                               </div>
                             </div>
                           ) : (
