@@ -18744,6 +18744,11 @@ button.button-primary:disabled,
     display: none;
   }
 
+  .machine-lvElectrolyzer-terminal .forge-hammer-interface {
+    gap: 5px;
+    grid-template-rows: 32px minmax(140px, 1fr) auto 38px;
+  }
+
   .furnace-modal.machine-terminal .water-source-interface .utility-vessel,
   .furnace-modal.machine-terminal .iron-tank-vessel,
   .furnace-modal.machine-terminal .pipe-sight-stage,

@@ -503,7 +503,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   lvWiremill: { kind: 'wiremill', runningLabel: 'Drawing' },
   lvBender: { kind: 'bender', runningLabel: 'Bending' },
   lvLathe: { kind: 'lathe', runningLabel: 'Turning' },
-  lvElectrolyzer: { kind: 'electrolyzer', runningLabel: 'Splitting' },
+  lvElectrolyzer: { kind: 'electrolyzer', runningLabel: 'Splitting', secondaryInput: true },
   lvMixer: { kind: 'mixer', runningLabel: 'Mixing', secondaryInput: true, extraInputs: 4 },
   lvCentrifuge: { kind: 'centrifuge', runningLabel: 'Spinning' },
   lvCanner: { kind: 'canner', runningLabel: 'Canning', secondaryInput: true },
