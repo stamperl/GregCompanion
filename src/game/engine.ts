@@ -4058,7 +4058,7 @@ function connectedFluidSources(state: GameState, start: MachineInstance, fluidId
     connectedFluidNetworkForInstance(state, start)
       .filter((instance) => instance.uid !== start.uid)
       .map((instance) => (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
-      .filter((instance) => instance.uid !== startStorage.uid && canExportFluidSource(instance) && (instance.process.fluids[fluidId] ?? 0) > 0 && canFluidFlowBetween(state, instance, startStorage)),
+      .filter((instance) => instance.uid !== startStorage.uid && canExportFluidSource(state, instance, fluidId) && (instance.process.fluids[fluidId] ?? 0) > 0 && canFluidFlowBetween(state, instance, startStorage)),
   ).sort((a, b) => a.uid.localeCompare(b.uid))
 }
 
@@ -4078,7 +4078,7 @@ function fluidExportSourceCountForNetwork(state: GameState, source: MachineInsta
       .map((instance) => (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
       .filter(
         (candidate) =>
-          canExportFluidSource(candidate) &&
+          canExportFluidSource(state, candidate, fluidId) &&
           (candidate.process.fluids[fluidId] ?? 0) > 0 &&
           connectedFluidOutputTargets(state, candidate, fluidId).some((target) => sourceTargetUids.has(target.uid)),
       ),
@@ -4103,8 +4103,11 @@ function fluidExportFairRateLitres(state: GameState, source: MachineInstance, fl
     : machineFluidOutputLitresPerSecond(source.machineId)
 }
 
-function canExportFluidSource(instance: MachineInstance) {
-  return machineFluidOutputLitresPerSecond(instance.machineId) > 0
+function canExportFluidSource(state: GameState, instance: MachineInstance, fluidId?: FluidId) {
+  if (machineFluidOutputLitresPerSecond(instance.machineId) <= 0) return false
+  const outputBuffers = machineFluidBuffersForInstance(state, instance)
+    .filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
+  return fluidId ? outputBuffers.some((buffer) => buffer.acceptedFluids.includes(fluidId)) : outputBuffers.length > 0
 }
 
 function connectedFluidOutputTargets(state: GameState, source: MachineInstance, fluidId: FluidId) {
@@ -4286,7 +4289,7 @@ export function currentFluidOutputFlows(state: GameState, instance: MachineInsta
         const sources = uniqueMachineInstances(
           network
             .map((networkInstance) => (isTankStorageMachine(networkInstance.machineId) ? steamTankStorageForInstance(state, networkInstance) : networkInstance))
-            .filter((source) => canExportFluidSource(source) && ((source.process.fluids[fluidId] ?? 0) > 0 || (source.machineId === 'well' && fluidId === 'water'))),
+            .filter((source) => canExportFluidSource(state, source, fluidId) && ((source.process.fluids[fluidId] ?? 0) > 0 || (source.machineId === 'well' && fluidId === 'water'))),
         )
         const storedLitres = sources.reduce(
           (sum, source) => sum + Math.max(source.process.fluids[fluidId] ?? 0, source.machineId === 'well' && fluidId === 'water' ? machineFluidOutputLitresPerSecond(source.machineId) : 0),
@@ -4310,10 +4313,10 @@ export function currentFluidOutputFlows(state: GameState, instance: MachineInsta
   }
 
   const source = isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance
-  if (!canExportFluidSource(source)) return []
+  if (!canExportFluidSource(state, source)) return []
   if (typeof source.process.fluidFlowLitresPerSecond === 'number') {
     const fluidId = source.process.fluidFlowFluidId
-    if (!fluidId) return []
+    if (!fluidId || !canExportFluidSource(state, source, fluidId)) return []
     const storedLitres = source.process.fluids[fluidId] ?? 0
     const freeLitres = connectedFluidOutputTargets(state, source, fluidId).reduce((sum, target) => sum + freeFluidCapacity(state, target, fluidId), 0)
     return [{ fluidId, litresPerSecond: source.process.fluidFlowLitresPerSecond, storedLitres, freeLitres }]
@@ -4322,7 +4325,7 @@ export function currentFluidOutputFlows(state: GameState, instance: MachineInsta
   return fluidIds
     .map((fluidId) => {
       const storedLitres = source.process.fluids[fluidId] ?? 0
-      if (storedLitres <= 0) return null
+      if (storedLitres <= 0 || !canExportFluidSource(state, source, fluidId)) return null
       const freeLitres = connectedFluidOutputTargets(state, source, fluidId).reduce((sum, target) => sum + freeFluidCapacity(state, target, fluidId), 0)
       const sourceTransferRate = fluidExportTransferRateLitres(state, source, fluidId)
       return {
@@ -4392,7 +4395,7 @@ function fluidSupplyForPipe(state: GameState, pipe: MachineInstance) {
       const availableLitres = uniqueMachineInstances(
         network
           .map((instance) => (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
-          .filter((source) => source.uid !== pipe.uid && canExportFluidSource(source) && canFluidFlowBetween(state, source, pipe)),
+          .filter((source) => source.uid !== pipe.uid && canExportFluidSource(state, source, fluidId) && canFluidFlowBetween(state, source, pipe)),
       ).reduce((sum, source) => sum + (source.process.fluids[fluidId] ?? 0), 0)
       return { fluidId, availableLitres }
     })
@@ -4404,7 +4407,7 @@ function tickPipeDisplayBuffers(state: GameState) {
   const elapsedSeconds = activeTransferElapsedMs > 0 ? activeTransferElapsedMs / 1000 : 1
 
   for (const instance of state.machineInstances) {
-    if (!isSteamPipeMachine(instance.machineId) && canExportFluidSource(instance)) {
+    if (!isSteamPipeMachine(instance.machineId) && canExportFluidSource(state, instance)) {
       const measuredFlows = activeFluidSourceFlows?.get(instance.uid) ?? {}
       const primaryFluidFlow = (Object.entries(measuredFlows) as Array<[FluidId, number]>)
         .sort((a, b) => b[1] - a[1])[0]
@@ -4462,6 +4465,7 @@ function tickPipeDisplayBuffers(state: GameState) {
 }
 
 function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, fluidId: FluidId, elapsedMs: number) {
+  if (!canExportFluidSource(state, source, fluidId)) return 0
   const stored = source.process.fluids[fluidId] ?? 0
   if (stored < 1) return 0
 

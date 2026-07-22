@@ -6659,6 +6659,37 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === pipe.uid)!.process.fluidFlowLitresPerSecond).toBe(8)
   })
 
+  it('does not export Centrifuge Air input through a standard fluid pipe', () => {
+    let state = createFactoryState()
+    state.machines.lvCentrifuge = 1
+    state.machines.copperPipe = 1
+    state.machines.steamTank = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    state = placeMachineInstance(state, 'copperPipe', 1, 0)
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+    const centrifuge = state.machineInstances.find((instance) => instance.machineId === 'lvCentrifuge')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    state = setFluidOutputDirection(state, centrifuge.uid, 'east')
+    state = setPipeSideMode(state, pipe.uid, 'west', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'output')
+    state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air = 8
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air).toBe(8)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.air ?? 0).toBe(0)
+    expect(currentFluidOutputFlows(state, state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!)).toEqual([])
+    expect(state.machineInstances.find((instance) => instance.uid === pipe.uid)!.process.fluidFlowFluidId).toBeUndefined()
+
+    state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.air = 0
+    state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.oxygen = 2
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === centrifuge.uid)!.process.fluids.oxygen ?? 0).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.oxygen).toBe(2)
+  })
+
   it('requires both acid and water before producing diluted sulfuric acid', () => {
     let state = createFactoryState()
     state.machines.lvChemicalReactor = 1
