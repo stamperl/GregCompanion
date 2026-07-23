@@ -168,11 +168,6 @@
   opacity: 0.45;
 }
 
-.page-tabs button.locked {
-  color: #d6cda6;
-  opacity: 0.72;
-}
-
 .mine-face {
   align-items: center;
   background:
@@ -1403,6 +1398,1742 @@ button.craft-output:disabled {
   left: 4px;
   top: 4px;
   width: 7px;
+}
+
+.pixel-stick span,
+.pixel-woodenAxe span,
+.pixel-woodenPickaxe span,
+.pixel-woodenShovel span,
+.pixel-stoneAxe span,
+.pixel-stonePickaxe span,
+.pixel-stoneShovel span,
+.pixel-ironAxe span,
+.pixel-ironPickaxe span,
+.pixel-ironShovel span,
+.pixel-stoneHammer span,
+.pixel-ironHammer span,
+.pixel-ironFile span,
+.pixel-bronzeFile span,
+.pixel-ironWireCutters span,
+.pixel-ironWrench span,
+.pixel-bronzeWrench span,
+.pixel-ironCrowbar span,
+.pixel-mortar span,
+.pixel-ironMortar span,
+.pixel-bronzeMortar span,
+.pixel-unfiredBrick span,
+.pixel-brick span,
+.pixel-bucket span,
+.pixel-ironIngot span,
+.pixel-copperIngot span,
+.pixel-tinIngot span,
+.pixel-ironPlate span,
+.pixel-bronzePlate span,
+.pixel-redAlloyPlate span,
+.pixel-mechanicalPiston span,
+.pixel-ironRod span,
+.pixel-copperRod span,
+.pixel-tinRod span,
+.pixel-bronzeRod span,
+.pixel-glass span,
+.pixel-glassTube span,
+.pixel-redAlloyIngot span,
+.pixel-redAlloyWire span,
+.pixel-copperDust span,
+.pixel-tinDust span,
+.pixel-ironDust span,
+.pixel-redstoneDust span,
+.pixel-carbonDust span,
+.pixel-woodPulp span,
+.pixel-woodenBoardBlank span,
+.pixel-bronzeIngot span,
+.pixel-copperWire span,
+.pixel-conductiveWire span,
+.pixel-resistor span,
+.pixel-vacuumTube span,
+.pixel-primitiveCircuit span,
+.pixel-cobblestone span,
+.pixel-crushedIronOre span,
+.pixel-crushedCopperOre span,
+.pixel-crushedTinOre span,
+.pixel-sand span,
+.pixel-bronzeBlend span,
+.pixel-gravel span,
+.pixel-flint span,
+.pixel-charcoal span,
+.pixel-treeTap span,
+.pixel-coalCoke span,
+.pixel-pipeSealant span,
+.pixel-rubberPulp span,
+.pixel-rubber span,
+.pixel-steelIngot span,
+.pixel-steelPlate span,
+.pixel-steelRod span,
+.pixel-aluminiumRod span,
+.pixel-aluminiumRing span,
+.pixel-aluminiumScrew span,
+.pixel-aluminiumGear span,
+.pixel-nickelOre span,
+.pixel-bauxiteOre span,
+.pixel-crushedBauxiteOre span,
+.pixel-nickelDust span,
+.pixel-bauxiteDust span,
+.pixel-aluminiumDust span,
+.pixel-nickelIngot span,
+.pixel-cupronickelIngot span,
+.pixel-invarIngot span,
+.pixel-invarPlate span,
+.pixel-aluminiumIngot span,
+.pixel-aluminiumPlate span,
+.pixel-heatingCoil span,
+.pixel-heatProofCasing span,
+.pixel-cokeOvenBrick span,
+.pixel-firebrick span,
+.pixel-bbfCasing span {
+  display: none;
+}
+
+.pixel-log {
+  --p1: #b98a4a;
+  --p2: #6f4526;
+  --p3: #d7b76f;
+  --p4: #3b2415;
+  background:
+    radial-gradient(circle at 50% 50%, #f0cf83 0 15%, #8a552d 16% 25%, #d7aa61 26% 42%, #5a351f 43% 52%, transparent 53%),
+    linear-gradient(90deg, #704425 0 14%, #bf8748 14% 78%, #59331f 78% 100%);
+}
+
+.pixel-log::before {
+  background: #3b2415;
+  height: 20px;
+  right: 3px;
+  top: 3px;
+  width: 3px;
+}
+
+.pixel-plank {
+  --p1: #b98a4a;
+  --p2: #6f4526;
+  --p3: #d7b76f;
+  --p4: #3b2415;
+  background:
+    repeating-linear-gradient(0deg, #6f4526 0 2px, transparent 2px 8px),
+    linear-gradient(90deg, #d7b76f 0 22%, #b98a4a 22% 78%, #6f4526 78%);
+}
+
+.pixel-plank::before,
+.pixel-plank::after {
+  background: #3b2415;
+  height: 2px;
+  left: 4px;
+  width: 18px;
+}
+
+.pixel-plank::before {
+  top: 8px;
+}
+
+.pixel-plank::after {
+  top: 17px;
+}
+
+.pixel-stick {
+  --p1: #92652f;
+  --p2: #4c2c15;
+  --p3: #c79c54;
+  --p4: #201209;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-stick::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  box-shadow: 0 3px 0 #201209;
+  height: 5px;
+  left: 3px;
+  top: 11px;
+  transform: rotate(-34deg);
+  width: 22px;
+}
+
+.pixel-treeTap {
+  --p1: #92652f;
+  --p2: #4c2c15;
+  --p3: #c79c54;
+  --p4: #201209;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-treeTap::before {
+  background:
+    linear-gradient(90deg, #c79c54 0 24%, #92652f 24% 74%, #4c2c15 74%),
+    linear-gradient(180deg, transparent 0 58%, #201209 58% 100%);
+  height: 9px;
+  left: 3px;
+  top: 8px;
+  width: 20px;
+}
+
+.pixel-treeTap::after {
+  background: linear-gradient(180deg, #c79c54, #4c2c15);
+  box-shadow: 6px -7px 0 #d6e18a;
+  height: 13px;
+  left: 11px;
+  top: 13px;
+  width: 5px;
+}
+
+.pixel-woodenAxe {
+  --p1: #92652f;
+  --p2: #4c2c15;
+  --p3: #c79c54;
+  --p4: #201209;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-woodenAxe::before {
+  background: linear-gradient(90deg, #d2a05a, #5f3719);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(44deg);
+  width: 23px;
+}
+
+.pixel-woodenAxe::after {
+  background:
+    linear-gradient(90deg, #d7b76f 0 18%, transparent 18% 28%, #8a552d 28% 70%, #4c2c15 70%),
+    #b98a4a;
+  clip-path: polygon(0 20%, 78% 0, 100% 36%, 78% 78%, 32% 100%, 0 74%);
+  height: 13px;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+}
+
+.pixel-woodenPickaxe {
+  --p1: #92652f;
+  --p2: #4c2c15;
+  --p3: #c79c54;
+  --p4: #201209;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-woodenPickaxe::before {
+  background: linear-gradient(90deg, #d2a05a, #5f3719);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(46deg);
+  width: 23px;
+}
+
+.pixel-woodenPickaxe::after {
+  background: linear-gradient(90deg, #d7b76f 0 24%, #6f4526 24% 42%, #bf8748 42% 100%);
+  clip-path: polygon(0 36%, 38% 8%, 100% 10%, 88% 34%, 44% 34%, 18% 78%);
+  height: 16px;
+  left: 1px;
+  top: 2px;
+  width: 24px;
+}
+
+.pixel-stoneAxe {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-stoneAxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(44deg);
+  width: 23px;
+}
+
+.pixel-stoneAxe::after {
+  background:
+    linear-gradient(90deg, #c9c9c9 0 58%, #767676 58%),
+    #a4a4a4;
+  clip-path: polygon(0 20%, 82% 0, 100% 42%, 72% 100%, 0 78%);
+  height: 13px;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+}
+
+.pixel-stonePickaxe {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-stonePickaxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(46deg);
+  width: 23px;
+}
+
+.pixel-stonePickaxe::after {
+  background: linear-gradient(90deg, #c9c9c9 0 24%, #767676 24% 42%, #c9c9c9 42% 100%);
+  clip-path: polygon(0 36%, 38% 8%, 100% 10%, 88% 34%, 44% 34%, 18% 78%);
+  height: 16px;
+  left: 1px;
+  top: 2px;
+  width: 24px;
+}
+
+.pixel-woodenShovel,
+.pixel-stoneShovel,
+.pixel-ironShovel {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-woodenShovel::before,
+.pixel-stoneShovel::before,
+.pixel-ironShovel::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 13px;
+  transform: rotate(46deg);
+  width: 23px;
+}
+
+.pixel-woodenShovel::after,
+.pixel-stoneShovel::after,
+.pixel-ironShovel::after {
+  background: linear-gradient(135deg, var(--p3) 0 28%, var(--p1) 28% 72%, var(--p2) 72%);
+  clip-path: polygon(50% 0, 88% 26%, 74% 100%, 26% 100%, 12% 26%);
+  height: 15px;
+  left: 2px;
+  top: 2px;
+  width: 15px;
+}
+
+.pixel-woodenShovel {
+  --p1: #b98a4a;
+  --p2: #6f4526;
+  --p3: #d7b76f;
+  --p4: #3b2415;
+}
+
+.pixel-ironShovel {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+}
+
+.pixel-ironAxe {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironAxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(44deg);
+  width: 23px;
+}
+
+.pixel-ironAxe::after {
+  background:
+    linear-gradient(90deg, #e2e9eb 0 52%, #7a858b 52%),
+    #a8b2b8;
+  clip-path: polygon(0 18%, 84% 0, 100% 40%, 70% 100%, 0 78%);
+  height: 14px;
+  left: 1px;
+  top: 1px;
+  width: 17px;
+}
+
+.pixel-ironPickaxe {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironPickaxe::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 12px;
+  transform: rotate(46deg);
+  width: 23px;
+}
+
+.pixel-ironPickaxe::after {
+  background: linear-gradient(90deg, #e2e9eb 0 24%, #7a858b 24% 42%, #d5dde0 42% 100%);
+  clip-path: polygon(0 34%, 38% 6%, 100% 8%, 90% 34%, 44% 34%, 18% 80%);
+  height: 17px;
+  left: 1px;
+  top: 1px;
+  width: 24px;
+}
+
+.pixel-stoneHammer,
+.pixel-ironHammer {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-stoneHammer::before,
+.pixel-ironHammer::before {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 4px;
+  top: 13px;
+  transform: rotate(48deg);
+  width: 23px;
+}
+
+.pixel-stoneHammer::after,
+.pixel-ironHammer::after {
+  height: 12px;
+  left: 3px;
+  top: 3px;
+  width: 17px;
+}
+
+.pixel-stoneHammer::after {
+  background: linear-gradient(135deg, #c9c9c9 0 28%, #8c8e8b 28% 72%, #5a5d5d 72%);
+  box-shadow: inset -3px -2px 0 rgba(0, 0, 0, 0.22);
+  clip-path: polygon(0 18%, 92% 0, 100% 72%, 14% 100%);
+}
+
+.pixel-ironHammer::after {
+  background: linear-gradient(135deg, #e2e9eb 0 28%, #a8b2b8 28% 74%, #4f585e 74%);
+  box-shadow: inset -3px -2px 0 rgba(0, 0, 0, 0.22);
+  clip-path: polygon(0 14%, 94% 0, 100% 74%, 12% 100%);
+}
+
+.pixel-ironFile,
+.pixel-bronzeFile,
+.pixel-ironWireCutters {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironFile::before,
+.pixel-bronzeFile::before {
+  background: linear-gradient(90deg, var(--p3) 0 22%, var(--p1) 22% 78%, var(--p2) 78%);
+  clip-path: polygon(0 38%, 82% 10%, 100% 50%, 82% 90%, 0 62%);
+  height: 8px;
+  left: 2px;
+  top: 7px;
+  transform: rotate(-32deg);
+  width: 24px;
+}
+
+.pixel-ironFile::after,
+.pixel-bronzeFile::after {
+  background: linear-gradient(90deg, #c79c54, #4c2c15);
+  height: 5px;
+  left: 12px;
+  top: 17px;
+  transform: rotate(-32deg);
+  width: 12px;
+}
+
+.pixel-ironFile {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-bronzeFile {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
+.pixel-ironWireCutters::before {
+  background: linear-gradient(135deg, #d5dde0 0 20%, #8f9aa0 20% 74%, #4f585e 74%);
+  clip-path: polygon(8% 12%, 48% 44%, 78% 6%, 98% 20%, 62% 52%, 98% 84%, 80% 98%, 48% 60%, 8% 92%, 0 72%, 34% 52%, 0 30%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-ironWireCutters::after {
+  background:
+    radial-gradient(circle at 50% 50%, #222 0 22%, transparent 23%),
+    linear-gradient(90deg, #c79c54 0 44%, transparent 44% 56%, #c79c54 56% 100%);
+  height: 12px;
+  left: 5px;
+  top: 13px;
+  width: 16px;
+}
+
+.pixel-ironWrench,
+.pixel-bronzeWrench,
+.pixel-ironCrowbar {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironWrench::before,
+.pixel-bronzeWrench::before {
+  background: linear-gradient(90deg, var(--p3), var(--p1) 48%, var(--p2));
+  clip-path: polygon(0 34%, 48% 34%, 78% 0, 100% 20%, 78% 46%, 100% 72%, 78% 100%, 48% 66%, 0 66%);
+  height: 18px;
+  left: 2px;
+  top: 5px;
+  transform: rotate(-36deg);
+  width: 24px;
+}
+
+.pixel-ironCrowbar::before {
+  background:
+    linear-gradient(90deg, transparent 0 9%, #2f3538 9% 18%, transparent 18% 100%),
+    linear-gradient(90deg, var(--p3) 0 14%, var(--p1) 14% 72%, var(--p2) 72% 100%);
+  clip-path: polygon(0 23%, 15% 0, 28% 0, 21% 28%, 100% 28%, 100% 72%, 21% 72%, 28% 100%, 15% 100%, 0 77%, 8% 50%);
+  height: 8px;
+  left: 1px;
+  top: 10px;
+  transform: rotate(-28deg);
+  width: 29px;
+}
+
+.pixel-ironCrowbar::after {
+  background:
+    linear-gradient(90deg, transparent 0 18%, #9b552f 18% 40%, transparent 40% 48%, #d28a4e 48% 72%, transparent 72% 100%);
+  content: "";
+  height: 10px;
+  left: 17px;
+  position: absolute;
+  top: 12px;
+  transform: rotate(-28deg);
+  width: 12px;
+}
+
+.pixel-ironWrench {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-bronzeWrench {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
+.pixel-ironCrowbar {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-stone {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background: #8c8e8b;
+  clip-path: polygon(18% 8%, 72% 0, 96% 34%, 86% 82%, 44% 100%, 8% 72%, 0 28%);
+}
+
+.pixel-stone::before {
+  background: #c8cac5;
+  height: 4px;
+  left: 6px;
+  top: 6px;
+  width: 8px;
+}
+
+.pixel-cobblestone {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background:
+    linear-gradient(90deg, transparent 0 30%, #5a5d5d 30% 36%, transparent 36% 70%, #343636 70% 76%, transparent 76%),
+    linear-gradient(0deg, transparent 0 38%, #5a5d5d 38% 45%, transparent 45% 72%, #343636 72% 78%, transparent 78%),
+    linear-gradient(135deg, #c8cac5 0 18%, #8c8e8b 18% 76%, #5a5d5d 76%);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.24), inset 2px 2px 0 rgba(255, 255, 255, 0.22);
+}
+
+.pixel-cobblestone::before {
+  background: #d9dbd7;
+  height: 5px;
+  left: 5px;
+  top: 5px;
+  width: 7px;
+}
+
+.pixel-cobblestone::after {
+  background: #4b4e4e;
+  height: 5px;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+}
+
+.pixel-gravel {
+  --p1: #878984;
+  --p2: #4f514f;
+  --p3: #c1c4bf;
+  --p4: #2f3130;
+  background:
+    radial-gradient(circle at 28% 34%, #c1c4bf 0 8%, transparent 9%),
+    radial-gradient(circle at 62% 28%, #878984 0 10%, transparent 11%),
+    radial-gradient(circle at 42% 70%, #4f514f 0 12%, transparent 13%),
+    radial-gradient(circle at 78% 70%, #a0a39d 0 8%, transparent 9%);
+  box-shadow: none;
+}
+
+.pixel-flint {
+  --p1: #3a3e3f;
+  --p2: #171a1b;
+  --p3: #8a8f8f;
+  --p4: #080909;
+  background: linear-gradient(135deg, #8a8f8f 0 24%, #3a3e3f 24% 72%, #171a1b 72%);
+  clip-path: polygon(20% 4%, 78% 18%, 98% 52%, 60% 98%, 14% 80%, 0 36%);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.16);
+}
+
+.pixel-charcoal {
+  --p1: #2b2d2d;
+  --p2: #0d0e0f;
+  --p3: #5a5e5e;
+  --p4: #030303;
+  background:
+    radial-gradient(circle at 34% 34%, #5a5e5e 0 8%, transparent 9%),
+    radial-gradient(circle at 68% 64%, #3b3f3f 0 10%, transparent 11%),
+    linear-gradient(135deg, #2b2d2d, #030303);
+  clip-path: polygon(16% 8%, 74% 4%, 100% 42%, 76% 94%, 24% 88%, 0 36%);
+}
+
+.pixel-coalCoke {
+  --p1: #252829;
+  --p2: #070808;
+  --p3: #c7b56c;
+  --p4: #030303;
+  background:
+    radial-gradient(circle at 34% 30%, #c7b56c 0 6%, transparent 7%),
+    radial-gradient(circle at 68% 62%, #6f642c 0 7%, transparent 8%),
+    radial-gradient(circle at 46% 70%, #4a4f4f 0 10%, transparent 11%),
+    linear-gradient(135deg, #252829, #030303);
+  clip-path: polygon(14% 10%, 72% 2%, 98% 40%, 80% 92%, 30% 96%, 0 48%);
+}
+
+.pixel-copperOre {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+  --p4: #36201a;
+  background:
+    radial-gradient(circle at 30% 32%, #e19b61 0 8%, transparent 9%),
+    radial-gradient(circle at 64% 58%, #b66c3e 0 10%, transparent 11%),
+    linear-gradient(135deg, #8c8e8b, #343636);
+  clip-path: polygon(14% 8%, 76% 4%, 98% 38%, 80% 88%, 38% 100%, 4% 66%);
+}
+
+.pixel-ironOre {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+  background:
+    radial-gradient(circle at 32% 30%, #d5dde0 0 8%, transparent 9%),
+    radial-gradient(circle at 66% 62%, #8f9aa0 0 10%, transparent 11%),
+    linear-gradient(135deg, #8c8e8b, #343636);
+  clip-path: polygon(12% 10%, 74% 4%, 98% 40%, 82% 86%, 40% 100%, 2% 64%);
+}
+
+.pixel-ironOre::before {
+  background: #4f585e;
+  height: 3px;
+  left: 7px;
+  top: 17px;
+  width: 12px;
+}
+
+.pixel-nickelOre,
+.pixel-bauxiteOre,
+.pixel-crushedBauxiteOre {
+  background:
+    radial-gradient(circle at 32% 30%, var(--p3) 0 8%, transparent 9%),
+    radial-gradient(circle at 66% 62%, var(--p1) 0 10%, transparent 11%),
+    linear-gradient(135deg, #8c8e8b, #343636);
+  clip-path: polygon(12% 10%, 74% 4%, 98% 40%, 82% 86%, 40% 100%, 2% 64%);
+}
+
+.pixel-nickelOre {
+  --p1: #75887f;
+  --p2: #35433e;
+  --p3: #b9c9bf;
+}
+
+.pixel-bauxiteOre,
+.pixel-crushedBauxiteOre {
+  --p1: #a94f3f;
+  --p2: #5b2d25;
+  --p3: #d98669;
+}
+
+.pixel-nickelDust,
+.pixel-bauxiteDust,
+.pixel-aluminiumDust {
+  background:
+    radial-gradient(circle at 28% 35%, var(--p3) 0 9%, transparent 10%),
+    radial-gradient(circle at 64% 58%, var(--p1) 0 12%, transparent 13%),
+    radial-gradient(circle at 42% 72%, var(--p2) 0 10%, transparent 11%);
+  box-shadow: none;
+}
+
+.pixel-nickelDust {
+  --p1: #75887f;
+  --p2: #35433e;
+  --p3: #b9c9bf;
+}
+
+.pixel-bauxiteDust {
+  --p1: #a94f3f;
+  --p2: #5b2d25;
+  --p3: #d98669;
+}
+
+.pixel-aluminiumDust {
+  --p1: #c8d4d8;
+  --p2: #7f8e96;
+  --p3: #eef5f4;
+}
+
+.pixel-ironPlate,
+.pixel-copperPlate,
+.pixel-tinPlate,
+.pixel-bronzePlate,
+.pixel-redAlloyPlate,
+.pixel-mechanicalPiston,
+.pixel-steelPlate,
+.pixel-invarPlate,
+.pixel-aluminiumPlate {
+  background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 82%, var(--p2) 82%);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.18), inset -4px -4px 0 rgba(0, 0, 0, 0.22);
+}
+
+.pixel-ironPlate::before,
+.pixel-copperPlate::before,
+.pixel-tinPlate::before,
+.pixel-bronzePlate::before,
+.pixel-redAlloyPlate::before,
+.pixel-mechanicalPiston::before,
+.pixel-steelPlate::before,
+.pixel-invarPlate::before,
+.pixel-aluminiumPlate::before {
+  background: rgba(0, 0, 0, 0.22);
+  height: 2px;
+  left: 5px;
+  top: 12px;
+  width: 16px;
+}
+
+.pixel-copperWire,
+.pixel-conductiveWire,
+.pixel-redAlloyWire,
+.pixel-tinWire,
+.pixel-tinCable {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-copperWire::before,
+.pixel-conductiveWire::before,
+.pixel-redAlloyWire::before,
+.pixel-tinWire::before,
+.pixel-tinCable::before {
+  background: var(--p1);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 0 var(--p2);
+  height: 8px;
+  left: 2px;
+  top: 9px;
+  width: 22px;
+}
+
+.pixel-copperWire::after,
+.pixel-conductiveWire::after,
+.pixel-redAlloyWire::after,
+.pixel-tinWire::after,
+.pixel-tinCable::after {
+  display: none;
+}
+
+.pixel-tinPlate {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+  --p4: #4d5558;
+}
+
+.pixel-copperPlate {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+  --p4: #3e2419;
+}
+
+.pixel-ironPlate {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+}
+
+.pixel-bronzePlate {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+  --p4: #49331f;
+}
+
+.pixel-redAlloyPlate {
+  --p1: #b83a30;
+  --p2: #611916;
+  --p3: #f3a093;
+  --p4: #32100e;
+}
+
+.pixel-mechanicalPiston {
+  --p1: #7c8588;
+  --p2: #2d3234;
+  --p3: #d2d9d8;
+  --p4: #4c1815;
+  background:
+    linear-gradient(90deg, transparent 0 6%, #b7834b 6% 20%, transparent 20%),
+    linear-gradient(90deg, #323638 0 24%, #c84538 24% 58%, #611916 58% 78%, #242829 78% 100%);
+  box-shadow:
+    inset 0 0 0 3px #242829,
+    inset -4px -4px 0 rgba(0, 0, 0, 0.28);
+}
+
+.pixel-mechanicalPiston::before {
+  background: #e9c878;
+  box-shadow:
+    0 7px 0 #92522d,
+    11px 3px 0 #611916;
+  height: 5px;
+  left: 2px;
+  top: 7px;
+  width: 9px;
+}
+
+.pixel-steelPlate {
+  --p1: #263340;
+  --p2: #080d13;
+  --p3: #8797aa;
+  --p4: #05080c;
+}
+
+.pixel-aluminiumPlate {
+  --p1: #b9c8ce;
+  --p2: #6d7d84;
+  --p3: #eef5f4;
+  --p4: #3f4b51;
+}
+
+.pixel-nickelIngot,
+.pixel-cupronickelIngot,
+.pixel-invarIngot {
+  --p1: #858d83;
+  --p2: #3e453e;
+  --p3: #cbd2c6;
+  background:
+    linear-gradient(90deg, transparent 0 16%, rgba(255, 255, 255, 0.22) 16% 26%, transparent 26%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+  clip-path: polygon(15% 18%, 82% 6%, 100% 38%, 84% 82%, 18% 94%, 0 58%);
+}
+
+.pixel-aluminiumIngot {
+  background:
+    linear-gradient(90deg, transparent 0 16%, rgba(255, 255, 255, 0.22) 16% 26%, transparent 26%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+  clip-path: polygon(15% 18%, 82% 6%, 100% 38%, 84% 82%, 18% 94%, 0 58%);
+}
+
+.pixel-nickelIngot {
+  --p1: #75887f;
+  --p2: #35433e;
+  --p3: #b9c9bf;
+}
+
+.pixel-cupronickelIngot {
+  --p1: #9a8a66;
+  --p2: #554a35;
+  --p3: #d6c48b;
+}
+
+.pixel-aluminiumIngot {
+  --p1: #b9c8ce;
+  --p2: #6d7d84;
+  --p3: #eef5f4;
+}
+
+.pixel-heatingCoil {
+  background:
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 4px, #d6c48b 4px 6px, #554a35 6px 8px),
+    linear-gradient(135deg, #3f474b, #151515);
+}
+
+.pixel-heatProofCasing {
+  background:
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.34) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.34) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.32) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.32) 66% 73%, transparent 73%),
+    radial-gradient(circle at 50% 50%, #d6c48b 0 12%, transparent 13%),
+    linear-gradient(135deg, #d4b28a 0 18%, #786d66 18% 78%, #3c3029 78%);
+}
+
+.pixel-ironRod,
+.pixel-copperRod,
+.pixel-tinRod,
+.pixel-bronzeRod,
+.pixel-steelRod,
+.pixel-aluminiumRod {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-ironRod::before,
+.pixel-copperRod::before,
+.pixel-tinRod::before,
+.pixel-bronzeRod::before,
+.pixel-steelRod::before,
+.pixel-aluminiumRod::before {
+  background: linear-gradient(90deg, var(--p3), var(--p1) 50%, var(--p2));
+  height: 5px;
+  left: 3px;
+  top: 12px;
+  transform: rotate(-32deg);
+  width: 22px;
+}
+
+.pixel-ironRod {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-copperRod {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-tinRod {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-bronzeRod {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
+.pixel-steelRod {
+  --p1: #263340;
+  --p2: #080d13;
+  --p3: #8797aa;
+}
+
+.pixel-aluminiumRod {
+  --p1: #b9c8ce;
+  --p2: #6d7d84;
+  --p3: #eef5f4;
+}
+
+.pixel-redAlloyWire {
+  --p1: #b83a30;
+  --p2: #611916;
+  --p3: #f3a093;
+}
+
+.pixel-copperWire {
+  --p1: #d9823d;
+  --p2: #6e351c;
+  --p3: #f0ad68;
+}
+
+.pixel-tinWire {
+  --p1: #d8dde0;
+  --p2: #6f7b81;
+  --p3: #f2f5f4;
+}
+
+.pixel-conductiveWire {
+  --p1: #d9823d;
+  --p2: #6e351c;
+  --p3: #0f0f0f;
+}
+
+.pixel-tinCable {
+  --p1: #d8dde0;
+  --p2: #454b50;
+  --p3: #111;
+}
+
+.pixel-conductiveWire::before,
+.pixel-tinCable::before {
+  background:
+    linear-gradient(90deg, var(--p1) 0 24%, #0f0f0f 24% 76%, var(--p1) 76% 100%);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.pixel-glass,
+.pixel-glassTube {
+  --p1: #b8d8dd;
+  --p2: #688a90;
+  --p3: #e9fbff;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0 14%, transparent 15% 58%, rgba(255, 255, 255, 0.38) 59% 70%, transparent 71%),
+    linear-gradient(135deg, rgba(184, 216, 221, 0.72), rgba(104, 138, 144, 0.55));
+  box-shadow: inset 0 0 0 3px rgba(233, 251, 255, 0.68), inset -3px -3px 0 rgba(44, 72, 78, 0.28);
+}
+
+.pixel-glassTube {
+  background:
+    linear-gradient(90deg, transparent 0 18%, rgba(233, 251, 255, 0.9) 18% 32%, rgba(104, 138, 144, 0.5) 32% 68%, rgba(233, 251, 255, 0.86) 68% 82%, transparent 82%),
+    linear-gradient(180deg, transparent 0 28%, rgba(184, 216, 221, 0.65) 28% 74%, transparent 74%);
+  box-shadow: none;
+}
+
+.pixel-tinOre {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+  --p4: #4d5558;
+  background:
+    radial-gradient(circle at 34% 28%, #edf0ed 0 8%, transparent 9%),
+    radial-gradient(circle at 68% 66%, #c4c9ca 0 10%, transparent 11%),
+    linear-gradient(135deg, #8c8e8b, #343636);
+  clip-path: polygon(16% 4%, 72% 8%, 100% 42%, 78% 92%, 32% 96%, 0 58%);
+}
+
+.pixel-coal {
+  --p1: #303238;
+  --p2: #15161a;
+  --p3: #686d77;
+  --p4: #050506;
+  background:
+    radial-gradient(circle at 34% 34%, #686d77 0 9%, transparent 10%),
+    linear-gradient(135deg, #303238, #050506);
+  clip-path: polygon(20% 4%, 76% 12%, 96% 52%, 64% 96%, 18% 82%, 0 34%);
+}
+
+.pixel-clay {
+  --p1: #a65f53;
+  --p2: #6e3833;
+  --p3: #cc8a78;
+  --p4: #47211f;
+  background: radial-gradient(circle at 42% 42%, #cc8a78 0 20%, #a65f53 21% 68%, #6e3833 69%);
+  clip-path: polygon(22% 10%, 74% 4%, 94% 42%, 78% 86%, 34% 100%, 4% 64%);
+}
+
+.pixel-sand {
+  --p1: #d8c481;
+  --p2: #9f8c52;
+  --p3: #f3dfa1;
+  --p4: #6c5a30;
+  background:
+    radial-gradient(circle at 28% 72%, #f3dfa1 0 7%, transparent 8%),
+    radial-gradient(circle at 68% 38%, #9f8c52 0 6%, transparent 7%),
+    radial-gradient(circle at 54% 76%, #d8c481 0 9%, transparent 10%),
+    linear-gradient(180deg, transparent 0 28%, #d8c481 29% 100%);
+  clip-path: polygon(4% 90%, 20% 54%, 42% 34%, 74% 46%, 96% 90%);
+  box-shadow: none;
+}
+
+.pixel-rubberSap {
+  --p1: #527f36;
+  --p2: #23441c;
+  --p3: #88b95b;
+  --p4: #13240e;
+  background: linear-gradient(180deg, #88b95b 0 18%, #527f36 19% 74%, #23441c 75%);
+  clip-path: polygon(50% 0, 78% 30%, 88% 66%, 64% 100%, 30% 94%, 12% 62%, 24% 28%);
+}
+
+.pixel-pipeSealant {
+  --p1: #5f7f3c;
+  --p2: #25351e;
+  --p3: #bdd887;
+  --p4: #121b0f;
+  background:
+    linear-gradient(90deg, transparent 0 18%, #25351e 18% 30%, transparent 30% 70%, #25351e 70% 82%, transparent 82%),
+    radial-gradient(circle at 50% 54%, #bdd887 0 18%, #5f7f3c 19% 36%, #25351e 37% 46%, transparent 47%),
+    linear-gradient(180deg, transparent 0 36%, #5f7f3c 36% 74%, #25351e 75%);
+  clip-path: polygon(16% 14%, 84% 14%, 96% 38%, 82% 92%, 18% 92%, 4% 38%);
+}
+
+.pixel-rubber {
+  --p1: #2f3030;
+  --p2: #111212;
+  --p3: #6c7070;
+  --p4: #050505;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 0 32%, #6c7070 33% 43%, #2f3030 44% 62%, #111212 63% 74%, transparent 75%),
+    linear-gradient(135deg, #2f3030, #111212);
+  clip-path: polygon(8% 22%, 28% 6%, 72% 6%, 92% 24%, 92% 76%, 72% 94%, 28% 94%, 8% 76%);
+}
+
+.pixel-water {
+  --p1: #4eb3d1;
+  --p2: #1e6e91;
+  --p3: #a7edf6;
+  --p4: #12425b;
+  background:
+    linear-gradient(90deg, #7b7b7b 0 14%, transparent 14% 86%, #4f4f4f 86%),
+    linear-gradient(180deg, transparent 0 24%, #a7edf6 24% 40%, #4eb3d1 41% 74%, #1e6e91 75%);
+  box-shadow: inset 0 -3px 0 #12425b;
+}
+
+.pixel-bronzeBlend {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+  --p4: #49331f;
+  background:
+    radial-gradient(circle at 24% 70%, #73522f 0 7%, transparent 8%),
+    radial-gradient(circle at 38% 56%, #dec279 0 8%, transparent 9%),
+    radial-gradient(circle at 58% 66%, #b66c3e 0 8%, transparent 9%),
+    radial-gradient(circle at 70% 48%, #7f898d 0 6%, transparent 7%),
+    radial-gradient(circle at 50% 76%, #b7854c 0 9%, transparent 10%);
+  box-shadow: none;
+}
+
+.pixel-mortar,
+.pixel-ironMortar,
+.pixel-bronzeMortar {
+  --p1: #8c8e8b;
+  --p2: #5a5d5d;
+  --p3: #c8cac5;
+  --p4: #343636;
+  background:
+    radial-gradient(circle at 54% 62%, var(--p2) 0 22%, transparent 23%),
+    linear-gradient(135deg, var(--p3) 0 20%, var(--p1) 20% 80%, var(--p2) 80%);
+  clip-path: polygon(12% 28%, 88% 28%, 78% 96%, 22% 96%);
+}
+
+.pixel-mortar::before,
+.pixel-ironMortar::before,
+.pixel-bronzeMortar::before {
+  background: linear-gradient(90deg, var(--p3), var(--p2));
+  height: 5px;
+  left: 4px;
+  top: 5px;
+  transform: rotate(-32deg);
+  width: 20px;
+}
+
+.pixel-ironMortar {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+}
+
+.pixel-bronzeMortar {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+  --p4: #49331f;
+}
+
+.pixel-unfiredBrick,
+.pixel-brick,
+.pixel-cokeOvenBrick,
+.pixel-firebrick,
+.pixel-bbfCasing {
+  background:
+    linear-gradient(90deg, transparent 0 48%, rgba(0, 0, 0, 0.24) 48% 54%, transparent 54%),
+    linear-gradient(0deg, transparent 0 46%, rgba(0, 0, 0, 0.22) 46% 54%, transparent 54%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.2), inset -3px -3px 0 rgba(0, 0, 0, 0.24);
+}
+
+.pixel-unfiredBrick {
+  --p1: #9c765d;
+  --p2: #5f4739;
+  --p3: #c2a083;
+}
+
+.pixel-brick {
+  --p1: #a8553d;
+  --p2: #633122;
+  --p3: #d17a55;
+}
+
+.pixel-cokeOvenBrick {
+  --p1: #8e4b36;
+  --p2: #4a241c;
+  --p3: #d28a5d;
+  background:
+    radial-gradient(circle at 72% 72%, #2a1712 0 9%, transparent 10%),
+    linear-gradient(90deg, transparent 0 48%, rgba(0, 0, 0, 0.28) 48% 54%, transparent 54%),
+    linear-gradient(0deg, transparent 0 46%, rgba(0, 0, 0, 0.24) 46% 54%, transparent 54%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+}
+
+.pixel-firebrick {
+  --p1: #8d8175;
+  --p2: #3c3029;
+  --p3: #d4b28a;
+  background:
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.3) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.3) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.28) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.28) 66% 73%, transparent 73%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+}
+
+.pixel-bbfCasing {
+  --p1: #8d8175;
+  --p2: #3c3029;
+  --p3: #d4b28a;
+  background:
+    radial-gradient(circle at 23% 23%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    radial-gradient(circle at 77% 23%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    radial-gradient(circle at 23% 77%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    radial-gradient(circle at 77% 77%, #c5d0d5 0 5%, #31383d 6% 9%, transparent 10%),
+    linear-gradient(90deg, transparent 0 32%, rgba(60, 48, 41, 0.3) 32% 39%, transparent 39% 66%, rgba(60, 48, 41, 0.3) 66% 73%, transparent 73%),
+    linear-gradient(0deg, transparent 0 30%, rgba(60, 48, 41, 0.28) 30% 37%, transparent 37% 66%, rgba(60, 48, 41, 0.28) 66% 73%, transparent 73%),
+    linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+}
+
+.pixel-bucket {
+  background:
+    linear-gradient(90deg, transparent 0 20%, #d5dde0 20% 32%, transparent 32% 68%, #4f585e 68% 80%, transparent 80%),
+    linear-gradient(180deg, transparent 0 22%, #d5dde0 22% 34%, #8f9aa0 34% 82%, #4f585e 82%);
+  clip-path: polygon(12% 20%, 88% 20%, 76% 96%, 24% 96%);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.24);
+}
+
+.pixel-ironIngot,
+.pixel-copperIngot,
+.pixel-tinIngot,
+.pixel-bronzeIngot,
+.pixel-steelIngot,
+.pixel-redAlloyIngot {
+  background: linear-gradient(135deg, var(--p3) 0 18%, var(--p1) 18% 78%, var(--p2) 78%);
+  clip-path: polygon(12% 28%, 88% 28%, 100% 72%, 78% 94%, 22% 94%, 0 72%);
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.22), inset -3px -3px 0 rgba(0, 0, 0, 0.22);
+}
+
+.pixel-ironIngot {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-copperIngot {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-tinIngot {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-bronzeIngot {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+}
+
+.pixel-steelIngot {
+  --p1: #263340;
+  --p2: #080d13;
+  --p3: #8797aa;
+}
+
+.pixel-redAlloyIngot {
+  --p1: #b83a30;
+  --p2: #611916;
+  --p3: #f3a093;
+}
+
+.pixel-copperDust,
+.pixel-tinDust,
+.pixel-ironDust,
+.pixel-redstoneDust,
+.pixel-carbonDust,
+.pixel-woodPulp {
+  background:
+    radial-gradient(circle at 26% 72%, var(--p2) 0 5%, transparent 6%),
+    radial-gradient(circle at 38% 58%, var(--p3) 0 6%, transparent 7%),
+    radial-gradient(circle at 52% 70%, var(--p1) 0 7%, transparent 8%),
+    radial-gradient(circle at 66% 56%, var(--p3) 0 5%, transparent 6%),
+    radial-gradient(circle at 74% 76%, var(--p2) 0 5%, transparent 6%);
+  box-shadow: none;
+}
+
+.pixel-copperDust::before,
+.pixel-tinDust::before,
+.pixel-ironDust::before,
+.pixel-redstoneDust::before,
+.pixel-carbonDust::before,
+.pixel-woodPulp::before {
+  background:
+    linear-gradient(90deg, transparent 0 12%, var(--p1) 12% 24%, transparent 24% 48%, var(--p3) 48% 60%, transparent 60% 78%, var(--p2) 78% 90%, transparent 90%),
+    linear-gradient(0deg, transparent 0 28%, var(--p2) 28% 40%, transparent 40% 68%, var(--p1) 68% 80%, transparent 80%);
+  height: 16px;
+  left: 5px;
+  top: 7px;
+  width: 17px;
+}
+
+.pixel-copperDust::after,
+.pixel-tinDust::after,
+.pixel-ironDust::after,
+.pixel-redstoneDust::after,
+.pixel-carbonDust::after,
+.pixel-woodPulp::after {
+  background: var(--p1);
+  height: 2px;
+  left: 8px;
+  top: 18px;
+  width: 12px;
+}
+
+.pixel-copperDust {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-tinDust {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-ironDust {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-redstoneDust {
+  --p1: #e3453e;
+  --p2: #7b1818;
+  --p3: #ff8b74;
+}
+
+.pixel-carbonDust {
+  --p1: #3f3f3f;
+  --p2: #111;
+  --p3: #7a7a7a;
+}
+
+.pixel-woodPulp {
+  --p1: #d8cfa2;
+  --p2: #8f8152;
+  --p3: #f0e9bd;
+}
+
+.pixel-crushedIronOre,
+.pixel-crushedCopperOre,
+.pixel-crushedTinOre {
+  background: linear-gradient(135deg, #c8cac5 0 18%, #8c8e8b 18% 72%, #4f5252 72%);
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.24), inset 2px 2px 0 rgba(255, 255, 255, 0.18);
+  clip-path: polygon(14% 18%, 36% 4%, 70% 10%, 96% 38%, 88% 74%, 58% 98%, 20% 88%, 4% 52%);
+}
+
+.pixel-crushedIronOre {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+}
+
+.pixel-crushedIronOre::before {
+  background:
+    radial-gradient(circle at 28% 34%, #d5dde0 0 9%, transparent 10%),
+    radial-gradient(circle at 66% 62%, #8f9aa0 0 8%, transparent 9%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-crushedIronOre::after {
+  background: #4f585e;
+  height: 3px;
+  left: 7px;
+  top: 17px;
+  width: 12px;
+}
+
+.pixel-crushedCopperOre {
+  --p1: #b66c3e;
+  --p2: #68402e;
+  --p3: #e19b61;
+}
+
+.pixel-crushedCopperOre::before {
+  background:
+    radial-gradient(circle at 34% 28%, #e19b61 0 9%, transparent 10%),
+    radial-gradient(circle at 72% 44%, #b66c3e 0 8%, transparent 9%),
+    radial-gradient(circle at 48% 74%, #68402e 0 7%, transparent 8%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-crushedCopperOre::after {
+  background: #e19b61;
+  height: 3px;
+  left: 5px;
+  top: 13px;
+  width: 14px;
+}
+
+.pixel-crushedTinOre {
+  --p1: #c4c9ca;
+  --p2: #7f898d;
+  --p3: #edf0ed;
+}
+
+.pixel-crushedTinOre::before {
+  background:
+    radial-gradient(circle at 26% 62%, #edf0ed 0 8%, transparent 9%),
+    radial-gradient(circle at 58% 26%, #c4c9ca 0 9%, transparent 10%),
+    radial-gradient(circle at 74% 70%, #7f898d 0 7%, transparent 8%);
+  height: 22px;
+  left: 2px;
+  top: 2px;
+  width: 22px;
+}
+
+.pixel-crushedTinOre::after {
+  background: #edf0ed;
+  height: 12px;
+  left: 12px;
+  top: 6px;
+  width: 3px;
+}
+
+.pixel-steamCasing {
+  --p1: #b7854c;
+  --p2: #73522f;
+  --p3: #dec279;
+  --p4: #49331f;
+  background:
+    radial-gradient(circle at 28% 28%, #49331f 0 6%, transparent 7%),
+    radial-gradient(circle at 72% 28%, #49331f 0 6%, transparent 7%),
+    radial-gradient(circle at 28% 72%, #49331f 0 6%, transparent 7%),
+    radial-gradient(circle at 72% 72%, #49331f 0 6%, transparent 7%),
+    linear-gradient(135deg, #dec279, #b7854c 70%, #73522f);
+  box-shadow: inset 0 0 0 4px rgba(73, 51, 31, 0.32);
+}
+
+.pixel-lvMachineCasing {
+  --p1: #8f9aa0;
+  --p2: #4f585e;
+  --p3: #d5dde0;
+  --p4: #2e3438;
+  background:
+    radial-gradient(circle at 28% 28%, #2e3438 0 6%, transparent 7%),
+    radial-gradient(circle at 72% 28%, #2e3438 0 6%, transparent 7%),
+    radial-gradient(circle at 28% 72%, #2e3438 0 6%, transparent 7%),
+    radial-gradient(circle at 72% 72%, #2e3438 0 6%, transparent 7%),
+    linear-gradient(135deg, #d5dde0, #8f9aa0 70%, #4f585e);
+  box-shadow: inset 0 0 0 4px rgba(46, 52, 56, 0.34);
+}
+
+.pixel-lvMachineHull {
+  --p1: #8f9aa0;
+  --p2: #2e3438;
+  --p3: #d8dde0;
+  --p4: #111;
+  background:
+    linear-gradient(90deg, transparent 0 13%, #d8dde0 13% 21%, #111 21% 30%, transparent 30% 70%, #111 70% 79%, #d8dde0 79% 87%, transparent 87%),
+    radial-gradient(circle at 28% 28%, #2e3438 0 5%, transparent 6%),
+    radial-gradient(circle at 72% 72%, #2e3438 0 5%, transparent 6%),
+    linear-gradient(135deg, #d5dde0, #8f9aa0 70%, #4f585e);
+  box-shadow: inset 0 0 0 3px rgba(17, 17, 17, 0.45);
+}
+
+.pixel-basicBoard,
+.pixel-woodenBoardBlank {
+  --p1: #b58c52;
+  --p2: #5d3c22;
+  --p3: #d8c46f;
+  --p4: #2e1d12;
+  background:
+    linear-gradient(90deg, transparent 0 16%, #d8c46f 16% 24%, transparent 24% 76%, #d8c46f 76% 84%, transparent 84%),
+    linear-gradient(180deg, #b58c52, #5d3c22);
+  box-shadow: inset 0 0 0 3px #2e1d12;
+}
+
+.pixel-woodenBoardBlank {
+  --p1: #9a8a55;
+  --p2: #51442a;
+  --p3: #c7b66a;
+  --p4: #2c2417;
+}
+
+.pixel-resistor {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-resistor::before {
+  background:
+    linear-gradient(90deg, #d8c46f 0 18%, #6b4228 18% 34%, #252525 34% 50%, #a33a30 50% 66%, #d8c46f 66% 100%);
+  height: 8px;
+  left: 4px;
+  top: 9px;
+  width: 18px;
+}
+
+.pixel-resistor::after {
+  background: #d8c46f;
+  height: 2px;
+  left: 1px;
+  top: 12px;
+  width: 24px;
+  z-index: -1;
+}
+
+.pixel-vacuumTube {
+  background:
+    linear-gradient(90deg, transparent 0 22%, rgba(233, 251, 255, 0.85) 22% 38%, rgba(104, 138, 144, 0.42) 38% 62%, rgba(233, 251, 255, 0.82) 62% 78%, transparent 78%),
+    linear-gradient(180deg, transparent 0 14%, rgba(184, 216, 221, 0.62) 14% 74%, #611916 74% 100%);
+  box-shadow: inset 0 0 0 2px rgba(233, 251, 255, 0.62);
+}
+
+.pixel-vacuumTube::before {
+  background: #b83a30;
+  height: 13px;
+  left: 12px;
+  top: 7px;
+  width: 2px;
+}
+
+.pixel-vacuumTube::after {
+  background: #d8c46f;
+  height: 2px;
+  left: 8px;
+  top: 20px;
+  width: 10px;
+}
+
+.pixel-primitiveCircuit {
+  --p1: #3f8f6d;
+  --p2: #235740;
+  --p3: #d8c46f;
+  --p4: #172d23;
+  background:
+    radial-gradient(circle at 24% 30%, #d8c46f 0 6%, transparent 7%),
+    radial-gradient(circle at 72% 32%, #d8c46f 0 7%, transparent 8%),
+    radial-gradient(circle at 56% 72%, #f3a093 0 6%, transparent 7%),
+    linear-gradient(90deg, transparent 0 22%, #d8c46f 22% 30%, transparent 30% 62%, #d8c46f 62% 70%, transparent 70%),
+    linear-gradient(0deg, transparent 0 46%, #d8c46f 46% 54%, transparent 54%),
+    linear-gradient(180deg, #3f8f6d, #235740);
+  box-shadow: inset 0 0 0 3px #172d23;
+}
+
+.pixel-steelGear {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 22%, #2e3438 23% 34%, transparent 35%),
+    conic-gradient(from 10deg, #d7dfe1 0 8%, #68727a 8% 14%, #d7dfe1 14% 22%, #68727a 22% 28%, #d7dfe1 28% 36%, #68727a 36% 42%, #d7dfe1 42% 50%, #68727a 50% 56%, #d7dfe1 56% 64%, #68727a 64% 70%, #d7dfe1 70% 78%, #68727a 78% 84%, #d7dfe1 84% 92%, #68727a 92% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 3px #2a3034;
+}
+
+.pixel-aluminiumGear {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 22%, #56636a 23% 34%, transparent 35%),
+    conic-gradient(from 10deg, #eef5f4 0 8%, #9eafb6 8% 14%, #eef5f4 14% 22%, #9eafb6 22% 28%, #eef5f4 28% 36%, #9eafb6 36% 42%, #eef5f4 42% 50%, #9eafb6 50% 56%, #eef5f4 56% 64%, #9eafb6 64% 70%, #eef5f4 70% 78%, #9eafb6 78% 84%, #eef5f4 84% 92%, #9eafb6 92% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 3px #56636a;
+}
+
+.pixel-steelRing {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 38%, #2e3438 39% 48%, #d7dfe1 49% 68%, #68727a 69% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #2a3034;
+}
+
+.pixel-aluminiumRing {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 38%, #56636a 39% 48%, #eef5f4 49% 68%, #9eafb6 69% 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #56636a;
+}
+
+.pixel-steelScrew,
+.pixel-aluminiumScrew {
+  background: transparent;
+  box-shadow: none;
+}
+
+.pixel-steelScrew::before,
+.pixel-aluminiumScrew::before {
+  background:
+    repeating-linear-gradient(90deg, var(--screw-light, #d7dfe1) 0 4px, var(--screw-mid, #68727a) 4px 7px),
+    linear-gradient(180deg, var(--screw-bright, #eef4f5), var(--screw-mid, #6a747a));
+  height: 8px;
+  left: 3px;
+  top: 10px;
+  transform: rotate(-24deg);
+  width: 20px;
+}
+
+.pixel-steelScrew::after,
+.pixel-aluminiumScrew::after {
+  background: var(--screw-light, #d7dfe1);
+  border-radius: 50%;
+  box-shadow: inset -3px -2px 0 var(--screw-mid, #68727a), inset 0 0 0 2px var(--screw-dark, #2e3438);
+  height: 10px;
+  left: 3px;
+  top: 6px;
+  transform: rotate(-24deg);
+  width: 10px;
+}
+
+.pixel-aluminiumScrew {
+  --screw-bright: #f7ffff;
+  --screw-dark: #56636a;
+  --screw-light: #eef5f4;
+  --screw-mid: #9eafb6;
+}
+
+.pixel-lvMotor {
+  background:
+    radial-gradient(circle at 50% 50%, #384148 0 20%, transparent 21%),
+    repeating-linear-gradient(90deg, transparent 0 4px, #c98542 4px 7px, transparent 7px 11px),
+    linear-gradient(135deg, #c9d0d2, #69747b 72%, #2e3438);
+  box-shadow: inset 0 0 0 3px #2a3034;
+}
+
+.pixel-lvMotor::before {
+  background: #d8dfe1;
+  box-shadow: 0 8px 0 #d8dfe1;
+  height: 3px;
+  left: 2px;
+  top: 8px;
+  width: 22px;
+}
+
+.pixel-lvMotor::after {
+  background: #d8c46f;
+  height: 18px;
+  left: 11px;
+  top: 4px;
+  width: 4px;
+}
+
+.pixel-lvPiston {
+  background:
+    linear-gradient(90deg, transparent 0 62%, #d9dee0 62% 82%, #535d64 82% 100%),
+    linear-gradient(180deg, #bfc8cb, #68727a 68%, #343a3f);
+  box-shadow: inset 0 0 0 3px #2a3034;
+}
+
+.pixel-lvPiston::before {
+  background: #8f9aa0;
+  box-shadow: inset 0 0 0 2px #2e3438;
+  height: 14px;
+  left: 2px;
+  top: 6px;
+  width: 13px;
+}
+
+.pixel-lvPiston::after {
+  background: #c98542;
+  height: 4px;
+  left: 13px;
+  top: 11px;
+  width: 12px;
+}
+
+.pixel-lvPump {
+  background:
+    radial-gradient(circle at 50% 50%, #8ed1df 0 18%, #347483 19% 30%, transparent 31%),
+    linear-gradient(90deg, #545e65 0 20%, transparent 20% 80%, #545e65 80% 100%),
+    linear-gradient(135deg, #c9d0d2, #69747b 70%, #2e3438);
+  box-shadow: inset 0 0 0 3px #2a3034;
+}
+
+.pixel-lvPump::before {
+  background: #d8c46f;
+  height: 4px;
+  left: 2px;
+  top: 11px;
+  width: 22px;
+}
+
+.pixel-lvPump::after {
+  background: #2e3438;
+  height: 16px;
+  left: 11px;
+  top: 5px;
+  width: 4px;
+}
+
+.pixel-lvConveyor {
+  background:
+    radial-gradient(circle at 22% 50%, #2e3438 0 12%, transparent 13%),
+    radial-gradient(circle at 78% 50%, #2e3438 0 12%, transparent 13%),
+    repeating-linear-gradient(90deg, #25292c 0 5px, #626d73 5px 9px),
+    linear-gradient(180deg, #c9d0d2, #68727a);
+  box-shadow: inset 0 0 0 3px #2a3034;
+}
+
+.pixel-lvConveyor::before {
+  background: #c98542;
+  height: 3px;
+  left: 4px;
+  top: 5px;
+  width: 18px;
+}
+
+.pixel-lvConveyor::after {
+  background: #c98542;
+  height: 3px;
+  left: 4px;
+  top: 18px;
+  width: 18px;
 }
 
 .item-tooltip {
@@ -4104,35 +5835,6 @@ button.craft-output:disabled {
   grid-template-rows: 32px minmax(130px, 24svh) auto 44px;
 }
 
-.pixel-icon.missing-item-icon {
-  background: #252a2a;
-  border: 2px solid #8f997f;
-  box-shadow: inset 0 0 0 2px #111515;
-}
-
-.pixel-icon.missing-item-icon::before,
-.pixel-icon.missing-item-icon::after {
-  background: #d5bc63;
-  content: '';
-  height: 3px;
-  left: 5px;
-  position: absolute;
-  top: 12px;
-  width: 18px;
-}
-
-.pixel-icon.missing-item-icon::before {
-  transform: rotate(45deg);
-}
-
-.pixel-icon.missing-item-icon::after {
-  transform: rotate(-45deg);
-}
-
-.pixel-icon.missing-item-icon > span {
-  display: none;
-}
-
 .centrifuge-input-pair {
   display: grid;
   gap: 4px;
@@ -5690,6 +7392,17 @@ button.craft-output:disabled {
   line-height: 1.25;
 }
 
+.pixel-rubberPulp {
+  --p1: #b68a58;
+  --p2: #60452f;
+  --p3: #ead6ae;
+  --p4: #332419;
+  background:
+    repeating-linear-gradient(32deg, transparent 0 5px, #ead6ae 5px 8px, transparent 8px 13px),
+    repeating-linear-gradient(142deg, #b68a58 0 6px, #60452f 6px 10px);
+  clip-path: polygon(16% 16%, 76% 8%, 94% 30%, 88% 82%, 62% 96%, 14% 84%, 4% 42%);
+}
+
 .home-install-card {
   background: #304f49;
   border: 2px solid #9fe6d4;
@@ -6009,26 +7722,6 @@ button.craft-output:disabled {
   justify-content: center;
   padding: 0;
   width: 26px;
-}
-
-.navigation-notice {
-  background: #2f2a1c;
-  border: 2px solid #fff0a8;
-  border-bottom-color: #4b3f12;
-  border-right-color: #4b3f12;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
-  color: #fff2c5;
-  font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
-  left: 50%;
-  line-height: 1.25;
-  max-width: calc(100vw - 18px);
-  padding: 8px 10px;
-  position: fixed;
-  text-align: center;
-  top: calc(env(safe-area-inset-top, 0px) + 76px);
-  transform: translateX(-50%);
-  width: max-content;
-  z-index: 45;
 }
 
 @media (max-width: 430px) {
@@ -6622,12 +8315,11 @@ button.craft-output:disabled {
 }
 
 .quest-book-actions button:disabled {
-  background: #535353;
-  border-color: #d7d7d7;
-  border-bottom-color: #303030;
-  border-right-color: #303030;
-  color: #f2f2f2;
-  opacity: 1;
+  background: #777;
+  border-color: #ddd;
+  border-bottom-color: #555;
+  border-right-color: #555;
+  color: #333;
 }
 
 .quest-book-actions button.active {
@@ -6845,30 +8537,6 @@ button.craft-output:disabled {
 
 .quest-node-state {
   display: none;
-}
-
-.quest-first-step {
-  align-items: baseline;
-  background: #ded6b9;
-  border: 2px solid #f4edd7;
-  border-bottom-color: #665b45;
-  border-right-color: #665b45;
-  display: flex;
-  gap: 8px;
-  padding: 6px 8px;
-}
-
-.quest-first-step strong {
-  color: #5c4f15;
-  font: 700 0.7rem var(--display-font);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.quest-first-step span {
-  color: #33291a;
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 
 .quest-detail-modal {
@@ -10696,6 +12364,61 @@ button.button-primary:disabled,
   word-break: normal;
 }
 
+.pixel-tinCable2A,
+.pixel-tinCable4A,
+.pixel-tinCable8A {
+  --p1: #d8dde0;
+  --p2: #454b50;
+  --p3: #111;
+}
+
+.pixel-tinCable2A::before,
+.pixel-tinCable4A::before,
+.pixel-tinCable8A::before {
+  background:
+    linear-gradient(90deg, var(--p1) 0 24%, #0f0f0f 24% 76%, var(--p1) 76% 100%);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.28),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+  height: 8px;
+}
+
+.pixel-tinCable2A::after,
+.pixel-tinCable4A::after,
+.pixel-tinCable8A::after {
+  display: none;
+}
+
+.pixel-leadOre,
+.pixel-crushedLeadOre,
+.pixel-leadDust,
+.pixel-leadIngot,
+.pixel-leadPlate,
+.pixel-diamond,
+.pixel-diamondAxe,
+.pixel-diamondPickaxe,
+.pixel-diamondShovel,
+.pixel-sodiumSalt,
+.pixel-sodiumDust,
+.pixel-lithiumOre,
+.pixel-lithiumDust,
+.pixel-batteryAlloyIngot,
+.pixel-batteryAlloyPlate,
+.pixel-emptyBatteryCell,
+.pixel-obsidian,
+.pixel-sulfurOre,
+.pixel-sulfurDust,
+.pixel-surveyKit,
+.pixel-emptySteelCell,
+.pixel-sodiumBattery,
+.pixel-lithiumBattery,
+.pixel-lvBattery {
+  --p1: #a6abb0;
+  --p2: #596066;
+  --p3: #252b30;
+}
+
 .machine-tinCable2A,
 .machine-tinCable4A,
 .machine-tinCable8A,
@@ -11875,7 +13598,39 @@ button.button-primary:disabled,
 }
 
 /* Early-MV crystal, processor, and fabrication fallbacks. Bitmap sprites remain
-   the primary rendering path;
+   the primary rendering path; these keep failed loads readable and distinct. */
+.pixel-goldOre, .pixel-crushedGoldOre, .pixel-goldDust, .pixel-goldIngot, .pixel-goldPlate,
+.pixel-resonantQuartz, .pixel-resonantQuartzDust, .pixel-chargedResonantQuartz,
+.pixel-voidQuartz, .pixel-voidQuartzDust, .pixel-phaseCrystal, .pixel-phaseDust,
+.pixel-silicon, .pixel-hardenedDieBlank, .pixel-signalImprintDie,
+.pixel-computationImprintDie, .pixel-structuralImprintDie, .pixel-siliconImprintDie,
+.pixel-printedSignalCircuit, .pixel-printedComputationCircuit,
+.pixel-printedStructuralCircuit, .pixel-printedSilicon, .pixel-signalProcessor,
+.pixel-computationProcessor, .pixel-structuralProcessor, .pixel-blankRecipeCard {
+  --pixel-base: #6a746f;
+  --pixel-light: #d7c96f;
+  --pixel-dark: #151b1a;
+}
+
+.pixel-goldOre, .pixel-goldDust, .pixel-goldIngot, .pixel-goldPlate {
+  --pixel-base: #a77a20;
+  --pixel-light: #f4dc68;
+}
+
+.pixel-resonantQuartz, .pixel-resonantQuartzDust, .pixel-chargedResonantQuartz {
+  --pixel-base: #63bfc8;
+  --pixel-light: #d7ffff;
+}
+
+.pixel-voidQuartz, .pixel-voidQuartzDust {
+  --pixel-base: #4b435f;
+  --pixel-light: #a79ac4;
+}
+
+.pixel-phaseCrystal, .pixel-phaseDust {
+  --pixel-base: #6e5e9f;
+  --pixel-light: #68d3cf;
+}
 
 .machine-crystalEnergizer, .machine-circuitImprinter, .machine-recipeEncoder,
 .machine-jobInterface, .machine-autoFabricator, .machine-fluidStorageLink,

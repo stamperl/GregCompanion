@@ -1,13 +1,11 @@
 import { machines, resourceRegistry } from '../game/content'
 import { deploymentInfo } from '../game/deployment'
 import type { MachineId, ResourceId } from '../game/types'
-import codeNativeMachineIconIds from './codeNativeMachineIcons.json'
 
 const preloadedIconImages = new Map<string, HTMLImageElement>()
 const preloadedIconLinks = new Set<string>()
 let iconPreloadPromise: Promise<void> | null = null
 const iconAssetVersion = encodeURIComponent(`${deploymentInfo.channel}-${deploymentInfo.revision}-${deploymentInfo.version}`)
-const codeNativeMachineIcons = new Set<MachineId>(codeNativeMachineIconIds as MachineId[])
 
 export function resourceIconSrc(id: ResourceId) {
   return `${import.meta.env.BASE_URL}game-icons/resources/${id}.png?v=${iconAssetVersion}`
@@ -35,11 +33,9 @@ function preloadImage(src: string) {
   })
 }
 
-export function generatedIconUrls() {
+function generatedIconUrls() {
   const resourceUrls = (Object.keys(resourceRegistry) as ResourceId[]).map(resourceIconSrc)
-  const machineUrls = (Object.keys(machines) as MachineId[])
-    .filter((id) => !codeNativeMachineIcons.has(id))
-    .map(machineIconSrc)
+  const machineUrls = (Object.keys(machines) as MachineId[]).map(machineIconSrc)
   return [...resourceUrls, ...machineUrls]
 }
 

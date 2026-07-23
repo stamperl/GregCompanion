@@ -130,8 +130,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('/src/game/engine.ts') || id.includes('\\src\\game\\engine.ts')) return 'game-engine'
-          if (id.includes('/src/game/content.ts') || id.includes('\\src\\game\\content.ts')) return 'game-content'
           if (!id.includes('node_modules')) return undefined
           if (id.includes('lucide-react')) return 'icons'
           if (id.includes('react')) return 'react-vendor'

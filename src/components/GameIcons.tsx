@@ -13,7 +13,7 @@ export type PipeConnections = {
 export function PixelIcon({ id }: { id: ResourceId }) {
   const [failed, setFailed] = useState(false)
   return (
-    <span className={failed ? 'pixel-icon missing-item-icon' : 'pixel-icon item-sprite-icon'} aria-hidden="true">
+    <span className={failed ? `pixel-icon pixel-${id}` : 'pixel-icon item-sprite-icon'} aria-hidden="true">
       {!failed && <img src={resourceIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" onError={() => setFailed(true)} />}
       <span />
     </span>

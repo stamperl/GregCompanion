@@ -25,9 +25,7 @@ import {
 } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import {
-  lazy,
-  Profiler,
-  Suspense,
+  memo,
   useEffect,
   useMemo,
   useRef,
@@ -73,11 +71,15 @@ import {
   isTankStorageMachine,
   machines,
   processRecipes,
+  questChapters,
   quests as questDefinitions,
   recipes,
   resourceLabels,
+  sellItems,
+  shopItems,
   tools,
 } from './game/content'
+import { routeQuestConnection, type QuestMapRect } from './game/questMap'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -90,6 +92,8 @@ import {
   boilerSteamProductionLitresPerSecond,
   boilerHasWater,
   boilerSteamCapacityMs,
+  canBuyShopItem,
+  canSellShopItem,
   cokeOvenFluidCapacityLitres,
   canCraft,
   claimAllQuestRewards,
@@ -127,6 +131,7 @@ import {
   isReachGateFormed,
   isFluidOutletConfigurableMachine,
   isLvItemAutomationMachine,
+  isResourceDiscovered,
   insertProcessSlot,
   loadProcessRecipeInputs,
   insertMachineStorageSlot,
@@ -150,6 +155,12 @@ import {
   pipeSideModeLabels,
   processStackLimit,
   processRecipeInputLoadStatus,
+  questProgress,
+  questObjectiveProgress,
+  questObjectiveProgressRows,
+  questKind,
+  questScripReward,
+  questStatus,
   recipeFitsTerminalGrid,
   removeProcessSlot,
   removeConductorLane,
@@ -163,6 +174,8 @@ import {
   setLvItemOutputDirection,
   setPipeSideMode,
   setBatteryBufferOutputDirection,
+  shopItemCooldownMs,
+  shopItemCooldownRemainingMs,
   steamMachineInternalCapacityMs,
   steamPipeBufferCapacityMs,
   steamAutoMinerActionDamage,
@@ -202,6 +215,7 @@ import {
   removeSurveyCardFromAutoMiner,
   unassignAutoMiner,
   unequipSlot,
+  visibleQuests,
   visibleRecipes,
   durabilityRemaining,
   encodeCraftingRecipeCard,
@@ -243,7 +257,6 @@ import {
 } from './game/saveStorage'
 import { deploymentInfo, githubBugReportUrl, hasNewerDeployment, isCreativeTestBuild, reloadLatestDeployment } from './game/deployment'
 import { localTimeProvider, networkTimeProvider } from './game/time'
-import { recordReactCommitDuration, recordTickDuration, resetPerformanceReview } from './game/performanceReview'
 import {
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
@@ -280,13 +293,6 @@ import type {
   ResourceAmount,
   ResourceId,
 } from './game/types'
-
-const loadGuidePage = () => import('./components/GuidePage')
-const loadProcessingFactoryGrid = () => import('./components/ProcessingFactoryGrid')
-const loadShopPage = () => import('./components/ShopPage')
-const GuidePage = lazy(loadGuidePage)
-const ProcessingFactoryGrid = lazy(loadProcessingFactoryGrid)
-const ShopPage = lazy(loadShopPage)
 
 type FloatText = {
   id: number
@@ -325,7 +331,10 @@ type UniversalProcessChannel =
   | { kind: 'fluid'; bufferId: string; fluidId?: FluidId; amount: number }
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
+type QuestMapView = { x: number; y: number; zoom: number }
+type QuestMapViews = Partial<Record<QuestChapterId, QuestMapView>>
 type FactoryFloorViewMode = 'production' | 'maintenance'
+type FactoryMaintenanceState = 'running' | 'power-loss' | 'output-full' | 'idle'
 type FactoryPointerPosition = { x: number; y: number; clientX: number; clientY: number }
 type FactoryGesture =
   | { mode: 'pan'; pointerId: number; startX: number; startY: number; originX: number; originY: number; dragged: boolean }
@@ -359,6 +368,37 @@ type PendingProcessInsert = {
   slotId: ProcessSlotId
   resourceId: ResourceId
   quantity: number
+}
+
+const questMapViewsStorageKey = 'click-foundry.quest-map-views'
+
+function defaultQuestMapView(chapterId: QuestChapterId): QuestMapView {
+  return { x: 0, y: 0, zoom: chapterId === 'lvAge' ? 0.62 : 0.9 }
+}
+
+function loadQuestMapViews(): QuestMapViews {
+  try {
+    const stored = window.localStorage.getItem(questMapViewsStorageKey)
+    if (!stored) return {}
+    const parsed = JSON.parse(stored) as Record<string, Partial<QuestMapView>>
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, view]) =>
+        Number.isFinite(view.x) &&
+        Number.isFinite(view.y) &&
+        Number.isFinite(view.zoom),
+      ),
+    ) as QuestMapViews
+  } catch {
+    return {}
+  }
+}
+
+function saveQuestMapViews(views: QuestMapViews) {
+  try {
+    window.localStorage.setItem(questMapViewsStorageKey, JSON.stringify(views))
+  } catch {
+    // Guide position remains available for this session when storage is unavailable.
+  }
 }
 
 type RecipeDisplayOutput =
@@ -473,6 +513,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   autoFabricator: { kind: 'fabricator', runningLabel: 'Fabricating' },
 }
 
+const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach', 'mvFoundations'])
 const placeableFactoryMachineOrder = machineOrder.filter((id) => isPlaceableMachine(id) || id === 'jobInterface')
 const inventoryMachineOrder = machineOrder.filter((id) => !isResourceBackedMachine(id) && id !== 'conductorBundle')
 
@@ -584,6 +625,22 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
 }
 const craftSlotHitboxScale = 0.64
 
+const multiblockQuestIds = new Set<QuestId>([
+  'cokeOvenBrickQuest',
+  'cokeOvenQuest',
+  'bbfCasingsQuest',
+  'buildBbfQuest',
+  'makeHeatingCoilsQuest',
+  'makeInvarQuest',
+  'craftArcControllerQuest',
+  'buildLvAssemblerForPortsQuest',
+  'craftArcItemBusesQuest',
+  'craftArcEnergyHatchesQuest',
+  'craftArcFluidHatchesQuest',
+  'buildArcBlastFurnaceQuest',
+  'bufferArcBlastFurnaceQuest',
+])
+
 function questBookChapterId(quest: Quest): QuestChapterId {
   if (quest.chapterId === 'mvFoundations') return 'mvFoundations'
   if (quest.chapterId === 'shatteredReach') return 'shatteredReach'
@@ -592,6 +649,124 @@ function questBookChapterId(quest: Quest): QuestChapterId {
   if (quest.chapterId === 'lvFoundations' || quest.chapterId === 'blastPrep') return 'lvAge'
   if (quest.chapterId === 'steamAge' || quest.chapterId === 'cokeAndSteel') return 'steamAge'
   return 'gettingStarted'
+}
+
+const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>> = {
+  punchTree: { x: 70, y: 150 },
+  craftPlanks: { x: 245, y: 150 },
+  craftSticks: { x: 420, y: 150 },
+  craftAxe: { x: 595, y: 70 },
+  chopFaster: { x: 770, y: 70 },
+  mineStone: { x: 595, y: 250 },
+  craftShovelQuest: { x: 770, y: 390 },
+  buildFoundation: { x: 770, y: 210 },
+  buildFurnace: { x: 945, y: 210 },
+  firstDirt: { x: 1120, y: 210 },
+  copperAndTin: { x: 1295, y: 210 },
+  craftMortar: { x: 1470, y: 130 },
+  bronzeAge: { x: 1645, y: 210 },
+  gatherClay: { x: 1295, y: 430 },
+  makeBricks: { x: 1470, y: 430 },
+  buildWell: { x: 70, y: 200 },
+  craftSteamCasingQuest: { x: 245, y: 200 },
+  makeSteam: { x: 420, y: 200 },
+  pipeSteam: { x: 595, y: 200 },
+  storageAutomationQuest: { x: 595, y: 380 },
+  steamMaceratorQuest: { x: 770, y: 115 },
+  steamForgeHammerQuest: { x: 945, y: 115 },
+  steamOrePrepQuest: { x: 945, y: 20 },
+  steamCompressorQuest: { x: 1120, y: 115 },
+  steamExtractorQuest: { x: 1120, y: 500 },
+  steamPressureReserveQuest: { x: 1295, y: 115 },
+  steamUtilityBranch: { x: 1470, y: 115 },
+  treeTapQuest: { x: 770, y: 320 },
+  cokeOvenBrickQuest: { x: 945, y: 320 },
+  cokeOvenQuest: { x: 1120, y: 320 },
+  cokeOvenDrainQuest: { x: 1295, y: 420 },
+  creosoteQuest: { x: 1470, y: 320 },
+  firebrickQuest: { x: 1470, y: 230 },
+  bbfCasingsQuest: { x: 1645, y: 230 },
+  buildBbfQuest: { x: 1820, y: 230 },
+  firstSteel: { x: 1995, y: 230 },
+  steelPlateQuest: { x: 2170, y: 230 },
+  steelTankQuest: { x: 2345, y: 350 },
+  findRedstone: { x: 70, y: 220 },
+  smeltRedAlloy: { x: 245, y: 220 },
+  cutRedAlloyWireQuest: { x: 420, y: 220 },
+  extractRubberQuest: { x: 430, y: 65 },
+  insulateWireQuest: { x: 610, y: 65 },
+  makeGlassTubes: { x: 430, y: 375 },
+  makeCarbonDustQuest: { x: 610, y: 375 },
+  makeResistors: { x: 790, y: 375 },
+  makeVacuumTubes: { x: 790, y: 220 },
+  pulpWoodQuest: { x: 970, y: 105 },
+  pressCircuitBoard: { x: 1150, y: 105 },
+  firstLvCircuit: { x: 1150, y: 270 },
+  buildSteamTurbineQuest: { x: 1335, y: 220 },
+  makeTinCableQuest: { x: 1515, y: 220 },
+  routeLvPowerQuest: { x: 1695, y: 220 },
+  makeSteelMechanicsQuest: { x: 1875, y: 90 },
+  makeLvMotorQuest: { x: 2055, y: 90 },
+  makeLvMotionPartsQuest: { x: 2235, y: 90 },
+  buildLvWiremillQuest: { x: 2415, y: 105 },
+  runLvWiremillQuest: { x: 2415, y: 335 },
+  bufferLvPowerQuest: { x: 2610, y: 220 },
+  creosoteBoilerQuest: { x: 2790, y: 50 },
+  makeDiamondPickQuest: { x: 2790, y: 190 },
+  gatherBatteryMineralsQuest: { x: 2970, y: 190 },
+  makeEmptyBatteryCellQuest: { x: 3150, y: 190 },
+  buildLvCannerQuest: { x: 3330, y: 190 },
+  fillLvBatteryQuest: { x: 3510, y: 190 },
+  buildTwoAmpCableQuest: { x: 3690, y: 190 },
+  buildFourAmpCableQuest: { x: 3870, y: 190 },
+  buildFourAmpBufferQuest: { x: 4050, y: 190 },
+  runLvBenderQuest: { x: 2970, y: 350 },
+  buildLvLatheQuest: { x: 2790, y: 500 },
+  runLvLatheQuest: { x: 2970, y: 500 },
+  buildLvElectrolyzerQuest: { x: 4230, y: 350 },
+  findBauxiteQuest: { x: 4410, y: 260 },
+  makeAluminiumDustQuest: { x: 4590, y: 260 },
+  findNickelQuest: { x: 4230, y: 510 },
+  makeCupronickelQuest: { x: 4410, y: 510 },
+  makeHeatingCoilsQuest: { x: 4590, y: 510 },
+  makeInvarQuest: { x: 4770, y: 620 },
+  craftArcControllerQuest: { x: 4950, y: 510 },
+  craftArcItemBusesQuest: { x: 5130, y: 440 },
+  craftArcEnergyHatchesQuest: { x: 5130, y: 580 },
+  buildLvAssemblerForPortsQuest: { x: 4950, y: 720 },
+  craftArcFluidHatchesQuest: { x: 5130, y: 720 },
+  buildArcBlastFurnaceQuest: { x: 5310, y: 510 },
+  bufferArcBlastFurnaceQuest: { x: 5490, y: 510 },
+  firstAluminiumQuest: { x: 5670, y: 360 },
+  buildConductorsQuest: { x: 5850, y: 510 },
+  buildLvCentrifugeQuest: { x: 4230, y: 720 },
+  separateStickyResinQuest: { x: 4410, y: 720 },
+  centrifugeByproductsQuest: { x: 4410, y: 860 },
+  cureLiquidRubberQuest: { x: 4590, y: 860 },
+  useGlueQuest: { x: 4770, y: 830 },
+  buildAirCollectorQuest: { x: 4410, y: 1000 },
+  separateAirQuest: { x: 4590, y: 1000 },
+  routeSeparatedGasesQuest: { x: 4770, y: 1000 },
+  runGasArcRecipesQuest: { x: 5490, y: 830 },
+  buildLvAutoMinerQuest: { x: 2970, y: 50 },
+  craftSurveyKitQuest: { x: 3150, y: 50 },
+  encodeCoalSurveyCardQuest: { x: 3330, y: 50 },
+}
+
+const multiblockQuestPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>> = {
+  cokeOvenBrickQuest: { x: 70, y: 380 },
+  cokeOvenQuest: { x: 245, y: 380 },
+  bbfCasingsQuest: { x: 420, y: 380 },
+  buildBbfQuest: { x: 595, y: 380 },
+  makeHeatingCoilsQuest: { x: 70, y: 80 },
+  makeInvarQuest: { x: 245, y: 80 },
+  craftArcControllerQuest: { x: 420, y: 145 },
+  buildLvAssemblerForPortsQuest: { x: 420, y: 290 },
+  craftArcItemBusesQuest: { x: 595, y: 80 },
+  craftArcEnergyHatchesQuest: { x: 595, y: 210 },
+  craftArcFluidHatchesQuest: { x: 595, y: 290 },
+  buildArcBlastFurnaceQuest: { x: 770, y: 145 },
+  bufferArcBlastFurnaceQuest: { x: 945, y: 145 },
 }
 
 function isCenteredCraftSlotHit(element: HTMLElement, clientX: number, clientY: number) {
@@ -775,6 +950,399 @@ function RecipePatternPreview({
 function isFactoryFloorLayoutRecipe(recipe: Recipe) {
   return recipe.recipeType === 'machine'
 }
+
+type FactoryFloorGridProps = {
+  state: GameState
+  width: number
+  height: number
+  viewMode: FactoryFloorViewMode
+  placingMachineId: MachineId | null
+  cellPressRef: { current: (x: number, y: number, instance?: MachineInstance) => void }
+}
+
+const FactoryFloorGrid = memo(function FactoryFloorGrid({
+  state,
+  width,
+  height,
+  viewMode,
+  placingMachineId,
+  cellPressRef,
+}: FactoryFloorGridProps) {
+  const machineByCell = useMemo(
+    () => new Map(state.machineInstances.map((instance) => [`${instance.x},${instance.y}`, instance])),
+    [state.machineInstances],
+  )
+  const machineAtCell = (x: number, y: number) => machineByCell.get(`${x},${y}`)
+  const planningRackByUid = useMemo(() => {
+    const racks = state.machineInstances
+      .filter((instance) => instance.machineId === 'planningController')
+      .map((controller) => planningRackStructureForInstance(state, controller))
+      .filter((rack): rack is NonNullable<typeof rack> => Boolean(rack))
+    const byUid = new Map<string, (typeof racks)[number]>()
+    for (const rack of racks) {
+      byUid.set(rack.controller.uid, rack)
+      for (const cell of rack.cells) byUid.set(cell.uid, rack)
+    }
+    return byUid
+  }, [state])
+
+  const pipeConnectionsForInstance = (instance: MachineInstance): PipeConnections | undefined => {
+    const isSteamPipe = isSteamPipeMachine(instance.machineId)
+    const isEuCable = isEuCableMachine(instance.machineId)
+    const isConductor = isConductorMachine(instance.machineId) || hasFabricationCable(instance)
+    if (!isSteamPipe && !isEuCable && !isConductor) return undefined
+    const isSteamPipeNeighbour = (machineId: MachineId) =>
+      isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
+    const connectsTo = (x: number, y: number) => {
+      const neighbour = machineAtCell(x, y)
+      if (!neighbour) return false
+      if (isConductor) {
+        const direction = pipeDirections.find((candidate) => {
+          const offset = pipeDirectionOffsets[candidate]
+          return instance.x + offset.dx === x && instance.y + offset.dy === y
+        })
+        if (!direction) return false
+        if (isConductorMachine(neighbour.machineId) || hasFabricationCable(neighbour)) {
+          return (isItemConductorMachine(instance.machineId) && isItemConductorMachine(neighbour.machineId)) ||
+            (isFluidConductorMachine(instance.machineId) && isFluidConductorMachine(neighbour.machineId)) ||
+            (hasFabricationCable(instance) && hasFabricationCable(neighbour))
+        }
+        if (hasFabricationCable(instance) && instance.fabricationInterfaces?.[direction]) return true
+        if (hasFabricationCable(instance) && (
+          neighbour.machineId === 'planningController' ||
+          machines[neighbour.machineId].processKind === 'fabricationInterface'
+        )) return true
+        const itemOpen = isItemConductorMachine(instance.machineId) && conductorFaceSettings(instance, 'item', direction).mode !== 'blocked'
+        const fluidOpen = isFluidConductorMachine(instance.machineId) && conductorFaceSettings(instance, 'fluid', direction).mode !== 'blocked'
+        return itemOpen || fluidOpen
+      }
+      return (isEuCable ? machinesCanConnectEu(instance, neighbour) : machinesCanConnect(instance, neighbour)) &&
+        (isSteamPipe ? isSteamPipeNeighbour(neighbour.machineId) : isEuNetworkMachine(neighbour.machineId))
+    }
+    return {
+      up: connectsTo(instance.x, instance.y - 1),
+      right: connectsTo(instance.x + 1, instance.y),
+      down: connectsTo(instance.x, instance.y + 1),
+      left: connectsTo(instance.x - 1, instance.y),
+    }
+  }
+
+  const controllerForMultiblockPart = (instance: MachineInstance) => {
+    const controller = multiblockControllerForInstance(state, instance)
+    return controller ? machineAtCell(controller.x, controller.y) : null
+  }
+
+  const controllerForStructure = (instance: MachineInstance) => {
+    const tankStructure = steamTankStructureForInstance(state, instance)
+    if (tankStructure) return tankStructure.controller
+    const arcStructure = arcBlastFurnaceStructureForInstance(state, instance)
+    if (arcStructure) return arcStructure.controller
+    const planningRack = planningRackStructureForPart(state, instance)
+    if (planningRack) return planningRack.controller
+    return controllerForMultiblockPart(instance)
+  }
+
+  const fabricationInterfacesForTarget = (target: MachineInstance) =>
+    pipeDirections.flatMap((direction) => {
+      const offset = pipeDirectionOffsets[direction]
+      const cable = machineAtCell(target.x + offset.dx, target.y + offset.dy)
+      const attachment = cable?.fabricationInterfaces?.[oppositePipeDirection[direction]]
+      if (!cable || !hasFabricationCable(cable) || !attachment) return []
+      return [{
+        attachment,
+        direction,
+        patternCount: state.recipeCards.filter((card) => card.installedInUid === attachment.uid).length,
+      }]
+    })
+
+  const fluidOutputFacesForInstance = (instance: MachineInstance) => {
+    const controller = controllerForStructure(instance) ?? instance
+    const multiblock = multiblockControllerForInstance(state, controller)
+    if (!multiblock || !isFluidOutletConfigurableMachine(multiblock.spec.controller)) return []
+    const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+    const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+    const maxX = originX + multiblock.spec.width - 1
+    const maxY = originY + multiblock.spec.height - 1
+    return multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
+      .flatMap((position) => {
+        const cell = machineAtCell(position.x, position.y)
+        if (!cell) return []
+        const directions: PipeDirection[] = []
+        if (position.y === originY) directions.push('north')
+        if (position.x === maxX) directions.push('east')
+        if (position.y === maxY) directions.push('south')
+        if (position.x === originX) directions.push('west')
+        return directions.map((direction) => ({ cell, direction }))
+      })
+  }
+
+  const pipePolarityForInstance = (instance: MachineInstance) => {
+    const isSteamPipe = isSteamPipeMachine(instance.machineId)
+    const isEuCable = isEuCableMachine(instance.machineId)
+    const isEuBuffer = isEuStorageMachine(instance.machineId)
+    const isEuRoute = isEuCable || isEuBuffer
+    const isConductor = isConductorMachine(instance.machineId) || hasFabricationCable(instance)
+    const isHopper = isItemHopperMachine(instance.machineId)
+    const fluidFaces = isFluidOutletConfigurableMachine(instance.machineId)
+      ? fluidOutputFacesForInstance(instance).filter((face) => face.cell.uid === instance.uid)
+      : []
+    if (!isSteamPipe && !isEuCable && !isEuBuffer && !isConductor && !isHopper && fluidFaces.length < 1) return null
+
+    if (fluidFaces.length > 0) {
+      const sides = fluidFaces.flatMap((face) => {
+        const offset = pipeDirectionOffsets[face.direction]
+        const mode = pipeSideMode(face.cell, face.direction)
+        if (mode !== 'output') return []
+        const neighbour = machineAtCell(face.cell.x + offset.dx, face.cell.y + offset.dy)
+        return [{
+          direction: face.direction,
+          mode,
+          state: neighbour && machinesCanConnect(face.cell, neighbour) ? 'connected' as const : 'open' as const,
+          label: `${offset.label} ${pipeSideModeLabels[mode]}`,
+        }]
+      })
+      return sides.length > 0 ? sides : null
+    }
+
+    return pipeDirections.map((direction) => {
+      const offset = pipeDirectionOffsets[direction]
+      const neighbour = machineAtCell(instance.x + offset.dx, instance.y + offset.dy)
+      const conductorModes = isConductor
+        ? [
+            ...(isItemConductorMachine(instance.machineId) ? [conductorFaceSettings(instance, 'item', direction).mode] : []),
+            ...(isFluidConductorMachine(instance.machineId) ? [conductorFaceSettings(instance, 'fluid', direction).mode] : []),
+            ...(hasFabricationCable(instance) ? ['both' as PipeSideMode] : []),
+          ]
+        : []
+      const mode = isConductor
+        ? conductorModes.includes('both') || (conductorModes.includes('input') && conductorModes.includes('output'))
+          ? 'both'
+          : conductorModes.find((candidate) => candidate !== 'blocked') ?? 'blocked'
+        : pipeSideMode(instance, direction)
+      const blocked = mode === 'blocked'
+      const isSteamPipeNeighbour = (machineId: MachineId) =>
+        isSteamNetworkMachine(machineId) || (machines[machineId].fluidCapacityLitres ?? 0) > 0 || machineId === 'well'
+      const connected = Boolean(
+        !blocked &&
+          neighbour &&
+          (isHopper
+            ? (((mode === 'input' || mode === 'both') && !isItemHopperMachine(neighbour.machineId) && !isItemBusMachine(neighbour.machineId)) ||
+                ((mode === 'output' || mode === 'both') && (isItemStorageMachine(neighbour.machineId) || !isItemAutomationMachine(neighbour.machineId))))
+            : isConductor
+              ? pipeConnectionsForInstance(instance)?.[direction === 'north' ? 'up' : direction === 'east' ? 'right' : direction === 'south' ? 'down' : 'left']
+              : (isEuRoute ? machinesCanConnectEu(instance, neighbour) : machinesCanConnect(instance, neighbour)) &&
+              (isEuRoute ? isEuNetworkMachine(neighbour.machineId) : isSteamPipeNeighbour(neighbour.machineId))),
+      )
+      return {
+        direction,
+        mode,
+        state: blocked ? 'blocked' as const : connected ? 'connected' as const : 'open' as const,
+        label: `${offset.label} ${pipeSideModeLabels[mode]}`,
+      }
+    })
+  }
+
+  return (
+    <div className={`factory-grid factory-view-${viewMode}`} style={{ gridTemplateColumns: `repeat(${width}, ${factoryCellSize}px)` }} aria-label="Factory grid">
+      {Array.from({ length: width * height }, (_, index) => {
+        const x = index % width
+        const y = Math.floor(index / width)
+        const instance = machineAtCell(x, y)
+        const planningRack = instance ? planningRackByUid.get(instance.uid) : undefined
+        const isPlanningRackController = Boolean(planningRack && instance?.uid === planningRack.controller.uid)
+        const isPlanningRackModule = Boolean(planningRack && instance?.uid !== planningRack.controller.uid)
+        const isPlanningRackOrigin = Boolean(planningRack && instance?.x === planningRack.originX && instance?.y === planningRack.originY)
+        const arcStructure = instance ? arcBlastFurnaceStructureForInstance(state, instance) : null
+        const isFormedArc = Boolean(arcStructure?.formed)
+        const isFormedArcController = Boolean(isFormedArc && arcStructure && instance?.uid === arcStructure.controller.uid)
+        const isFormedArcInspection = false
+        const showFormedArc = isFormedArcController && !isFormedArcInspection
+        const multiblockController = instance ? controllerForMultiblockPart(instance) : null
+        const tankStructure = instance && isTankStorageMachine(instance.machineId) ? steamTankStructureForInstance(state, instance) : null
+        const isMultiblockController = Boolean(instance?.machineId && machines[instance.machineId].multiblock)
+        const isTankStructureController = Boolean(tankStructure && instance && tankStructure.controller.uid === instance.uid && tankStructure.area > 1)
+        const isTankStructureChild = Boolean(tankStructure && instance && tankStructure.controller.uid !== instance.uid)
+        const isStructureController = isMultiblockController || isTankStructureController || isPlanningRackController
+        const isStructureCell = isStructureController || Boolean(multiblockController) || isTankStructureChild || isPlanningRackModule
+        const isConnector = Boolean(instance && (isSteamPipeMachine(instance.machineId) || isEuCableMachine(instance.machineId) || isConductorMachine(instance.machineId) || hasFabricationCable(instance)))
+        const attachedFabricationInterfaces = instance ? fabricationInterfacesForTarget(instance) : []
+        const pipePolarity = viewMode === 'maintenance' && instance ? pipePolarityForInstance(instance) : null
+        const itemAutomationDirection =
+          viewMode === 'maintenance' && instance && isLvItemAutomationMachine(instance.machineId)
+            ? instance.itemOutputDirection
+            : undefined
+        const itemAutomationStatus = itemAutomationDirection && instance ? lvItemAutomationStatus(state, instance) : null
+        const structureMachineId = planningRack?.controller.machineId ?? tankStructure?.controller.machineId ?? multiblockController?.machineId ?? (isMultiblockController ? instance?.machineId : null)
+        const structureStyle =
+          tankStructure && isTankStructureController
+            ? ({
+                '--structure-width': `${tankStructure.width * factoryCellSize + Math.max(0, tankStructure.width - 1) * factoryCellGap}px`,
+                '--structure-height': `${tankStructure.height * factoryCellSize + Math.max(0, tankStructure.height - 1) * factoryCellGap}px`,
+              } as CSSProperties)
+            : planningRack && isPlanningRackOrigin
+              ? ({
+                  '--structure-width': `${planningRack.width * factoryCellSize + Math.max(0, planningRack.width - 1) * factoryCellGap}px`,
+                  '--structure-height': `${planningRack.height * factoryCellSize + Math.max(0, planningRack.height - 1) * factoryCellGap}px`,
+                } as CSSProperties)
+            : undefined
+        const isMachineActive = Boolean(
+          instance &&
+            !isConnector &&
+            (instance.process.fuelRemainingMs > 0 ||
+              instance.process.activeRecipeId ||
+              (isSteamNetworkMachine(instance.machineId) && instance.process.steamStoredMs > 0) ||
+              (isEuNetworkMachine(instance.machineId) && instance.process.euStored > 0) ||
+              Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0)),
+        )
+        const statusLabel = viewMode === 'maintenance' && instance && !isConnector ? machineStatus(state, instance) : ''
+        const hasPowerFailure = Boolean(
+          viewMode === 'maintenance' &&
+            instance &&
+            !isConnector &&
+            ((isSteamPoweredMachine(instance.machineId) && availableConnectedSteam(state, instance) < 1) ||
+              (isEuPoweredMachine(instance.machineId) && availableConnectedEu(state, instance) < 1)),
+        )
+        const maintenanceState: FactoryMaintenanceState =
+          viewMode !== 'maintenance' || !instance || isConnector
+            ? 'idle'
+            : statusLabel === 'Output full' || (instance.process.output?.amount ?? 0) >= processStackLimit
+              ? 'output-full'
+              : hasPowerFailure ||
+                  statusLabel === 'No power' ||
+                  statusLabel === 'Underpowered' ||
+                  statusLabel === 'No steam' ||
+                  statusLabel === 'Waiting for buffer' ||
+                  /^Needs \d+A route$/.test(statusLabel)
+                ? 'power-loss'
+                : instance.process.activeRecipeId || instance.process.fuelRemainingMs > 0 || statusLabel === 'Supplying water'
+                  ? 'running'
+                  : 'idle'
+        const animateMachine = viewMode === 'maintenance' && maintenanceState === 'running'
+
+        return (
+          <button
+            type="button"
+            className={
+              instance
+                ? [
+                    'factory-cell',
+                    'occupied',
+                    `machine-${instance.machineId}-cell`,
+                    isConnector ? 'connector-cell' : '',
+                    isMachineActive ? 'active' : '',
+                    `maintenance-${maintenanceState}`,
+                    isMultiblockController ? 'multiblock-bbf-controller' : '',
+                    multiblockController ? 'multiblock-bbf-child' : '',
+                    isTankStructureController ? 'tank-structure-controller' : '',
+                    isTankStructureChild ? 'tank-structure-child' : '',
+                    isPlanningRackController ? 'planning-rack-controller' : '',
+                    isPlanningRackModule ? 'planning-rack-module' : '',
+                    isPlanningRackOrigin ? 'planning-rack-origin' : '',
+                    isFormedArc ? 'formed-arc-cell' : '',
+                    isFormedArcController ? 'formed-arc-controller-cell' : '',
+                    isFormedArc && !isFormedArcController ? 'formed-arc-child-cell' : '',
+                    isFormedArcInspection ? 'formed-arc-inspection-cell' : '',
+                  ].filter(Boolean).join(' ')
+                : placingMachineId
+                  ? 'factory-cell placing'
+                  : 'factory-cell'
+            }
+            style={structureStyle}
+            aria-label={
+              instance
+                ? `${isStructureCell && structureMachineId ? machines[structureMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}${statusLabel ? `, ${statusLabel}` : ''}`
+                : `Empty factory cell ${x + 1}, ${y + 1}`
+            }
+            onClick={() => cellPressRef.current(x, y, instance)}
+            key={`${x}-${y}`}
+          >
+            {isPlanningRackOrigin && planningRack ? (
+              <span className="formed-planning-rack" aria-hidden="true">
+                {planningRack.cells.map((cell) => (
+                  <span
+                    className={`formed-planning-rack-module module-${cell.machineId}`}
+                    style={{
+                      left: `${(cell.x - planningRack.originX) * (factoryCellSize + factoryCellGap)}px`,
+                      top: `${(cell.y - planningRack.originY) * (factoryCellSize + factoryCellGap)}px`,
+                    }}
+                    key={cell.uid}
+                  >
+                    <MachineGlyph id={cell.machineId} />
+                  </span>
+                ))}
+              </span>
+            ) : showFormedArc && arcStructure ? (
+              <span className={animateMachine ? 'formed-arc-render active' : 'formed-arc-render'} aria-hidden="true">
+                <img src={`${import.meta.env.BASE_URL}game-art/formed-arc-blast-furnace.png`} alt="" draggable={false} />
+                <span className="formed-arc-core" />
+                {arcStructure.perimeter
+                  .filter((part) => part.machineId !== 'arcBlastFurnacePart')
+                  .map((part) => {
+                    const activeDirection = pipeDirections.find((direction) => pipeSideMode(part, direction) !== 'blocked') ?? 'east'
+                    return (
+                      <span
+                        className={`formed-arc-port formed-arc-port-${part.machineId} formed-arc-port-direction-${activeDirection}`}
+                        style={{
+                          left: `${(part.x - arcStructure.controller.x + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
+                          top: `${(part.y - arcStructure.controller.y + 1) * (factoryCellSize + factoryCellGap) + factoryCellSize / 2}px`,
+                        }}
+                        key={part.uid}
+                      >
+                        <span className="formed-arc-port-mark" />
+                      </span>
+                    )
+                  })}
+              </span>
+            ) : instance && (!isFormedArc || isFormedArcInspection) && (!isStructureCell || isStructureController || isFormedArcInspection) ? (
+              <MachineGlyph id={instance.machineId} active={animateMachine} pipeConnections={pipeConnectionsForInstance(instance)} fabricationLane={hasFabricationCable(instance)} />
+            ) : (
+              <span />
+            )}
+            {pipePolarity && (
+              <span className="pipe-polarity-overlay" aria-label="Pipe polarity">
+                {pipePolarity.map((side) => (
+                  <span className={`pipe-polarity-side ${side.direction} ${side.state} mode-${side.mode}`} title={side.label} key={side.direction}>
+                    {instance && isEuCableMachine(instance.machineId) ? <span className="cable-connection-mark" /> : <PipeFlowArrows direction={side.direction} mode={side.mode} />}
+                    {instance && isItemHopperMachine(instance.machineId) && side.mode !== 'blocked' && (
+                      <span className="hopper-route-mark">{side.mode === 'input' ? 'IN' : side.mode === 'output' ? 'OUT' : 'I/O'}</span>
+                    )}
+                    {instance && (isConductorMachine(instance.machineId) || hasFabricationCable(instance)) && side.mode !== 'blocked' && (
+                      <span className="conductor-route-mark">{isItemConductorMachine(instance.machineId) ? 'I' : ''}{isFluidConductorMachine(instance.machineId) ? 'F' : ''}{hasFabricationCable(instance) ? 'N' : ''}</span>
+                    )}
+                  </span>
+                ))}
+              </span>
+            )}
+            {itemAutomationDirection && (
+              <span className="machine-automation-direction-overlay" aria-label={`Automatic item output ${pipeDirectionOffsets[itemAutomationDirection].label}`}>
+                <span
+                  className={`pipe-polarity-side machine-automation-output ${itemAutomationDirection} mode-output`}
+                  title={`${pipeDirectionOffsets[itemAutomationDirection].label} automatic item output: ${itemAutomationStatus?.label ?? 'Ready'}`}
+                >
+                  <PipeFlowArrows direction={itemAutomationDirection} mode="output" />
+                </span>
+              </span>
+            )}
+            {attachedFabricationInterfaces.length > 0 && (
+              <span className="fabrication-interface-overlay" aria-label={`${attachedFabricationInterfaces.length} attached job interface ${attachedFabricationInterfaces.length === 1 ? 'face' : 'faces'}`}>
+                {attachedFabricationInterfaces.map(({ attachment, direction, patternCount }) => (
+                  <span
+                    className={`fabrication-interface-port ${direction}`}
+                    title={`Job Interface Face: ${patternCount} installed ${patternCount === 1 ? 'pattern' : 'patterns'}`}
+                    key={attachment.uid}
+                  >
+                    <span className="fabrication-interface-socket" />
+                    <b>{patternCount}</b>
+                  </span>
+                ))}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+})
 
 function FactoryFloorLayoutPreview({ recipe }: { recipe: Recipe }) {
   if (!isFactoryFloorLayoutRecipe(recipe)) return null
@@ -1381,10 +1949,509 @@ function isGatherTargetVisible(state: GameState, targetId: GatherTargetId) {
   return hasToolTierUnlocked(state, 'ironPickaxe')
 }
 
+function QuestIcon({ quest, muted = false }: { quest: Quest; muted?: boolean }) {
+  const icon = quest.icon
+  return (
+    <span className={muted ? 'quest-icon-art muted' : 'quest-icon-art'}>
+      {icon?.type === 'machine' ? (
+        <MachineGlyph id={icon.id} />
+      ) : icon?.type === 'gather' ? (
+        <PixelIcon id={gatherTargetIcons[icon.id]} />
+      ) : (
+        <PixelIcon id={icon?.id ?? quest.requirements.resources?.[0]?.id ?? 'log'} />
+      )}
+    </span>
+  )
+}
+
+function questStatusText(status: ReturnType<typeof questStatus>) {
+  if (status === 'completed') return 'Complete'
+  if (status === 'ready') return 'Ready'
+  if (status === 'available') return 'Open'
+  return 'Locked'
+}
+
+function QuestObjectiveRow({
+  progress,
+  state,
+  onSelectResource,
+  onSelectMachine,
+  onOpenFactory,
+}: {
+  progress: ReturnType<typeof questObjectiveProgress>
+  state: GameState
+  onSelectResource: (resourceId: ResourceId) => void
+  onSelectMachine: (machineId: MachineId) => void
+  onOpenFactory: () => void
+}) {
+  const { objective } = progress
+  const current = Math.min(progress.current, progress.required)
+  const amountLabel = `${formatAmount(current)}/${formatAmount(progress.required)}`
+  const actionLabel = progress.complete ? 'Completed' : amountLabel
+
+  if (objective.type === 'resource') {
+    return (
+      <button type="button" className={progress.complete ? 'quest-objective complete' : 'quest-objective'} onClick={() => onSelectResource(objective.id)}>
+        <ItemSlot amount={{ id: objective.id, amount: objective.amount }} disabled={!progress.complete} state={state} />
+        <span>{progress.label}</span>
+        <strong>{actionLabel}</strong>
+      </button>
+    )
+  }
+
+  if (objective.type === 'machine') {
+    return (
+      <button type="button" className={progress.complete ? 'quest-objective complete' : 'quest-objective'} onClick={() => onSelectMachine(objective.id)}>
+        <MachineSlot id={objective.id} amount={objective.amount} muted={!progress.complete} />
+        <span>{progress.label}</span>
+        <strong>{actionLabel}</strong>
+      </button>
+    )
+  }
+
+  if (objective.type === 'placedMachine') {
+    return (
+      <button type="button" className={progress.complete ? 'quest-objective complete factory-link' : 'quest-objective factory-link'} onClick={onOpenFactory}>
+        <MachineSlot id={objective.id} amount={objective.amount} muted={!progress.complete} />
+        <span>{progress.label}</span>
+        <strong>{actionLabel}</strong>
+      </button>
+    )
+  }
+
+  return (
+    <div className={progress.complete ? 'quest-objective complete' : 'quest-objective'}>
+      <span className="mini-slot">
+        <Factory size={18} />
+      </span>
+      <span>{progress.label}</span>
+      <strong>{actionLabel}</strong>
+    </div>
+  )
+}
+
+function QuestDetail({
+  quest,
+  state,
+  onClose,
+  onClaim,
+  onSelectResource,
+  onSelectMachine,
+  onOpenFactory,
+}: {
+  quest: Quest
+  state: GameState
+  onClose: () => void
+  onClaim: (questId: QuestId) => void
+  onSelectResource: (resourceId: ResourceId) => void
+  onSelectMachine: (machineId: MachineId) => void
+  onOpenFactory: () => void
+}) {
+  const status = questStatus(state, quest)
+  const claimed = state.claimedQuests.includes(quest.id)
+  const claimReady = status === 'completed' && !claimed
+  const progressRows = questObjectiveProgressRows(state, quest)
+  const kind = questKind(quest)
+  const scripReward = questScripReward(quest)
+  const rewardResources = quest.rewards.resources ?? []
+  const rewardMachines = quest.rewards.machines ?? []
+
+  return (
+    <div className="modal-backdrop compact-backdrop" role="presentation" onClick={onClose}>
+      <section className="missing-modal quest-detail-modal" role="dialog" aria-modal="true" aria-label={quest.title} onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">{quest.chapter}</p>
+            <h2>{quest.title}</h2>
+          </div>
+          <button type="button" className="icon-button" aria-label="Close quest" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className={`quest-detail-hero ${status}`}>
+          <span className="quest-detail-icon">
+            <QuestIcon quest={quest} muted={status === 'locked'} />
+          </span>
+          <div>
+            <strong>{kind} | {questStatusText(status)}</strong>
+            <p>{quest.description}</p>
+          </div>
+        </div>
+        <div className="progress-track quest-progress">
+          <span style={{ width: `${questProgress(state, quest) * 100}%` }} />
+        </div>
+        <div className="quest-objective-list">
+          {progressRows.map((progress) => (
+            <QuestObjectiveRow
+              progress={progress}
+              state={state}
+              onSelectResource={onSelectResource}
+              onSelectMachine={onSelectMachine}
+              onOpenFactory={onOpenFactory}
+              key={`${progress.objective.type}-${'id' in progress.objective ? progress.objective.id : 'ids' in progress.objective ? progress.objective.ids.join('-') : progress.objective.type === 'factoryFoundation' ? progress.objective.level : `${progress.objective.kind}-${progress.objective.fluidId}-${progress.objective.direction}`}`}
+            />
+          ))}
+        </div>
+        <div className="quest-reward-panel" aria-label="Quest rewards">
+          <span>Reward</span>
+          <strong>{formatAmount(scripReward)} Foundry Scrip</strong>
+          {rewardResources.map((amount) => (
+            <span key={`reward-${amount.id}`}>+{formatAmount(amount.amount)} {resourceLabels[amount.id]}</span>
+          ))}
+          {rewardMachines.map((amount) => (
+            <span key={`reward-${amount.id}`}>+{formatAmount(amount.amount)} {machines[amount.id].name}</span>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={claimReady ? 'load-recipe-button quest-claim-button unclaimed' : 'load-recipe-button quest-claim-button'}
+          disabled={!claimReady}
+          onClick={() => onClaim(quest.id)}
+        >
+          {claimed ? 'Reward claimed' : status === 'completed' ? 'Claim reward' : 'Reward locked'}
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function QuestBook({
+  quests,
+  state,
+  activeChapterId,
+  selectedQuestId,
+  onSelectChapter,
+  onSelectQuest,
+  onClaimAll,
+  claimableRewardCount,
+  showLockedQuests,
+  onToggleLockedQuests,
+  mapViewsRef,
+}: {
+  quests: Quest[]
+  state: GameState
+  activeChapterId: QuestChapterId
+  selectedQuestId: QuestId | null
+  onSelectChapter: (chapterId: QuestChapterId) => void
+  onSelectQuest: (questId: QuestId) => void
+  onClaimAll: () => void
+  claimableRewardCount: number
+  showLockedQuests: boolean
+  onToggleLockedQuests: () => void
+  mapViewsRef: { current: QuestMapViews }
+}) {
+  const visibleQuestChapters = questChapters.filter((candidate) => visibleQuestChapterIds.has(candidate.id))
+  const chapter = visibleQuestChapters.find((candidate) => candidate.id === activeChapterId) ?? visibleQuestChapters[0]
+  const chapterQuests = quests.filter((quest) => (chapter.id === 'multiblocks' ? multiblockQuestIds.has(quest.id) : questBookChapterId(quest) === chapter.id))
+  const questById = new Map(quests.map((quest) => [quest.id, quest]))
+  const [mapView, setMapView] = useState<QuestMapView>(() => mapViewsRef.current[activeChapterId] ?? defaultQuestMapView(activeChapterId))
+  const mapViewRef = useRef(mapView)
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null)
+  const mapMargin = 24
+  const questNodeSize = (quest: Quest) => {
+    const kind = questKind(quest)
+    if (kind === 'gate') return 68
+    if (kind === 'optional') return 50
+    return 58
+  }
+  const questPosition = (quest: Quest) => {
+    const position =
+      chapter.id === 'multiblocks'
+        ? multiblockQuestPositionOverrides[quest.id] ?? questPositionOverrides[quest.id] ?? quest.position ?? { x: 0, y: 0 }
+        : questPositionOverrides[quest.id] ?? quest.position ?? { x: 0, y: 0 }
+    return { x: Math.round(position.x * 0.52), y: Math.round(position.y * 0.78) }
+  }
+  const questXs = chapterQuests.map((quest) => questPosition(quest).x)
+  const questYs = chapterQuests.map((quest) => questPosition(quest).y)
+  const offsetX = mapMargin - (questXs.length ? Math.min(...questXs) : 0)
+  const offsetY = mapMargin - (questYs.length ? Math.min(...questYs) : 0)
+  const questX = (quest: Quest) => questPosition(quest).x + offsetX
+  const questY = (quest: Quest) => questPosition(quest).y + offsetY
+  const mapWidth = Math.max(360, ...chapterQuests.map((quest) => questX(quest) + questNodeSize(quest) + mapMargin))
+  const mapHeight = Math.max(160, ...chapterQuests.map((quest) => questY(quest) + questNodeSize(quest) + mapMargin))
+  const questRect = (quest: Quest): QuestMapRect => ({
+    left: questX(quest),
+    top: questY(quest),
+    width: questNodeSize(quest),
+    height: questNodeSize(quest),
+  })
+  const questConnectionPath = (parent: Quest, child: Quest) => routeQuestConnection(
+    questRect(parent),
+    questRect(child),
+    chapterQuests
+      .filter((candidate) => candidate.id !== parent.id && candidate.id !== child.id)
+      .map(questRect),
+    mapWidth,
+    mapHeight,
+  ).path
+  const clampZoom = (zoom: number) => Math.max(0.55, Math.min(1.35, zoom))
+  const clampMapView = (view: { x: number; y: number; zoom: number }, viewport?: { width: number; height: number }) => {
+    if (!viewport) return view
+    const scaledWidth = mapWidth * view.zoom
+    const scaledHeight = mapHeight * view.zoom
+    const slack = 42
+    const minX = Math.min(slack, viewport.width - scaledWidth - slack)
+    const maxX = Math.max(viewport.width - scaledWidth - slack, slack)
+    const minY = Math.min(slack, viewport.height - scaledHeight - slack)
+    const maxY = Math.max(viewport.height - scaledHeight - slack, slack)
+    return {
+      ...view,
+      x: Math.max(minX, Math.min(maxX, view.x)),
+      y: Math.max(minY, Math.min(maxY, view.y)),
+    }
+  }
+  const emptyChapterHint =
+    chapter.id === 'lvAge'
+      ? 'LV Age opens after the Steam Age ends: make steel in the bricked blast furnace, then hammer the first steel plate.'
+      : chapter.id === 'multiblocks'
+        ? 'Multiblock structure work appears here once the casing grind starts.'
+        : 'Complete the previous visible quest to reveal the next step.'
+  const pointerRef = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const gestureRef = useRef<{
+    centerX: number
+    centerY: number
+    distance: number
+    startX: number
+    startY: number
+    zoom: number
+  } | null>(null)
+
+  const updateMapView = (update: QuestMapView | ((current: QuestMapView) => QuestMapView)) => {
+    const next = typeof update === 'function' ? update(mapViewRef.current) : update
+    mapViewRef.current = next
+    setMapView(next)
+  }
+
+  const persistMapView = () => {
+    mapViewsRef.current[activeChapterId] = mapViewRef.current
+    saveQuestMapViews(mapViewsRef.current)
+  }
+
+  useEffect(() => {
+    pointerRef.current.clear()
+    gestureRef.current = null
+    dragRef.current = null
+    const savedView = mapViewsRef.current[activeChapterId] ?? defaultQuestMapView(activeChapterId)
+    mapViewRef.current = savedView
+    setMapView(savedView)
+  }, [activeChapterId, mapViewsRef])
+
+  const pointerDistance = (first: { x: number; y: number }, second: { x: number; y: number }) =>
+    Math.hypot(second.x - first.x, second.y - first.y)
+
+  const pointerCenter = (first: { x: number; y: number }, second: { x: number; y: number }) => ({
+    x: (first.x + second.x) / 2,
+    y: (first.y + second.y) / 2,
+  })
+
+  const startPinchGesture = () => {
+    const [first, second] = [...pointerRef.current.values()]
+    if (!first || !second) return
+    const center = pointerCenter(first, second)
+    gestureRef.current = {
+      centerX: center.x,
+      centerY: center.y,
+      distance: Math.max(1, pointerDistance(first, second)),
+      startX: mapView.x,
+      startY: mapView.y,
+      zoom: mapView.zoom,
+    }
+  }
+
+  const handleMapPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest('.quest-node')) return
+    pointerRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Some synthetic pointer events used by tests are not capturable.
+    }
+    if (pointerRef.current.size === 1) {
+      dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, startX: mapView.x, startY: mapView.y }
+      gestureRef.current = null
+    } else if (pointerRef.current.size === 2) {
+      dragRef.current = null
+      startPinchGesture()
+    }
+  }
+
+  const handleMapPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerRef.current.has(event.pointerId)) {
+      pointerRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    }
+    if (pointerRef.current.size >= 2 && gestureRef.current) {
+      const [first, second] = [...pointerRef.current.values()]
+      if (!first || !second) return
+      const center = pointerCenter(first, second)
+      const nextZoom = clampZoom((gestureRef.current.zoom * pointerDistance(first, second)) / gestureRef.current.distance)
+      const zoomRatio = nextZoom / gestureRef.current.zoom
+      const rect = event.currentTarget.getBoundingClientRect()
+      updateMapView(clampMapView({
+        x: center.x - rect.left - (gestureRef.current.centerX - rect.left - gestureRef.current.startX) * zoomRatio,
+        y: center.y - rect.top - (gestureRef.current.centerY - rect.top - gestureRef.current.startY) * zoomRatio,
+        zoom: nextZoom,
+      }, rect))
+      return
+    }
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    updateMapView((current) =>
+      clampMapView(
+        {
+          ...current,
+          x: drag.startX + event.clientX - drag.x,
+          y: drag.startY + event.clientY - drag.y,
+        },
+        rect,
+      ),
+    )
+  }
+
+  const handleMapPointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    pointerRef.current.delete(event.pointerId)
+    gestureRef.current = null
+    if (pointerRef.current.size === 1) {
+      const [remainingPointerId] = [...pointerRef.current.keys()]
+      const remainingPointer = pointerRef.current.get(remainingPointerId)
+      if (remainingPointer) {
+        dragRef.current = {
+          pointerId: remainingPointerId,
+          x: remainingPointer.x,
+          y: remainingPointer.y,
+          startX: mapView.x,
+          startY: mapView.y,
+        }
+      }
+    } else if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null
+    }
+    persistMapView()
+  }
+
+  const handleMapWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const pointerX = event.clientX - rect.left
+    const pointerY = event.clientY - rect.top
+    updateMapView((current) => {
+      const nextZoom = clampZoom(current.zoom + (event.deltaY < 0 ? 0.08 : -0.08))
+      const zoomRatio = nextZoom / current.zoom
+      return clampMapView(
+        {
+          x: pointerX - (pointerX - current.x) * zoomRatio,
+          y: pointerY - (pointerY - current.y) * zoomRatio,
+          zoom: nextZoom,
+        },
+        rect,
+      )
+    })
+    persistMapView()
+  }
+
+  return (
+    <>
+      <div className="quest-chapter-tabs" aria-label="Quest chapters">
+        {visibleQuestChapters.map((candidate) => (
+          <button
+            type="button"
+            className={candidate.id === chapter.id ? 'active' : ''}
+            onClick={() => onSelectChapter(candidate.id)}
+            key={candidate.id}
+          >
+            {candidate.title}
+          </button>
+        ))}
+      </div>
+      <div className="quest-book-head">
+        <div>
+          <p className="eyebrow">Quest book</p>
+          <h2>{chapter.title}</h2>
+        </div>
+        <div className="quest-book-summary">
+          <p>{chapter.description}</p>
+          <div className="quest-book-actions">
+            <strong>{formatAmount(state.scrip)} Foundry Scrip</strong>
+            <button type="button" className={showLockedQuests ? 'active' : ''} aria-pressed={showLockedQuests} onClick={onToggleLockedQuests}>
+              {showLockedQuests ? 'Hide locked quests' : 'Show locked quests'}
+            </button>
+            <button type="button" disabled={claimableRewardCount < 1} onClick={onClaimAll}>
+              Claim all rewards{claimableRewardCount > 0 ? ` (${formatAmount(claimableRewardCount)})` : ''}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        className="quest-map-scroll"
+        aria-label={`${chapter.title} quest map`}
+        onPointerCancel={handleMapPointerEnd}
+        onPointerDown={handleMapPointerDown}
+        onPointerMove={handleMapPointerMove}
+        onPointerUp={handleMapPointerEnd}
+        onWheel={handleMapWheel}
+      >
+        <div
+          className="quest-map"
+          style={
+            {
+              '--quest-map-width': `${mapWidth}px`,
+              '--quest-map-height': `${mapHeight}px`,
+              transform: `translate(${mapView.x}px, ${mapView.y}px) scale(${mapView.zoom})`,
+            } as CSSProperties
+          }
+        >
+          <svg className="quest-lines" viewBox={`0 0 ${mapWidth} ${mapHeight}`} aria-hidden="true">
+            {chapterQuests.flatMap((quest) =>
+              (quest.prerequisites ?? []).map((parentId) => {
+                const parent = questById.get(parentId)
+                if (!parent) return null
+                const parentInChapter = chapter.id === 'multiblocks' ? multiblockQuestIds.has(parent.id) : questBookChapterId(parent) === chapter.id
+                if (!parentInChapter) return null
+                const parentStatus = questStatus(state, parent)
+                const childStatus = questStatus(state, quest)
+                const className = `${parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'} ${questKind(quest)}`
+                const path = questConnectionPath(parent, quest)
+                return (
+                  <g key={`${parent.id}-${quest.id}`}>
+                    <path className="quest-line-shadow" d={path} />
+                    <path className={className} d={path} />
+                  </g>
+                )
+              }),
+            )}
+          </svg>
+          {!chapterQuests.length && <div className="quest-map-empty">{emptyChapterHint}</div>}
+          {chapterQuests.map((quest) => {
+            const status = questStatus(state, quest)
+                const selected = quest.id === selectedQuestId
+                const kind = questKind(quest)
+                const claimed = state.claimedQuests.includes(quest.id)
+                const claimState = status === 'completed' ? (claimed ? 'claimed' : 'claimable') : status === 'ready' ? 'claimable' : 'not-done'
+                const accessibleStatus = status === 'completed' ? (claimed ? 'done' : 'ready to claim') : questStatusText(status)
+                const nodeSize = questNodeSize(quest)
+                return (
+                  <button
+                    type="button"
+                    aria-label={`${quest.title}. ${accessibleStatus}. ${kind}.`}
+                    title={`${quest.title} - ${accessibleStatus}`}
+                    className={`quest-node ${status} ${kind} ${claimState}${selected ? ' selected' : ''}`}
+                    style={{ left: questX(quest), minHeight: nodeSize, top: questY(quest), width: nodeSize }}
+                    onClick={() => onSelectQuest(quest.id)}
+                    key={quest.id}
+                  >
+                <span className="quest-node-icon">
+                  <QuestIcon quest={quest} muted={status === 'locked'} />
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function App() {
   const reviewParams = useMemo(() => new URLSearchParams(window.location.search), [])
-  const isPerformanceReview = import.meta.env.DEV && reviewParams.get('reviewPerformance') === '1'
-  const isFreshGuideReview = import.meta.env.DEV && reviewParams.get('reviewGuide') === 'fresh'
   const reviewMachineId = reviewParams.get('reviewMachine') as MachineId | null
   const reviewStateParam = reviewParams.get('reviewState') as MachineReviewState | null
   const reviewState = reviewStateParam && machineReviewStates.includes(reviewStateParam) ? reviewStateParam : null
@@ -1393,12 +2460,6 @@ function App() {
     ? reviewRackParam
     : null
   const reviewSetup = useMemo(() => {
-    if (isPerformanceReview) {
-      return { state: createCreativeFactoryState(createInitialState()), uid: null, page: 'processing' as Page, creative: true }
-    }
-    if (isFreshGuideReview) {
-      return { state: createInitialState(), uid: null, page: 'guide' as Page, creative: false }
-    }
     if (!import.meta.env.DEV || !reviewMachineId || !(reviewMachineId in machines) || !reviewState) return null
     let reviewGame = createCreativeState(createInitialState())
     const controllerSpec = machines[reviewMachineId].multiblock
@@ -1648,14 +2709,14 @@ function App() {
         candidate.process.euStored = 0
       }
     }
-    return { state: reviewGame, uid: instance.uid, page: 'processing' as Page, creative: true }
-  }, [isFreshGuideReview, isPerformanceReview, reviewMachineId, reviewRackFootprint, reviewState])
+    return { state: reviewGame, uid: instance.uid }
+  }, [reviewMachineId, reviewRackFootprint, reviewState])
   const [state, setState] = useState<GameState>(() => reviewSetup?.state ?? loadGame(null))
   const [factoryFloorSnapshot, setFactoryFloorSnapshot] = useState<GameState>(state)
   const [hasLoadedSave, setHasLoadedSave] = useState(Boolean(reviewSetup))
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
   const [achievementToasts, setAchievementToasts] = useState<AchievementToast[]>([])
-  const [page, setPage] = useState<Page>(reviewSetup?.page ?? 'home')
+  const [page, setPage] = useState<Page>(reviewSetup ? 'processing' : 'home')
   const [selectedSaveSlotId, setSelectedSaveSlotId] = useState<SaveSlotId>(defaultSaveSlotId)
   const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
   const [saveNameDraft, setSaveNameDraft] = useState('')
@@ -1690,9 +2751,9 @@ function App() {
   const [machineTerminalMode, setMachineTerminalMode] = useState<MachineTerminalMode>('items')
   const [selectedFluidContainerKey, setSelectedFluidContainerKey] = useState<string | null>(null)
   const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
+  const questMapViewsRef = useRef<QuestMapViews>(loadQuestMapViews())
   const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
   const [showLockedQuests, setShowLockedQuests] = useState(false)
-  const [navigationNotice, setNavigationNotice] = useState('')
   const [terminalNotice, setTerminalNotice] = useState('')
   const [, setFactoryNotice] = useState('')
   const [offlineNotice, setOfflineNotice] = useState('')
@@ -1703,17 +2764,17 @@ function App() {
   const [selectedMachinePopupRecipeIndex, setSelectedMachinePopupRecipeIndex] = useState(0)
   const [machineRecipeLoadNotice, setMachineRecipeLoadNotice] = useState('')
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
-  const [isCreativeMode, setIsCreativeMode] = useState(reviewSetup?.creative ?? false)
+  const [isCreativeMode, setIsCreativeMode] = useState(Boolean(reviewSetup))
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
-  const reviewStartsInConductorRouting = Boolean(reviewSetup && reviewMachineId && isConductorMachine(reviewMachineId))
+  const reviewStartsInConductorRouting = Boolean(reviewSetup && isConductorMachine(reviewMachineId!))
   const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(reviewStartsInConductorRouting ? null : reviewSetup?.uid ?? null)
   const [isArcStructureOpen, setIsArcStructureOpen] = useState(false)
   const [isMachineAutomationOpen, setIsMachineAutomationOpen] = useState(false)
   const [isAutoMinerTargetOpen, setIsAutoMinerTargetOpen] = useState(false)
   const [selectedPipeConfigUid, setSelectedPipeConfigUid] = useState<string | null>(reviewStartsInConductorRouting ? reviewSetup?.uid ?? null : null)
   const [selectedConductorLane, setSelectedConductorLane] = useState<'item' | 'fluid' | 'fabrication'>(
-    reviewStartsInConductorRouting && reviewMachineId && isFluidConductorMachine(reviewMachineId) ? 'fluid' : 'item',
+    reviewStartsInConductorRouting && isFluidConductorMachine(reviewMachineId!) ? 'fluid' : 'item',
   )
   const [selectedConductorDirection, setSelectedConductorDirection] = useState<PipeDirection>('north')
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
@@ -1964,14 +3025,12 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (reviewSetup && !isPerformanceReview) return
+    if (reviewSetup) return
     const interval = window.setInterval(() => {
       if (page === 'home') return
       const advanceState = (currentState: GameState) => {
         const now = networkTimeProvider.now() ?? currentState.lastSavedAt + 250
-        const startedAt = isPerformanceReview ? performance.now() : 0
         const ticked = tickGame(currentState, 250, now).state
-        if (isPerformanceReview) recordTickDuration(performance.now() - startedAt)
         return isCreativeMode ? topUpCreativeState(ticked) : ticked
       }
       if (isFactoryPanningRef.current) {
@@ -1982,28 +3041,7 @@ function App() {
     }, 250)
 
     return () => window.clearInterval(interval)
-  }, [isCreativeMode, isPerformanceReview, page, reviewSetup])
-
-  useEffect(() => {
-    if (isPerformanceReview) resetPerformanceReview()
-  }, [isPerformanceReview])
-
-  useEffect(() => {
-    if (!hasLoadedSave) return
-    const preloadPages = () => {
-      void Promise.allSettled([loadGuidePage(), loadProcessingFactoryGrid(), loadShopPage()])
-    }
-    const idleWindow = window as unknown as {
-      requestIdleCallback?: Window['requestIdleCallback']
-      cancelIdleCallback?: Window['cancelIdleCallback']
-    }
-    if (idleWindow.requestIdleCallback) {
-      const idleId = idleWindow.requestIdleCallback(preloadPages, { timeout: 2000 })
-      return () => idleWindow.cancelIdleCallback?.(idleId)
-    }
-    const timeoutId = globalThis.setTimeout(preloadPages, 750)
-    return () => globalThis.clearTimeout(timeoutId)
-  }, [hasLoadedSave])
+  }, [isCreativeMode, page, reviewSetup])
 
   useEffect(() => {
     const selectedSlot = saveSlotSummaries.find((slot) => slot.id === selectedSaveSlotId)
@@ -2104,6 +3142,15 @@ function App() {
   }, [gatherArea, state])
 
   const unlockedRecipes = useMemo(() => visibleRecipes(state), [state])
+  const guideQuests = useMemo(() => {
+    if (showLockedQuests) return questDefinitions
+    const visibleQuestIds = new Set(visibleQuests(state).map((quest) => quest.id))
+    return questDefinitions.filter(
+      (quest) => visibleQuestIds.has(quest.id) || questBookChapterId(quest) === 'mvFoundations',
+    )
+  }, [showLockedQuests, state])
+  const selectedQuest = useMemo(() => guideQuests.find((quest) => quest.id === selectedQuestId) ?? null, [guideQuests, selectedQuestId])
+  const claimableQuestRewardCount = guideQuests.filter((quest) => state.completedQuests.includes(quest.id) && !state.claimedQuests.includes(quest.id)).length
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
   const totalMachines = inventoryMachineOrder.reduce((sum, id) => sum + state.machines[id], 0)
   const processRecipeCards = useMemo(
@@ -3967,7 +5014,7 @@ function App() {
     addFloatText('reward claimed')
   }
 
-  const handleClaimAllQuestRewards = (claimableQuestRewardCount: number) => {
+  const handleClaimAllQuestRewards = () => {
     if (claimableQuestRewardCount < 1) return
     setState((current) => claimAllQuestRewards(current))
     addFloatText(`claimed x${formatAmount(claimableQuestRewardCount)}`)
@@ -4357,12 +5404,7 @@ function App() {
 
   const handlePageNavigation = (nextPage: Page) => {
     if (nextPage === page) return
-    if (nextPage === 'shop' && !state.completedQuests.includes('buildFoundation')) {
-      setNavigationNotice('Complete Build the Foundation to unlock the Shop.')
-      window.setTimeout(() => setNavigationNotice(''), 2800)
-      return
-    }
-    setNavigationNotice('')
+    if (nextPage === 'shop' && !state.completedQuests.includes('buildFoundation')) return
     pushNavigationSnapshot()
     setPage(nextPage)
     setSelectedMachineUid(null)
@@ -4430,13 +5472,7 @@ function App() {
   }
 
   return (
-    <Profiler
-      id="click-foundry-shell"
-      onRender={(_id, _phase, actualDuration) => {
-        if (isPerformanceReview) recordReactCommitDuration(actualDuration)
-      }}
-    >
-      <main className={shellClassName}>
+    <main className={shellClassName}>
       {page !== 'home' && (
         <header className="game-header">
           <button type="button" className="header-title-button" aria-label="Go to Home" title="Home" onClick={handleGoHome}>
@@ -4501,8 +5537,6 @@ function App() {
           </button>
         </div>
       )}
-
-      {navigationNotice && <div className="navigation-notice" role="status">{navigationNotice}</div>}
 
       {offlinePrompt && (
         <div className="modal-backdrop compact-backdrop offline-progress-backdrop" role="presentation">
@@ -4754,15 +5788,9 @@ function App() {
             <Factory size={18} />
             Processing
           </button>
-          <button
-            type="button"
-            className={page === 'shop' ? 'active' : !state.completedQuests.includes('buildFoundation') ? 'locked' : ''}
-            aria-disabled={!state.completedQuests.includes('buildFoundation')}
-            aria-label={state.completedQuests.includes('buildFoundation') ? 'Shop' : 'Shop locked. Complete Build the Foundation.'}
-            onClick={() => handlePageNavigation('shop')}
-          >
+          <button type="button" className={page === 'shop' ? 'active' : ''} disabled={!state.completedQuests.includes('buildFoundation')} onClick={() => handlePageNavigation('shop')}>
             <Toolbox size={18} />
-            {state.completedQuests.includes('buildFoundation') ? 'Shop' : 'Shop · Locked'}
+            Shop
           </button>
           <button type="button" className={page === 'guide' ? 'active' : ''} onClick={() => handlePageNavigation('guide')}>
             <BookOpen size={18} />
@@ -6196,24 +7224,14 @@ function App() {
                   className="factory-pan-content"
                   ref={factoryPanContentRef}
                 >
-                  <Suspense
-                    fallback={(
-                      <div
-                        className={`factory-grid factory-view-${factoryFloorViewMode}`}
-                        style={{ gridTemplateColumns: `repeat(${factoryGridSize.width}, ${factoryCellSize}px)` }}
-                        aria-label="Factory grid"
-                      />
-                    )}
-                  >
-                    <ProcessingFactoryGrid
-                      state={factoryFloorSnapshot}
-                      width={factoryGridSize.width}
-                      height={factoryGridSize.height}
-                      viewMode={factoryFloorViewMode}
-                      placingMachineId={placingMachineId}
-                      cellPressRef={factoryCellPressRef}
-                    />
-                  </Suspense>
+                  <FactoryFloorGrid
+                    state={factoryFloorSnapshot}
+                    width={factoryGridSize.width}
+                    height={factoryGridSize.height}
+                    viewMode={factoryFloorViewMode}
+                    placingMachineId={placingMachineId}
+                    cellPressRef={factoryCellPressRef}
+                  />
                 </div>
               </div>
             </>
@@ -8253,30 +9271,104 @@ function App() {
       )}
 
       {page === 'shop' && (
-        <Suspense fallback={<section className="shop-page" aria-label="Foundry Scrip shop" />}>
-          <ShopPage state={state} onBuy={handleBuyShopItem} onSell={handleSellShopItem} />
-        </Suspense>
+        <section className="shop-page" aria-label="Foundry Scrip shop">
+          <div className="shop-head">
+            <div>
+              <p className="eyebrow">Foundry Scrip</p>
+              <h2>Factory Shop</h2>
+            </div>
+            <strong>{formatAmount(state.scrip)} Scrip</strong>
+          </div>
+          <p className="shop-note">Only discovered resources and parts can be bought. Tools and machines are never sold here.</p>
+          <div className="shop-section">
+            <h3>Buy parts</h3>
+            <div className="shop-grid">
+              {shopItems.map((item) => {
+                const discovered = isResourceDiscovered(state, item.id)
+                const canBuy = canBuyShopItem(state, item)
+                const cooldownMs = shopItemCooldownMs(item)
+                const cooldownRemainingMs = shopItemCooldownRemainingMs(state, item)
+                return (
+                  <article className={discovered ? 'shop-card' : 'shop-card locked'} key={`buy-${item.id}`}>
+                    <span className="item-slot filled">
+                      <PixelIcon id={item.id} />
+                    </span>
+                    <div>
+                      <strong>{resourceLabels[item.id]}</strong>
+                      <span>{item.age === 'gettingStarted' ? 'Getting Started' : item.age === 'steamAge' ? 'Steam Age' : 'LV Age'}</span>
+                      {cooldownMs > 0 && (
+                        <span className="shop-cooldown">
+                          {cooldownRemainingMs > 0 ? `Part cooldown ${formatDuration(cooldownRemainingMs)}` : `Part cooldown ${formatDuration(cooldownMs)}`}
+                        </span>
+                      )}
+                    </div>
+                    <button type="button" disabled={!canBuy} onClick={() => handleBuyShopItem(item.id)}>
+                      {!discovered
+                        ? 'Undiscovered'
+                        : cooldownRemainingMs > 0
+                          ? `Wait ${formatDuration(cooldownRemainingMs)}`
+                          : `${formatAmount(item.buyPrice)} Scrip`}
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+          <div className="shop-section">
+            <h3>Sell gathered materials</h3>
+            <div className="shop-grid">
+              {sellItems.map((item) => {
+                const owned = availableResourceAmount(state, item.id)
+                const canSell = canSellShopItem(state, item)
+                return (
+                  <article className="shop-card sell-card" key={`sell-${item.id}`}>
+                    <span className="item-slot filled">
+                      <PixelIcon id={item.id} />
+                      <span className="item-count">{formatAmount(owned)}</span>
+                    </span>
+                    <div>
+                      <strong>{resourceLabels[item.id]}</strong>
+                      <span>Sell 1 for {formatAmount(item.sellPrice)} Scrip</span>
+                    </div>
+                    <button type="button" disabled={!canSell} onClick={() => handleSellShopItem(item.id)}>
+                      Sell
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+        </section>
       )}
 
-      {(page === 'guide' || selectedQuestId) && (
-        <Suspense fallback={page === 'guide' ? <section className="guide-page" aria-label="Quest guide" /> : null}>
-          <GuidePage
-            showBook={page === 'guide'}
+      {page === 'guide' && (
+        <section className="guide-page" aria-label="Quest guide">
+          <QuestBook
+            quests={guideQuests}
             state={state}
             activeChapterId={activeQuestChapterId}
             selectedQuestId={selectedQuestId}
-            showLockedQuests={showLockedQuests}
             onSelectChapter={setActiveQuestChapterId}
             onSelectQuest={handleSelectQuest}
-            onCloseQuest={() => setSelectedQuestId(null)}
-            onClaimQuest={handleClaimQuestReward}
             onClaimAll={handleClaimAllQuestRewards}
+            claimableRewardCount={claimableQuestRewardCount}
+            showLockedQuests={showLockedQuests}
             onToggleLockedQuests={() => setShowLockedQuests((current) => !current)}
-            onSelectResource={handleJumpToResourceRecipe}
-            onSelectMachine={handleJumpToMachineRecipe}
-            onOpenFactory={handleJumpToFactoryFromQuest}
+            mapViewsRef={questMapViewsRef}
           />
-        </Suspense>
+        </section>
+      )}
+
+      {selectedQuest && (
+        <QuestDetail
+          quest={selectedQuest}
+          state={state}
+          onClose={() => setSelectedQuestId(null)}
+          onClaim={handleClaimQuestReward}
+          onSelectResource={handleJumpToResourceRecipe}
+          onSelectMachine={handleJumpToMachineRecipe}
+          onOpenFactory={handleJumpToFactoryFromQuest}
+        />
       )}
 
       {dragPreview && (
@@ -8284,8 +9376,7 @@ function App() {
           <PixelIcon id={dragPreview.id} />
         </div>
       )}
-      </main>
-    </Profiler>
+    </main>
   )
 }
 
