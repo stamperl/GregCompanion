@@ -18463,8 +18463,14 @@ button.button-primary:disabled,
 }
 .fabrication-bus-status strong {
   color: #e8e0c5;
+  display: -webkit-box;
   font-size: 0.58rem;
+  line-height: 1.2;
+  min-height: 2.4em;
   overflow-wrap: anywhere;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .fabrication-filter-list,
 .fabrication-filter-grid {
