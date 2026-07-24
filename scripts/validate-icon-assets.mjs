@@ -65,7 +65,14 @@ const source = readFileSync(contentPath, 'utf8')
 const resourceIds = registryKeys(source, 'resourceRegistry')
 const machineIds = registryKeys(source, 'machineRegistry')
 const approvals = JSON.parse(readFileSync(approvalsPath, 'utf8')).approvals ?? []
-const codeNativeMachineIds = new Set(['itemConductor', 'fluidConductor', 'conductorBundle', 'fabricationCable'])
+const codeNativeMachineIds = new Set([
+  'itemConductor',
+  'fluidConductor',
+  'conductorBundle',
+  'fabricationCable',
+  'terminalImportBus',
+  'terminalExportBus',
+])
 const failures = [
   ...checkSet('resource', resourceIds, resourcesDir),
   ...checkSet('machine', machineIds.filter((id) => !codeNativeMachineIds.has(id)), machinesDir),

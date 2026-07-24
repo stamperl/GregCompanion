@@ -187,6 +187,9 @@ export const resourceRegistry = {
   computationProcessor: { id: 'computationProcessor', label: 'Computation Processor', category: 'circuit', tier: 'mv' },
   structuralProcessor: { id: 'structuralProcessor', label: 'Structural Processor', category: 'circuit', tier: 'mv' },
   blankRecipeCard: { id: 'blankRecipeCard', label: 'Blank Pattern', category: 'circuit', tier: 'mv' },
+  rubberLog: { id: 'rubberLog', label: 'Rubber Tree Log', category: 'raw', tier: 'lv' },
+  sugarCane: { id: 'sugarCane', label: 'Sugar Cane', category: 'raw', tier: 'lv' },
+  aluminiumCable: { id: 'aluminiumCable', label: 'Aluminium Cable', category: 'wire', tier: 'mv' },
 } satisfies Record<ResourceId, ResourceSpec>
 
 export const resourceLabels: Record<ResourceId, string> = Object.fromEntries(
@@ -203,6 +206,10 @@ export const fluidRegistry = {
   nitrogen: { id: 'nitrogen', label: 'Nitrogen', color: '#7989d5' },
   sulfuricAcid: { id: 'sulfuricAcid', label: 'Sulfuric Acid', color: '#c9ce4f' },
   dilutedSulfuricAcid: { id: 'dilutedSulfuricAcid', label: 'Diluted Sulfuric Acid', color: '#b8c978' },
+  woodTar: { id: 'woodTar', label: 'Wood Tar', color: '#3a2114' },
+  woodGas: { id: 'woodGas', label: 'Wood Gas', color: '#a48f75' },
+  benzene: { id: 'benzene', label: 'Benzene', color: '#d7c99a' },
+  heavyTar: { id: 'heavyTar', label: 'Heavy Tar Residue', color: '#17120f' },
 } satisfies Record<FluidId, { id: FluidId; label: string; color: string }>
 
 export const fluidIds = Object.keys(fluidRegistry) as FluidId[]
@@ -1169,6 +1176,24 @@ export const machineRegistry = {
     placeable: true,
     processKind: 'fabricationInterface',
   },
+  terminalImportBus: {
+    id: 'terminalImportBus',
+    name: 'Terminal Import Bus',
+    description: 'Attaches to a Fabrication Cable face and pulls adjacent items or fluids into the connected Terminal network.',
+    tier: 'mv',
+    placeable: true,
+    glyphKey: 'conductor',
+    processKind: 'fabricationInterface',
+  },
+  terminalExportBus: {
+    id: 'terminalExportBus',
+    name: 'Terminal Export Bus',
+    description: 'Attaches to a Fabrication Cable face and pushes filtered Terminal network items or fluids into the adjacent target.',
+    tier: 'mv',
+    placeable: true,
+    glyphKey: 'conductor',
+    processKind: 'fabricationInterface',
+  },
   autoFabricator: {
     id: 'autoFabricator',
     name: 'Auto Fabricator',
@@ -1212,11 +1237,164 @@ export const machineRegistry = {
     placeable: true,
     processKind: 'fabricationModule',
   },
+  lvWaterSource: {
+    id: 'lvWaterSource',
+    name: 'LV Water Source',
+    description: 'Pumps a dependable industrial water supply from deep aquifers. It requires continuous LV power.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'poweredWaterSource',
+    euCapacity: 128,
+    euVoltage: 32,
+    fluidCapacityLitres: 128,
+    fluidOutputLitresPerSecond: 12,
+    fluidBuffers: [{ id: 'output', label: 'Water output', capacityLitres: 128, access: 'output', fluidRule: ['water'] }],
+  },
+  poweredFarmPart: {
+    id: 'poweredFarmPart',
+    name: 'Powered Farm Block',
+    description: 'One irrigated farm block. Place four in a 2x2 square to form a Powered Farm.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'none',
+  },
+  poweredFarm: {
+    id: 'poweredFarm',
+    name: 'Powered Farm',
+    description: 'A 2x2 automated farm. Programs grow standard trees, rubber trees, or sugar cane from water and LV power.',
+    tier: 'lv',
+    placeable: false,
+    processKind: 'poweredFarm',
+    euCapacity: 256,
+    euVoltage: 32,
+    fluidCapacityLitres: 128,
+    fluidBuffers: [{ id: 'water', label: 'Irrigation water', capacityLitres: 128, access: 'input', fluidRule: ['water'] }],
+    itemOutputSlots: 2,
+    multiblock: {
+      width: 2,
+      height: 2,
+      controller: 'poweredFarm',
+      part: 'poweredFarmPart',
+      controllerOffsetX: 0,
+      controllerOffsetY: 0,
+    },
+  },
+  pyrolysisOvenPart: {
+    id: 'pyrolysisOvenPart',
+    name: 'Pyrolysis Oven Block',
+    description: 'One sealed heat-resistant oven block. Place four in a 2x2 square to form a Pyrolysis Oven.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'none',
+  },
+  pyrolysisOven: {
+    id: 'pyrolysisOven',
+    name: 'Pyrolysis Oven',
+    description: 'A sealed 2x2 oven that carbonizes logs and captures both liquid tar and combustible gas.',
+    tier: 'lv',
+    placeable: false,
+    processKind: 'euProcess',
+    euCapacity: 256,
+    euVoltage: 32,
+    fluidCapacityLitres: 256,
+    fluidOutputLitresPerSecond: 24,
+    fluidBuffers: [
+      { id: 'tar', label: 'Wood tar output', capacityLitres: 128, access: 'output', fluidRule: ['woodTar'] },
+      { id: 'gas', label: 'Wood gas output', capacityLitres: 128, access: 'output', fluidRule: ['woodGas'] },
+    ],
+    multiblock: {
+      width: 2,
+      height: 2,
+      controller: 'pyrolysisOven',
+      part: 'pyrolysisOvenPart',
+      controllerOffsetX: 0,
+      controllerOffsetY: 0,
+    },
+  },
+  lvDistillery: {
+    id: 'lvDistillery',
+    name: 'LV Distillery',
+    description: 'Separates wood tar into a light benzene fraction and a heavy residue that must be drained.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'euProcess',
+    euCapacity: 128,
+    euVoltage: 32,
+    fluidCapacityLitres: 192,
+    fluidOutputLitresPerSecond: 24,
+    fluidBuffers: [
+      { id: 'feed', label: 'Wood tar input', capacityLitres: 64, access: 'input', fluidRule: ['woodTar'] },
+      { id: 'benzene', label: 'Benzene output', capacityLitres: 64, access: 'output', fluidRule: ['benzene'] },
+      { id: 'residue', label: 'Heavy residue output', capacityLitres: 64, access: 'output', fluidRule: ['heavyTar'] },
+    ],
+  },
+  lvCombustionGenerator: {
+    id: 'lvCombustionGenerator',
+    name: 'LV Combustion Generator',
+    description: 'Burns benzene into one amp of LV power. Fuel is consumed only while the internal EU buffer can accept energy.',
+    tier: 'lv',
+    placeable: true,
+    processKind: 'combustionGenerator',
+    euCapacity: 512,
+    euOutputPerSecond: 32,
+    euAmps: 1,
+    euVoltage: 32,
+    fluidCapacityLitres: 64,
+    fluidBuffers: [{ id: 'fuel', label: 'Benzene fuel', capacityLitres: 64, access: 'input', fluidRule: ['benzene'] }],
+  },
+  mvCombustionGenerator: {
+    id: 'mvCombustionGenerator',
+    name: 'MV Combustion Generator',
+    description: 'Burns benzene into one amp of MV power for sustained early-MV production.',
+    tier: 'mv',
+    placeable: true,
+    processKind: 'combustionGenerator',
+    euCapacity: 2048,
+    euOutputPerSecond: 128,
+    euAmps: 1,
+    euVoltage: 128,
+    fluidCapacityLitres: 128,
+    fluidBuffers: [{ id: 'fuel', label: 'Benzene fuel', capacityLitres: 128, access: 'input', fluidRule: ['benzene'] }],
+  },
+  aluminiumCable: {
+    id: 'aluminiumCable',
+    name: 'Aluminium Cable',
+    description: 'A one-amp MV cable. It carries 128 EU/s and cannot connect directly to LV equipment.',
+    tier: 'mv',
+    placeable: true,
+    processKind: 'euCable',
+    euAmps: 1,
+    euVoltage: 128,
+    euCapacity: 12,
+    euCableLossPerTile: 2,
+  },
+  lvToMvTransformer: {
+    id: 'lvToMvTransformer',
+    name: 'LV to MV Transformer',
+    description: 'Converts a four-amp LV feed into one amp of MV power across a voltage boundary.',
+    tier: 'mv',
+    placeable: true,
+    processKind: 'euTransformer',
+    euCapacity: 512,
+    euAmps: 4,
+    euVoltage: 128,
+  },
+  mvToLvTransformer: {
+    id: 'mvToLvTransformer',
+    name: 'MV to LV Transformer',
+    description: 'Converts one amp of MV power into a four-amp LV feed for existing machinery.',
+    tier: 'mv',
+    placeable: true,
+    processKind: 'euTransformer',
+    euCapacity: 512,
+    euAmps: 4,
+    euVoltage: 32,
+  },
 } satisfies Record<MachineId, MachineSpec>
 
 export const machines: Record<MachineId, MachineSpec> = machineRegistry
 
-export const resourceBackedMachineIds = ['tinCable', 'tinCable2A', 'tinCable4A', 'tinCable8A'] as const
+export const resourceBackedMachineIds = ['tinCable', 'tinCable2A', 'tinCable4A', 'tinCable8A', 'aluminiumCable'] as const
 
 export function isResourceBackedMachine(machineId: MachineId): machineId is (typeof resourceBackedMachineIds)[number] {
   return resourceBackedMachineIds.includes(machineId as (typeof resourceBackedMachineIds)[number])
@@ -1251,7 +1429,8 @@ export function isSteamPoweredMachine(machineId: MachineId) {
 }
 
 export function isEuProducerMachine(machineId: MachineId) {
-  return machineRegistry[machineId].processKind === 'steamToEu'
+  return machineRegistry[machineId].processKind === 'steamToEu' ||
+    machineRegistry[machineId].processKind === 'combustionGenerator'
 }
 
 export function isEuStorageMachine(machineId: MachineId) {
@@ -1260,6 +1439,10 @@ export function isEuStorageMachine(machineId: MachineId) {
 
 export function isEuCableMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'euCable'
+}
+
+export function isEuTransformerMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'euTransformer'
 }
 
 export function isItemStorageMachine(machineId: MachineId) {
@@ -1289,7 +1472,9 @@ export function isFluidHatchMachine(machineId: MachineId) {
 export function isEuPoweredMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'euProcess' ||
     machineRegistry[machineId].processKind === 'euBlastProcess' ||
-    machineRegistry[machineId].processKind === 'fabricationController'
+    machineRegistry[machineId].processKind === 'fabricationController' ||
+    machineRegistry[machineId].processKind === 'poweredWaterSource' ||
+    machineRegistry[machineId].processKind === 'poweredFarm'
 }
 
 export function isEuBlastMachine(machineId: MachineId) {
@@ -1299,7 +1484,7 @@ export function isEuBlastMachine(machineId: MachineId) {
 export function isProgrammableProcessMachine(machineId: MachineId) {
   const processKind = machineRegistry[machineId].processKind
   return machineRegistry[machineId].tier === 'lv' &&
-    (processKind === 'euBlastProcess' || (processKind === 'euProcess' && machineId !== 'lvAirCollector' && machineId !== 'lvAutoMiner'))
+    (processKind === 'poweredFarm' || processKind === 'euBlastProcess' || (processKind === 'euProcess' && machineId !== 'lvAirCollector' && machineId !== 'lvAutoMiner'))
 }
 
 export function isLiquidSteamBoilerMachine(machineId: MachineId) {
@@ -1311,7 +1496,7 @@ export function isAutoMinerMachine(machineId: MachineId) {
 }
 
 export function isEuNetworkMachine(machineId: MachineId) {
-  return isEuProducerMachine(machineId) || isEuStorageMachine(machineId) || isEuCableMachine(machineId) || isEuHatchMachine(machineId) || (isEuPoweredMachine(machineId) && machineId !== 'arcBlastFurnace')
+  return isEuProducerMachine(machineId) || isEuStorageMachine(machineId) || isEuCableMachine(machineId) || isEuTransformerMachine(machineId) || isEuHatchMachine(machineId) || (isEuPoweredMachine(machineId) && machineId !== 'arcBlastFurnace')
 }
 
 export function isSteamStorageMachine(machineId: MachineId) {
@@ -1327,7 +1512,7 @@ export function isTankStorageMachine(machineId: MachineId) {
 }
 
 export function isSteamNetworkMachine(machineId: MachineId) {
-  return isSteamStorageMachine(machineId) || isSteamPipeMachine(machineId) || isSteamPoweredMachine(machineId) || isEuProducerMachine(machineId)
+  return isSteamStorageMachine(machineId) || isSteamPipeMachine(machineId) || isSteamPoweredMachine(machineId) || machineRegistry[machineId].processKind === 'steamToEu'
 }
 
 export function machinePipeTransferLitresPerSecond(machineId: MachineId) {
@@ -1356,6 +1541,10 @@ export function machineEuOutputPerSecond(machineId: MachineId) {
 
 export function machineEuAmps(machineId: MachineId) {
   return machines[machineId].euAmps ?? 0
+}
+
+export function machineEuVoltage(machineId: MachineId) {
+  return machines[machineId].euVoltage ?? 32
 }
 
 export function machineEuCableLossPerTile(machineId: MachineId) {
@@ -3383,7 +3572,194 @@ export const fuelDefinitions: Record<string, FuelDefinition> = {
   coalCoke: { id: 'coalCoke', burnMs: 120000 },
 }
 
+recipes.push(
+  {
+    id: 'craft_lv_water_source',
+    name: 'Build LV Water Source',
+    description: 'Build a powered deep-water pump around two LV pumps and a steel pressure shell.',
+    tier: 'lv',
+    durationMs: 6000,
+    inputs: [
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'lvPump', amount: 2 },
+      { id: 'steelPlate', amount: 3 },
+      { id: 'tinCable', amount: 2 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['steelPlate', 'lvPump', 'steelPlate', 'tinCable', 'lvMachineHull', 'tinCable', 'steelPlate', 'lvPump', 'primitiveCircuit'],
+    outputs: [],
+    machineOutputs: [{ id: 'lvWaterSource', amount: 1 }],
+  },
+  {
+    id: 'craft_powered_farm_blocks',
+    name: 'Build Powered Farm Blocks',
+    description: 'Build the four irrigated blocks required for one 2x2 Powered Farm.',
+    tier: 'lv',
+    durationMs: 10000,
+    inputs: [
+      { id: 'steelPlate', amount: 3 },
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'lvMotor', amount: 1 },
+      { id: 'lvPump', amount: 1 },
+      { id: 'lvConveyor', amount: 2 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['steelPlate', 'lvConveyor', 'steelPlate', 'lvPump', 'lvMachineHull', 'lvMotor', 'steelPlate', 'lvConveyor', 'primitiveCircuit'],
+    outputs: [],
+    machineOutputs: [{ id: 'poweredFarmPart', amount: 4 }],
+  },
+  {
+    id: 'craft_pyrolysis_oven_blocks',
+    name: 'Build Pyrolysis Oven Blocks',
+    description: 'Build four sealed oven blocks with steel shells and cupronickel heating coils.',
+    tier: 'lv',
+    durationMs: 12000,
+    inputs: [
+      { id: 'heatProofCasing', amount: 3 },
+      { id: 'steelPlate', amount: 2 },
+      { id: 'heatingCoil', amount: 2 },
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['heatProofCasing', 'heatingCoil', 'heatProofCasing', 'steelPlate', 'lvMachineHull', 'steelPlate', 'heatProofCasing', 'heatingCoil', 'primitiveCircuit'],
+    outputs: [],
+    machineOutputs: [{ id: 'pyrolysisOvenPart', amount: 4 }],
+  },
+  {
+    id: 'craft_lv_distillery',
+    name: 'Build LV Distillery',
+    description: 'Build a fractionating column with a sealed steel body and controlled pumping.',
+    tier: 'lv',
+    durationMs: 8000,
+    inputs: [
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'steelPlate', amount: 3 },
+      { id: 'glassTube', amount: 2 },
+      { id: 'lvPump', amount: 2 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['steelPlate', 'glassTube', 'steelPlate', 'lvPump', 'lvMachineHull', 'lvPump', 'steelPlate', 'glassTube', 'primitiveCircuit'],
+    outputs: [],
+    machineOutputs: [{ id: 'lvDistillery', amount: 1 }],
+  },
+  {
+    id: 'craft_lv_combustion_generator',
+    name: 'Build LV Combustion Generator',
+    description: 'Build a one-amp liquid-fuel generator around an LV motor and reinforced fuel pump.',
+    tier: 'lv',
+    durationMs: 8000,
+    inputs: [
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'steelPlate', amount: 4 },
+      { id: 'lvMotor', amount: 1 },
+      { id: 'lvPump', amount: 1 },
+      { id: 'tinCable', amount: 2 },
+    ],
+    pattern: ['steelPlate', 'lvMotor', 'steelPlate', 'tinCable', 'lvMachineHull', 'tinCable', 'steelPlate', 'lvPump', 'steelPlate'],
+    outputs: [],
+    machineOutputs: [{ id: 'lvCombustionGenerator', amount: 1 }],
+  },
+  {
+    id: 'craft_lv_to_mv_transformer',
+    name: 'Build LV to MV Transformer',
+    description: 'Wind an aluminium secondary around a four-amp LV primary.',
+    tier: 'mv',
+    durationMs: 10000,
+    inputs: [
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'tinCable4A', amount: 2 },
+      { id: 'aluminiumCable', amount: 2 },
+      { id: 'steelPlate', amount: 3 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['steelPlate', 'aluminiumCable', 'steelPlate', 'tinCable4A', 'lvMachineHull', 'aluminiumCable', 'steelPlate', 'tinCable4A', 'primitiveCircuit'],
+    outputs: [],
+    machineOutputs: [{ id: 'lvToMvTransformer', amount: 1 }],
+  },
+  {
+    id: 'craft_mv_to_lv_transformer',
+    name: 'Build MV to LV Transformer',
+    description: 'Reverse the windings to feed four LV amps from one MV supply.',
+    tier: 'mv',
+    durationMs: 10000,
+    inputs: [
+      { id: 'lvMachineHull', amount: 1 },
+      { id: 'tinCable4A', amount: 2 },
+      { id: 'aluminiumCable', amount: 2 },
+      { id: 'steelPlate', amount: 3 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: ['steelPlate', 'tinCable4A', 'steelPlate', 'aluminiumCable', 'lvMachineHull', 'tinCable4A', 'steelPlate', 'aluminiumCable', 'primitiveCircuit'],
+    outputs: [],
+    machineOutputs: [{ id: 'mvToLvTransformer', amount: 1 }],
+  },
+  {
+    id: 'craft_mv_combustion_generator',
+    name: 'Build MV Combustion Generator',
+    description: 'Reinforce the combustion set with aluminium conductors for one amp of MV output.',
+    tier: 'mv',
+    durationMs: 12000,
+    inputs: [
+      { id: 'aluminiumPlate', amount: 3 },
+      { id: 'aluminiumCable', amount: 2 },
+      { id: 'lvMotor', amount: 2 },
+      { id: 'primitiveCircuit', amount: 1 },
+    ],
+    pattern: [
+      'aluminiumPlate', 'lvMotor', 'aluminiumPlate',
+      'aluminiumCable', { kind: 'machine', id: 'lvCombustionGenerator' }, 'aluminiumCable',
+      'aluminiumPlate', 'lvMotor', 'primitiveCircuit',
+    ],
+    outputs: [],
+    machineInputs: [{ id: 'lvCombustionGenerator', amount: 1 }],
+    machineOutputs: [{ id: 'mvCombustionGenerator', amount: 1 }],
+  },
+)
+
 export const processRecipes: ProcessRecipe[] = [
+  {
+    id: 'farm_standard_trees',
+    name: 'Grow Standard Trees',
+    description: 'Irrigate a standard tree crop for a steady supply of logs.',
+    tier: 'lv',
+    machineId: 'poweredFarm',
+    durationMs: 60000,
+    euCost: 960,
+    fluidInputs: [{ id: 'water', amount: 480, bufferId: 'water' }],
+    output: { id: 'log', amount: 16 },
+    programNumber: 1,
+    autoSelectable: false,
+    fluidOnly: true,
+  },
+  {
+    id: 'farm_rubber_trees',
+    name: 'Grow Rubber Trees',
+    description: 'Irrigate rubber trees for resinous logs and sticky resin.',
+    tier: 'lv',
+    machineId: 'poweredFarm',
+    durationMs: 70000,
+    euCost: 1120,
+    fluidInputs: [{ id: 'water', amount: 560, bufferId: 'water' }],
+    output: { id: 'rubberLog', amount: 8 },
+    secondaryOutput: { id: 'rubberSap', amount: 4 },
+    programNumber: 2,
+    autoSelectable: false,
+    fluidOnly: true,
+  },
+  {
+    id: 'farm_sugar_cane',
+    name: 'Grow Sugar Cane',
+    description: 'Irrigate sugar cane for the later alcohol and biofuel processing line.',
+    tier: 'lv',
+    machineId: 'poweredFarm',
+    durationMs: 50000,
+    euCost: 800,
+    fluidInputs: [{ id: 'water', amount: 400, bufferId: 'water' }],
+    output: { id: 'sugarCane', amount: 24 },
+    programNumber: 3,
+    autoSelectable: false,
+    fluidOnly: true,
+  },
   {
     id: 'fire_brick',
     name: 'Fire Brick',
@@ -5019,8 +5395,6 @@ export const processRecipes: ProcessRecipe[] = [
     machineId: 'lvAirCollector',
     durationMs: 80000,
     euCost: 128,
-    input: { id: 'emptySteelCell', amount: 1 },
-    output: { id: 'emptySteelCell', amount: 1 },
     fluidOnly: true,
     fluidOutputs: [{ id: 'air', amount: 16, bufferId: 'output' }],
   },
@@ -5067,9 +5441,7 @@ export const processRecipes: ProcessRecipe[] = [
     machineId: 'lvCentrifuge',
     durationMs: 45000,
     euCost: 540,
-    input: { id: 'emptySteelCell', amount: 1 },
     fluidInputs: [{ id: 'air', amount: 8, bufferId: 'feed' }],
-    output: { id: 'emptySteelCell', amount: 1 },
     fluidOnly: true,
     fluidOutputs: [
       { id: 'oxygen', amount: 2, bufferId: 'productA' },
@@ -5528,6 +5900,40 @@ export const processRecipes: ProcessRecipe[] = [
     machineOutput: { id: 'jobInterface', amount: 2 },
   },
   {
+    id: 'lv_assembler_terminal_import_bus',
+    name: 'Assemble Terminal Import Buses',
+    description: 'Build two compact intake faces that move adjacent items or fluids into a connected Terminal network.',
+    tier: 'mv',
+    machineId: 'lvAssembler',
+    durationMs: 10000,
+    euCost: 192,
+    input: { id: 'aluminiumPlate', amount: 2 },
+    secondaryInput: { id: 'tinCable', amount: 2 },
+    extraInputs: [
+      { id: 'lvConveyor', amount: 2 },
+      { id: 'lvPump', amount: 2 },
+      { id: 'computationProcessor', amount: 1 },
+    ],
+    machineOutput: { id: 'terminalImportBus', amount: 2 },
+  },
+  {
+    id: 'lv_assembler_terminal_export_bus',
+    name: 'Assemble Terminal Export Buses',
+    description: 'Build two compact output faces that push filtered Terminal network contents into an adjacent target.',
+    tier: 'mv',
+    machineId: 'lvAssembler',
+    durationMs: 10000,
+    euCost: 192,
+    input: { id: 'aluminiumPlate', amount: 2 },
+    secondaryInput: { id: 'tinCable', amount: 2 },
+    extraInputs: [
+      { id: 'lvConveyor', amount: 2 },
+      { id: 'lvPump', amount: 2 },
+      { id: 'signalProcessor', amount: 1 },
+    ],
+    machineOutput: { id: 'terminalExportBus', amount: 2 },
+  },
+  {
     id: 'lv_assembler_planning_controller',
     name: 'Assemble Planning Controller',
     description: 'Build the structural core that schedules a complete fabrication job.',
@@ -5578,6 +5984,64 @@ export const processRecipes: ProcessRecipe[] = [
     fluidInput: { id: 'liquidRubber', amount: fluidAmount },
     output: { id: outputId, amount: outputAmount },
   })),
+  {
+    id: 'pyrolyse_standard_logs',
+    name: 'Pyrolyse Standard Logs',
+    description: 'Carbonize a dry log without oxygen, collecting charcoal, wood tar, and wood gas.',
+    tier: 'lv',
+    machineId: 'pyrolysisOven',
+    durationMs: 60000,
+    euCost: 960,
+    input: { id: 'log', amount: 8 },
+    output: { id: 'charcoal', amount: 10 },
+    fluidOutputs: [
+      { id: 'woodTar', amount: 24, bufferId: 'tar' },
+      { id: 'woodGas', amount: 8, bufferId: 'gas' },
+    ],
+  },
+  {
+    id: 'lv_assembler_aluminium_cable',
+    name: 'Assemble Aluminium Cable',
+    description: 'Wrap aluminium conductors in rubber and add a red-alloy identification trace for one-amp MV service.',
+    tier: 'mv',
+    machineId: 'lvAssembler',
+    durationMs: 8000,
+    euCost: 192,
+    input: { id: 'aluminiumRod', amount: 2 },
+    secondaryInput: { id: 'rubber', amount: 2 },
+    extraInputs: [{ id: 'redAlloyWire', amount: 1 }],
+    output: { id: 'aluminiumCable', amount: 4 },
+  },
+  {
+    id: 'pyrolyse_rubber_logs',
+    name: 'Pyrolyse Rubber Logs',
+    description: 'Carbonize resinous rubber logs for a slightly richer tar fraction.',
+    tier: 'lv',
+    machineId: 'pyrolysisOven',
+    durationMs: 60000,
+    euCost: 960,
+    input: { id: 'rubberLog', amount: 8 },
+    output: { id: 'charcoal', amount: 10 },
+    fluidOutputs: [
+      { id: 'woodTar', amount: 28, bufferId: 'tar' },
+      { id: 'woodGas', amount: 8, bufferId: 'gas' },
+    ],
+  },
+  {
+    id: 'distil_wood_tar_benzene',
+    name: 'Distil Wood Tar',
+    description: 'Separate a benzene-rich light fraction and leave heavy tar residue for later processing.',
+    tier: 'lv',
+    machineId: 'lvDistillery',
+    durationMs: 30000,
+    euCost: 480,
+    fluidOnly: true,
+    fluidInputs: [{ id: 'woodTar', amount: 16, bufferId: 'feed' }],
+    fluidOutputs: [
+      { id: 'benzene', amount: 10, bufferId: 'benzene' },
+      { id: 'heavyTar', amount: 6, bufferId: 'residue' },
+    ],
+  },
 ]
 
 export const questChapters: QuestChapter[] = [
@@ -5610,6 +6074,11 @@ export const questChapters: QuestChapter[] = [
     id: 'mvFoundations',
     title: 'Auto Crafting',
     description: 'Refine processors, encode reusable recipes, and commission a recursive fabrication network.',
+  },
+  {
+    id: 'benzenePower',
+    title: 'Benzene Power',
+    description: 'Automate biomass, capture wood chemistry, and establish renewable LV and MV combustion power.',
   },
   {
     id: 'stoneAndFire',
@@ -7490,6 +7959,111 @@ export const quests: Quest[] = [
     prerequisites: ['encodeRecipeCardQuest'],
     objectives: [{ type: 'fabrication', id: 'jobComplete', amount: 1 }],
     requirements: {},
+    rewards: {},
+  },
+  {
+    id: 'buildLvWaterSourceQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Outgrow the well',
+    description: 'Build and power an LV Water Source. The Basic Well remains useful for boilers, but its shallow flow cannot continuously irrigate a Powered Farm.',
+    position: { x: 40, y: 120 },
+    icon: { type: 'machine', id: 'lvWaterSource' },
+    prerequisites: ['firstAluminiumQuest'],
+    requirements: { machines: [{ id: 'lvWaterSource', amount: 1 }] },
+    rewards: {},
+  },
+  {
+    id: 'formPoweredFarmQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Form a 2x2 Powered Farm',
+    description: 'Place four Powered Farm Blocks in a filled 2x2 square. The top-left block becomes the controller. Connect LV power and a continuous 8L/s water supply before selecting a crop program.',
+    position: { x: 230, y: 120 },
+    icon: { type: 'machine', id: 'poweredFarm' },
+    prerequisites: ['buildLvWaterSourceQuest'],
+    objectives: [{ type: 'placedMachine', id: 'poweredFarm', amount: 1, label: 'Formed Powered Farm' }],
+    requirements: {},
+    rewards: {},
+  },
+  {
+    id: 'farmWoodQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Choose a crop program',
+    description: 'Program 1 grows standard Logs. Program 2 grows Rubber Tree Logs and Sticky Resin. Program 3 grows Sugar Cane for the later alcohol-fuel line. A cycle waits for both water and EU.',
+    position: { x: 420, y: 120 },
+    icon: { type: 'resource', id: 'rubberLog' },
+    prerequisites: ['formPoweredFarmQuest'],
+    requirements: { resources: [{ id: 'log', amount: 8 }, { id: 'rubberLog', amount: 4 }, { id: 'sugarCane', amount: 8 }] },
+    rewards: {},
+  },
+  {
+    id: 'formPyrolysisOvenQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Seal the Pyrolysis Oven',
+    description: 'Place four Pyrolysis Oven Blocks in a filled 2x2 square. The top-left block becomes the controller. Route both fluid products before loading logs: either a full Wood Tar or Wood Gas outlet stops the entire batch.',
+    position: { x: 610, y: 120 },
+    icon: { type: 'machine', id: 'pyrolysisOven' },
+    prerequisites: ['farmWoodQuest'],
+    objectives: [{ type: 'placedMachine', id: 'pyrolysisOven', amount: 1, label: 'Formed Pyrolysis Oven' }],
+    requirements: {},
+    rewards: {},
+  },
+  {
+    id: 'makeWoodTarQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Carbonize the first log batch',
+    description: 'Pyrolyse eight Logs. Collect the Charcoal item output and route Wood Tar and Wood Gas into separate storage. Wood Gas is deliberately parked as a byproduct until a later gas-fuel upgrade.',
+    position: { x: 800, y: 120 },
+    icon: { type: 'resource', id: 'charcoal' },
+    prerequisites: ['formPyrolysisOvenQuest'],
+    requirements: { recipes: [{ id: 'pyrolyse_standard_logs', amount: 1 }] },
+    rewards: {},
+  },
+  {
+    id: 'distilBenzeneQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Separate the light fraction',
+    description: 'Distil 16L of Wood Tar into 8L Benzene and 8L Heavy Tar Residue. Both outputs must have a destination; residue management is part of keeping the fuel line running.',
+    position: { x: 990, y: 120 },
+    icon: { type: 'machine', id: 'lvDistillery' },
+    prerequisites: ['makeWoodTarQuest'],
+    requirements: { machines: [{ id: 'lvDistillery', amount: 1 }], recipes: [{ id: 'distil_wood_tar_benzene', amount: 1 }] },
+    rewards: {},
+  },
+  {
+    id: 'burnBenzeneQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Close the LV power loop',
+    description: 'Feed Benzene into an LV Combustion Generator. One litre burns for eight seconds at 32 EU/s. The complete farm-to-fuel line remains EU-positive, but a stalled byproduct or water line can still stop generation.',
+    position: { x: 1180, y: 120 },
+    icon: { type: 'machine', id: 'lvCombustionGenerator' },
+    prerequisites: ['distilBenzeneQuest'],
+    requirements: { machines: [{ id: 'lvCombustionGenerator', amount: 1 }] },
+    rewards: {},
+  },
+  {
+    id: 'buildMvPowerQuest',
+    chapterId: 'benzenePower',
+    chapter: 'Benzene Power',
+    title: 'Step up to MV',
+    description: 'Build Aluminium Cable and both transformer directions before commissioning the MV Combustion Generator. MV runs at 128 EU/s; it cannot connect directly to a 32-volt LV cable or machine.',
+    position: { x: 1370, y: 120 },
+    icon: { type: 'machine', id: 'mvCombustionGenerator' },
+    prerequisites: ['burnBenzeneQuest'],
+    requirements: {
+      resources: [{ id: 'aluminiumCable', amount: 4 }],
+      machines: [
+        { id: 'lvToMvTransformer', amount: 1 },
+        { id: 'mvToLvTransformer', amount: 1 },
+        { id: 'mvCombustionGenerator', amount: 1 },
+      ],
+    },
     rewards: {},
   },
 ]

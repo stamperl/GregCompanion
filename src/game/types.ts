@@ -166,6 +166,9 @@ export type ResourceId =
   | 'computationProcessor'
   | 'structuralProcessor'
   | 'blankRecipeCard'
+  | 'rubberLog'
+  | 'sugarCane'
+  | 'aluminiumCable'
 
 export type MachineId =
   | 'furnace'
@@ -233,11 +236,24 @@ export type MachineId =
   | 'circuitImprinter'
   | 'recipeEncoder'
   | 'jobInterface'
+  | 'terminalImportBus'
+  | 'terminalExportBus'
   | 'autoFabricator'
   | 'fluidStorageLink'
   | 'planningController'
   | 'memoryModule'
   | 'dispatchModule'
+  | 'lvWaterSource'
+  | 'poweredFarmPart'
+  | 'poweredFarm'
+  | 'pyrolysisOvenPart'
+  | 'pyrolysisOven'
+  | 'lvDistillery'
+  | 'lvCombustionGenerator'
+  | 'mvCombustionGenerator'
+  | 'aluminiumCable'
+  | 'lvToMvTransformer'
+  | 'mvToLvTransformer'
 
 export type QuestId =
   | 'punchTree'
@@ -367,8 +383,16 @@ export type QuestId =
   | 'encodeRecipeCardQuest'
   | 'formPlanningRackQuest'
   | 'runFabricationJobQuest'
+  | 'buildLvWaterSourceQuest'
+  | 'formPoweredFarmQuest'
+  | 'farmWoodQuest'
+  | 'formPyrolysisOvenQuest'
+  | 'makeWoodTarQuest'
+  | 'distilBenzeneQuest'
+  | 'burnBenzeneQuest'
+  | 'buildMvPowerQuest'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations' | 'benzenePower'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv' | 'mv'
 
@@ -427,6 +451,10 @@ export type MachineProcessKind =
   | 'fabricationInterface'
   | 'fabricationController'
   | 'fabricationModule'
+  | 'poweredWaterSource'
+  | 'poweredFarm'
+  | 'combustionGenerator'
+  | 'euTransformer'
 
 export type ToolId =
   | 'bareHand'
@@ -477,6 +505,10 @@ export type FluidId =
   | 'nitrogen'
   | 'sulfuricAcid'
   | 'dilutedSulfuricAcid'
+  | 'woodTar'
+  | 'woodGas'
+  | 'benzene'
+  | 'heavyTar'
 
 export type FluidContainerKind = 'bucket' | 'steelCell'
 
@@ -499,11 +531,22 @@ export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | '
 
 export type EquipmentState = Record<EquipmentSlotId, ResourceId | null>
 
-export type CraftSlot = {
+export type RecipePatternSlot = ResourceId | {
+  kind: 'machine'
+  id: MachineId
+} | null
+
+export type CraftSlot = ({
+  kind?: 'resource'
   id: ResourceId
   ghost?: boolean
   amount?: number
-} | null
+} | {
+  kind: 'machine'
+  id: MachineId
+  ghost?: boolean
+  amount?: number
+}) | null
 
 export type ResourceAmount = {
   id: ResourceId
@@ -539,11 +582,23 @@ export type RecipeCardInstance = {
   installedInUid?: string
 }
 
+export type FabricationFaceAttachmentKind = 'jobInterface' | 'terminalImportBus' | 'terminalExportBus'
+
+export type FabricationBusFilter =
+  | { kind: 'item'; id: ResourceId }
+  | { kind: 'fluid'; id: FluidId }
+
 export type FabricationInterfaceAttachment = {
   uid: string
+  kind: FabricationFaceAttachmentKind
   direction: PipeDirection
   installedRecipeCardUids: string[]
   priority: number
+  filters: FabricationBusFilter[]
+  transferProgressMs?: number
+  lastTransferKind?: 'item' | 'fluid'
+  lastTransferAmount?: number
+  lastBlockedReason?: string
 }
 
 export type FabricationJobStatus = 'queued' | 'running' | 'blocked' | 'complete' | 'cancelled'
@@ -582,7 +637,7 @@ export type Recipe = {
   tier: Tier
   stationType?: StationType
   recipeType?: RecipeType
-  pattern?: (ResourceId | null)[]
+  pattern?: RecipePatternSlot[]
   durationMs: number
   steamCostLitres?: number
   euCost?: number
@@ -614,7 +669,7 @@ export type ProcessRecipe = {
   steamCostLitres?: number
   euCost?: number
   requiredEuAmps?: number
-  input: ResourceAmount
+  input?: ResourceAmount
   secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
   extraInputs?: ResourceAmount[]
@@ -727,6 +782,7 @@ export type MachineSpec = Machine & {
   euCapacity?: number
   euOutputPerSecond?: number
   euAmps?: number
+  euVoltage?: 32 | 128
   euCableLossPerTile?: number
   multiblock?: {
     width: number

@@ -16,6 +16,7 @@ import {
   isEuPoweredMachine,
   isEuProducerMachine,
   isEuStorageMachine,
+  isEuTransformerMachine,
   isFluidHatchMachine,
   isItemBusMachine,
   isConductorMachine,
@@ -35,6 +36,7 @@ import {
   machineEuCapacity,
   machineEuAmps,
   machineEuOutputPerSecond,
+  machineEuVoltage,
   machineFluidCapacityLitres,
   machineFluidOutputLitresPerSecond,
   machinePipeTransferLitresPerSecond,
@@ -64,6 +66,8 @@ import type {
   ConductorFaceSettings,
   EquipmentSlotId,
   EquipmentState,
+  FabricationBusFilter,
+  FabricationFaceAttachmentKind,
   FabricationJob,
   FabricationInterfaceAttachment,
   FluidContainerInstance,
@@ -95,7 +99,7 @@ import type {
 } from './types'
 
 export const saveKey = 'block-tech-idle-save'
-export const currentSaveVersion = 18
+export const currentSaveVersion = 20
 export const factoryGrid = { width: 10, height: 8 }
 export const maxFactoryFoundationLevel = 6
 export const factoryFoundationSizes = [
@@ -157,7 +161,7 @@ export const steamMachineInternalCapacityMs = machineSteamCapacityLitres('steamM
 export const euPerSteamLitre = 2
 export const boilerSteamProductionLitresPerSecond = 6
 export const wellWaterCapacityLitres = machineFluidCapacityLitres('well')
-export const wellWaterProductionLitresPerSecond = 48
+export const wellWaterProductionLitresPerSecond = 6
 export const wellWaterOutputLitresPerSecond = 96
 export const steamTurbineSteamUseLitresPerSecond = 16
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
@@ -189,6 +193,7 @@ let activeEuTransferBudgets: Map<string, number> | null = null
 let activeFluidTransferBudgets: Map<string, number> | null = null
 let activeSteamSegmentFlows: Map<string, number> | null = null
 let activeEuSegmentFlows: Map<string, number> | null = null
+let activeEuTransformerFlows: Map<string, number> | null = null
 let activeEuInputFlows: Map<string, number> | null = null
 let activeEuOutputFlows: Map<string, number> | null = null
 let activeFluidSegmentFlows: Map<string, Partial<Record<FluidId, number>>> | null = null
@@ -280,7 +285,7 @@ const durabilityMaximums: Partial<Record<ResourceId, number>> = {
   bronzeMortar: 192,
 }
 
-const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
+export const durableCostAlternatives: Partial<Record<ResourceId, ResourceId[]>> = {
   stoneHammer: ['stoneHammer', 'ironHammer'],
   mortar: ['bronzeMortar', 'ironMortar', 'mortar'],
   ironFile: ['bronzeFile', 'ironFile'],
@@ -294,6 +299,27 @@ export const pipeSideModeLabels: Record<PipeSideMode, string> = {
   output: 'Out',
   input: 'In',
   blocked: 'Closed',
+}
+export const fabricationFaceMachineIds = ['jobInterface', 'terminalImportBus', 'terminalExportBus'] as const satisfies readonly MachineId[]
+type FabricationFaceMachineId = (typeof fabricationFaceMachineIds)[number]
+const fabricationFaceMachineIdSet = new Set<MachineId>(fabricationFaceMachineIds)
+const fabricationAttachmentKinds = new Set<FabricationFaceAttachmentKind>(fabricationFaceMachineIds)
+const fabricationBusMachineIds = ['terminalImportBus', 'terminalExportBus'] as const satisfies readonly FabricationFaceMachineId[]
+
+function isFabricationFaceMachineId(machineId: MachineId): machineId is FabricationFaceMachineId {
+  return fabricationFaceMachineIdSet.has(machineId)
+}
+
+function fabricationAttachmentKindForMachine(machineId: FabricationFaceMachineId): FabricationFaceAttachmentKind {
+  return machineId
+}
+
+function fabricationMachineForAttachment(attachment: FabricationInterfaceAttachment): FabricationFaceMachineId {
+  return attachment.kind
+}
+
+function isFabricationBusAttachment(attachment: FabricationInterfaceAttachment) {
+  return fabricationBusMachineIds.includes(attachment.kind as (typeof fabricationBusMachineIds)[number])
 }
 const oppositePipeDirection: Record<PipeDirection, PipeDirection> = {
   north: 'south',
@@ -424,6 +450,28 @@ function normalizeFluidAmounts(parsed: unknown) {
   })
 }
 
+function normalizeFabricationBusFilters(parsed: unknown): FabricationBusFilter[] {
+  if (!Array.isArray(parsed)) return []
+  const seen = new Set<string>()
+  return parsed.flatMap((entry): FabricationBusFilter[] => {
+    if (!entry || typeof entry !== 'object') return []
+    const candidate = entry as Partial<FabricationBusFilter>
+    if (candidate.kind === 'item' && candidate.id && candidate.id in resourceRegistry) {
+      const key = `item:${candidate.id}`
+      if (seen.has(key)) return []
+      seen.add(key)
+      return [{ kind: 'item', id: candidate.id as ResourceId }]
+    }
+    if (candidate.kind === 'fluid' && candidate.id && fluidIds.includes(candidate.id as FluidId)) {
+      const key = `fluid:${candidate.id}`
+      if (seen.has(key)) return []
+      seen.add(key)
+      return [{ kind: 'fluid', id: candidate.id as FluidId }]
+    }
+    return []
+  }).slice(0, 9)
+}
+
 function normalizeRecipeCards(parsed: unknown, machineInstances: MachineInstance[]): RecipeCardInstance[] {
   if (!Array.isArray(parsed)) return []
   const seen = new Set<string>()
@@ -433,7 +481,7 @@ function normalizeRecipeCards(parsed: unknown, machineInstances: MachineInstance
     if (!candidate.uid || seen.has(candidate.uid) || (candidate.kind !== 'crafting' && candidate.kind !== 'processing')) return []
     const installedInUid = candidate.installedInUid && machineInstances.some((instance) => (
       (instance.machineId === 'jobInterface' && instance.uid === candidate.installedInUid) ||
-      Object.values(instance.fabricationInterfaces ?? {}).some((attachment) => attachment?.uid === candidate.installedInUid)
+      Object.values(instance.fabricationInterfaces ?? {}).some((attachment) => attachment?.kind === 'jobInterface' && attachment.uid === candidate.installedInUid)
     ))
       ? candidate.installedInUid
       : undefined
@@ -460,7 +508,7 @@ function normalizeFabricationJobs(parsed: unknown, cards: RecipeCardInstance[], 
   const interfaceUids = new Set(machineInstances.flatMap((instance) => [
     ...(instance.machineId === 'jobInterface' ? [instance.uid] : []),
     ...Object.values(instance.fabricationInterfaces ?? {})
-      .flatMap((attachment) => attachment?.uid ? [attachment.uid] : []),
+      .flatMap((attachment) => attachment?.kind === 'jobInterface' && attachment.uid ? [attachment.uid] : []),
   ]))
   return parsed.flatMap((entry): FabricationJob[] => {
     if (!entry || typeof entry !== 'object') return []
@@ -684,13 +732,21 @@ function normalizeMachineInstances(
     const fabricationInterfaces = Object.fromEntries(pipeDirections.flatMap((direction) => {
       const attachment = instance.fabricationInterfaces?.[direction]
       if (!attachment?.uid) return []
+      const parsedKind = (attachment as Partial<FabricationInterfaceAttachment>).kind
+      const kind = parsedKind && fabricationAttachmentKinds.has(parsedKind) ? parsedKind : 'jobInterface'
       return [[direction, {
         uid: String(attachment.uid),
+        kind,
         direction,
         installedRecipeCardUids: Array.isArray(attachment.installedRecipeCardUids)
           ? attachment.installedRecipeCardUids.filter((uid): uid is string => typeof uid === 'string').slice(0, 9)
           : [],
         priority: Math.max(-10, Math.min(10, Math.floor(Number(attachment.priority) || 0))),
+        filters: normalizeFabricationBusFilters(attachment.filters),
+        transferProgressMs: Math.max(0, Number(attachment.transferProgressMs) || 0),
+        lastTransferKind: attachment.lastTransferKind === 'item' || attachment.lastTransferKind === 'fluid' ? attachment.lastTransferKind : undefined,
+        lastTransferAmount: Math.max(0, Number(attachment.lastTransferAmount) || 0),
+        lastBlockedReason: typeof attachment.lastBlockedReason === 'string' ? attachment.lastBlockedReason : undefined,
       } satisfies FabricationInterfaceAttachment]]
     })) as Partial<Record<PipeDirection, FabricationInterfaceAttachment>>
     if (machineId === 'standardChest' && process.storageSlots.length < 1) {
@@ -775,7 +831,11 @@ export function cloneState(state: GameState): GameState {
       conductorFluidFaces: Object.fromEntries(Object.entries(instance.conductorFluidFaces ?? {}).map(([direction, face]) => [direction, face ? { mode: face.mode, channel: face.channel, priority: face.priority, roundRobin: face.roundRobin, selfFeed: face.selfFeed } : face])),
       fabricationInterfaces: Object.fromEntries(Object.entries(instance.fabricationInterfaces ?? {}).map(([direction, attachment]) => [
         direction,
-        attachment ? { ...attachment, installedRecipeCardUids: [...attachment.installedRecipeCardUids] } : attachment,
+        attachment ? {
+          ...attachment,
+          installedRecipeCardUids: [...attachment.installedRecipeCardUids],
+          filters: attachment.filters.map((filter) => ({ ...filter })),
+        } : attachment,
       ])),
       installedRecipeCardUids: [...(instance.installedRecipeCardUids ?? [])],
       process: cloneProcessState(instance.process),
@@ -1095,7 +1155,7 @@ function hasAvailableResourceCosts(state: GameState, amounts: ResourceAmount[] =
 }
 
 export function hasMachines(state: GameState, amounts: MachineAmount[] = []) {
-  return amounts.every((amount) => state.machines[amount.id] >= amount.amount)
+  return amounts.every((amount) => availableUnplacedMachineCount(state, amount.id) >= amount.amount)
 }
 
 export function subtractResources(state: GameState, amounts: ResourceAmount[]) {
@@ -1247,10 +1307,20 @@ export function visibleRecipes(state: GameState) {
 function countGridItems(grid: CraftSlot[]) {
   return grid.reduce(
     (counts, slot) => {
-      if (slot && !slot.ghost) counts[slot.id] = (counts[slot.id] ?? 0) + Math.max(1, Math.floor(slot.amount ?? 1))
+      if (slot && slot.kind !== 'machine' && !slot.ghost) counts[slot.id] = (counts[slot.id] ?? 0) + Math.max(1, Math.floor(slot.amount ?? 1))
       return counts
     },
     {} as Partial<Record<ResourceId, number>>,
+  )
+}
+
+function countGridMachines(grid: CraftSlot[]) {
+  return grid.reduce(
+    (counts, slot) => {
+      if (slot?.kind === 'machine' && !slot.ghost) counts[slot.id] = (counts[slot.id] ?? 0) + Math.max(1, Math.floor(slot.amount ?? 1))
+      return counts
+    },
+    {} as Partial<Record<MachineId, number>>,
   )
 }
 
@@ -1409,15 +1479,37 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'brickedBlastFurnacePart', x: 7, y: 8 },
   { id: 'brickedBlastFurnacePart', x: 6, y: 9 },
   { id: 'brickedBlastFurnacePart', x: 7, y: 9 },
-  { id: 'lvBatteryBuffer4A', x: 10, y: 10 },
-  { id: 'tinCable4A', x: 11, y: 10 },
-  { id: 'tinCable4A', x: 12, y: 10 },
-  { id: 'tinCable4A', x: 13, y: 10 },
-  { id: 'tinCable4A', x: 14, y: 10 },
-  { id: 'reachGateCasing', x: 0, y: 12 },
-  { id: 'reachGateCasing', x: 1, y: 12 },
-  { id: 'reachGateCasing', x: 0, y: 13 },
-  { id: 'reachGateCasing', x: 1, y: 13 },
+  { id: 'tinCable4A', x: 0, y: 10 },
+  { id: 'tinCable4A', x: 1, y: 10 },
+  { id: 'tinCable4A', x: 2, y: 10 },
+  { id: 'tinCable4A', x: 3, y: 10 },
+  { id: 'tinCable4A', x: 4, y: 10 },
+  { id: 'tinCable4A', x: 5, y: 10 },
+  { id: 'tinCable4A', x: 6, y: 10 },
+  { id: 'tinCable4A', x: 7, y: 10 },
+  { id: 'tinCable4A', x: 8, y: 10 },
+  { id: 'poweredFarmPart', x: 0, y: 11 },
+  { id: 'poweredFarmPart', x: 1, y: 11 },
+  { id: 'poweredFarmPart', x: 0, y: 12 },
+  { id: 'poweredFarmPart', x: 1, y: 12 },
+  { id: 'lvWaterSource', x: 2, y: 11 },
+  { id: 'hopper', x: 2, y: 12 },
+  { id: 'pyrolysisOvenPart', x: 3, y: 11 },
+  { id: 'pyrolysisOvenPart', x: 4, y: 11 },
+  { id: 'pyrolysisOvenPart', x: 3, y: 12 },
+  { id: 'pyrolysisOvenPart', x: 4, y: 12 },
+  { id: 'tinCable4A', x: 5, y: 11 },
+  { id: 'lvDistillery', x: 5, y: 12 },
+  { id: 'steamTank', x: 5, y: 13 },
+  { id: 'lvCombustionGenerator', x: 6, y: 11 },
+  { id: 'bronzePipe', x: 6, y: 12 },
+  { id: 'mvToLvTransformer', x: 7, y: 11 },
+  { id: 'mvCombustionGenerator', x: 7, y: 12 },
+  { id: 'lvBatteryBuffer4A', x: 8, y: 11 },
+  { id: 'steamTank', x: 4, y: 13 },
+  { id: 'lvBatteryBuffer4A', x: 10, y: 11 },
+  { id: 'tinCable4A', x: 11, y: 11 },
+  { id: 'tinCable4A', x: 12, y: 11 },
   { id: 'lvEnergyHatch2A', x: 13, y: 11 },
   { id: 'lvEnergyHatch2A', x: 14, y: 11 },
   { id: 'arcBlastFurnacePart', x: 15, y: 11 },
@@ -1427,6 +1519,11 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'lvFluidInputHatch', x: 13, y: 13 },
   { id: 'lvFluidOutputHatch', x: 14, y: 13 },
   { id: 'arcBlastFurnacePart', x: 15, y: 13 },
+  { id: 'reachGateCasing', x: 0, y: 14 },
+  { id: 'reachGateCasing', x: 1, y: 14 },
+  { id: 'steamTank', x: 5, y: 14 },
+  { id: 'reachGateCasing', x: 0, y: 15 },
+  { id: 'reachGateCasing', x: 1, y: 15 },
 ]
 
 function machineAtPosition(state: GameState, x: number, y: number) {
@@ -1490,13 +1587,31 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     state = setPipeSideMode(state, hoppers[1].uid, 'east', 'input')
     state = setHopperOutputDirection(state, hoppers[1].uid, 'west')
   }
+  const benzeneHopper = machineAtPosition(state, 2, 12)
+  if (benzeneHopper?.machineId === 'hopper') {
+    state = setPipeSideMode(state, benzeneHopper.uid, 'west', 'input')
+    state = setHopperOutputDirection(state, benzeneHopper.uid, 'east')
+  }
+  const waterSource = machineAtPosition(state, 2, 11)
+  if (waterSource?.machineId === 'lvWaterSource') state = setFluidOutputDirection(state, waterSource.uid, 'west')
+  const pyrolysisOven = machineAtPosition(state, 3, 11)
+  if (pyrolysisOven?.machineId === 'pyrolysisOven') {
+    state = setFluidOutputDirection(state, pyrolysisOven.uid, 'east')
+    state = setFluidOutputDirection(state, pyrolysisOven.uid, 'south')
+  }
+  const distillery = machineAtPosition(state, 5, 12)
+  if (distillery?.machineId === 'lvDistillery') {
+    state = setFluidOutputDirection(state, distillery.uid, 'north')
+    state = setFluidOutputDirection(state, distillery.uid, 'east')
+    state = setFluidOutputDirection(state, distillery.uid, 'south')
+  }
 
   const batteryBuffers = state.machineInstances.filter((instance) => isEuStorageMachine(instance.machineId))
   for (const buffer of batteryBuffers) {
     const creativeOutput = buffer.y === 2 ? 'south'
       : buffer.x === 5 && buffer.y === 6 ? 'east'
       : buffer.x === 9 && buffer.y === 7 ? 'west'
-      : buffer.x === 10 && buffer.y === 10 ? 'east'
+      : buffer.x === 10 && buffer.y === 11 ? 'east'
       : 'north'
     state = setBatteryBufferOutputDirection(state, buffer.uid, creativeOutput)
     for (let index = 0; index < batteryBufferSlots(buffer.machineId); index += 1) {
@@ -1604,6 +1719,27 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
       instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
       instance.process.fluids.liquidRubber = 24
     }
+    if (instance.machineId === 'poweredFarm') {
+      instance.process.configuredProgramNumber = 1
+      instance.process.fluids.water = 96
+    }
+    if (instance.machineId === 'pyrolysisOven') instance.process.input = { id: 'log', amount: 8 }
+    if (instance.machineId === 'lvDistillery') {
+      instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+      instance.process.fluids.woodTar = 8
+    }
+    if (instance.x === 4 && instance.y === 13 && isTankStorageMachine(instance.machineId)) {
+      instance.process.steamStoredMs = 0
+      instance.process.fluids = normalizeFluidStore({ woodGas: 4 })
+    }
+    if (instance.x === 5 && instance.y === 13 && isTankStorageMachine(instance.machineId)) {
+      instance.process.steamStoredMs = 0
+      instance.process.fluids = normalizeFluidStore({ heavyTar: 4 })
+    }
+    if (instance.machineId === 'mvCombustionGenerator' || instance.machineId === 'lvCombustionGenerator') {
+      instance.process.euStored = 0
+      instance.process.fluids.benzene = instance.machineId === 'mvCombustionGenerator' ? 96 : 48
+    }
     if (instance.machineId === 'cokeOven') {
       instance.process.input = { id: 'coal', amount: 16 }
       instance.process.output = { id: 'coalCoke', amount: 8 }
@@ -1638,7 +1774,13 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
         return id ? { id, amount: 32 } : null
       })
     }
-    if (instance.machineId === 'hopper') instance.process.input = { id: 'ironOre', amount: 32 }
+    if (instance.machineId === 'hopper') {
+      if (instance.x === 3 && instance.y === 12) {
+        for (const slotId of hopperStorageSlotIds) instance.process[slotId] = null
+      } else {
+        instance.process.input = { id: 'ironOre', amount: 32 }
+      }
+    }
   }
 
   state.fluidContainers = [
@@ -1690,11 +1832,19 @@ function recipeInputTotal(recipe: Recipe) {
 }
 
 export function recipeFitsTerminalGrid(recipe: Recipe) {
-  if (recipe.machineInputs?.length) return false
   if (recipe.recipeType && recipe.recipeType !== 'crafting') return false
   if (recipe.stationType && recipe.stationType !== 'hand') return false
-  if (recipe.pattern) return recipe.pattern.filter(Boolean).length <= 9
-  return recipeInputTotal(recipe) <= 9
+  if (recipe.pattern) {
+    const patternMachineCounts = recipe.pattern.reduce((counts, slot) => {
+      if (slot && typeof slot !== 'string') counts[slot.id] = (counts[slot.id] ?? 0) + 1
+      return counts
+    }, {} as Partial<Record<MachineId, number>>)
+    return recipe.pattern.filter(Boolean).length <= 9 && (recipe.machineInputs ?? []).every(
+      (amount) => (patternMachineCounts[amount.id] ?? 0) >= amount.amount,
+    )
+  }
+  const machineInputTotal = (recipe.machineInputs ?? []).reduce((sum, amount) => sum + amount.amount, 0)
+  return recipeInputTotal(recipe) + machineInputTotal <= 9
 }
 
 function recipeGridAmounts(recipe: Recipe) {
@@ -1717,7 +1867,10 @@ function patternMatchesGrid(recipe: Recipe, grid: CraftSlot[]) {
     const expected = pattern[index] ?? null
     const slot = grid[index]
     if (!expected) return !slot || slot.ghost
-    return Boolean(slot && !slot.ghost && gridResourceMatches(expected, slot.id, recipe))
+    if (typeof expected !== 'string') {
+      return Boolean(slot?.kind === 'machine' && !slot.ghost && slot.id === expected.id)
+    }
+    return Boolean(slot && slot.kind !== 'machine' && !slot.ghost && gridResourceMatches(expected, slot.id, recipe))
   })
 }
 
@@ -1727,7 +1880,10 @@ export function findGridRecipe(grid: CraftSlot[], availableRecipes: Recipe[]) {
 
   return availableRecipes.filter(recipeFitsTerminalGrid).find((recipe) => {
     if (recipe.pattern) return patternMatchesGrid(recipe, grid)
-    return resourceAmountKey(recipeGridAmounts(recipe)) === resourceAmountKey(gridAmounts(grid))
+    const resourceMatch = resourceAmountKey(recipeGridAmounts(recipe)) === resourceAmountKey(gridAmounts(grid))
+    const machineMatch = resourceAmountKey((recipe.machineInputs ?? []).map((amount) => ({ id: amount.id as ResourceId, amount: amount.amount })))
+      === resourceAmountKey(Object.entries(countGridMachines(grid)).map(([id, amount]) => ({ id: id as ResourceId, amount: amount ?? 0 })))
+    return resourceMatch && machineMatch
   })
 }
 
@@ -1743,7 +1899,7 @@ export function missingForRecipe(state: GameState, recipe: Recipe) {
     .filter((amount) => amount.amount > 0)
   const missingMachines = [
     ...(recipe.requiredMachine && state.machines[recipe.requiredMachine] < 1 ? [{ id: recipe.requiredMachine, amount: 1 }] : []),
-    ...(recipe.machineInputs ?? []).filter((amount) => state.machines[amount.id] < amount.amount),
+    ...(recipe.machineInputs ?? []).filter((amount) => availableUnplacedMachineCount(state, amount.id) < amount.amount),
   ]
   return { missingResources, missingCatalysts, missingDurability, missingMachines }
 }
@@ -1758,13 +1914,22 @@ export function makeGridForRecipe(recipe: Recipe, state?: GameState): CraftSlot[
 
   if (recipe.pattern) {
     const declared = Object.fromEntries(recipeGridAmounts(recipe).map((amount) => [amount.id, amount.amount])) as Partial<Record<ResourceId, number>>
-    const patternCounts = recipe.pattern.reduce((counts, id) => {
-      if (id) counts[id] = (counts[id] ?? 0) + 1
+    const patternCounts = recipe.pattern.reduce((counts, slot) => {
+      if (typeof slot === 'string') counts[slot] = (counts[slot] ?? 0) + 1
       return counts
     }, {} as Partial<Record<ResourceId, number>>)
     const assigned = {} as Partial<Record<ResourceId, number>>
-    recipe.pattern.slice(0, 9).forEach((id, index) => {
-      if (!id) return
+    const assignedMachines = {} as Partial<Record<MachineId, number>>
+    recipe.pattern.slice(0, 9).forEach((patternSlot, index) => {
+      if (!patternSlot) return
+      if (typeof patternSlot !== 'string') {
+        const amount = (assignedMachines[patternSlot.id] ?? 0) + 1
+        assignedMachines[patternSlot.id] = amount
+        const available = state ? availableUnplacedMachineCount(state, patternSlot.id) : Number.POSITIVE_INFINITY
+        slots[index] = { kind: 'machine', id: patternSlot.id, ghost: available < amount }
+        return
+      }
+      const id = patternSlot
       const occurrence = (assigned[id] ?? 0) + 1
       assigned[id] = occurrence
       const amount = occurrence === (patternCounts[id] ?? 1)
@@ -1785,6 +1950,13 @@ export function makeGridForRecipe(recipe: Recipe, state?: GameState): CraftSlot[
       const ghost = remaining ? remaining[input.id] < 1 : false
       slots[slotIndex] = { id: input.id, ghost }
       if (remaining && !ghost) remaining[input.id] -= 1
+      slotIndex += 1
+    }
+  }
+  for (const input of recipe.machineInputs ?? []) {
+    for (let index = 0; index < input.amount && slotIndex < slots.length; index += 1) {
+      const ghost = state ? availableUnplacedMachineCount(state, input.id) < index + 1 : false
+      slots[slotIndex] = { kind: 'machine', id: input.id, ghost }
       slotIndex += 1
     }
   }
@@ -1833,7 +2005,7 @@ function fabricationProcessRecipeForMachine(card: RecipeCardInstance, machineId:
       ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
       ...(recipe.extraInputs ?? []),
       ...(recipe.fuelInput ? [recipe.fuelInput] : []),
-    ].filter((amount) => amount.amount > 0)
+    ].filter((amount): amount is ResourceAmount => Boolean(amount && amount.amount > 0))
     return fabricationAmountsMatch(card.itemInputs, itemInputs, card.fluidInputs, recipeFluidInputs(recipe)) &&
       fabricationAmountsMatch(card.itemOutputs, recipeItemOutputs(recipe), card.fluidOutputs, recipeFluidOutputs(recipe))
   })
@@ -1895,7 +2067,7 @@ export function encodeProcessingRecipeCard(state: GameState, encoderUid: string,
       ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
       ...(recipe.extraInputs ?? []),
       ...(recipe.fuelInput ? [recipe.fuelInput] : []),
-    ].filter((amount) => amount.amount > 0)),
+    ].filter((amount): amount is ResourceAmount => Boolean(amount && amount.amount > 0))),
     fluidInputs: recipeFluidInputs(recipe).map((amount) => ({ ...amount })),
     itemOutputs: recipeItemOutputs(recipe).filter((amount) => amount.amount > 0).map((amount) => ({ ...amount })),
     fluidOutputs: recipeFluidOutputs(recipe).map((amount) => ({ ...amount })),
@@ -1912,10 +2084,10 @@ export function eraseRecipeCard(state: GameState, cardUid: string) {
   return next
 }
 
-export function attachFabricationInterface(state: GameState, cableUid: string, direction: PipeDirection) {
+export function attachFabricationFace(state: GameState, cableUid: string, direction: PipeDirection, machineId: FabricationFaceMachineId) {
   const cable = state.machineInstances.find((instance) => instance.uid === cableUid)
   if (!cable || !hasFabricationCable(cable) || !pipeDirections.includes(direction) || cable.fabricationInterfaces?.[direction]) return state
-  if (availableUnplacedMachineCount(state, 'jobInterface') < 1) return state
+  if (availableUnplacedMachineCount(state, machineId) < 1) return state
   const offset = pipeDirectionOffsets[direction]
   const target = machineAt(state, cable.x + offset.dx, cable.y + offset.dy)
   if (!target || hasFabricationCable(target) || planningRackStructureForPart(state, target)) return state
@@ -1924,14 +2096,21 @@ export function attachFabricationInterface(state: GameState, cableUid: string, d
   const existingUids = next.machineInstances.flatMap((instance) => Object.values(instance.fabricationInterfaces ?? {})
     .flatMap((attachment) => attachment?.uid ? [attachment.uid] : []))
   const attachment: FabricationInterfaceAttachment = {
-    uid: nextFabricationUid('interface', existingUids),
+    uid: nextFabricationUid(machineId === 'jobInterface' ? 'interface' : machineId === 'terminalImportBus' ? 'import' : 'export', existingUids),
+    kind: fabricationAttachmentKindForMachine(machineId),
     direction,
     installedRecipeCardUids: [],
     priority: 0,
+    filters: [],
+    transferProgressMs: 0,
   }
   nextCable.fabricationInterfaces = { ...nextCable.fabricationInterfaces, [direction]: attachment }
   next.lastSavedAt = Date.now()
   return next
+}
+
+export function attachFabricationInterface(state: GameState, cableUid: string, direction: PipeDirection) {
+  return attachFabricationFace(state, cableUid, direction, 'jobInterface')
 }
 
 export function removeFabricationInterface(state: GameState, interfaceUid: string) {
@@ -1944,6 +2123,20 @@ export function removeFabricationInterface(state: GameState, interfaceUid: strin
   const nextFound = fabricationInterfaceByUid(next, interfaceUid)
   if (!nextFound || nextFound.kind !== 'face') return state
   for (const card of next.recipeCards.filter((candidate) => candidate.installedInUid === interfaceUid)) delete card.installedInUid
+  const faces = { ...nextFound.cable.fabricationInterfaces }
+  delete faces[nextFound.attachment.direction]
+  nextFound.cable.fabricationInterfaces = faces
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function removeFabricationFaceAttachment(state: GameState, attachmentUid: string) {
+  const found = fabricationFaceByUid(state, attachmentUid)
+  if (!found) return state
+  if (found.machineId === 'jobInterface') return removeFabricationInterface(state, attachmentUid)
+  const next = cloneState(state)
+  const nextFound = fabricationFaceByUid(next, attachmentUid)
+  if (!nextFound) return state
   const faces = { ...nextFound.cable.fabricationInterfaces }
   delete faces[nextFound.attachment.direction]
   nextFound.cable.fabricationInterfaces = faces
@@ -2072,11 +2265,20 @@ type FabricationNetworkInterface =
       instance: MachineInstance
     }
 
+type FabricationNetworkBus = {
+  uid: string
+  machineId: 'terminalImportBus' | 'terminalExportBus'
+  priority: number
+  cable: MachineInstance
+  attachment: FabricationInterfaceAttachment
+}
+
 export type FabricationNetwork = {
   rack: PlanningRackStructure
   cables: MachineInstance[]
   devices: MachineInstance[]
   interfaces: FabricationNetworkInterface[]
+  buses: FabricationNetworkBus[]
 }
 
 function adjacentFabricationCables(state: GameState, instance: MachineInstance) {
@@ -2110,7 +2312,7 @@ export function fabricationNetworkForController(state: GameState, controllerUid:
     }
   }
   const faceInterfaces: FabricationNetworkInterface[] = cables.flatMap((cable) => Object.values(cable.fabricationInterfaces ?? {})
-    .filter((attachment): attachment is FabricationInterfaceAttachment => Boolean(attachment))
+    .filter((attachment): attachment is FabricationInterfaceAttachment => Boolean(attachment && attachment.kind === 'jobInterface'))
     .map((attachment) => ({
       kind: 'face' as const,
       uid: attachment.uid,
@@ -2129,7 +2331,16 @@ export function fabricationNetworkForController(state: GameState, controllerUid:
       instance,
     }))
   const interfaces = [...faceInterfaces, ...blockInterfaces]
-  return { rack, cables, devices: [...devices.values()], interfaces }
+  const buses: FabricationNetworkBus[] = cables.flatMap((cable) => Object.values(cable.fabricationInterfaces ?? {})
+    .filter((attachment): attachment is FabricationInterfaceAttachment => Boolean(attachment && isFabricationBusAttachment(attachment)))
+    .map((attachment) => ({
+      uid: attachment.uid,
+      machineId: attachment.kind as 'terminalImportBus' | 'terminalExportBus',
+      priority: attachment.priority,
+      cable,
+      attachment,
+    })))
+  return { rack, cables, devices: [...devices.values()], interfaces, buses }
 }
 
 export function fabricationNetworks(state: GameState) {
@@ -2156,12 +2367,28 @@ export function fabricationInterfaceByUid(state: GameState, interfaceUid: string
   }
   for (const instance of state.machineInstances) {
     for (const attachment of Object.values(instance.fabricationInterfaces ?? {})) {
-      if (attachment?.uid === interfaceUid) {
+      if (attachment?.kind === 'jobInterface' && attachment.uid === interfaceUid) {
         return {
           kind: 'face' as const,
           uid: attachment.uid,
           installedRecipeCardUids: attachment.installedRecipeCardUids,
           priority: attachment.priority,
+          cable: instance,
+          attachment,
+        }
+      }
+    }
+  }
+  return null
+}
+
+export function fabricationFaceByUid(state: GameState, attachmentUid: string) {
+  for (const instance of state.machineInstances) {
+    for (const attachment of Object.values(instance.fabricationInterfaces ?? {})) {
+      if (attachment?.uid === attachmentUid) {
+        return {
+          uid: attachment.uid,
+          machineId: fabricationMachineForAttachment(attachment),
           cable: instance,
           attachment,
         }
@@ -2421,13 +2648,43 @@ export function requestFabricationJob(state: GameState, cardUid: string, quantit
 
 export function setFabricationPriority(state: GameState, interfaceUid: string, priority: number) {
   const fabricationInterface = fabricationInterfaceByUid(state, interfaceUid)
-  if (!fabricationInterface) return state
+  const fabricationFace = fabricationInterface ? null : fabricationFaceByUid(state, interfaceUid)
+  if (!fabricationInterface && !fabricationFace) return state
   const next = cloneState(state)
-  const nextInterface = fabricationInterfaceByUid(next, interfaceUid)!
   const nextPriority = Math.max(-10, Math.min(10, Math.floor(priority)))
-  if (nextInterface.kind === 'face') nextInterface.attachment.priority = nextPriority
-  else nextInterface.instance.fabricationPriority = nextPriority
+  const nextInterface = fabricationInterfaceByUid(next, interfaceUid)
+  if (nextInterface?.kind === 'face') nextInterface.attachment.priority = nextPriority
+  else if (nextInterface?.kind === 'block') nextInterface.instance.fabricationPriority = nextPriority
+  else {
+    const nextFace = fabricationFaceByUid(next, interfaceUid)
+    if (!nextFace) return state
+    nextFace.attachment.priority = nextPriority
+  }
   return next
+}
+
+function toggleFabricationBusFilter(state: GameState, busUid: string, filter: FabricationBusFilter) {
+  const found = fabricationFaceByUid(state, busUid)
+  if (!found || !isFabricationBusAttachment(found.attachment)) return state
+  const next = cloneState(state)
+  const nextFound = fabricationFaceByUid(next, busUid)
+  if (!nextFound) return state
+  const key = `${filter.kind}:${filter.id}`
+  const current = nextFound.attachment.filters
+  const hasFilter = current.some((candidate) => `${candidate.kind}:${candidate.id}` === key)
+  nextFound.attachment.filters = hasFilter
+    ? current.filter((candidate) => `${candidate.kind}:${candidate.id}` !== key)
+    : [...current, filter].slice(0, 9)
+  next.lastSavedAt = Date.now()
+  return next
+}
+
+export function toggleFabricationBusItemFilter(state: GameState, busUid: string, resourceId: ResourceId) {
+  return toggleFabricationBusFilter(state, busUid, { kind: 'item', id: resourceId })
+}
+
+export function toggleFabricationBusFluidFilter(state: GameState, busUid: string, fluidId: FluidId) {
+  return toggleFabricationBusFilter(state, busUid, { kind: 'fluid', id: fluidId })
 }
 
 export function setFabricationInterfaceFace(state: GameState, interfaceUid: string, direction?: PipeDirection) {
@@ -2521,17 +2778,25 @@ export function craftableQuantity(state: GameState, recipe: Recipe, grid?: Craft
   if (!hasDurableUses(state, recipe.durabilityCosts)) return 0
 
   const inputs = combineResourceAmounts(recipe.inputs)
-  if (inputs.length === 0) return 0
+  const machineInputs = recipe.machineInputs ?? []
+  if (inputs.length === 0 && machineInputs.length === 0) return 0
 
-  const resourceQuantity = inputs.reduce((maxQuantity, amount) => {
-    const available = batchAvailableResourceAmount(state, amount.id, grid)
-    return Math.max(0, Math.min(maxQuantity, Math.floor(available / amount.amount)))
-  }, Number.POSITIVE_INFINITY)
+  const resourceQuantity = inputs.length
+    ? inputs.reduce((maxQuantity, amount) => {
+        const available = batchAvailableResourceAmount(state, amount.id, grid)
+        return Math.max(0, Math.min(maxQuantity, Math.floor(available / amount.amount)))
+      }, Number.POSITIVE_INFINITY)
+    : Number.POSITIVE_INFINITY
+  const machineQuantity = machineInputs.length
+    ? machineInputs.reduce((maxQuantity, amount) => {
+        return Math.max(0, Math.min(maxQuantity, Math.floor(availableUnplacedMachineCount(state, amount.id) / amount.amount)))
+      }, Number.POSITIVE_INFINITY)
+    : Number.POSITIVE_INFINITY
   const durabilityQuantity = (recipe.durabilityCosts ?? []).reduce((maxQuantity, amount) => {
     return Math.max(0, Math.min(maxQuantity, Math.floor(totalDurableUses(state, amount.id) / amount.amount)))
   }, Number.POSITIVE_INFINITY)
 
-  return Math.min(resourceQuantity, durabilityQuantity)
+  return Math.min(resourceQuantity, machineQuantity, durabilityQuantity)
 }
 
 export function missingForQuantity(state: GameState, recipe: Recipe, quantity: number, grid?: CraftSlot[]) {
@@ -2610,6 +2875,12 @@ export function craftRecipeInstant(state: GameState, recipe: Recipe, quantity: n
   if (craftableQuantity(state, recipe) < requestedQuantity) return state
 
   let next = subtractResources(state, scaleResourceAmounts(recipe.inputs, requestedQuantity))
+  if (recipe.machineInputs?.length) {
+    next = cloneState(next)
+    for (const machine of scaleMachineAmounts(recipe.machineInputs, requestedQuantity)) {
+      next.machines[machine.id] = Math.max(0, next.machines[machine.id] - machine.amount)
+    }
+  }
   next = addResources(next, scaleResourceAmounts(recipe.outputs, requestedQuantity))
   next = applyDurabilityCosts(next, scaleResourceAmounts(recipe.durabilityCosts ?? [], requestedQuantity))
   if (recipe.outputs.length) {
@@ -2664,7 +2935,7 @@ function nextMachineUid(state: GameState, machineId: MachineId) {
 
 type MatchedProcessRecipe = {
   recipe: ProcessRecipe
-  inputCost: ResourceAmount
+  inputCost?: ResourceAmount
   secondaryInputCost?: ResourceAmount
   extraInputCosts?: ResourceAmount[]
   assemblerInputAmounts?: number[]
@@ -2695,7 +2966,6 @@ function processSlotCanPay(slot: ProcessSlot, cost: ResourceAmount) {
 }
 
 function recipeItemOutputs(recipe: ProcessRecipe) {
-  if (recipe.fluidOnly) return []
   return [recipe.output, recipe.secondaryOutput].filter((output): output is ResourceAmount => Boolean(output && output.amount > 0))
 }
 
@@ -2736,7 +3006,8 @@ function canCentrifugeUniversalOutputsAccept(process: MachineProcessState, recip
 }
 
 function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot, extraInputs: ProcessSlot[] = []): MatchedProcessRecipe | undefined {
-  if (recipe.fluidOnly) return { recipe, inputCost: recipe.input }
+  if (recipe.fluidOnly) return { recipe }
+  if (!recipe.input) return undefined
   if (recipe.machineId === 'lvAssembler' || recipe.machineId === 'lvMixer') {
     const slots = [input, secondaryInput, ...extraInputs]
     const costs = [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])]
@@ -2846,8 +3117,12 @@ function addRecipeItemOutputs(process: MachineProcessState, recipe: ProcessRecip
   })
 }
 
-function canFluidOutputAccept(process: MachineProcessState, recipe: ProcessRecipe) {
-  return recipeFluidOutputs(recipe).every((output) => (process.fluids[output.id] ?? 0) + output.amount <= process.fluidCapacityLitres)
+function canFluidOutputAccept(state: GameState, instance: MachineInstance, recipe: ProcessRecipe) {
+  return recipeFluidOutputs(recipe).every((output) => {
+    const configuredCapacity = fluidCapacityForFluid(state, instance, output.id, 'output')
+    const capacity = configuredCapacity > 0 ? configuredCapacity : instance.process.fluidCapacityLitres
+    return (instance.process.fluids[output.id] ?? 0) + output.amount <= capacity
+  })
 }
 
 function addFluidOutput(process: MachineProcessState, recipe: ProcessRecipe) {
@@ -2942,7 +3217,15 @@ function machineAt(state: GameState, x: number, y: number) {
 }
 
 export function isFluidOutletConfigurableMachine(machineId: MachineId) {
-  return machineId === 'cokeOven' || machineId === 'cokeOvenPart' || machineId === 'lvChemicalReactor' || machineId === 'lvCentrifuge' || machineId === 'lvAirCollector'
+  return (
+    machineId === 'cokeOven' ||
+    machineId === 'lvChemicalReactor' ||
+    machineId === 'lvCentrifuge' ||
+    machineId === 'lvAirCollector' ||
+    machineId === 'lvWaterSource' ||
+    machineId === 'pyrolysisOven' ||
+    machineId === 'lvDistillery'
+  )
 }
 
 function machineAcceptsFluidInput(machineId: MachineId) {
@@ -3036,6 +3319,25 @@ export function machinesCanConnect(from: MachineInstance, to: MachineInstance) {
 export function machinesCanConnectEu(from: MachineInstance, to: MachineInstance) {
   const direction = directionBetween(from, to)
   if (!direction) return false
+  const transformerVoltages = (machineId: MachineId) => {
+    if (machineId === 'lvToMvTransformer') return { input: 32, output: 128 }
+    if (machineId === 'mvToLvTransformer') return { input: 128, output: 32 }
+    return null
+  }
+  const fromTransformer = transformerVoltages(from.machineId)
+  const toTransformer = transformerVoltages(to.machineId)
+  if (fromTransformer && toTransformer) {
+    const compatible = fromTransformer.output === toTransformer.input || toTransformer.output === fromTransformer.input
+    if (!compatible) return false
+  } else if (fromTransformer) {
+    const voltage = machineEuVoltage(to.machineId)
+    if (voltage !== fromTransformer.input && voltage !== fromTransformer.output) return false
+  } else if (toTransformer) {
+    const voltage = machineEuVoltage(from.machineId)
+    if (voltage !== toTransformer.input && voltage !== toTransformer.output) return false
+  } else if (machineEuVoltage(from.machineId) !== machineEuVoltage(to.machineId)) {
+    return false
+  }
   const allowsEuConnection = (instance: MachineInstance, side: PipeDirection) => {
     if (isEuPoweredMachine(instance.machineId) && isFluidOutletConfigurableMachine(instance.machineId)) return true
     return connectorAllowsDirection(instance, side)
@@ -3046,6 +3348,16 @@ export function machinesCanConnectEu(from: MachineInstance, to: MachineInstance)
 function machinesCanFlowEu(from: MachineInstance, to: MachineInstance) {
   const direction = directionBetween(from, to)
   if (!direction || !machinesCanConnectEu(from, to)) return false
+  const transformerInputVoltage = (machineId: MachineId) => (
+    machineId === 'lvToMvTransformer' ? 32 : machineId === 'mvToLvTransformer' ? 128 : null
+  )
+  const transformerOutputVoltage = (machineId: MachineId) => (
+    machineId === 'lvToMvTransformer' ? 128 : machineId === 'mvToLvTransformer' ? 32 : null
+  )
+  const fromOutputVoltage = transformerOutputVoltage(from.machineId)
+  const toInputVoltage = transformerInputVoltage(to.machineId)
+  if (fromOutputVoltage !== null && (toInputVoltage ?? machineEuVoltage(to.machineId)) !== fromOutputVoltage) return false
+  if (toInputVoltage !== null && (fromOutputVoltage ?? machineEuVoltage(from.machineId)) !== toInputVoltage) return false
   if (isEuStorageMachine(from.machineId) && pipeSideMode(from, direction) !== 'output') return false
   if (isEuStorageMachine(to.machineId) && pipeSideMode(to, oppositePipeDirection[direction]) !== 'input') return false
   return true
@@ -3530,6 +3842,12 @@ function canStoreFluid(state: GameState, instance: MachineInstance, fluidId: Flu
   return storedTypes.length < 1 || storedTypes.every((id) => id === fluidId)
 }
 
+function fluidMultiblockControllerForInstance(state: GameState, instance: MachineInstance) {
+  const multiblock = multiblockCenterForInstance(state, instance)
+  if (!multiblock || machineFluidCapacity(multiblock.spec.controller) < 1) return null
+  return machineAt(state, multiblock.x, multiblock.y) ?? null
+}
+
 function connectedFluidNetwork(state: GameState, start: MachineInstance, flowOnly = false) {
   const context = activeTopologyFor(state)
   const cacheKey = `${start.uid}:${flowOnly ? 'flow' : 'connect'}`
@@ -3547,14 +3865,14 @@ function connectedFluidNetwork(state: GameState, start: MachineInstance, flowOnl
     visited.add(instance.uid)
     network.push(instance)
 
-    if (instance.uid !== start.uid && !isSteamPipeMachine(instance.machineId)) continue
+    if (instance.uid !== start.uid && !isSteamPipeMachine(instance.machineId) && !fluidMultiblockControllerForInstance(state, instance)) continue
 
     for (const position of adjacentPositions(state, instance.x, instance.y)) {
       const next = machineAt(state, position.x, position.y)
       if (
         next &&
         (flowOnly ? machinesCanFlow(instance, next) : machinesCanConnect(instance, next)) &&
-        (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well') &&
+        (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well' || Boolean(fluidMultiblockControllerForInstance(state, next))) &&
         !visited.has(next.uid)
       ) {
         queue.push(next)
@@ -3618,7 +3936,7 @@ function connectedEuNetworkWithDistance(state: GameState, start: MachineInstance
     visited.set(current.instance.uid, current.cableDistance)
     network.push(current)
 
-    if (current.instance.uid !== start.uid && !isEuCableMachine(current.instance.machineId) && !isEuMultiblockBridge(current.instance)) continue
+    if (current.instance.uid !== start.uid && !isEuCableMachine(current.instance.machineId) && !isEuTransformerMachine(current.instance.machineId) && !isEuMultiblockBridge(current.instance)) continue
 
     for (const position of adjacentPositions(state, current.instance.x, current.instance.y)) {
       const next = machineAt(state, position.x, position.y)
@@ -3657,7 +3975,11 @@ function flowCellsForInstance(state: GameState, instance: MachineInstance) {
   }
 
   const multiblock = multiblockCenterForInstance(state, instance)
-  if (multiblock && isFluidOutletConfigurableMachine(multiblock.spec.controller)) {
+  if (multiblock && (
+    isFluidOutletConfigurableMachine(multiblock.spec.controller) ||
+    machineFluidOutputLitresPerSecond(multiblock.spec.controller) > 0 ||
+    machineFluidCapacity(multiblock.spec.controller) > 0
+  )) {
     const cells = multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
       .map((position) => machineAt(state, position.x, position.y))
       .filter((cell): cell is MachineInstance => Boolean(cell))
@@ -3667,6 +3989,33 @@ function flowCellsForInstance(state: GameState, instance: MachineInstance) {
 
   context?.cache.flowCells.set(instance.uid, [instance.uid])
   return [instance]
+}
+
+function fluidOutputCellsForInstance(state: GameState, instance: MachineInstance) {
+  const cells = flowCellsForInstance(state, instance)
+  const multiblock = multiblockCenterForInstance(state, instance)
+  if (!multiblock || !isFluidOutletConfigurableMachine(multiblock.spec.controller)) return cells
+
+  const controller = machineAt(state, multiblock.x, multiblock.y)
+  if (!controller) return []
+  const outputDirections = new Set(
+    pipeDirections.filter((direction) => {
+      const mode = pipeSideMode(controller, direction)
+      return mode === 'output' || mode === 'both'
+    }),
+  )
+  if (outputDirections.size < 1) return []
+
+  const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+  const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+  const maxX = originX + multiblock.spec.width - 1
+  const maxY = originY + multiblock.spec.height - 1
+  return cells.filter((cell) => (
+    (cell.y === originY && outputDirections.has('north')) ||
+    (cell.x === maxX && outputDirections.has('east')) ||
+    (cell.y === maxY && outputDirections.has('south')) ||
+    (cell.x === originX && outputDirections.has('west'))
+  ))
 }
 
 function connectedFluidNetworkForInstance(state: GameState, start: MachineInstance, flowOnly = false) {
@@ -3685,13 +4034,38 @@ function canSteamFlowBetween(state: GameState, source: MachineInstance, target: 
 }
 
 function canFluidFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
-  const targetUids = new Set(flowCellsForInstance(state, target).map((cell) => cell.uid))
-  return flowCellsForInstance(state, source).some((sourceCell) => connectedFluidNetwork(state, sourceCell, true).some((instance) => targetUids.has(instance.uid)))
+  return Boolean(fluidRouteBetween(state, source, target))
 }
 
 function fluidRouteBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
-  const starts = flowCellsForInstance(state, source)
+  const starts = fluidOutputCellsForInstance(state, source)
+  if (starts.length < 1) return null
   const startUids = new Set(starts.map((instance) => instance.uid))
+  const multiblock = multiblockCenterForInstance(state, source)
+  const outwardDirectionsByStart = new Map<string, Set<PipeDirection>>()
+  if (multiblock && isFluidOutletConfigurableMachine(multiblock.spec.controller)) {
+    const controller = machineAt(state, multiblock.x, multiblock.y)
+    const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+    const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+    const maxX = originX + multiblock.spec.width - 1
+    const maxY = originY + multiblock.spec.height - 1
+    for (const start of starts) {
+      const directions = new Set<PipeDirection>()
+      for (const direction of pipeDirections) {
+        const mode = controller ? pipeSideMode(controller, direction) : 'blocked'
+        if (mode !== 'output' && mode !== 'both') continue
+        if (
+          (direction === 'north' && start.y === originY) ||
+          (direction === 'east' && start.x === maxX) ||
+          (direction === 'south' && start.y === maxY) ||
+          (direction === 'west' && start.x === originX)
+        ) {
+          directions.add(direction)
+        }
+      }
+      outwardDirectionsByStart.set(start.uid, directions)
+    }
+  }
   const targetUids = new Set(flowCellsForInstance(state, target).map((instance) => instance.uid))
   const previous = new Map<string, string | null>()
   const queue = [...starts]
@@ -3707,8 +4081,11 @@ function fluidRouteBetween(state: GameState, source: MachineInstance, target: Ma
     }
     if (!startUids.has(current.uid) && !isSteamPipeMachine(current.machineId)) continue
 
-    for (const position of adjacentPositions(state, current.x, current.y)) {
-      const next = machineAt(state, position.x, position.y)
+    for (const direction of pipeDirections) {
+      const allowedStartDirections = outwardDirectionsByStart.get(current.uid)
+      if (allowedStartDirections && !allowedStartDirections.has(direction)) continue
+      const offset = pipeDirectionOffsets[direction]
+      const next = machineAt(state, current.x + offset.dx, current.y + offset.dy)
       if (!next || previous.has(next.uid) || !machinesCanFlow(current, next)) continue
       if (!isSteamPipeMachine(next.machineId) && !targetUids.has(next.uid)) continue
       previous.set(next.uid, current.uid)
@@ -3745,7 +4122,7 @@ function euRouteBetween(state: GameState, source: MachineInstance, target: Machi
       reachedUid = current.uid
       break
     }
-    if (current.uid !== source.uid && !isEuCableMachine(current.machineId) && !isEuMultiblockBridge(state, current)) continue
+    if (current.uid !== source.uid && !isEuCableMachine(current.machineId) && !isEuTransformerMachine(current.machineId) && !isEuMultiblockBridge(state, current)) continue
 
     for (const position of adjacentPositions(state, current.x, current.y)) {
       const next = machineAt(state, position.x, position.y)
@@ -3761,7 +4138,7 @@ function euRouteBetween(state: GameState, source: MachineInstance, target: Machi
   let currentUid: string | null = reachedUid
   while (currentUid) {
     const instance = state.machineInstances.find((candidate) => candidate.uid === currentUid)
-    if (instance && isEuCableMachine(instance.machineId)) route.push(instance)
+    if (instance && (isEuCableMachine(instance.machineId) || isEuTransformerMachine(instance.machineId))) route.push(instance)
     currentUid = previous.get(currentUid) ?? null
   }
   return route.reverse()
@@ -3810,22 +4187,57 @@ function recordFluidSourceFlow(source: MachineInstance, fluidId: FluidId, amount
   activeFluidSourceFlows.set(source.uid, flows)
 }
 
-function euRouteCableAmps(route: MachineInstance[]) {
-  return route.length > 0 ? Math.min(...route.map((cable) => Math.max(1, machineEuAmps(cable.machineId)))) : Number.POSITIVE_INFINITY
+function euRouteCapacityPerSecond(route: MachineInstance[]) {
+  const cables = route.filter((instance) => isEuCableMachine(instance.machineId))
+  return cables.length > 0
+    ? Math.min(...cables.map((cable) => Math.max(1, machineEuAmps(cable.machineId)) * machineEuVoltage(cable.machineId)))
+    : Number.POSITIVE_INFINITY
+}
+
+function euRouteLossPerSecond(route: MachineInstance[], grossPowerPerSecond: number) {
+  if (grossPowerPerSecond <= 0) return 0
+  return route
+    .filter((instance) => isEuCableMachine(instance.machineId))
+    .reduce((loss, cable) => {
+      const cableAmps = Math.max(1, Math.ceil(grossPowerPerSecond / machineEuVoltage(cable.machineId)))
+      return loss + machineEuCableLossPerTile(cable.machineId) * cableAmps
+    }, 0)
+}
+
+function euRouteTransferProfile(source: MachineInstance, target: MachineInstance, route: MachineInstance[], maxTargetAmps = Number.POSITIVE_INFINITY) {
+  const targetVoltage = machineEuVoltage(target.machineId)
+  const targetPowerLimit = maxTargetAmps * targetVoltage
+  const grossPowerPerSecond = Math.min(
+    euSourceOutputPerSecond(source),
+    euRouteCapacityPerSecond(route),
+    targetPowerLimit,
+  )
+  const lossPerSecond = euRouteLossPerSecond(route, grossPowerPerSecond)
+  return {
+    grossPowerPerSecond,
+    lossPerSecond,
+    deliverablePerSecond: Math.max(0, grossPowerPerSecond - lossPerSecond),
+  }
 }
 
 function euRouteAllowance(route: MachineInstance[], requested: number, elapsedMs: number) {
-  return route.reduce((allowance, cable) => {
-    const capacity = (Math.max(1, machineEuAmps(cable.machineId)) * lvEuPerAmpSecond * elapsedMs) / 1000
+  return route.filter((instance) => isEuCableMachine(instance.machineId)).reduce((allowance, cable) => {
+    const capacity = (Math.max(1, machineEuAmps(cable.machineId)) * machineEuVoltage(cable.machineId) * elapsedMs) / 1000
     return Math.min(allowance, consumeTickBudget(activeEuTransferBudgets, `eu-segment:${cable.uid}`, capacity, capacity))
   }, Math.max(0, requested))
 }
 
-function spendEuRoute(route: MachineInstance[], amount: number) {
-  if (amount <= 0) return
-  for (const cable of route) {
-    spendTickBudget(activeEuTransferBudgets, `eu-segment:${cable.uid}`, amount)
-    if (activeEuSegmentFlows) activeEuSegmentFlows.set(cable.uid, (activeEuSegmentFlows.get(cable.uid) ?? 0) + amount)
+function spendEuRoute(route: MachineInstance[], budgetAmount: number, flowAmount = budgetAmount) {
+  if (budgetAmount <= 0) return
+  for (const segment of route) {
+    if (isEuTransformerMachine(segment.machineId)) {
+      if (activeEuTransformerFlows) activeEuTransformerFlows.set(segment.uid, (activeEuTransformerFlows.get(segment.uid) ?? 0) + flowAmount)
+      continue
+    }
+    if (!isEuCableMachine(segment.machineId)) continue
+    const cable = segment
+    spendTickBudget(activeEuTransferBudgets, `eu-segment:${cable.uid}`, budgetAmount)
+    if (activeEuSegmentFlows) activeEuSegmentFlows.set(cable.uid, (activeEuSegmentFlows.get(cable.uid) ?? 0) + flowAmount)
   }
 }
 
@@ -3914,7 +4326,8 @@ export function availableConnectedEuAmps(state: GameState, instance: MachineInst
   return connectedEuSources(state, instance).reduce((available, source) => {
     const route = euRouteBetween(state, source.instance, instance)
     if (!route) return available
-    return Math.max(available, Math.min(euSourceOutputAmps(source.instance), euRouteCableAmps(route)))
+    const profile = euRouteTransferProfile(source.instance, instance, route)
+    return Math.max(available, profile.grossPowerPerSecond / machineEuVoltage(instance.machineId))
   }, 0)
 }
 
@@ -4047,7 +4460,7 @@ function connectedFluidStorage(state: GameState, start: MachineInstance, fluidId
   return uniqueMachineInstances(
     connectedFluidNetworkForInstance(state, start, true)
       .filter((instance) => instance.uid !== start.uid)
-      .map((instance) => (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
+      .map((instance) => fluidMultiblockControllerForInstance(state, instance) ?? (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
       .filter((instance) => instance.uid !== startStorage.uid && canStoreFluid(state, instance, fluidId)),
   )
 }
@@ -4057,7 +4470,7 @@ function connectedFluidSources(state: GameState, start: MachineInstance, fluidId
   return uniqueMachineInstances(
     connectedFluidNetworkForInstance(state, start)
       .filter((instance) => instance.uid !== start.uid)
-      .map((instance) => (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
+      .map((instance) => fluidMultiblockControllerForInstance(state, instance) ?? (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
       .filter((instance) => instance.uid !== startStorage.uid && canExportFluidSource(state, instance, fluidId) && (instance.process.fluids[fluidId] ?? 0) > 0 && canFluidFlowBetween(state, instance, startStorage)),
   ).sort((a, b) => a.uid.localeCompare(b.uid))
 }
@@ -4112,6 +4525,18 @@ function canExportFluidSource(state: GameState, instance: MachineInstance, fluid
 
 function connectedFluidOutputTargets(state: GameState, source: MachineInstance, fluidId: FluidId) {
   const targets = connectedFluidStorage(state, source, fluidId)
+    .filter((target) => canFluidFlowBetween(state, source, target))
+  const outputFluids = [...new Set(
+    machineFluidBuffersForInstance(state, source)
+      .filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
+      .flatMap((buffer) => buffer.acceptedFluids),
+  )]
+  if (outputFluids.length > 1 && targets.length > 1) {
+    const outputIndex = outputFluids.indexOf(fluidId)
+    if (outputIndex >= 0) {
+      return targets.filter((_, targetIndex) => targetIndex % outputFluids.length === outputIndex)
+    }
+  }
   return targets
 }
 
@@ -4352,7 +4777,7 @@ export function currentSteamPipeFlowLitresPerSecond(state: GameState, instance: 
         const capacity = machineSteamCapacityLitres(target.machineId) * steamMsPerLitre
         return sum + Math.max(0, capacity - target.process.steamStoredMs)
       }
-      if (isEuProducerMachine(target.machineId)) {
+      if (target.machineId === 'steamTurbine') {
         return sum + (target.process.euStored < steamTurbineEuCapacity ? steamTurbineSteamUseLitresPerSecond * steamMsPerLitre : 0)
       }
       if (isTankStorageMachine(target.machineId)) {
@@ -4456,6 +4881,8 @@ function tickPipeDisplayBuffers(state: GameState) {
       instance.process.euCapacity = capacity
       instance.process.euFlowPerSecond = flowEu
       instance.process.euStored = flowEu > 0 ? Math.min(capacity, availableEu, Math.max(flowEu * 0.5, capacity * 0.35)) : 0
+    } else if (isEuTransformerMachine(instance.machineId)) {
+      instance.process.euFlowPerSecond = (activeEuTransformerFlows?.get(instance.uid) ?? 0) / elapsedSeconds
     }
     if (isEuStorageMachine(instance.machineId)) {
       instance.process.euInputPerSecond = (activeEuInputFlows?.get(instance.uid) ?? 0) / elapsedSeconds
@@ -4476,14 +4903,14 @@ function pushFluidToConnectedStorage(state: GameState, source: MachineInstance, 
     consumeTickBudget(activeFluidTransferBudgets, sourceBudgetKey, sourceTransferLimit, sourceTransferLimit),
   )
   let moved = 0
-  const storageRoutes = connectedFluidStorage(state, source, fluidId)
+  const storageRoutes = connectedFluidOutputTargets(state, source, fluidId)
     .sort((a, b) => a.uid.localeCompare(b.uid))
     .map((storage) => ({ storage, route: fluidRouteBetween(state, source, storage) }))
     .filter((entry): entry is { storage: MachineInstance; route: MachineInstance[] } => Boolean(entry.route))
   for (const [index, { storage, route }] of storageRoutes.entries()) {
     if (remaining < 1) break
     storage.process.fluidCapacityLitres = machineFluidCapacityForInstance(state, storage)
-    const free = storage.process.fluidCapacityLitres - (storage.process.fluids[fluidId] ?? 0)
+    const free = freeFluidCapacity(state, storage, fluidId)
     const remainingRoutes = storageRoutes.slice(index).map((entry) => entry.route)
     const fairShare = Math.ceil(remaining / Math.max(1, storageRoutes.length - index))
     const transfer = Math.min(remaining, free, fairShare, fluidRouteAllowance(route, fairShare, elapsedMs, remainingRoutes))
@@ -4582,29 +5009,27 @@ function consumeConnectedEuFromProducers(state: GameState, instance: MachineInst
     if (remaining <= 0) break
     const route = euRouteBetween(state, producer.instance, instance)
     if (!route) continue
-    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), euRouteCableAmps(route), maxRouteAmps)
-    if (routeAmps <= 0) continue
-    const outputPerSecond = Math.min(euSourceOutputPerSecond(producer.instance), routeAmps * lvEuPerAmpSecond)
-    const lossPerSecond = route.length * tinCableLossEuPerTile * Math.max(1, routeAmps)
-    const deliverablePerSecond = Math.max(0, outputPerSecond - lossPerSecond)
-    const fullTransferLimit = (deliverablePerSecond * elapsedMs) / 1000
+    const profile = euRouteTransferProfile(producer.instance, instance, route, maxRouteAmps)
+    if (profile.grossPowerPerSecond <= 0 || profile.deliverablePerSecond <= 0) continue
+    const fullGrossLimit = (profile.grossPowerPerSecond * elapsedMs) / 1000
+    const routeLoss = (profile.lossPerSecond * elapsedMs) / 1000
     const budgetKey = `eu-source:${producer.instance.uid}`
     const fullSourceLimit = (euSourceOutputPerSecond(producer.instance) * elapsedMs) / 1000
-    const sourceLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullSourceLimit, fullTransferLimit)
-    const cableLimit = euRouteAllowance(route, fullTransferLimit, elapsedMs)
-    const transferLimit = Math.min(sourceLimit, cableLimit)
-    if (transferLimit <= 0) continue
+    const sourceLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullSourceLimit, fullGrossLimit)
+    const cableLimit = euRouteAllowance(route, fullGrossLimit, elapsedMs)
+    const grossLimit = Math.min(fullGrossLimit, sourceLimit, cableLimit, producer.instance.process.euStored)
+    const deliveryLimit = Math.max(0, grossLimit - routeLoss)
+    if (deliveryLimit <= 0) continue
 
-    const routeLoss = (lossPerSecond * elapsedMs) / 1000
     const stored = producer.instance.process.euStored
-    const availableAfterLoss = Math.max(0, stored - routeLoss)
-    const delivered = Math.min(remaining, transferLimit, availableAfterLoss)
+    const delivered = Math.min(remaining, deliveryLimit)
     if (delivered <= 0) continue
+    const grossSpent = delivered + routeLoss
 
-    producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
-    recordEuTransfer(producer.instance, instance, delivered + routeLoss, delivered)
-    spendTickBudget(activeEuTransferBudgets, budgetKey, delivered)
-    spendEuRoute(route, delivered)
+    producer.instance.process.euStored = Math.max(0, stored - grossSpent)
+    recordEuTransfer(producer.instance, instance, grossSpent, delivered)
+    spendTickBudget(activeEuTransferBudgets, budgetKey, grossSpent)
+    spendEuRoute(route, grossSpent, delivered)
     remaining -= delivered
     deliveredTotal += delivered
   }
@@ -4620,29 +5045,27 @@ function consumeConnectedEu(state: GameState, instance: MachineInstance, amount:
     if (remaining <= 0) break
     const route = euRouteBetween(state, producer.instance, instance)
     if (!route) continue
-    const routeAmps = Math.min(euSourceOutputAmps(producer.instance), euRouteCableAmps(route), maxRouteAmps)
-    if (routeAmps <= 0) continue
-    const outputPerSecond = Math.min(euSourceOutputPerSecond(producer.instance), routeAmps * lvEuPerAmpSecond)
-    const lossPerSecond = route.length * tinCableLossEuPerTile * Math.max(1, routeAmps)
-    const deliverablePerSecond = Math.max(0, outputPerSecond - lossPerSecond)
-    const fullTransferLimit = (deliverablePerSecond * elapsedMs) / 1000
+    const profile = euRouteTransferProfile(producer.instance, instance, route, maxRouteAmps)
+    if (profile.grossPowerPerSecond <= 0 || profile.deliverablePerSecond <= 0) continue
+    const fullGrossLimit = (profile.grossPowerPerSecond * elapsedMs) / 1000
+    const routeLoss = (profile.lossPerSecond * elapsedMs) / 1000
     const budgetKey = `eu-source:${producer.instance.uid}`
     const fullSourceLimit = (euSourceOutputPerSecond(producer.instance) * elapsedMs) / 1000
-    const sourceLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullSourceLimit, fullTransferLimit)
-    const cableLimit = euRouteAllowance(route, fullTransferLimit, elapsedMs)
-    const transferLimit = Math.min(sourceLimit, cableLimit)
-    if (transferLimit <= 0) continue
+    const sourceLimit = consumeTickBudget(activeEuTransferBudgets, budgetKey, fullSourceLimit, fullGrossLimit)
+    const cableLimit = euRouteAllowance(route, fullGrossLimit, elapsedMs)
+    const grossLimit = Math.min(fullGrossLimit, sourceLimit, cableLimit, producer.instance.process.euStored)
+    const deliveryLimit = Math.max(0, grossLimit - routeLoss)
+    if (deliveryLimit <= 0) continue
 
-    const routeLoss = (lossPerSecond * elapsedMs) / 1000
     const stored = producer.instance.process.euStored
-    const availableAfterLoss = Math.max(0, stored - routeLoss)
-    const delivered = Math.min(remaining, transferLimit, availableAfterLoss)
+    const delivered = Math.min(remaining, deliveryLimit)
     if (delivered <= 0) continue
+    const grossSpent = delivered + routeLoss
 
-    producer.instance.process.euStored = Math.max(0, stored - delivered - routeLoss)
-    recordEuTransfer(producer.instance, instance, delivered + routeLoss, delivered)
-    spendTickBudget(activeEuTransferBudgets, budgetKey, delivered)
-    spendEuRoute(route, delivered)
+    producer.instance.process.euStored = Math.max(0, stored - grossSpent)
+    recordEuTransfer(producer.instance, instance, grossSpent, delivered)
+    spendTickBudget(activeEuTransferBudgets, budgetKey, grossSpent)
+    spendEuRoute(route, grossSpent, delivered)
     remaining -= delivered
     deliveredTotal += delivered
   }
@@ -4678,12 +5101,15 @@ function decrementProcessSlot(slot: ProcessSlot, amount: number): ProcessSlot {
 
 export function availableUnplacedMachineCount(state: GameState, machineId: MachineId) {
   if (isResourceBackedMachine(machineId)) return Math.max(0, availableResourceAmount(state, machineId))
+  const faceAttachmentCount = (id: FabricationFaceMachineId) => state.machineInstances.reduce((sum, instance) => (
+    sum + Object.values(instance.fabricationInterfaces ?? {}).filter((attachment) => attachment?.kind === id).length
+  ), 0)
   const placed = machineId === 'fabricationCable'
     ? state.machineInstances.filter(hasFabricationCable).length
     : machineId === 'jobInterface'
-      ? state.machineInstances.reduce((sum, instance) => (
-          sum + (instance.machineId === 'jobInterface' ? 1 : 0) + Object.keys(instance.fabricationInterfaces ?? {}).length
-        ), 0)
+      ? state.machineInstances.filter((instance) => instance.machineId === 'jobInterface').length + faceAttachmentCount('jobInterface')
+      : isFabricationFaceMachineId(machineId)
+        ? faceAttachmentCount(machineId)
       : state.machineInstances.filter((instance) => instance.machineId === machineId || (instance.machineId === 'conductorBundle' && (machineId === 'itemConductor' || machineId === 'fluidConductor'))).length
   return Math.max(0, state.machines[machineId] - placed)
 }
@@ -4789,14 +5215,14 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   if (availableUnplacedMachineCount(state, machineId) < 1) return state
   const occupied = state.machineInstances.find((instance) => instance.x === x && instance.y === y)
   if (occupied) {
-    if (machineId === 'jobInterface' && hasFabricationCable(occupied)) {
+    if (isFabricationFaceMachineId(machineId) && hasFabricationCable(occupied)) {
       const direction = pipeDirections.find((candidate) => {
         if (occupied.fabricationInterfaces?.[candidate]) return false
         const offset = pipeDirectionOffsets[candidate]
         const target = machineAt(state, occupied.x + offset.dx, occupied.y + offset.dy)
         return Boolean(target && !hasFabricationCable(target) && !planningRackStructureForPart(state, target))
       })
-      return direction ? attachFabricationInterface(state, occupied.uid, direction) : state
+      return direction ? attachFabricationFace(state, occupied.uid, direction, machineId) : state
     }
     if (machineId === 'fabricationCable' && !hasFabricationCable(occupied) && isConductorMachine(occupied.machineId)) {
       const next = cloneState(state)
@@ -4822,6 +5248,7 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
     next.lastSavedAt = Date.now()
     return next
   }
+  if (machineId === 'terminalImportBus' || machineId === 'terminalExportBus') return state
   const next = cloneState(state)
   if (isResourceBackedMachine(machineId)) next.resources[machineId] -= 1
   const placed: MachineInstance = {
@@ -4888,7 +5315,7 @@ export function removeConductorLane(state: GameState, uid: string, lane: 'item' 
   if (!valid) return state
   if (lane === 'fabrication') {
     if (instance.machineId === 'fabricationCable') return removeMachineInstance(state, uid)
-    const activeInterfaceUids = new Set(Object.values(instance.fabricationInterfaces ?? {}).flatMap((attachment) => attachment?.uid ? [attachment.uid] : []))
+    const activeInterfaceUids = new Set(Object.values(instance.fabricationInterfaces ?? {}).flatMap((attachment) => attachment?.kind === 'jobInterface' && attachment.uid ? [attachment.uid] : []))
     if (state.fabricationJobs.some((job) => job.status !== 'complete' && job.status !== 'cancelled' && job.steps.some((step) => step.interfaceUid && activeInterfaceUids.has(step.interfaceUid)))) return state
     const next = cloneState(state)
     const target = next.machineInstances.find((candidate) => candidate.uid === uid)!
@@ -5127,7 +5554,7 @@ export function removeMachineInstance(state: GameState, uid: string) {
   const protectedArcControllerUid = arcControllerNearInstance(state, instance)?.uid
   const ownedInterfaceUids = new Set([
     ...(instance.machineId === 'jobInterface' ? [instance.uid] : []),
-    ...Object.values(instance.fabricationInterfaces ?? {}).flatMap((attachment) => attachment?.uid ? [attachment.uid] : []),
+    ...Object.values(instance.fabricationInterfaces ?? {}).flatMap((attachment) => attachment?.kind === 'jobInterface' && attachment.uid ? [attachment.uid] : []),
   ])
   if (state.fabricationJobs.some((job) => (
     job.status !== 'complete' && job.status !== 'cancelled' &&
@@ -5147,7 +5574,7 @@ export function removeMachineInstance(state: GameState, uid: string) {
     const nextInputBus = arcStructure.inputBus ? next.machineInstances.find((candidate) => candidate.uid === arcStructure.inputBus?.uid) : null
     if (nextController?.process.activeRecipeId && nextInputBus?.process.input) {
       const activeRecipe = processRecipes.find((recipe) => recipe.id === nextController.process.activeRecipeId)
-      if (activeRecipe) nextInputBus.process.input = decrementProcessSlot(nextInputBus.process.input, activeRecipe.input.amount)
+      if (activeRecipe?.input) nextInputBus.process.input = decrementProcessSlot(nextInputBus.process.input, activeRecipe.input.amount)
       nextController.process.activeRecipeId = null
       nextController.process.progressMs = 0
       nextController.process.durationMs = 0
@@ -5249,7 +5676,7 @@ export function canResourceEnterProcessSlot(machineId: MachineId, slotId: Proces
     return processRecipes.some(
       (recipe) =>
         recipe.machineId === machineId &&
-        [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])].some((cost) => cost.id === resourceId),
+        [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])].some((cost) => cost?.id === resourceId),
     )
   }
   const extraInputSlotIds = machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
@@ -5265,7 +5692,7 @@ export function canResourceEnterProcessSlot(machineId: MachineId, slotId: Proces
       (recipe) =>
         recipe.machineId === machineId &&
         !recipe.fluidOnly &&
-        (recipe.input.id === resourceId || Boolean(recipe.secondaryInput && recipe.secondaryInput.id === resourceId)) &&
+        (recipe.input?.id === resourceId || Boolean(recipe.secondaryInput && recipe.secondaryInput.id === resourceId)) &&
         (machineId !== 'steamAlloySmelter' || isAlloySmelterIngredient(resourceId)),
     )
   }
@@ -5274,7 +5701,7 @@ export function canResourceEnterProcessSlot(machineId: MachineId, slotId: Proces
       (recipe) =>
         recipe.machineId === machineId &&
         Boolean(recipe.secondaryInput) &&
-        (recipe.input.id === resourceId || recipe.secondaryInput?.id === resourceId) &&
+        (recipe.input?.id === resourceId || recipe.secondaryInput?.id === resourceId) &&
         (machineId !== 'steamAlloySmelter' || isAlloySmelterIngredient(resourceId)),
     )
   }
@@ -5327,7 +5754,7 @@ function processRecipeItemAssignments(recipe: ProcessRecipe): Array<{ slotId: Pr
   if (recipe.fluidOnly) return []
   const extraInputSlotIds = recipe.machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   return [
-    { slotId: 'input', amount: recipe.input },
+    ...(recipe.input ? [{ slotId: 'input' as ProcessSlotId, amount: recipe.input }] : []),
     ...(recipe.secondaryInput ? [{ slotId: 'secondaryInput' as ProcessSlotId, amount: recipe.secondaryInput }] : []),
     ...(recipe.extraInputs ?? []).map((amount, index) => ({ slotId: extraInputSlotIds[index], amount })),
     ...(recipe.fuelInput ? [{ slotId: 'fuel' as ProcessSlotId, amount: recipe.fuelInput }] : []),
@@ -5502,7 +5929,7 @@ function tickFurnaceProcess(instance: MachineInstance, elapsedMs: number) {
 
     if (process.progressMs < recipe.durationMs) continue
 
-    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.input = decrementProcessSlot(process.input, recipe.input!.amount)
     process.output = addToProcessOutput(process.output, recipe.output)
     process.progressMs = 0
     process.activeRecipeId = null
@@ -5586,7 +6013,7 @@ function tickSteamProcessMachine(state: GameState, instance: MachineInstance, el
 
     if (process.progressMs < recipe.durationMs) continue
 
-    process.input = decrementProcessSlot(process.input, match.inputCost.amount)
+    if (match.inputCost) process.input = decrementProcessSlot(process.input, match.inputCost.amount)
     if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
     match.extraInputCosts?.forEach((cost, index) => {
       const slotId = assemblerExtraInputSlotIds[index]
@@ -5752,7 +6179,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
   while (remainingMs > 0) {
     const match = findMatchedProcessRecipe(instance.machineId, process.input, process.secondaryInput, extraProcessInputSlots(instance.machineId, process), process.configuredProgramNumber)
     const recipe = match?.recipe
-    if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || !canMachineOutputAccept(process.machineOutput, recipe.machineOutput) || !canCentrifugeUniversalOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(process, recipe))) {
+    if (!recipe || !canRecipeItemOutputsAccept(process, recipe) || !canMachineOutputAccept(process.machineOutput, recipe.machineOutput) || !canCentrifugeUniversalOutputsAccept(process, recipe) || (!arcStructure && !canFluidOutputAccept(state, instance, recipe))) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
@@ -5843,7 +6270,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
         if (slotId && amount > 0) process[slotId] = decrementProcessSlot(process[slotId], amount)
       })
     } else {
-      process.input = decrementProcessSlot(process.input, match.inputCost.amount)
+      if (match.inputCost) process.input = decrementProcessSlot(process.input, match.inputCost.amount)
       if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
       if (
         instance.machineId === 'circuitImprinter' &&
@@ -5900,7 +6327,7 @@ function tickCokeOven(state: GameState, instance: MachineInstance, elapsedMs: nu
   let remainingMs = elapsedMs
   while (remainingMs > 0) {
     const recipe = findProcessRecipeForInput(instance.machineId, process.input)
-    if (!recipe?.output || !canOutputAccept(process.output, recipe.output) || !canFluidOutputAccept(process, recipe)) {
+    if (!recipe?.output || !canOutputAccept(process.output, recipe.output) || !canFluidOutputAccept(state, instance, recipe)) {
       process.activeRecipeId = null
       if (!recipe) {
         process.progressMs = 0
@@ -5917,7 +6344,7 @@ function tickCokeOven(state: GameState, instance: MachineInstance, elapsedMs: nu
 
     if (process.progressMs < recipe.durationMs) continue
 
-    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.input = decrementProcessSlot(process.input, recipe.input!.amount)
     process.output = addToProcessOutput(process.output, recipe.output)
     addFluidOutput(process, recipe)
     process.progressMs = 0
@@ -5950,7 +6377,7 @@ function tickBrickedBlastFurnace(instance: MachineInstance, elapsedMs: number) {
 
     if (process.progressMs < recipe.durationMs) continue
 
-    process.input = decrementProcessSlot(process.input, recipe.input.amount)
+    process.input = decrementProcessSlot(process.input, recipe.input!.amount)
     if (recipe.fuelInput) process.fuel = decrementProcessSlot(process.fuel, recipe.fuelInput.amount)
     process.output = addToProcessOutput(process.output, recipe.output)
     process.progressMs = 0
@@ -6119,6 +6546,113 @@ function tickAirCollector(state: GameState, instance: MachineInstance, elapsedMs
   process.progressMs = 0
   process.activeRecipeId = null
   pushFluidToConnectedStorage(state, instance, 'air', elapsedMs)
+}
+
+function tickPoweredWaterSource(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.euCapacity = machineEuCapacity(instance.machineId)
+  process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+  process.euStored = Math.min(process.euStored, process.euCapacity)
+  process.fluids.water = Math.min(process.fluidCapacityLitres, process.fluids.water ?? 0)
+  fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+  pushFluidToConnectedStorage(state, instance, 'water', elapsedMs)
+
+  const productionRate = machineFluidOutputLitresPerSecond(instance.machineId)
+  const euRate = 8
+  const freeWater = process.fluidCapacityLitres - (process.fluids.water ?? 0)
+  const poweredMs = Math.min(elapsedMs, process.euStored / (euRate / 1000), (freeWater / productionRate) * 1000)
+  if (poweredMs <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+  process.euStored -= (euRate * poweredMs) / 1000
+  process.fluids.water = (process.fluids.water ?? 0) + (productionRate * poweredMs) / 1000
+  process.activeRecipeId = 'pump_deep_water'
+  process.durationMs = 1000
+  process.progressMs = (process.progressMs + poweredMs) % 1000
+  pushFluidToConnectedStorage(state, instance, 'water', elapsedMs)
+}
+
+function tickPoweredFarm(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  const program = processRecipes.find(
+    (recipe) => recipe.machineId === 'poweredFarm' && recipe.programNumber === process.configuredProgramNumber,
+  )
+  process.euCapacity = machineEuCapacity(instance.machineId)
+  process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+  process.euStored = Math.min(process.euStored, process.euCapacity)
+  process.fluids.water = Math.min(process.fluidCapacityLitres, process.fluids.water ?? 0)
+  if (!program) {
+    process.activeRecipeId = null
+    process.progressMs = 0
+    process.durationMs = 0
+    return
+  }
+
+  const waterNeeded = Math.max(0, process.fluidCapacityLitres - (process.fluids.water ?? 0))
+  if (waterNeeded > 0) {
+    process.fluids.water = (process.fluids.water ?? 0) + pullFluidFromConnectedSources(state, instance, 'water', waterNeeded, elapsedMs)
+  }
+  const outputs = recipeItemOutputs(program)
+  const waterLitres = recipeFluidInputs(program).find((fluid) => fluid.id === 'water')?.amount ?? 0
+  const outputsFit = outputs.every((output, index) => canOutputAccept(index === 0 ? process.output : process.output2, output))
+  if ((process.fluids.water ?? 0) <= 0 || !outputsFit) {
+    process.activeRecipeId = null
+    process.durationMs = program.durationMs
+    return
+  }
+
+  fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
+  const euPerMs = recipeEuCost(program) / program.durationMs
+  const waterPerMs = waterLitres / program.durationMs
+  const poweredMs = Math.min(elapsedMs, process.euStored / euPerMs, (process.fluids.water ?? 0) / waterPerMs, program.durationMs - process.progressMs)
+  if (poweredMs <= 0) {
+    process.activeRecipeId = null
+    process.durationMs = program.durationMs
+    return
+  }
+  process.euStored -= poweredMs * euPerMs
+  process.fluids.water = Math.max(0, (process.fluids.water ?? 0) - poweredMs * waterPerMs)
+  process.progressMs += poweredMs
+  process.durationMs = program.durationMs
+  process.activeRecipeId = program.id
+  if (process.progressMs < program.durationMs) return
+
+  if (outputs[0]) process.output = addToProcessOutput(process.output, outputs[0])
+  if (outputs[1]) process.output2 = addToProcessOutput(process.output2, outputs[1])
+  state.recipeMilestones[program.id] = (state.recipeMilestones[program.id] ?? 0) + 1
+  process.progressMs = 0
+  process.activeRecipeId = null
+}
+
+function tickCombustionGenerator(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  const process = instance.process
+  process.euCapacity = machineEuCapacity(instance.machineId)
+  process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+  process.euStored = Math.min(process.euStored, process.euCapacity)
+  process.fluids.benzene = Math.min(process.fluidCapacityLitres, process.fluids.benzene ?? 0)
+  const freeEu = process.euCapacity - process.euStored
+  if (freeEu <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+  const fuelNeeded = Math.max(0, process.fluidCapacityLitres - (process.fluids.benzene ?? 0))
+  if (fuelNeeded > 0) {
+    process.fluids.benzene = (process.fluids.benzene ?? 0) + pullFluidFromConnectedSources(state, instance, 'benzene', fuelNeeded, elapsedMs)
+  }
+  const generationRate = machineEuOutputPerSecond(instance.machineId)
+  const euPerLitre = 256
+  const availableFuel = process.fluids.benzene ?? 0
+  const generated = Math.min(freeEu, generationRate * (elapsedMs / 1000), availableFuel * euPerLitre)
+  if (generated <= 0) {
+    process.activeRecipeId = null
+    return
+  }
+  process.fluids.benzene = Math.max(0, availableFuel - generated / euPerLitre)
+  process.euStored += generated
+  process.activeRecipeId = 'burn_benzene'
+  process.durationMs = 8000
+  process.progressMs = (process.progressMs + elapsedMs) % process.durationMs
 }
 
 function hopperOutputDirections(instance: MachineInstance) {
@@ -6429,6 +6963,167 @@ function insertOneIntoInventory(instance: MachineInstance, resourceId: ResourceI
   return false
 }
 
+function fabricationFaceTarget(state: GameState, cable: MachineInstance, attachment: FabricationInterfaceAttachment) {
+  const offset = pipeDirectionOffsets[attachment.direction]
+  const target = machineAt(state, cable.x + offset.dx, cable.y + offset.dy)
+  if (!target || hasFabricationCable(target) || planningRackStructureForPart(state, target)) return null
+  return target
+}
+
+function fabricationBusAllows(attachment: FabricationInterfaceAttachment, kind: FabricationBusFilter['kind'], id: ResourceId | FluidId, defaultAllows: boolean) {
+  if (attachment.filters.length < 1) return defaultAllows
+  return attachment.filters.some((filter) => filter.kind === kind && filter.id === id)
+}
+
+function markFabricationBusBlocked(attachment: FabricationInterfaceAttachment, reason: string) {
+  attachment.lastBlockedReason = reason
+  attachment.lastTransferAmount = 0
+  attachment.lastTransferKind = undefined
+}
+
+function markFabricationBusTransfer(attachment: FabricationInterfaceAttachment, kind: 'item' | 'fluid', amount: number) {
+  attachment.lastBlockedReason = undefined
+  attachment.lastTransferKind = kind
+  attachment.lastTransferAmount = amount
+}
+
+function linkedFluidFreeCapacity(state: GameState, network: FabricationNetwork, fluidId: FluidId) {
+  return linkedTankControllers(state, network).reduce((sum, tank) => (
+    sum + (canStoreFluid(state, tank, fluidId) ? freeFluidCapacity(state, tank, fluidId) : 0)
+  ), 0)
+}
+
+function withdrawLinkedFluid(state: GameState, network: FabricationNetwork, fluidId: FluidId, amount: number) {
+  let remaining = normalizeLitres(amount)
+  let moved = 0
+  for (const tank of linkedTankControllers(state, network).filter((candidate) => (candidate.process.fluids[fluidId] ?? 0) > 0)) {
+    const transfer = normalizeLitres(Math.min(remaining, tank.process.fluids[fluidId] ?? 0))
+    if (transfer <= 0) continue
+    tank.process.fluids[fluidId] = normalizeLitres((tank.process.fluids[fluidId] ?? 0) - transfer)
+    moved = normalizeLitres(moved + transfer)
+    remaining = normalizeLitres(remaining - transfer)
+    if (remaining <= 0) break
+  }
+  return moved
+}
+
+function tickFabricationImportBus(state: GameState, network: FabricationNetwork, bus: FabricationNetworkBus, target: MachineInstance, elapsedMs: number) {
+  const attachment = bus.attachment
+  attachment.transferProgressMs = (attachment.transferProgressMs ?? 0) + elapsedMs
+  while ((attachment.transferProgressMs ?? 0) >= 500) {
+    const sourceSlot = removableInventorySlots(target).find((slot) => {
+      const stored = slot.get()
+      return Boolean(stored && fabricationBusAllows(attachment, 'item', stored.id, true))
+    })
+    const stored = sourceSlot?.get()
+    if (!sourceSlot || !stored) break
+    if (network.rack.controller.process.euStored < 0.25) {
+      markFabricationBusBlocked(attachment, 'Planning Controller needs EU')
+      attachment.transferProgressMs = 500
+      return
+    }
+    sourceSlot.set(decrementProcessSlot(stored, 1))
+    state.resources[stored.id] += 1
+    state.discoveredResources = Array.from(new Set([...state.discoveredResources, stored.id]))
+    recordResourceMilestones(state, [{ id: stored.id, amount: 1 }])
+    network.rack.controller.process.euStored -= 0.25
+    attachment.transferProgressMs = (attachment.transferProgressMs ?? 0) - 500
+    markFabricationBusTransfer(attachment, 'item', 1)
+    return
+  }
+
+  const fluidRate = 64 * (elapsedMs / 1000)
+  for (const fluidId of storedFluidTypes(target.process)) {
+    if (!fabricationBusAllows(attachment, 'fluid', fluidId, true)) continue
+    const sourceCapacity = fluidCapacityForFluid(state, target, fluidId, 'output')
+    if (sourceCapacity <= 0) continue
+    const free = linkedFluidFreeCapacity(state, network, fluidId)
+    const transfer = normalizeLitres(Math.min(fluidRate, target.process.fluids[fluidId] ?? 0, free))
+    if (transfer <= 0) {
+      markFabricationBusBlocked(attachment, free <= 0 ? `No linked tank capacity for ${fluidLabels[fluidId]}` : 'No fluid available')
+      return
+    }
+    if (network.rack.controller.process.euStored < 0.25) {
+      markFabricationBusBlocked(attachment, 'Planning Controller needs EU')
+      return
+    }
+    target.process.fluids[fluidId] = normalizeLitres((target.process.fluids[fluidId] ?? 0) - transfer)
+    const leftover = returnLinkedFluid(state, network, fluidId, transfer)
+    const moved = normalizeLitres(transfer - leftover)
+    if (leftover > 0) target.process.fluids[fluidId] = normalizeLitres((target.process.fluids[fluidId] ?? 0) + leftover)
+    if (moved <= 0) continue
+    network.rack.controller.process.euStored = Math.max(0, network.rack.controller.process.euStored - 0.25)
+    markFabricationBusTransfer(attachment, 'fluid', moved)
+    return
+  }
+
+  markFabricationBusBlocked(attachment, 'No matching adjacent contents')
+  if ((attachment.transferProgressMs ?? 0) > 500) attachment.transferProgressMs = 500
+}
+
+function tickFabricationExportBus(state: GameState, network: FabricationNetwork, bus: FabricationNetworkBus, target: MachineInstance, elapsedMs: number) {
+  const attachment = bus.attachment
+  if (attachment.filters.length < 1) {
+    markFabricationBusBlocked(attachment, 'Add a filter')
+    attachment.transferProgressMs = 0
+    return
+  }
+
+  attachment.transferProgressMs = (attachment.transferProgressMs ?? 0) + elapsedMs
+  while ((attachment.transferProgressMs ?? 0) >= 500) {
+    const itemFilter = attachment.filters.find((filter) => filter.kind === 'item' && state.resources[filter.id] > 0)
+    if (!itemFilter || itemFilter.kind !== 'item') break
+    if (network.rack.controller.process.euStored < 0.25) {
+      markFabricationBusBlocked(attachment, 'Planning Controller needs EU')
+      attachment.transferProgressMs = 500
+      return
+    }
+    if (!insertOneIntoInventory(target, itemFilter.id)) break
+    state.resources[itemFilter.id] -= 1
+    network.rack.controller.process.euStored -= 0.25
+    attachment.transferProgressMs = (attachment.transferProgressMs ?? 0) - 500
+    markFabricationBusTransfer(attachment, 'item', 1)
+    return
+  }
+
+  const fluidRate = 64 * (elapsedMs / 1000)
+  for (const filter of attachment.filters) {
+    if (filter.kind !== 'fluid') continue
+    if (!canStoreFluid(state, target, filter.id)) continue
+    const free = freeFluidCapacity(state, target, filter.id)
+    const available = availableLinkedFluid(state, network, filter.id)
+    const transfer = normalizeLitres(Math.min(fluidRate, free, available))
+    if (transfer <= 0) continue
+    if (network.rack.controller.process.euStored < 0.25) {
+      markFabricationBusBlocked(attachment, 'Planning Controller needs EU')
+      return
+    }
+    const moved = withdrawLinkedFluid(state, network, filter.id, transfer)
+    if (moved <= 0) continue
+    target.process.fluids[filter.id] = normalizeLitres((target.process.fluids[filter.id] ?? 0) + moved)
+    network.rack.controller.process.euStored = Math.max(0, network.rack.controller.process.euStored - 0.25)
+    markFabricationBusTransfer(attachment, 'fluid', moved)
+    return
+  }
+
+  markFabricationBusBlocked(attachment, 'No filtered content can move')
+  if ((attachment.transferProgressMs ?? 0) > 500) attachment.transferProgressMs = 500
+}
+
+function tickFabricationBuses(state: GameState, elapsedMs: number) {
+  for (const network of fabricationNetworks(state)) {
+    for (const bus of [...network.buses].sort((a, b) => b.priority - a.priority || a.uid.localeCompare(b.uid))) {
+      const target = fabricationFaceTarget(state, bus.cable, bus.attachment)
+      if (!target) {
+        markFabricationBusBlocked(bus.attachment, 'No adjacent target')
+        continue
+      }
+      if (bus.machineId === 'terminalImportBus') tickFabricationImportBus(state, network, bus, target, elapsedMs)
+      else tickFabricationExportBus(state, network, bus, target, elapsedMs)
+    }
+  }
+}
+
 type ConductorLane = 'item' | 'fluid'
 type ConductorEndpoint = {
   conductor: MachineInstance
@@ -6535,7 +7230,7 @@ function conductorSteamTarget(state: GameState, endpoint: ConductorEndpoint) {
   const target = conductorSteamStorage(state, endpoint.adjacent)
   const capacityMs = isTankStorageMachine(target.machineId)
     ? steamTankCapacityMsForInstance(state, target)
-    : isEuProducerMachine(target.machineId)
+    : target.machineId === 'steamTurbine'
       ? steamMachineInternalCapacityMs
       : isSteamPoweredMachine(target.machineId)
       ? machineSteamCapacityLitres(target.machineId) * steamMsPerLitre
@@ -6562,7 +7257,7 @@ function connectedSteamConductorMachines(state: GameState, start: MachineInstanc
     for (const endpoint of endpoints) {
       if (!channels.has(endpoint.settings.channel)) continue
       const adjacent = conductorSteamStorage(state, endpoint.adjacent)
-      if (isSteamStorageMachine(adjacent.machineId) || isSteamPoweredMachine(adjacent.machineId) || isEuProducerMachine(adjacent.machineId)) {
+      if (isSteamStorageMachine(adjacent.machineId) || isSteamPoweredMachine(adjacent.machineId) || adjacent.machineId === 'steamTurbine') {
         result.set(adjacent.uid, adjacent)
       }
     }
@@ -6711,7 +7406,7 @@ function loadFabricationProcessBatch(state: GameState, job: FabricationJob, targ
     ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
     ...(recipe.extraInputs ?? []),
     ...(recipe.fuelInput ? [recipe.fuelInput] : []),
-  ].filter((amount) => amount.amount > 0))
+  ].filter((amount): amount is ResourceAmount => Boolean(amount && amount.amount > 0)))
   const fluidInputs = recipeFluidInputs(recipe)
   const arcStructure = target.machineId === 'arcBlastFurnace' ? arcBlastFurnaceStructureForInstance(state, target) : null
   if (arcStructure && (!arcStructure.formed || !arcStructure.inputBus || (fluidInputs.length > 0 && !arcStructure.fluidInputHatch))) return false
@@ -6719,15 +7414,43 @@ function loadFabricationProcessBatch(state: GameState, job: FabricationJob, targ
   target.process.configuredProgramNumber = recipe.programNumber ?? 0
   const itemProcess = arcStructure?.inputBus?.process ?? target.process
   const fluidProcess = arcStructure?.fluidInputHatch?.process ?? target.process
-  itemProcess.input = recipe.input.amount > 0 ? { ...recipe.input } : null
+  itemProcess.input = recipe.input && recipe.input.amount > 0 ? { ...recipe.input } : null
   itemProcess.secondaryInput = recipe.secondaryInput ? { ...recipe.secondaryInput } : null
   const extraInputSlotIds = recipe.machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   extraInputSlotIds.forEach((slotId, index) => {
     itemProcess[slotId] = recipe.extraInputs?.[index] ? { ...recipe.extraInputs[index] } : null
   })
   itemProcess.fuel = recipe.fuelInput ? { ...recipe.fuelInput } : null
-  for (const fluid of fluidInputs) fluidProcess.fluids[fluid.id] = (fluidProcess.fluids[fluid.id] ?? 0) + fluid.amount
+  for (const fluid of fluidInputs) {
+    const configuredCapacity = fluidCapacityForFluid(state, arcStructure?.fluidInputHatch ?? target, fluid.id, 'input')
+    const capacity = configuredCapacity > 0
+      ? configuredCapacity
+      : machineFluidCapacityForInstance(state, arcStructure?.fluidInputHatch ?? target)
+    const current = fluidProcess.fluids[fluid.id] ?? 0
+    const accepted = Math.min(fluid.amount, Math.max(0, capacity - current))
+    fluidProcess.fluids[fluid.id] = current + accepted
+    if (accepted < fluid.amount) addReservedFluids(job, [{ ...fluid, amount: fluid.amount - accepted }])
+  }
   return true
+}
+
+function finishLoadingFabricationProcessFluids(state: GameState, job: FabricationJob, target: MachineInstance, recipe: ProcessRecipe) {
+  const arcStructure = target.machineId === 'arcBlastFurnace' ? arcBlastFurnaceStructureForInstance(state, target) : null
+  const fluidTarget = arcStructure?.fluidInputHatch ?? target
+  const fluidProcess = fluidTarget.process
+  for (const fluid of recipeFluidInputs(recipe)) {
+    const current = fluidProcess.fluids[fluid.id] ?? 0
+    const needed = Math.max(0, fluid.amount - current)
+    if (needed <= 0) continue
+    const reserved = job.reservedFluids.find((candidate) => candidate.id === fluid.id)
+    if (!reserved) continue
+    const configuredCapacity = fluidCapacityForFluid(state, fluidTarget, fluid.id, 'input')
+    const capacity = configuredCapacity > 0 ? configuredCapacity : machineFluidCapacityForInstance(state, fluidTarget)
+    const transferred = Math.min(needed, reserved.amount, Math.max(0, capacity - current))
+    fluidProcess.fluids[fluid.id] = current + transferred
+    reserved.amount -= transferred
+  }
+  job.reservedFluids = job.reservedFluids.filter((fluid) => fluid.amount > 0)
 }
 
 function collectFabricationProcessBatch(state: GameState, job: FabricationJob, target: MachineInstance, recipe: ProcessRecipe, card: RecipeCardInstance) {
@@ -6886,6 +7609,7 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
       job.progressMs = 0
       continue
     }
+    finishLoadingFabricationProcessFluids(state, job, target, recipe)
     if (target.process.activeRecipeId) continue
     const collection = collectFabricationProcessBatch(state, job, target, recipe, card)
     if (collection === null) continue
@@ -6910,6 +7634,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     activeFluidTransferBudgets = new Map()
     activeSteamSegmentFlows = new Map()
     activeEuSegmentFlows = new Map()
+    activeEuTransformerFlows = new Map()
     activeEuInputFlows = new Map()
     activeEuOutputFlows = new Map()
     activeFluidSegmentFlows = new Map()
@@ -6956,6 +7681,11 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
       instance.process.euCapacity = steamTurbineEuCapacity
       instance.process.euStored = Math.min(instance.process.euStored, steamTurbineEuCapacity)
     }
+    if (machines[instance.machineId].processKind === 'combustionGenerator') {
+      instance.process.euCapacity = machineEuCapacity(instance.machineId)
+      instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
+      instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+    }
     if (isEuStorageMachine(instance.machineId)) {
       instance.process.euCapacity = batteryBufferEuCapacity(instance)
       instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
@@ -6984,7 +7714,8 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     if (isSteamPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickSteamProcessMachine(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
-    if (isEuProducerMachine(instance.machineId) && canRunAutomaticLvProgram(instance)) tickSteamTurbine(next, instance, elapsedMs)
+    if (instance.machineId === 'steamTurbine' && canRunAutomaticLvProgram(instance)) tickSteamTurbine(next, instance, elapsedMs)
+    if (machines[instance.machineId].processKind === 'combustionGenerator') tickCombustionGenerator(next, instance, elapsedMs)
   }
   const euConsumersByDistance = next.machineInstances
     .map((instance) => ({ instance, sourceDistance: nearestConnectedEuSourceDistance(next, instance) }))
@@ -6998,10 +7729,12 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
   }
   for (const instance of euConsumersByDistance) {
     if (instance.machineId === 'lvAirCollector' && canRunAutomaticLvProgram(instance)) tickAirCollector(next, instance, elapsedMs)
+    else if (instance.machineId === 'lvWaterSource') tickPoweredWaterSource(next, instance, elapsedMs)
+    else if (instance.machineId === 'poweredFarm') tickPoweredFarm(next, instance, elapsedMs)
     else if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)
   }
   for (const instance of next.machineInstances) {
-    if (!isFluidOutletConfigurableMachine(instance.machineId)) continue
+    if (!canExportFluidSource(next, instance)) continue
     for (const fluidId of storedFluidTypes(instance.process)) pushFluidToConnectedStorage(next, instance, fluidId, elapsedMs)
   }
   for (const instance of euConsumersByDistance) {
@@ -7018,6 +7751,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     }
   }
   tickFabricationJobs(next, elapsedMs)
+  tickFabricationBuses(next, elapsedMs)
   tickConductorNetworks(next, elapsedMs)
   for (const instance of next.machineInstances) tickLvItemAutomation(next, instance, elapsedMs)
   tickPipeDisplayBuffers(next)
@@ -7029,6 +7763,7 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
     activeFluidTransferBudgets = null
     activeSteamSegmentFlows = null
     activeEuSegmentFlows = null
+    activeEuTransformerFlows = null
     activeEuInputFlows = null
     activeEuOutputFlows = null
     activeFluidSegmentFlows = null
@@ -7516,6 +8251,66 @@ function addReturnedProcessSlots(resources: Record<ResourceId, number>, instance
   }
 }
 
+function migrateLegacyBenzeneMultiblocks(
+  instances: MachineInstance[],
+  migrationNotices: string[],
+) {
+  let migrated = [...instances]
+  let changed = false
+  let preservedIncomplete = false
+  const structures = [
+    { controller: 'poweredFarm', part: 'poweredFarmPart' },
+    { controller: 'pyrolysisOven', part: 'pyrolysisOvenPart' },
+  ] as const
+
+  for (const structure of structures) {
+    const controllers = migrated.filter((instance) => instance.machineId === structure.controller)
+    for (const controller of controllers) {
+      const originX = controller.x - 1
+      const originY = controller.y - 1
+      const oldCells = Array.from({ length: 9 }, (_, index) => (
+        migrated.find((instance) => instance.x === originX + (index % 3) && instance.y === originY + Math.floor(index / 3))
+      ))
+      const complete = oldCells.every((instance) => (
+        instance && (instance.uid === controller.uid || instance.machineId === structure.part)
+      ))
+      if (!complete) {
+        preservedIncomplete = true
+        continue
+      }
+
+      const retainedPartPositions = new Set([
+        `${originX + 1},${originY}`,
+        `${originX},${originY + 1}`,
+      ])
+      const retainedParts = oldCells.filter((instance): instance is MachineInstance => (
+        Boolean(instance && instance.machineId === structure.part && retainedPartPositions.has(`${instance.x},${instance.y}`))
+      ))
+      const movablePart = oldCells.find((instance) => (
+        instance?.machineId === structure.part && !retainedPartPositions.has(`${instance.x},${instance.y}`)
+      ))
+      if (retainedParts.length !== 2 || !movablePart) continue
+
+      const retainedUids = new Set([controller.uid, ...retainedParts.map((instance) => instance.uid), movablePart.uid])
+      const removedUids = new Set(
+        oldCells
+          .filter((instance): instance is MachineInstance => Boolean(instance && !retainedUids.has(instance.uid)))
+          .map((instance) => instance.uid),
+      )
+      migrated = migrated.filter((instance) => !removedUids.has(instance.uid))
+      controller.x = originX
+      controller.y = originY
+      movablePart.x = originX + 1
+      movablePart.y = originY + 1
+      changed = true
+    }
+  }
+
+  if (changed) migrationNotices.push('benzene-multiblocks-2x2')
+  if (preservedIncomplete) migrationNotices.push('benzene-multiblocks-incomplete-preserved')
+  return migrated
+}
+
 function migrateMachineInstances(
   machinesState: Record<MachineId, number>,
   resourcesState: Record<ResourceId, number>,
@@ -7525,6 +8320,7 @@ function migrateMachineInstances(
   legacyArcFurnaceSave: boolean,
   legacyHopperImplicitInputs: boolean,
   legacyBatteryBufferFaceContract: boolean,
+  legacyBenzeneMultiblocks: boolean,
   migrationNotices: string[],
   parsedInstances?: Partial<MachineInstance>[],
 ) {
@@ -7542,10 +8338,13 @@ function migrateMachineInstances(
     machinesState.fabricationCable,
     instances.filter(hasFabricationCable).length,
   )
-  const placedJobInterfaces = instances.reduce((sum, instance) => (
-    sum + (instance.machineId === 'jobInterface' ? 1 : 0) + Object.keys(instance.fabricationInterfaces ?? {}).length
+  const placedFaceAttachments = (machineId: FabricationFaceMachineId) => instances.reduce((sum, instance) => (
+    sum + Object.values(instance.fabricationInterfaces ?? {}).filter((attachment) => attachment?.kind === machineId).length
   ), 0)
+  const placedJobInterfaces = instances.filter((instance) => instance.machineId === 'jobInterface').length + placedFaceAttachments('jobInterface')
   machinesState.jobInterface = Math.max(machinesState.jobInterface, placedJobInterfaces)
+  machinesState.terminalImportBus = Math.max(machinesState.terminalImportBus, placedFaceAttachments('terminalImportBus'))
+  machinesState.terminalExportBus = Math.max(machinesState.terminalExportBus, placedFaceAttachments('terminalExportBus'))
   for (const instance of instances) {
     if (isEuStorageMachine(instance.machineId) && instance.process.input?.id === 'lvBattery') {
       instance.process.input = { id: 'sodiumBattery', amount: instance.process.input.amount }
@@ -7583,7 +8382,7 @@ function migrateMachineInstances(
     const placedParts = migratedInstances.filter((instance) => instance.machineId === 'arcBlastFurnacePart')
     for (const controller of placedControllers) {
       const activeRecipe = controller.process.activeRecipeId ? processRecipes.find((recipe) => recipe.id === controller.process.activeRecipeId) : null
-      if (controller.process.input && activeRecipe) controller.process.input = decrementProcessSlot(controller.process.input, activeRecipe.input.amount)
+      if (controller.process.input && activeRecipe?.input) controller.process.input = decrementProcessSlot(controller.process.input, activeRecipe.input.amount)
       addReturnedProcessSlots(resourcesState, controller)
     }
     const unplacedParts = Math.max(0, machinesState.arcBlastFurnacePart - placedParts.length)
@@ -7592,6 +8391,12 @@ function migrateMachineInstances(
     machinesState.arcBlastFurnacePart = 0
     migratedInstances = migratedInstances.filter((instance) => instance.machineId !== 'arcBlastFurnace' && instance.machineId !== 'arcBlastFurnacePart')
     if (placedControllers.length > 0 || placedParts.length > 0 || unplacedParts > 0) migrationNotices.push('arc-furnace-3x3')
+  }
+  if (legacyBenzeneMultiblocks) {
+    migratedInstances = migrateLegacyBenzeneMultiblocks(
+      migratedInstances,
+      migrationNotices,
+    )
   }
   if (parsedInstances) {
     const placedBlastFurnaces = migratedInstances.filter((instance) => instance.machineId === 'brickedBlastFurnace').length
@@ -7689,6 +8494,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
     const legacyArcFurnaceSave = parsedVersion < 5
     const legacyHopperImplicitInputs = parsedVersion < 11
     const legacyBatteryBufferFaceContract = parsedVersion < 18
+    const legacyBenzeneMultiblocks = parsedVersion < 19
     const machinesState = migrateMachines(parsed.machines as Partial<Record<string, number>> | undefined)
     const factoryFoundationLevel = normalizeFactoryFoundationLevel(parsed)
     const parsedResources = (parsed.resources ?? {}) as Partial<Record<string, number>>
@@ -7702,6 +8508,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
       legacyArcFurnaceSave,
       legacyHopperImplicitInputs,
       legacyBatteryBufferFaceContract,
+      legacyBenzeneMultiblocks,
       migrationNotices,
       parsed.machineInstances,
     )
@@ -7806,7 +8613,7 @@ export function loadGame(raw: string | null, now = Date.now()): GameState {
         instance.installedRecipeCardUids = recipeCards.filter((card) => card.installedInUid === instance.uid).map((card) => card.uid).slice(0, 9)
       }
       for (const attachment of Object.values(instance.fabricationInterfaces ?? {})) {
-        if (attachment) attachment.installedRecipeCardUids = recipeCards.filter((card) => card.installedInUid === attachment.uid).map((card) => card.uid).slice(0, 9)
+        if (attachment?.kind === 'jobInterface') attachment.installedRecipeCardUids = recipeCards.filter((card) => card.installedInUid === attachment.uid).map((card) => card.uid).slice(0, 9)
       }
     }
     const fabricationJobs = normalizeFabricationJobs(parsed.fabricationJobs, recipeCards, machineInstances)

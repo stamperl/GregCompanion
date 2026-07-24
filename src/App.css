@@ -4282,6 +4282,32 @@ button.craft-output:disabled {
   width: 7px;
 }
 
+.fabrication-interface-port.face-terminalImportBus {
+  border-color: #6bb9d0;
+  box-shadow:
+    0 0 0 1px #07100c,
+    0 0 6px rgba(93, 202, 229, 0.58);
+}
+
+.fabrication-interface-port.face-terminalImportBus .fabrication-interface-socket {
+  background: #55c6ee;
+  border-color: #cef8ff;
+  box-shadow: 0 0 4px rgba(85, 198, 238, 0.9);
+}
+
+.fabrication-interface-port.face-terminalExportBus {
+  border-color: #d0b15e;
+  box-shadow:
+    0 0 0 1px #07100c,
+    0 0 6px rgba(234, 189, 85, 0.58);
+}
+
+.fabrication-interface-port.face-terminalExportBus .fabrication-interface-socket {
+  background: #e8b94e;
+  border-color: #fff1b8;
+  box-shadow: 0 0 4px rgba(232, 185, 78, 0.9);
+}
+
 .fabrication-interface-port b {
   align-items: center;
   background: #111715;
@@ -7692,6 +7718,7 @@ button.craft-output:disabled {
   display: grid;
   gap: 8px;
   grid-template-columns: minmax(0, 1fr) auto;
+  box-sizing: border-box;
   left: 50%;
   max-width: min(92vw, 520px);
   padding: 8px 10px;
@@ -7699,13 +7726,15 @@ button.craft-output:disabled {
   top: calc(env(safe-area-inset-top, 0px) + 10px);
   transform: translateX(-50%);
   width: max-content;
-  z-index: 45;
+  z-index: 120;
 }
 
 .offline-progress-notice span {
   font: 900 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
   line-height: 1.25;
   min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .offline-progress-notice button {
@@ -13633,11 +13662,23 @@ button.button-primary:disabled,
 }
 
 .machine-crystalEnergizer, .machine-circuitImprinter, .machine-recipeEncoder,
-.machine-jobInterface, .machine-autoFabricator, .machine-fluidStorageLink,
+.machine-jobInterface, .machine-terminalImportBus, .machine-terminalExportBus, .machine-autoFabricator, .machine-fluidStorageLink,
 .machine-planningController, .machine-memoryModule, .machine-dispatchModule {
   --machine-body: #505a57;
   --machine-trim: #a6b2aa;
   --machine-accent: #6ac7cd;
+}
+
+.machine-terminalImportBus {
+  --machine-body: #3f5e66;
+  --machine-trim: #9ed8e7;
+  --machine-accent: #55c6ee;
+}
+
+.machine-terminalExportBus {
+  --machine-body: #62563a;
+  --machine-trim: #e4ca78;
+  --machine-accent: #e8b94e;
 }
 
 .factory-cell.occupied.planning-rack-controller {
@@ -16972,6 +17013,20 @@ button.button-primary:disabled,
   border-color: #477f89;
 }
 
+.furnace-modal.machine-aluminiumCable-terminal .cable-cutaway-stage {
+  align-items: center;
+  display: grid;
+  justify-items: center;
+}
+
+.furnace-modal.machine-aluminiumCable-terminal .cable-cutaway-stage > .machine-glyph {
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.72));
+  height: min(170px, 24svh);
+  max-height: 82%;
+  max-width: 82%;
+  width: min(220px, 76%);
+}
+
 .furnace-modal.machine-terminal .cable-current {
   background: linear-gradient(90deg, transparent, rgba(80, 225, 255, 0.95), transparent);
   box-shadow: 0 0 16px #42dbff;
@@ -18291,6 +18346,98 @@ button.button-primary:disabled,
 .fabrication-face-target small,
 .fabrication-section h3 span { color: #83efc0; font: 800 0.58rem Inter, sans-serif; }
 .fabrication-face-target strong { font-size: 0.72rem; overflow-wrap: anywhere; }
+.fabrication-face-picker {
+  display: grid;
+  gap: 6px;
+}
+.fabrication-face-option {
+  align-items: center;
+  background: #18201d;
+  border: 1px solid #56665f;
+  border-bottom-color: #080b0a;
+  border-radius: 0;
+  border-right-color: #080b0a;
+  color: #e8e0c5;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  min-height: 42px;
+  padding: 5px;
+  text-align: left;
+}
+.fabrication-face-option:disabled { opacity: 0.46; }
+.fabrication-face-option .machine-glyph { height: 30px; width: 30px; }
+.fabrication-face-option span { display: grid; gap: 1px; min-width: 0; }
+.fabrication-face-option strong { font-size: 0.66rem; overflow-wrap: anywhere; }
+.fabrication-face-option small { color: #9fb9b1; font: 800 0.52rem Inter, sans-serif; text-transform: uppercase; }
+.fabrication-bus-status {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.fabrication-bus-status span {
+  background: #151b19;
+  border: 1px solid #46564f;
+  display: grid;
+  min-width: 0;
+  padding: 5px;
+}
+.fabrication-bus-status small {
+  color: #83efc0;
+  font: 800 0.5rem Inter, sans-serif;
+  text-transform: uppercase;
+}
+.fabrication-bus-status strong {
+  color: #e8e0c5;
+  font-size: 0.58rem;
+  overflow-wrap: anywhere;
+}
+.fabrication-filter-list,
+.fabrication-filter-grid {
+  display: grid;
+  gap: 4px;
+}
+.fabrication-filter-list {
+  max-height: 82px;
+  overflow-y: auto;
+}
+.fabrication-filter-chip,
+.fabrication-filter-grid button {
+  align-items: center;
+  background: #18201d;
+  border: 1px solid #4b5d56;
+  color: #e8e0c5;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 22px minmax(0, 1fr) 14px;
+  min-height: 30px;
+  padding: 4px;
+  text-align: left;
+}
+.fabrication-filter-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: 110px;
+  overflow-y: auto;
+}
+.fabrication-filter-grid button {
+  grid-template-columns: 22px minmax(0, 1fr);
+}
+.fabrication-filter-grid button.active {
+  background: #1d2d26;
+  border-color: #83efc0;
+  box-shadow: inset 0 0 0 1px rgba(131, 239, 192, 0.12);
+}
+.fabrication-filter-chip .pixel-icon,
+.fabrication-filter-grid .pixel-icon {
+  height: 22px;
+  width: 22px;
+}
+.fabrication-filter-chip span,
+.fabrication-filter-grid span {
+  font-size: 0.56rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .fabrication-face-panel .fabrication-section { margin: 0; padding: 6px; }
 .fabrication-face-panel .fabrication-section h3 { align-items: center; display: flex; font-size: 0.66rem; justify-content: space-between; margin: 0 0 5px; }
 .fabrication-face-panel .fabrication-card-list { max-height: 112px; overflow-y: auto; }
@@ -18767,6 +18914,23 @@ button.button-primary:disabled,
   }
 }
 
+.pixel-rubberLog,
+.pixel-sugarCane,
+.pixel-aluminiumCable,
+.machine-lvWaterSource,
+.machine-poweredFarmPart,
+.machine-poweredFarm,
+.machine-pyrolysisOvenPart,
+.machine-pyrolysisOven,
+.machine-lvDistillery,
+.machine-lvCombustionGenerator,
+.machine-mvCombustionGenerator,
+.machine-aluminiumCable,
+.machine-lvToMvTransformer,
+.machine-mvToLvTransformer {
+  background-color: #45524f;
+}
+
 @media (max-width: 430px) {
   .furnace-modal.machine-steamTank-terminal .iron-tank-hmi,
   .furnace-modal.machine-steelTank-terminal .iron-tank-hmi {
@@ -18818,6 +18982,7 @@ button.button-primary:disabled,
     min-height: 215px;
   }
 }
+
 .furnace-modal.machine-terminal .dual-boiler-vessels {
   grid-template-columns: minmax(58px, 0.62fr) minmax(58px, 0.62fr) minmax(0, 1fr) minmax(64px, 0.68fr);
 }
@@ -18938,6 +19103,310 @@ button.button-primary:disabled,
   max-height: 100%;
   max-width: 100%;
   width: clamp(112px, 32vw, 142px);
+}
+
+.benzene-process-console,
+.transformer-console {
+  background:
+    linear-gradient(90deg, rgba(222, 183, 91, 0.035) 0 1px, transparent 1px 18px),
+    #101716;
+  border: 2px solid #52615d;
+  border-bottom-color: #050807;
+  border-right-color: #050807;
+  box-sizing: border-box;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 7px;
+  width: 100%;
+}
+
+.benzene-process-console {
+  grid-template-rows: auto minmax(190px, 1fr) 40px;
+  min-height: 310px;
+}
+
+.benzene-console-status,
+.transformer-status {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.benzene-console-status > span,
+.transformer-status > span {
+  align-content: center;
+  background: #0a100f;
+  border: 1px solid #40504c;
+  display: grid;
+  min-height: 38px;
+  min-width: 0;
+  padding: 5px 6px;
+}
+
+.benzene-console-status small,
+.transformer-status small,
+.benzene-port-label,
+.transformer-live-flow small {
+  color: #d7c77c;
+  font: 950 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.benzene-console-status strong,
+.transformer-status strong,
+.transformer-live-flow strong {
+  color: #dff7f4;
+  font: 950 0.66rem "Courier New", ui-monospace, monospace;
+  line-height: 1.12;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.benzene-console-body {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) minmax(102px, 0.46fr);
+  min-height: 0;
+  min-width: 0;
+}
+
+.benzene-console-stage {
+  align-items: stretch;
+  background:
+    linear-gradient(180deg, rgba(97, 231, 218, 0.05), transparent 38%),
+    #090d0d;
+  border: 2px solid #374743;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.benzene-console-stage > .machine-glyph {
+  height: 100%;
+  min-height: 150px;
+  min-width: 0;
+  width: 100%;
+}
+
+.benzene-console-stage > .energy-tank {
+  height: 100%;
+  min-height: 150px;
+  min-width: 0;
+}
+
+.benzene-port-bank {
+  align-content: center;
+  background: #0b1110;
+  border: 2px solid #3e504b;
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  min-width: 0;
+  padding: 6px;
+}
+
+.benzene-port-bank .process-slot {
+  height: 54px;
+  min-width: 0;
+  width: 54px;
+}
+
+.benzene-port-label {
+  justify-self: stretch;
+  text-align: center;
+}
+
+.benzene-port-label.output-label {
+  border-top: 1px solid #394743;
+  margin-top: 2px;
+  padding-top: 5px;
+}
+
+.benzene-item-outputs,
+.benzene-output-grid {
+  display: grid;
+  gap: 4px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.benzene-item-outputs {
+  grid-template-columns: repeat(2, 54px);
+}
+
+.benzene-output-grid {
+  grid-template-columns: repeat(2, 54px);
+}
+
+.benzene-output-grid > :first-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.benzene-named-port {
+  height: 54px;
+  min-width: 0;
+  position: relative;
+  width: 54px;
+}
+
+.benzene-named-port > .process-slot {
+  height: 100%;
+  width: 100%;
+}
+
+.benzene-named-port > small {
+  background: rgba(5, 9, 8, 0.86);
+  color: #d9cc84;
+  font: 950 0.38rem Inter, ui-sans-serif, system-ui, sans-serif;
+  left: 3px;
+  line-height: 1;
+  padding: 2px 1px;
+  pointer-events: none;
+  position: absolute;
+  right: 3px;
+  text-align: center;
+  text-transform: uppercase;
+  top: 3px;
+  white-space: nowrap;
+}
+
+.furnace-modal.machine-terminal .combustion-console .steam-tank-readout strong {
+  font-size: 7px;
+}
+
+.furnace-modal.machine-terminal .combustion-console .steam-tank-capacity {
+  font-size: 0.42rem;
+}
+
+.benzene-process-console > .boiler-load-rail {
+  min-height: 40px;
+}
+
+.transformer-console {
+  grid-template-rows: auto minmax(190px, 1fr) auto;
+  min-height: 290px;
+}
+
+.transformer-stage {
+  align-items: center;
+  background:
+    linear-gradient(90deg, rgba(240, 185, 70, 0.08), transparent 42%, rgba(75, 212, 224, 0.08)),
+    #090d0d;
+  border: 2px solid #3e4c49;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.transformer-stage > .machine-glyph {
+  height: min(180px, 28svh);
+  min-height: 150px;
+  width: 100%;
+}
+
+.transformer-voltage-label {
+  background: #171d1b;
+  border: 2px solid #5d695f;
+  color: #f0d978;
+  font: 950 0.72rem "Courier New", ui-monospace, monospace;
+  padding: 8px 2px;
+  text-align: center;
+}
+
+.transformer-live-flow {
+  align-items: center;
+  background: #0a100f;
+  border: 1px solid #42534e;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: auto 1fr auto;
+  min-height: 38px;
+  padding: 5px 8px;
+}
+
+.transformer-live-flow strong {
+  text-align: center;
+}
+
+.transformer-live-flow em {
+  color: #70d8c9;
+  font: 900 0.55rem Inter, ui-sans-serif, system-ui, sans-serif;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+@media (max-width: 430px) and (max-height: 800px) {
+  .benzene-process-console {
+    grid-template-rows: auto minmax(164px, 1fr) 36px;
+    min-height: 270px;
+    padding: 5px;
+  }
+
+  .benzene-console-body {
+    grid-template-columns: minmax(0, 1fr) minmax(96px, 0.48fr);
+  }
+
+  .benzene-console-stage {
+    grid-template-columns: minmax(0, 1fr) 50px;
+    padding: 4px;
+  }
+
+  .benzene-console-stage > .machine-glyph,
+  .benzene-console-stage > .energy-tank {
+    min-height: 132px;
+  }
+
+  .benzene-port-bank {
+    gap: 3px;
+    padding: 4px;
+  }
+
+  .benzene-port-bank .process-slot {
+    height: 46px;
+    width: 46px;
+  }
+
+  .benzene-named-port {
+    height: 46px;
+    width: 46px;
+  }
+
+  .benzene-item-outputs,
+  .benzene-output-grid {
+    grid-template-columns: repeat(2, 46px);
+  }
+
+  .benzene-console-status > span,
+  .transformer-status > span {
+    min-height: 32px;
+    padding: 3px 4px;
+  }
+
+  .benzene-console-status strong,
+  .transformer-status strong {
+    font-size: 0.59rem;
+  }
+
+  .transformer-console {
+    grid-template-rows: auto minmax(160px, 1fr) auto;
+    min-height: 250px;
+    padding: 5px;
+  }
+
+  .transformer-stage > .machine-glyph {
+    min-height: 130px;
+  }
 }
 
 .machine-dual-output {

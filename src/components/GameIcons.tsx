@@ -80,6 +80,7 @@ function loosePipeCapPoints(connections?: PipeConnections) {
 
 export function MachineGlyph({ id, active = false, pipeConnections, fabricationLane = false }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections; fabricationLane?: boolean }) {
   const [failed, setFailed] = useState(false)
+  const isCodeNativeBus = id === 'terminalImportBus' || id === 'terminalExportBus'
   const hasFabricationLane = id === 'fabricationCable' || fabricationLane
   const isConductor = isConductorMachine(id) || hasFabricationLane
   const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id) || isConductor
@@ -143,7 +144,7 @@ export function MachineGlyph({ id, active = false, pipeConnections, fabricationL
   }
   return (
     <span className={className} aria-hidden="true">
-      {!failed && <img src={machineIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" onError={() => setFailed(true)} />}
+      {!failed && !isCodeNativeBus && <img src={machineIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" onError={() => setFailed(true)} />}
       <span />
     </span>
   )

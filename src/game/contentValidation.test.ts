@@ -67,8 +67,8 @@ function resourceAmountCounts(amounts: ResourceAmount[]) {
 
 function patternCounts(pattern: Recipe['pattern']) {
   return (pattern ?? []).reduce(
-    (counts, id) => {
-      if (id) counts[id] = (counts[id] ?? 0) + 1
+    (counts, slot) => {
+      if (typeof slot === 'string') counts[slot] = (counts[slot] ?? 0) + 1
       return counts
     },
     {} as Partial<Record<ResourceAmount['id'], number>>,
@@ -235,8 +235,12 @@ describe('content validation', () => {
       if (recipe.unlockedBy) expect(quests.some((quest) => quest.id === recipe.unlockedBy), `${recipe.id} unlockedBy should reference a quest`).toBe(true)
       if (recipe.pattern) {
         expect(recipe.pattern, `${recipe.id} pattern should fit a 3x3 grid`).toHaveLength(9)
-        for (const id of recipe.pattern.filter((item): item is NonNullable<typeof item> => Boolean(item))) {
-          expect(resourceLabels, `${recipe.id} pattern references unknown resource ${id}`).toHaveProperty(id)
+        for (const slot of recipe.pattern.filter((item): item is NonNullable<typeof item> => Boolean(item))) {
+          if (typeof slot === 'string') {
+            expect(resourceLabels, `${recipe.id} pattern references unknown resource ${slot}`).toHaveProperty(slot)
+          } else {
+            expect(machines, `${recipe.id} pattern references unknown machine ${slot.id}`).toHaveProperty(slot.id)
+          }
         }
         const pattern = patternCounts(recipe.pattern)
         const declared = resourceAmountCounts([...recipe.inputs, ...(recipe.catalysts ?? [])])
@@ -268,7 +272,10 @@ describe('content validation', () => {
     expect(overlappingItemIds, 'only explicitly resource-backed placeables may share resource and machine IDs').toEqual([...resourceBackedMachineIds])
 
     for (const cableId of resourceBackedMachineIds) {
-      const producingRecipes = recipes.filter((recipe) => recipe.outputs.some((output) => output.id === cableId))
+      const producingRecipes = [
+        ...recipes.filter((recipe) => recipe.outputs.some((output) => output.id === cableId)),
+        ...processRecipes.filter((recipe) => recipe.output?.id === cableId || recipe.secondaryOutput?.id === cableId),
+      ]
       expect(producingRecipes.length, `${cableId} should have a resource recipe`).toBeGreaterThan(0)
       expect(
         recipes.some((recipe) => recipe.machineOutputs?.some((output) => output.id === cableId)),
@@ -283,7 +290,8 @@ describe('content validation', () => {
       expect(recipe.description.trim(), `${recipe.id} should have a description`).not.toBe('')
       expect(machines, `${recipe.id} machineId should exist`).toHaveProperty(recipe.machineId)
       expect(recipe.durationMs, `${recipe.id} duration should be positive`).toBeGreaterThan(0)
-      expectResourceAmountReferences([recipe.input], `${recipe.id} input`)
+      if (recipe.input) expectResourceAmountReferences([recipe.input], `${recipe.id} input`)
+      if (!recipe.fluidOnly) expect(recipe.input, `${recipe.id} should declare an item input`).toBeDefined()
       if (recipe.secondaryInput) expectResourceAmountReferences([recipe.secondaryInput], `${recipe.id} secondary input`)
       if (recipe.secondaryOutput) expectResourceAmountReferences([recipe.secondaryOutput], `${recipe.id} secondary output`)
       if (recipe.fuelInput) expectResourceAmountReferences([recipe.fuelInput], `${recipe.id} fuel input`)
@@ -341,7 +349,7 @@ describe('content validation', () => {
         ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
         ...(recipe.extraInputs ?? []),
         ...(recipe.fuelInput ? [recipe.fuelInput] : []),
-      ]).map((amount) => amount.id),
+      ].filter((amount): amount is ResourceAmount => Boolean(amount))).map((amount) => amount.id),
     ])
 
     for (const id of ['nickelIngot', 'leadPlate', 'aluminiumRing', 'aluminiumScrew', 'aluminiumGear'] as const) {

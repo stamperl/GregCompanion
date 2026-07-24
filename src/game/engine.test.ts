@@ -6,6 +6,7 @@ import {
   gatherTargets,
   isEuCableMachine,
   isResourceBackedMachine,
+  isTankStorageMachine,
   machines,
   processRecipes,
   quests,
@@ -17,12 +18,14 @@ import { processRecipesProducingResource, processRecipeToCatalogRecipe, recipesP
 import { groupRecipesByOutput } from './recipeGroups'
 import {
   availableConnectedEu,
+  availableConnectedEuAmps,
   availableConnectedEuStorage,
   availableConnectedSteam,
   arcBlastFurnaceStructureForInstance,
   availableResourceAmount,
   availableUnplacedMachineCount,
   assignAutoMiner,
+  attachFabricationFace,
   attachFabricationInterface,
   buyShopItem,
   cancelFabricationJob,
@@ -85,6 +88,7 @@ import {
   maxDurability,
   missingForQuantity,
   missingForRecipe,
+  multiblockControllerForInstance,
   placeMachineInstance,
   pipeDirections,
   planningRackStructureForInstance,
@@ -102,6 +106,7 @@ import {
   requestFabricationJob,
   removeMachineInstance,
   removeConductorLane,
+  removeFabricationFaceAttachment,
   removeFabricationInterface,
   removeProcessSlot,
   removeRecipeCard,
@@ -141,6 +146,8 @@ import {
   steamTurbineSteamUseLitresPerSecond,
   terminalAvailableAmount,
   tickGame,
+  toggleFabricationBusFluidFilter,
+  toggleFabricationBusItemFilter,
   topUpCreativeState,
   offlineProgressCapMs,
   unequipSlot,
@@ -1097,7 +1104,7 @@ describe('game engine', () => {
       1000,
     )
 
-    expect(state.version).toBe(18)
+    expect(state.version).toBe(20)
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.cokeOvenPart).toBe(4)
     expect(state.machineInstances.some((instance) => instance.machineId === 'cokeOven')).toBe(false)
@@ -1118,7 +1125,7 @@ describe('game engine', () => {
       2000,
     )
 
-    expect(state.version).toBe(18)
+    expect(state.version).toBe(20)
     expect(state.resourceMilestones.stick).toBe(1)
     expect(state.resourceMilestones.steelIngot).toBe(3)
     expect(state.machineMilestones.steamBoiler).toBe(1)
@@ -1203,7 +1210,7 @@ describe('game engine', () => {
       }],
     }), 1000)
 
-    expect(state.version).toBe(18)
+    expect(state.version).toBe(20)
     expect(state.machineInstances[0].process.output).toEqual({ id: 'flint', amount: 2 })
     expect(state.machineInstances[0].process.output2).toBeNull()
     expect(state.machineInstances[0].process.configuredProgramNumber).toBe(0)
@@ -1263,7 +1270,8 @@ describe('game engine', () => {
     expect(Object.values(state.resources).every((amount) => amount >= 32)).toBe(true)
     expect(
       Object.entries(state.machines).every(([id, amount]) => {
-        const staysEmpty = id === 'cokeOven' || id === 'brickedBlastFurnace' || id === 'reachGate' || isResourceBackedMachine(id as MachineId)
+        const machineId = id as MachineId
+        const staysEmpty = Boolean(machines[machineId].multiblock) || isResourceBackedMachine(machineId)
         return staysEmpty ? amount === 0 : amount >= 32
       }),
     ).toBe(true)
@@ -1361,6 +1369,13 @@ describe('game engine', () => {
       'fabricationCable',
       'recipeEncoder',
       'autoFabricator',
+      'lvWaterSource',
+      'poweredFarm',
+      'pyrolysisOven',
+      'lvDistillery',
+      'lvCombustionGenerator',
+      'mvCombustionGenerator',
+      'mvToLvTransformer',
     ]))
     expect(isReachGateFormed(state)).toBe(true)
     const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
@@ -1388,6 +1403,48 @@ describe('game engine', () => {
     ]))
     expect(lvMiner.surveyCardTarget).toBe('sulfurVent')
     expect(state.autoMinerAssignments[lvMiner.uid]).toBe('sulfurVent')
+  })
+
+  it('loads a routed and power-positive benzene production line in the creative factory', () => {
+    let state = createCreativeFactoryState(createInitialState(1000), 2000)
+    const farm = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!
+    const oven = state.machineInstances.find((instance) => instance.machineId === 'pyrolysisOven')!
+    const mvGenerator = state.machineInstances.find((instance) => instance.machineId === 'mvCombustionGenerator')!
+    const lvGenerator = state.machineInstances.find((instance) => instance.machineId === 'lvCombustionGenerator')!
+    const transformer = state.machineInstances.find((instance) => instance.machineId === 'mvToLvTransformer')!
+    for (const instance of state.machineInstances) {
+      if (instance.machineId === 'mvCombustionGenerator' || instance.machineId === 'lvCombustionGenerator' || isTankStorageMachine(instance.machineId)) {
+        instance.process.fluids.benzene = 0
+      }
+      if (instance.machineId === 'mvCombustionGenerator' || instance.machineId === 'lvCombustionGenerator') instance.process.euStored = 0
+    }
+    state.recipeMilestones.farm_standard_trees = 0
+    state.recipeMilestones.pyrolyse_standard_logs = 0
+    state.recipeMilestones.distil_wood_tar_benzene = 0
+
+    expect(farm.process.configuredProgramNumber).toBe(1)
+    expect(multiblockControllerForInstance(state, farm)).not.toBeNull()
+    expect(multiblockControllerForInstance(state, oven)).not.toBeNull()
+    expect(transformer.x).toBe(7)
+    expect(transformer.y).toBe(11)
+    expect(mvGenerator.process.fluids.benzene ?? 0).toBe(0)
+    expect(lvGenerator.process.fluids.benzene ?? 0).toBe(0)
+
+    let generatedBenzenePower = false
+    for (let step = 0; step < 37; step += 1) {
+      state = tickGame(state, 10000, 12000 + step * 10000).state
+      generatedBenzenePower ||= [mvGenerator.uid, lvGenerator.uid].some((uid) => (
+        state.machineInstances.find((instance) => instance.uid === uid)?.process.activeRecipeId === 'burn_benzene'
+      ))
+    }
+
+    const completedFarm = state.recipeMilestones.farm_standard_trees ?? 0
+    const completedPyrolysis = state.recipeMilestones.pyrolyse_standard_logs ?? 0
+    const completedDistillation = state.recipeMilestones.distil_wood_tar_benzene ?? 0
+    expect(completedFarm).toBeGreaterThan(1)
+    expect(completedPyrolysis).toBeGreaterThan(1)
+    expect(completedDistillation).toBeGreaterThan(1)
+    expect(generatedBenzenePower).toBe(true)
   })
 
   it('loads a powered end-to-end recursive auto-crafting demonstration', () => {
@@ -2987,7 +3044,10 @@ describe('game engine', () => {
       const input = recipes.find((recipe) => recipe.id === inputId)!
       const output = recipes.find((recipe) => recipe.id === outputId)!
       const asGrid = (recipe: typeof input): CraftSlot[] =>
-        recipe.pattern!.map((id) => id ? { id } : null)
+        recipe.pattern!.map((slot) => {
+          if (!slot) return null
+          return typeof slot === 'string' ? { id: slot } : { kind: 'machine', id: slot.id }
+        })
 
       expect(input.pattern).toEqual([
         componentId, null, componentId,
@@ -3357,7 +3417,7 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.machineId === 'liquidSteamBoiler')!.process.fluids.creosote).toBe(96)
   })
 
-  it('lets one well supply four adjacent boilers', () => {
+  it('bottlenecks four adjacent boilers behind one basic well', () => {
     let state = createFactoryState(1000)
     state.machines.well = 1
     state.machines.steamBoiler = 4
@@ -3373,7 +3433,7 @@ describe('game engine', () => {
     }
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').reduce((sum, instance) => sum + instance.process.steamStoredMs, 0)).toBe(24000)
+    expect(state.machineInstances.filter((instance) => instance.machineId === 'steamBoiler').reduce((sum, instance) => sum + instance.process.steamStoredMs, 0)).toBe(6000)
     expect(state.machineInstances.find((instance) => instance.machineId === 'well')?.process.fluids.water).toBe(0)
   })
 
@@ -4063,7 +4123,6 @@ describe('game engine', () => {
     }
     state = placeMachineInstance(state, 'steamTank', 2, 1)
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
-    const lowerRightCasing = state.machineInstances.find((instance) => instance.x === 1 && instance.y === 1)!
     const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
     cokeOven.process.fluids.creosote = 40
     cokeOven.process.fluidCapacityLitres = cokeOvenFluidCapacityLitres
@@ -4073,7 +4132,7 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(40)
     expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote ?? 0).toBe(0)
 
-    state = setFluidOutputDirection(state, lowerRightCasing.uid, 'east')
+    state = setFluidOutputDirection(state, cokeOven.uid, 'east')
     state = tickGame(state, 1000).state
 
     expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.fluids.creosote).toBe(16)
@@ -4191,10 +4250,10 @@ describe('game engine', () => {
 
     state = tickGame(state, 1000).state
 
-    expect(currentFluidOutputFlows(state, pipeAt(1, 1))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 24 })
-    expect(currentFluidOutputFlows(state, pipeAt(2, 1))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 24 })
-    expect(currentFluidOutputFlows(state, pipeAt(2, 0))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 12 })
-    expect(currentFluidOutputFlows(state, pipeAt(2, 2))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 12 })
+    expect(currentFluidOutputFlows(state, pipeAt(1, 1))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 6 })
+    expect(currentFluidOutputFlows(state, pipeAt(2, 1))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 6 })
+    expect(currentFluidOutputFlows(state, pipeAt(2, 0))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 3 })
+    expect(currentFluidOutputFlows(state, pipeAt(2, 2))[0]).toMatchObject({ fluidId: 'water', litresPerSecond: 3 })
   })
 
   it('uses pipe side modes to control liquid flow direction', () => {
@@ -4512,11 +4571,11 @@ describe('game engine', () => {
     const steamFurnaceOutputs = new Set(
       processRecipes
         .filter((recipe) => recipe.machineId === 'steamFurnace' && recipe.output)
-        .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output!.id}:${recipe.output!.amount}`),
+        .map((recipe) => `${recipe.input!.id}:${recipe.input!.amount}->${recipe.output!.id}:${recipe.output!.amount}`),
     )
     const missingSteamRecipes = processRecipes
       .filter((recipe) => recipe.machineId === 'furnace' && recipe.output)
-      .map((recipe) => `${recipe.input.id}:${recipe.input.amount}->${recipe.output!.id}:${recipe.output!.amount}`)
+      .map((recipe) => `${recipe.input!.id}:${recipe.input!.amount}->${recipe.output!.id}:${recipe.output!.amount}`)
       .filter((recipeKey) => !steamFurnaceOutputs.has(recipeKey))
 
     expect(missingSteamRecipes).toEqual([])
@@ -5121,6 +5180,58 @@ describe('game engine', () => {
     expect(boiler.process.steamCapacityMs).toBe(liquidSteamBoilerCapacityMs)
     expect(boiler.process.fluidCapacityLitres).toBe(liquidSteamBoilerFluidCapacityLitres)
     expect(boiler.process.fluids.creosote).toBe(20 - 5 * liquidSteamBoilerCreosoteUseLitresPerSecond)
+  })
+
+  it('consumes machine components used to craft upgraded machines', () => {
+    let state = createFactoryState(1000)
+    state.machines.furnace = 2
+    state.resources.ironPlate = 4
+    const upgradedFurnace: Recipe = {
+      id: 'test_upgrade_furnace',
+      name: 'Upgrade Furnace',
+      description: 'Test recipe with a machine component.',
+      tier: 'steam',
+      durationMs: 1000,
+      inputs: [{ id: 'ironPlate', amount: 2 }],
+      machineInputs: [{ id: 'furnace', amount: 1 }],
+      outputs: [],
+      machineOutputs: [{ id: 'steamFurnace', amount: 1 }],
+    }
+
+    expect(craftableQuantity(state, upgradedFurnace)).toBe(2)
+    state = craftRecipeInstant(state, upgradedFurnace, 2)
+
+    expect(state.machines.furnace).toBe(0)
+    expect(state.resources.ironPlate).toBe(0)
+    expect(state.machines.steamFurnace).toBe(2)
+  })
+
+  it('loads and matches machine components inside the terminal crafting grid', () => {
+    const state = createFactoryState(1000)
+    state.machines.furnace = 1
+    state.resources.ironPlate = 2
+    const upgradedFurnace: Recipe = {
+      id: 'test_grid_upgrade_furnace',
+      name: 'Grid Upgrade Furnace',
+      description: 'Test a machine in a shaped crafting pattern.',
+      tier: 'steam',
+      durationMs: 1000,
+      inputs: [{ id: 'ironPlate', amount: 2 }],
+      machineInputs: [{ id: 'furnace', amount: 1 }],
+      pattern: [
+        'ironPlate', null, null,
+        null, { kind: 'machine', id: 'furnace' }, null,
+        null, null, 'ironPlate',
+      ],
+      outputs: [],
+      machineOutputs: [{ id: 'steamFurnace', amount: 1 }],
+    }
+
+    const grid = makeGridForRecipe(upgradedFurnace, state)
+
+    expect(recipeFitsTerminalGrid(upgradedFurnace)).toBe(true)
+    expect(grid[4]).toEqual({ kind: 'machine', id: 'furnace', ghost: false })
+    expect(findGridRecipe(grid, [upgradedFurnace])?.id).toBe(upgradedFurnace.id)
   })
 
   it('pulls water from an exporting tank through a configured pipe into a solid fuel boiler', () => {
@@ -6316,7 +6427,7 @@ describe('game engine', () => {
       }],
     }), 3000)
 
-    expect(state.version).toBe(18)
+    expect(state.version).toBe(20)
     expect(state.machineInstances[0].surveyCardTarget).toBe('coalSeam')
     expect(state.surveyCards.coalSeam).toBeUndefined()
     expect(state.autoMinerAssignments.miner).toBe('coalSeam')
@@ -7176,6 +7287,81 @@ describe('game engine', () => {
     expect(availableUnplacedMachineCount(state, 'jobInterface')).toBe(2)
   })
 
+  it('imports and exports items through terminal bus faces', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.fabricationCable = 1
+    state.machines.standardChest = 1
+    state.machines.terminalImportBus = 1
+    state.machines.terminalExportBus = 1
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'standardChest', 2, 0)
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'fabricationCable')!
+    const chest = state.machineInstances.find((instance) => instance.machineId === 'standardChest')!
+    controller.process.euStored = 128
+    chest.process.storageSlots[0] = { id: 'ironOre', amount: 2 }
+
+    state = attachFabricationFace(state, cable.uid, 'east', 'terminalImportBus')
+    expect(availableUnplacedMachineCount(state, 'terminalImportBus')).toBe(0)
+    state = tickGame(state, 500).state
+    expect(state.resources.ironOre).toBe(1)
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots[0]).toEqual({ id: 'ironOre', amount: 1 })
+
+    const importFace = state.machineInstances.find((instance) => instance.uid === cable.uid)!.fabricationInterfaces!.east!
+    state = removeFabricationFaceAttachment(state, importFace.uid)
+    state.resources.ironOre = 2
+    state = attachFabricationFace(state, cable.uid, 'east', 'terminalExportBus')
+    const exportFace = state.machineInstances.find((instance) => instance.uid === cable.uid)!.fabricationInterfaces!.east!
+    state = toggleFabricationBusItemFilter(state, exportFace.uid, 'ironOre')
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
+    state = tickGame(state, 500).state
+    expect(state.resources.ironOre).toBe(1)
+    expect(state.machineInstances.find((instance) => instance.uid === chest.uid)!.process.storageSlots[0]).toEqual({ id: 'ironOre', amount: 2 })
+    expect(availableUnplacedMachineCount(state, 'terminalExportBus')).toBe(0)
+  })
+
+  it('moves fluids between adjacent targets and linked fabrication tank storage through bus faces', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.fabricationCable = 2
+    state.machines.fluidStorageLink = 1
+    state.machines.steamTank = 2
+    state.machines.terminalImportBus = 1
+    state.machines.terminalExportBus = 1
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 1)
+    state = placeMachineInstance(state, 'fluidStorageLink', 0, 1)
+    state = placeMachineInstance(state, 'steamTank', 0, 2)
+    state = placeMachineInstance(state, 'steamTank', 2, 0)
+
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+    const cable = state.machineInstances.find((instance) => instance.x === 1 && instance.y === 0)!
+    const linkedTank = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 2)!
+    const targetTank = state.machineInstances.find((instance) => instance.x === 2 && instance.y === 0)!
+    controller.process.euStored = 128
+    linkedTank.process.fluidCapacityLitres = ironTankFluidCapacityLitres
+    targetTank.process.fluidCapacityLitres = ironTankFluidCapacityLitres
+    targetTank.process.fluids.water = 16
+
+    state = attachFabricationFace(state, cable.uid, 'east', 'terminalImportBus')
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === targetTank.uid)!.process.fluids.water ?? 0).toBe(0)
+    expect(state.machineInstances.find((instance) => instance.uid === linkedTank.uid)!.process.fluids.water ?? 0).toBe(16)
+
+    const importFace = state.machineInstances.find((instance) => instance.uid === cable.uid)!.fabricationInterfaces!.east!
+    state = removeFabricationFaceAttachment(state, importFace.uid)
+    state = attachFabricationFace(state, cable.uid, 'east', 'terminalExportBus')
+    const exportFace = state.machineInstances.find((instance) => instance.uid === cable.uid)!.fabricationInterfaces!.east!
+    state = toggleFabricationBusFluidFilter(state, exportFace.uid, 'water')
+    state.machineInstances.find((instance) => instance.machineId === 'planningController')!.process.euStored = 128
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === targetTank.uid)!.process.fluids.water ?? 0).toBe(16)
+    expect(state.machineInstances.find((instance) => instance.uid === linkedTank.uid)!.process.fluids.water ?? 0).toBe(0)
+  })
+
   it('runs a recursive crafting request from encoded recipe cards', () => {
     let state = createFactoryState()
     state.machines.recipeEncoder = 1
@@ -7335,6 +7521,413 @@ describe('game engine', () => {
     expect(migrated.machines.jobInterface).toBe(1)
     expect(migrated.recipeCards[0].installedInUid).toBe('legacy-interface-1')
     expect(migrated.machineInstances.find((instance) => instance.uid === 'legacy-interface-1')?.installedRecipeCardUids).toEqual(['card-1'])
+  })
+
+  it('migrates legacy 3x3 benzene multiblocks into formed 2x2 structures and refunds five parts', () => {
+    for (const [partId, controllerId] of [
+      ['poweredFarmPart', 'poweredFarm'],
+      ['pyrolysisOvenPart', 'pyrolysisOven'],
+    ] as const) {
+      let legacy = createFactoryState()
+      legacy.version = 18
+      legacy.machines[partId] = 9
+      for (let y = 0; y < 2; y += 1) {
+        for (let x = 0; x < 2; x += 1) legacy = placeMachineInstance(legacy, partId, x, y)
+      }
+
+      const controller = legacy.machineInstances.find((instance) => instance.machineId === controllerId)!
+      const parts = legacy.machineInstances.filter((instance) => instance.machineId === partId)
+      const perimeter = [
+        { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 },
+        { x: 0, y: 1 }, { x: 2, y: 1 },
+        { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 },
+      ]
+      controller.x = 1
+      controller.y = 1
+      controller.process.progressMs = 1234
+      controller.process.euStored = 96
+      controller.process.configuredProgramNumber = controllerId === 'poweredFarm' ? 2 : 0
+      perimeter.forEach((position, index) => {
+        const part = parts[index] ?? {
+          ...structuredClone(parts[0]),
+          uid: `${partId}-legacy-${index + 1}`,
+        }
+        part.x = position.x
+        part.y = position.y
+        if (index >= parts.length) legacy.machineInstances.push(part)
+      })
+
+      const migrated = loadGame(JSON.stringify(legacy), 2000)
+      const migratedController = migrated.machineInstances.find((instance) => instance.machineId === controllerId)!
+
+      expect(migrated.version).toBe(20)
+      expect(migratedController.x).toBe(0)
+      expect(migratedController.y).toBe(0)
+      expect(migratedController.process.progressMs).toBe(1234)
+      expect(migratedController.process.euStored).toBe(96)
+      expect(multiblockControllerForInstance(migrated, migratedController)).not.toBeNull()
+      expect(migrated.machineInstances.filter((instance) => instance.machineId === partId)).toHaveLength(3)
+      expect(availableUnplacedMachineCount(migrated, partId)).toBe(5)
+      expect(migrated.migrationNotices).toContain('benzene-multiblocks-2x2')
+    }
+  })
+
+  it('forms the 2x2 farm and pyrolysis multiblocks from four parts', () => {
+    for (const [partId, controllerId] of [
+      ['poweredFarmPart', 'poweredFarm'],
+      ['pyrolysisOvenPart', 'pyrolysisOven'],
+    ] as const) {
+      let state = createFactoryState()
+      state.machines[partId] = 4
+      for (let y = 0; y < 2; y += 1) {
+        for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, partId, x, y)
+      }
+
+      expect(state.machineInstances).toHaveLength(4)
+      expect(state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)?.machineId).toBe(controllerId)
+      expect(state.machineInstances.filter((instance) => instance.machineId === partId)).toHaveLength(3)
+      expect(state.machines[controllerId]).toBe(1)
+    }
+  })
+
+  it('runs each powered farm program from continuous water and LV power', () => {
+    const expectations = [
+      { program: 1, durationMs: 60000, output: { id: 'log', amount: 16 }, secondary: null },
+      { program: 2, durationMs: 70000, output: { id: 'rubberLog', amount: 8 }, secondary: { id: 'rubberSap', amount: 4 } },
+      { program: 3, durationMs: 50000, output: { id: 'sugarCane', amount: 24 }, secondary: null },
+    ] as const
+
+    for (const expected of expectations) {
+      let state = createFactoryState()
+      state.machines.poweredFarmPart = 4
+      for (let y = 0; y < 2; y += 1) {
+        for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, 'poweredFarmPart', x, y)
+      }
+      const controller = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!
+      state = setConfiguredProcessProgram(state, controller.uid, expected.program)
+      const stepMs = 10000
+      for (let elapsed = 0; elapsed < expected.durationMs; elapsed += stepMs) {
+        const process = state.machineInstances.find((instance) => instance.uid === controller.uid)!.process
+        process.euStored = 256
+        process.fluids.water = 128
+        state = tickGame(state, Math.min(stepMs, expected.durationMs - elapsed)).state
+      }
+
+      const process = state.machineInstances.find((instance) => instance.uid === controller.uid)!.process
+      expect(process.output).toEqual(expected.output)
+      expect(process.output2).toEqual(expected.secondary)
+      expect(state.recipeMilestones[`farm_${expected.program === 1 ? 'standard_trees' : expected.program === 2 ? 'rubber_trees' : 'sugar_cane'}`]).toBe(1)
+    }
+  })
+
+  it('carbonizes logs and distils both liquid fractions without hiding byproducts', () => {
+    let state = createFactoryState()
+    state.machines.pyrolysisOvenPart = 4
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, 'pyrolysisOvenPart', x, y)
+    }
+    const oven = state.machineInstances.find((instance) => instance.machineId === 'pyrolysisOven')!
+    state.resources.log = 8
+    state = insertProcessSlot(state, oven.uid, 'input', 'log', 8)
+    for (let step = 0; step < 6; step += 1) {
+      state.machineInstances.find((instance) => instance.uid === oven.uid)!.process.euStored = 256
+      state = tickGame(state, 10000).state
+    }
+
+    const ovenProcess = state.machineInstances.find((instance) => instance.uid === oven.uid)!.process
+    expect(ovenProcess.output).toEqual({ id: 'charcoal', amount: 10 })
+    expect(ovenProcess.fluids.woodTar).toBe(24)
+    expect(ovenProcess.fluids.woodGas).toBe(8)
+
+    state.machines.lvDistillery = 1
+    state = placeMachineInstance(state, 'lvDistillery', 4, 0)
+    const distillery = state.machineInstances.find((instance) => instance.machineId === 'lvDistillery')!
+    distillery.process.fluids.woodTar = 16
+    for (let step = 0; step < 4; step += 1) {
+      state.machineInstances.find((instance) => instance.uid === distillery.uid)!.process.euStored = 128
+      state = tickGame(state, 7500).state
+    }
+
+    const distilleryProcess = state.machineInstances.find((instance) => instance.uid === distillery.uid)!.process
+    expect(distilleryProcess.fluids.woodTar).toBe(0)
+    expect(distilleryProcess.fluids.benzene).toBe(10)
+    expect(distilleryProcess.fluids.heavyTar).toBe(6)
+  })
+
+  it('keeps paired fluid outputs separated across two empty destination tanks', () => {
+    let state = createFactoryState()
+    state.machines.lvDistillery = 1
+    state.machines.steamTank = 2
+    state = placeMachineInstance(state, 'steamTank', 0, 1)
+    state = placeMachineInstance(state, 'lvDistillery', 1, 1)
+    state = placeMachineInstance(state, 'steamTank', 2, 1)
+    const distillery = state.machineInstances.find((instance) => instance.machineId === 'lvDistillery')!
+    state = setFluidOutputDirection(state, distillery.uid, 'west')
+    state = setFluidOutputDirection(state, distillery.uid, 'east')
+    const configuredDistillery = state.machineInstances.find((instance) => instance.uid === distillery.uid)!
+    configuredDistillery.process.fluids.benzene = 8
+    configuredDistillery.process.fluids.heavyTar = 8
+
+    state = tickGame(state, 1000).state
+
+    const tankContents = state.machineInstances
+      .filter((instance) => instance.machineId === 'steamTank')
+      .map((instance) => ({ benzene: instance.process.fluids.benzene ?? 0, heavyTar: instance.process.fluids.heavyTar ?? 0 }))
+    expect(tankContents).toEqual(expect.arrayContaining([
+      { benzene: 8, heavyTar: 0 },
+      { benzene: 0, heavyTar: 8 },
+    ]))
+  })
+
+  it('generates exact LV and MV power from benzene only while buffers have room', () => {
+    for (const [machineId, expectedEu] of [
+      ['lvCombustionGenerator', 256],
+      ['mvCombustionGenerator', 1024],
+    ] as const) {
+      let state = createFactoryState()
+      state.machines[machineId] = 1
+      state = placeMachineInstance(state, machineId, 0, 0)
+      const generator = state.machineInstances[0]
+      generator.process.fluids.benzene = 4
+      state = tickGame(state, 8000).state
+
+      const process = state.machineInstances[0].process
+      expect(process.euStored).toBe(expectedEu)
+      expect(process.fluids.benzene).toBe(machineId === 'lvCombustionGenerator' ? 3 : 0)
+      process.euStored = machines[machineId].euCapacity!
+      const fuelAtCapacity = process.fluids.benzene
+      state = tickGame(state, 8000).state
+      expect(state.machineInstances[0].process.fluids.benzene).toBe(fuelAtCapacity)
+    }
+  })
+
+  it('requires a transformer between 32V machines and 128V aluminium cable', () => {
+    let state = createFactoryState()
+    state.machines.lvMacerator = 1
+    state.machines.lvToMvTransformer = 1
+    state.resources.aluminiumCable = 2
+    state = placeMachineInstance(state, 'lvMacerator', 0, 0)
+    state = placeMachineInstance(state, 'aluminiumCable', 1, 0)
+    state = setPipeSideMode(state, state.machineInstances.find((instance) => instance.machineId === 'aluminiumCable')!.uid, 'west', 'both')
+    const lvMachine = state.machineInstances.find((instance) => instance.machineId === 'lvMacerator')!
+    const directCable = state.machineInstances.find((instance) => instance.machineId === 'aluminiumCable')!
+    expect(machinesCanConnectEu(lvMachine, directCable)).toBe(false)
+
+    state = removeMachineInstance(state, directCable.uid)
+    state = placeMachineInstance(state, 'lvToMvTransformer', 1, 0)
+    state = placeMachineInstance(state, 'aluminiumCable', 2, 0)
+    state = setPipeSideMode(state, state.machineInstances.find((instance) => instance.machineId === 'aluminiumCable')!.uid, 'west', 'both')
+    const transformer = state.machineInstances.find((instance) => instance.machineId === 'lvToMvTransformer')!
+    const convertedCable = state.machineInstances.find((instance) => instance.machineId === 'aluminiumCable')!
+    expect(machinesCanConnectEu(lvMachine, transformer)).toBe(true)
+    expect(machinesCanConnectEu(transformer, convertedCable)).toBe(true)
+  })
+
+  it('only exports a formed fluid multiblock through controller-enabled structure edges', () => {
+    let state = createFactoryState()
+    state.machines.pyrolysisOvenPart = 4
+    state.machines.steamTank = 2
+    for (let y = 1; y <= 2; y += 1) {
+      for (let x = 1; x <= 2; x += 1) state = placeMachineInstance(state, 'pyrolysisOvenPart', x, y)
+    }
+    state = placeMachineInstance(state, 'steamTank', 1, 3)
+    state = placeMachineInstance(state, 'steamTank', 0, 2)
+    const oven = state.machineInstances.find((instance) => instance.machineId === 'pyrolysisOven')!
+    const southTank = state.machineInstances.find((instance) => instance.x === 1 && instance.y === 3)!
+    const westTank = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 2)!
+    oven.process.fluids.woodTar = 8
+
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === southTank.uid)!.process.fluids.woodTar ?? 0).toBe(0)
+
+    state = setPipeSideMode(state, oven.uid, 'south', 'output')
+    state = tickGame(state, 1000).state
+    expect({
+      south: state.machineInstances.find((instance) => instance.uid === southTank.uid)!.process.fluids.woodTar ?? 0,
+      west: state.machineInstances.find((instance) => instance.uid === westTank.uid)!.process.fluids.woodTar ?? 0,
+    }).toEqual({ south: 8, west: 0 })
+  })
+
+  it('stops a multi-fluid process before either independent output buffer overfills', () => {
+    let state = createFactoryState()
+    state.machines.lvDistillery = 1
+    state = placeMachineInstance(state, 'lvDistillery', 1, 1)
+    const distillery = state.machineInstances.find((instance) => instance.machineId === 'lvDistillery')!
+    distillery.process.fluids.woodTar = 16
+    distillery.process.fluids.benzene = 60
+    distillery.process.fluids.heavyTar = 60
+    distillery.process.euStored = 128
+
+    state = tickGame(state, 1000).state
+    const process = state.machineInstances.find((instance) => instance.uid === distillery.uid)!.process
+    expect(process.activeRecipeId).toBeNull()
+    expect(process.progressMs).toBe(0)
+    expect(process.fluids.woodTar).toBe(16)
+    expect(process.fluids.benzene).toBe(60)
+    expect(process.fluids.heavyTar).toBe(60)
+  })
+
+  it('converts one MV amp into four LV amps only through the step-down transformer', () => {
+    const buildRoute = (transformerId: 'lvToMvTransformer' | 'mvToLvTransformer') => {
+      let state = createFactoryState()
+      state.machines.mvCombustionGenerator = 1
+      state.machines[transformerId] = 1
+      state.machines.lvMacerator = 1
+      state.resources.aluminiumCable = 1
+      state = placeMachineInstance(state, 'mvCombustionGenerator', 0, 0)
+      state = placeMachineInstance(state, 'aluminiumCable', 1, 0)
+      state = placeMachineInstance(state, transformerId, 2, 0)
+      state = placeMachineInstance(state, 'lvMacerator', 3, 0)
+      const cable = state.machineInstances.find((instance) => instance.machineId === 'aluminiumCable')!
+      state = setPipeSideMode(state, cable.uid, 'west', 'both')
+      state = setPipeSideMode(state, cable.uid, 'east', 'both')
+      state.machineInstances.find((instance) => instance.machineId === 'mvCombustionGenerator')!.process.euStored = 512
+      return state
+    }
+
+    const correct = buildRoute('mvToLvTransformer')
+    const reversed = buildRoute('lvToMvTransformer')
+    expect(availableConnectedEuAmps(correct, correct.machineInstances.find((instance) => instance.machineId === 'lvMacerator')!)).toBe(4)
+    expect(availableConnectedEuAmps(reversed, reversed.machineInstances.find((instance) => instance.machineId === 'lvMacerator')!)).toBe(0)
+  })
+
+  it('applies aluminium cable loss at its own MV rating', () => {
+    let state = createFactoryState()
+    state.machines.mvCombustionGenerator = 1
+    state.machines.mvToLvTransformer = 1
+    state.machines.lvMacerator = 1
+    state.resources.aluminiumCable = 1
+    state = placeMachineInstance(state, 'mvCombustionGenerator', 0, 0)
+    state = placeMachineInstance(state, 'aluminiumCable', 1, 0)
+    state = placeMachineInstance(state, 'mvToLvTransformer', 2, 0)
+    state = placeMachineInstance(state, 'lvMacerator', 3, 0)
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'aluminiumCable')!
+    state = setPipeSideMode(state, cable.uid, 'west', 'both')
+    state = setPipeSideMode(state, cable.uid, 'east', 'both')
+    const generator = state.machineInstances.find((instance) => instance.machineId === 'mvCombustionGenerator')!
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'lvMacerator')!
+    generator.process.euStored = 100
+
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.euStored).toBe(30)
+    expect(state.machineInstances.find((instance) => instance.uid === generator.uid)!.process.euStored).toBe(68)
+  })
+
+  it('charges shared source and cable budgets for delivered EU plus route loss', () => {
+    let state = createFactoryState()
+    state.machines.mvCombustionGenerator = 1
+    state.machines.mvToLvTransformer = 2
+    state.machines.lvBatteryBuffer4A = 2
+    state.resources.aluminiumCable = 1
+    state = placeMachineInstance(state, 'mvCombustionGenerator', 0, 1)
+    state = placeMachineInstance(state, 'aluminiumCable', 1, 1)
+    state = placeMachineInstance(state, 'mvToLvTransformer', 1, 0)
+    state = placeMachineInstance(state, 'lvBatteryBuffer4A', 2, 0)
+    state = placeMachineInstance(state, 'mvToLvTransformer', 1, 2)
+    state = placeMachineInstance(state, 'lvBatteryBuffer4A', 2, 2)
+    const cable = state.machineInstances.find((instance) => instance.machineId === 'aluminiumCable')!
+    for (const direction of ['west', 'north', 'south'] as PipeDirection[]) state = setPipeSideMode(state, cable.uid, direction, 'both')
+    for (const buffer of state.machineInstances.filter((instance) => instance.machineId === 'lvBatteryBuffer4A')) {
+      state = setBatteryBufferOutputDirection(state, buffer.uid, 'east')
+    }
+    const generator = state.machineInstances.find((instance) => instance.machineId === 'mvCombustionGenerator')!
+    const buffers = state.machineInstances.filter((instance) => instance.machineId === 'lvBatteryBuffer4A')
+    generator.process.euStored = 512
+    for (const buffer of buffers) buffer.process.batterySlots = Array(4).fill('lithiumBattery')
+
+    state = tickGame(state, 1000).state
+
+    const consumed = 512 - state.machineInstances.find((instance) => instance.uid === generator.uid)!.process.euStored
+    const delivered = state.machineInstances
+      .filter((instance) => instance.machineId === 'lvBatteryBuffer4A')
+      .reduce((sum, buffer) => sum + buffer.process.euStored, 0)
+    expect(consumed).toBe(128)
+    expect(delivered).toBe(126)
+  })
+
+  it('preserves incomplete legacy benzene structures without discarding process state', () => {
+    let legacy = createFactoryState()
+    legacy.version = 18
+    legacy.machines.furnace = 1
+    legacy = placeMachineInstance(legacy, 'furnace', 2, 2)
+    const controller = legacy.machineInstances[0]
+    controller.machineId = 'poweredFarm'
+    controller.uid = 'legacy-incomplete-farm'
+    controller.process.progressMs = 4321
+    controller.process.euStored = 77
+    controller.process.fluids.water = 42
+    controller.pipeSideModes = { east: 'output' }
+    legacy.machines.furnace = 0
+    legacy.machines.poweredFarm = 1
+
+    const migrated = loadGame(JSON.stringify(legacy), 2000)
+    const preserved = migrated.machineInstances.find((instance) => instance.uid === controller.uid)!
+    expect(preserved.machineId).toBe('poweredFarm')
+    expect(preserved.process.progressMs).toBe(4321)
+    expect(preserved.process.euStored).toBe(77)
+    expect(preserved.process.fluids.water).toBe(42)
+    expect(preserved.pipeSideModes?.east).toBe('output')
+    expect(migrated.migrationNotices).toContain('benzene-multiblocks-incomplete-preserved')
+  })
+
+  it('finishes a fabricated farm batch whose water input exceeds the displayed machine buffer', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.recipeEncoder = 1
+    state.machines.jobInterface = 1
+    state.machines.fabricationCable = 2
+    state.machines.fluidStorageLink = 1
+    state.machines.steamTank = 1
+    state.machines.poweredFarmPart = 4
+    state.machines.lvCombustionGenerator = 2
+    state = placeMachineInstance(state, 'planningController', 0, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 1, 0)
+    state = placeMachineInstance(state, 'fabricationCable', 2, 0)
+    state = placeMachineInstance(state, 'recipeEncoder', 1, 1)
+    state = placeMachineInstance(state, 'fluidStorageLink', 2, 1)
+    state = placeMachineInstance(state, 'steamTank', 2, 2)
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 3; x < 5; x += 1) state = placeMachineInstance(state, 'poweredFarmPart', x, y)
+    }
+    state = placeMachineInstance(state, 'lvCombustionGenerator', 5, 0)
+    state = placeMachineInstance(state, 'lvCombustionGenerator', 0, 1)
+    const interfaceCable = state.machineInstances.find((instance) => instance.x === 2 && instance.y === 0)!
+    state = attachFabricationInterface(state, interfaceCable.uid, 'east')
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+    const encoder = state.machineInstances.find((instance) => instance.machineId === 'recipeEncoder')!
+    const waterTank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    controller.process.euStored = 8192
+    for (const generator of state.machineInstances.filter((instance) => instance.machineId === 'lvCombustionGenerator')) {
+      generator.process.euStored = 512
+      generator.process.fluids.benzene = 8
+    }
+    waterTank.process.fluids.water = 480
+    state.resources.blankRecipeCard = 1
+    state = encodeProcessingRecipeCard(state, encoder.uid, 'farm_standard_trees')
+    const recipeInterface = state.machineInstances.find((instance) => instance.uid === interfaceCable.uid)!.fabricationInterfaces!.east!
+    state = installRecipeCard(state, recipeInterface.uid, state.recipeCards[0].uid)
+    state = requestFabricationJob(state, state.recipeCards[0].uid, 1)
+
+    expect(state.fabricationJobs[0].reservedFluids).toContainEqual({ id: 'water', amount: 480 })
+    for (let second = 0; second < 8; second += 1) state = tickGame(state, 1000).state
+
+    let farm = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!
+    expect(farm.process.fluids.water).toBe(128)
+    expect(state.fabricationJobs[0].reservedFluids).toContainEqual(expect.objectContaining({ id: 'water', amount: 352 }))
+
+    state = tickGame(state, 1000).state
+    farm = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!
+    expect(farm.process.fluids.water).toBe(128)
+    expect(state.fabricationJobs[0].reservedFluids).toContainEqual(expect.objectContaining({ id: 'water', amount: 344 }))
+    expect(
+      (farm.process.fluids.water ?? 0) +
+      (state.fabricationJobs[0].reservedFluids.find((fluid) => fluid.id === 'water')?.amount ?? 0) +
+      farm.process.progressMs * 0.008,
+    ).toBe(480)
+
+    for (let second = 0; second < 65; second += 1) state = tickGame(state, 1000).state
+    expect(state.fabricationJobs[0].status).toBe('complete')
+    expect(state.resources.log).toBeGreaterThanOrEqual(16)
   })
 })
 

@@ -123,12 +123,14 @@ export function ProcessFluidSlot({
   fluidId,
   amount,
   label,
+  emptyLabel = label,
   onClick,
   ready = false,
 }: {
   fluidId?: FluidId
   amount?: number
   label: string
+  emptyLabel?: string
   onClick: () => void
   ready?: boolean
 }) {
@@ -145,9 +147,9 @@ export function ProcessFluidSlot({
           <FluidIcon id={fluidId} />
           <span className="item-count">{formatLitres(storedLitres)}L</span>
         </>
-      ) : (
-        <span className="process-slot-label">{label}</span>
-      )}
+      ) : emptyLabel ? (
+        <span className="process-slot-label">{emptyLabel}</span>
+      ) : null}
     </button>
   )
 }
