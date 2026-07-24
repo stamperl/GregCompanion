@@ -86,12 +86,32 @@ export function MachineGlyph({ id, active = false, pipeConnections, fabricationL
   const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id) || isConductor
   const className = [
     'machine-glyph',
+    isCodeNativeBus ? 'machine-code-glyph' : '',
     isConnector && (pipeConnections || isConductor) ? 'machine-connector-glyph' : failed ? '' : 'machine-sprite-glyph',
     `machine-${id}`,
     hasFabricationLane ? 'has-fabrication-lane' : '',
     active && !isConnector ? 'active' : '',
     isConnector ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
+  if (isCodeNativeBus) {
+    const isImport = id === 'terminalImportBus'
+    return (
+      <span className={className} aria-hidden="true">
+        <svg className="fabrication-bus-glyph" viewBox="0 0 40 40" shapeRendering="geometricPrecision" focusable="false">
+          <path className="fabrication-bus-shadow" d="M6 9h28v24H6z" />
+          <path className="fabrication-bus-shell" d="M5 7h28v24H5z" />
+          <path className="fabrication-bus-face" d="M8 10h22v18H8z" />
+          <path className="fabrication-bus-rail" d="M10 12h18v3H10zM10 23h18v3H10z" />
+          <path className="fabrication-bus-port" d={isImport ? 'M24 16h6v7h-6z' : 'M8 16h6v7H8z'} />
+          <path
+            className="fabrication-bus-arrow"
+            d={isImport ? 'M9 18h9v-4l7 6-7 6v-4H9z' : 'M29 18h-9v-4l-7 6 7 6v-4h9z'}
+          />
+          <path className="fabrication-bus-rivet" d="M7 9h2v2H7zM29 9h2v2h-2zM7 27h2v2H7zM29 27h2v2h-2z" />
+        </svg>
+      </span>
+    )
+  }
   if ((isConnector && pipeConnections) || isConductor) {
     const path = pipePath(pipeConnections)
     const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]

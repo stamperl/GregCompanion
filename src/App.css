@@ -11524,6 +11524,80 @@ button.button-primary:disabled,
   display: none !important;
 }
 
+.machine-glyph.machine-code-glyph {
+  background: transparent;
+  box-shadow: none;
+  display: grid;
+  overflow: visible;
+  place-items: center;
+}
+
+.machine-glyph.machine-code-glyph::before,
+.machine-glyph.machine-code-glyph::after,
+.machine-glyph.machine-code-glyph > span {
+  display: none;
+}
+
+.fabrication-bus-glyph {
+  display: block;
+  height: 100%;
+  overflow: visible;
+  width: 100%;
+}
+
+.fabrication-bus-shadow {
+  fill: #0b1011;
+  opacity: 0.72;
+}
+
+.fabrication-bus-shell {
+  fill: #7f8986;
+  stroke: #172021;
+  stroke-width: 2;
+}
+
+.fabrication-bus-face {
+  fill: #263334;
+  stroke: #b6c0ba;
+  stroke-width: 1.5;
+}
+
+.fabrication-bus-rail {
+  fill: #101819;
+}
+
+.fabrication-bus-port {
+  fill: #071011;
+  stroke: #d4ded8;
+  stroke-width: 1;
+}
+
+.fabrication-bus-arrow {
+  stroke: #071011;
+  stroke-linejoin: bevel;
+  stroke-width: 1;
+}
+
+.machine-terminalImportBus .fabrication-bus-arrow {
+  fill: #55c6ee;
+}
+
+.machine-terminalImportBus .fabrication-bus-port {
+  stroke: #9ed8e7;
+}
+
+.machine-terminalExportBus .fabrication-bus-arrow {
+  fill: #e8b94e;
+}
+
+.machine-terminalExportBus .fabrication-bus-port {
+  stroke: #fff1b8;
+}
+
+.fabrication-bus-rivet {
+  fill: #d7ded8;
+}
+
 .factory-pan-viewport {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
