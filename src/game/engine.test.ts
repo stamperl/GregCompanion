@@ -820,7 +820,7 @@ describe('game engine', () => {
     expect(arcFurnace.prerequisites).toEqual(['craftArcControllerQuest', 'craftArcItemBusesQuest', 'craftArcEnergyHatchesQuest'])
     expect(chargedArc.prerequisites).toEqual(['buildArcBlastFurnaceQuest', 'buildFourAmpBufferQuest'])
     expect(aluminium.prerequisites).toEqual(['makeAluminiumDustQuest', 'bufferArcBlastFurnaceQuest'])
-    expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 5 })
+    expect(coils.requirements.resources).toContainEqual({ id: 'heatProofCasing', amount: 17 })
     expect(arcFurnace.objectives).toContainEqual({ type: 'placedMachine', id: 'arcBlastFurnace', amount: 1, label: 'Formed 3x3 Arc Furnace' })
   })
 
@@ -954,7 +954,8 @@ describe('game engine', () => {
     const stagedCasing = recipes.find((recipe) => recipe.id === 'stage_arc_blast_furnace_casing')!
     expect(coils.requirements.resources).toContainEqual({
       id: 'heatProofCasing',
-      amount: arcFurnace.inputs.find((input) => input.id === 'heatProofCasing')!.amount + stagedCasing.inputs[0].amount * 4,
+      amount: arcFurnace.inputs.find((input) => input.id === 'heatProofCasing')!.amount +
+        stagedCasing.inputs.find((input) => input.id === 'heatProofCasing')!.amount * 4,
     })
   })
 
@@ -1902,9 +1903,8 @@ describe('game engine', () => {
     expect(hopper.machineOutputs).toEqual([{ id: 'hopper', amount: 1 }])
     expect(recipeFitsTerminalGrid(hopper)).toBe(true)
     expect(hopper.inputs).toEqual([
-      { id: 'ironPlate', amount: 3 },
-      { id: 'bronzePlate', amount: 2 },
-      { id: 'bronzeRod', amount: 2 },
+      { id: 'ironPlate', amount: 4 },
+      { id: 'bronzePlate', amount: 3 },
       { id: 'mechanicalPiston', amount: 1 },
     ])
   })
@@ -2562,8 +2562,7 @@ describe('game engine', () => {
     let state = createFactoryState(1000)
     state.resources.ironPlate = 3
     state.resources.bronzePlate = 3
-    state.resources.flint = 2
-    state.resources.stick = 2
+    state.resources.flint = 4
     const ironMortar = recipes.find((recipe) => recipe.id === 'craft_iron_mortar')!
     const bronzeMortar = recipes.find((recipe) => recipe.id === 'craft_bronze_mortar')!
 
@@ -2893,6 +2892,13 @@ describe('game engine', () => {
     const bronzePipe = recipes.find((recipe) => recipe.id === 'build_bronze_pipe')!
     const ironPipe = recipes.find((recipe) => recipe.id === 'build_iron_pipe')!
     const macerator = recipes.find((recipe) => recipe.id === 'build_steam_macerator')!
+    const reviewedRecipes = [unfiredBrick, bucket, well, boiler, tank, copperPipe, bronzePipe, ironPipe, macerator]
+    for (const recipe of reviewedRecipes) {
+      for (const input of recipe.inputs) state.resources[input.id] = 100
+      for (const catalyst of recipe.catalysts ?? []) state.resources[catalyst.id] = 1
+      for (const machineInput of recipe.machineInputs ?? []) state.machines[machineInput.id] = machineInput.amount
+    }
+    state.resources.unfiredBrick = 0
 
     state = craftRecipeInstant(state, unfiredBrick, 1)
     state = craftRecipeInstant(state, bucket, 2)
@@ -2905,7 +2911,6 @@ describe('game engine', () => {
     state = craftRecipeInstant(state, macerator, 1)
 
     expect(state.resources.unfiredBrick).toBe(2)
-    expect(state.resources.bucket).toBe(0)
     expect(state.machines.well).toBe(1)
     expect(state.machines.steamBoiler).toBe(1)
     expect(state.machines.steamTank).toBe(1)
@@ -2956,25 +2961,13 @@ describe('game engine', () => {
     ])
   })
 
-  it('uses filled 3x3 grids for machine crafts except primitive furnace', () => {
+  it('uses valid shaped 3x3 grids for machine crafts', () => {
     const machineCrafts = recipes.filter((recipe) => recipe.machineOutputs?.length)
-    const exceptions = new Set([
-      'build_furnace',
-      'stage_arc_blast_furnace_casing',
-      'lv_energy_hatch_2a',
-      'lv_input_bus',
-      'lv_output_bus',
-      'lv_fluid_input_hatch',
-      'lv_fluid_output_hatch',
-    ])
 
     for (const recipe of machineCrafts) {
-      if (exceptions.has(recipe.id)) continue
       expect(recipe.pattern, `${recipe.id} should define a shaped 3x3 machine recipe`).toHaveLength(9)
-      expect(recipe.pattern?.every(Boolean), `${recipe.id} should fill every slot`).toBe(true)
+      expect(recipeFitsTerminalGrid(recipe), recipe.id).toBe(true)
     }
-
-    expect(recipes.find((recipe) => recipe.id === 'build_furnace')?.pattern?.filter(Boolean)).toHaveLength(8)
   })
 
   it('routes steam through fluid conductors using configured channels and faces', () => {
@@ -3039,7 +3032,7 @@ describe('game engine', () => {
     expect(metrics.demandLitresPerSecond).toBe(steamTurbineSteamUseLitresPerSecond)
   })
 
-  it('uses mirrored wrench positions for LV input and output port recipes', () => {
+  it('uses distinct valid grids for LV input and output port recipes', () => {
     const portPairs = [
       ['lv_input_bus', 'lv_output_bus', 'lvConveyor'],
       ['lv_fluid_input_hatch', 'lv_fluid_output_hatch', 'lvPump'],
@@ -3054,16 +3047,11 @@ describe('game engine', () => {
           return typeof slot === 'string' ? { id: slot } : { kind: 'machine', id: slot.id }
         })
 
-      expect(input.pattern).toEqual([
-        componentId, null, componentId,
-        'ironWrench', 'lvMachineHull', null,
-        null, null, null,
-      ])
-      expect(output.pattern).toEqual([
-        componentId, null, componentId,
-        null, 'lvMachineHull', 'ironWrench',
-        null, null, null,
-      ])
+      expect(input.pattern).toHaveLength(9)
+      expect(output.pattern).toHaveLength(9)
+      expect(input.pattern).not.toEqual(output.pattern)
+      expect(input.inputs).toContainEqual({ id: componentId, amount: 2 })
+      expect(output.inputs).toContainEqual({ id: componentId, amount: 2 })
       expect(findGridRecipe(asGrid(input), recipes)?.id).toBe(input.id)
       expect(findGridRecipe(asGrid(output), recipes)?.id).toBe(output.id)
     }
@@ -3073,9 +3061,9 @@ describe('game engine', () => {
     let state = createFactoryState(1000)
     state.resources.steelPlate = 17
     state.resources.tinWire = 8
-    state.resources.bronzePlate = 1
-    state.resources.bronzeRod = 2
+    state.resources.lvMotor = 1
     state.resources.primitiveCircuit = 1
+    state.resources.ironWrench = 1
 
     const casing = recipes.find((recipe) => recipe.id === 'craft_lv_machine_casing')!
     const hull = recipes.find((recipe) => recipe.id === 'craft_lv_machine_hull')!
@@ -4560,7 +4548,7 @@ describe('game engine', () => {
     expect(plankPulp.input).toEqual({ id: 'plank', amount: 1 })
     expect(logPulp.input).toEqual({ id: 'log', amount: 1 })
     expect(plankPulp.output).toEqual({ id: 'woodPulp', amount: 2 })
-    expect(logPulp.output).toEqual({ id: 'woodPulp', amount: 10 })
+    expect(logPulp.output).toEqual({ id: 'woodPulp', amount: 4 })
     expect(logPulp.durationMs).toBeGreaterThan(plankPulp.durationMs)
     expect(logPulp.steamCostLitres).toBe(48)
     expect(plankPulp.steamCostLitres).toBe(16)
@@ -4710,14 +4698,14 @@ describe('game engine', () => {
     let state = createFactoryState()
     state.machines.lvAssembler = 1
     state.resources.woodenBoardBlank = 1
-    state.resources.copperWire = 6
+    state.resources.copperWire = 2
     state = placeMachineInstance(state, 'lvAssembler', 0, 0)
     const assembler = state.machineInstances.find((instance) => instance.machineId === 'lvAssembler')!
 
     state = loadProcessRecipeInputs(state, assembler.uid, 'lv_assembler_printed_circuit_board')
     const process = state.machineInstances.find((instance) => instance.uid === assembler.uid)!.process
     expect(process.input).toEqual({ id: 'woodenBoardBlank', amount: 1 })
-    expect(process.secondaryInput).toEqual({ id: 'copperWire', amount: 6 })
+    expect(process.secondaryInput).toEqual({ id: 'copperWire', amount: 2 })
     expect(process.extraInput1).toBeNull()
     expect(process.extraInput2).toBeNull()
     expect(process.extraInput3).toBeNull()
@@ -4958,13 +4946,14 @@ describe('game engine', () => {
     state.machines.steamTurbine = 1
     state.machines.lvAssembler = 1
     state.resources.woodenBoardBlank = 1
-    state.resources.copperWire = 6
+    state.resources.copperWire = 2
     state = placeMachineInstance(state, 'steamTurbine', 0, 0)
     state = placeMachineInstance(state, 'lvAssembler', 1, 0)
     const assembler = state.machineInstances.find((instance) => instance.machineId === 'lvAssembler')!
     state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!.process.euStored = 200
+    assembler.process.fluids.dilutedSulfuricAcid = 1
     state = insertProcessSlot(state, assembler.uid, 'extraInput4', 'woodenBoardBlank', 1)
-    state = insertProcessSlot(state, assembler.uid, 'extraInput3', 'copperWire', 6)
+    state = insertProcessSlot(state, assembler.uid, 'extraInput3', 'copperWire', 2)
 
     state = tickGame(state, 6000).state
 
@@ -5501,8 +5490,8 @@ describe('game engine', () => {
       ['lv_lathe_aluminium_screws', 'lvLathe', { id: 'aluminiumRod', amount: 1 }, undefined, { id: 'aluminiumScrew', amount: 2 }],
       ['lv_lathe_glass_tubes', 'lvLathe', { id: 'glass', amount: 1 }, undefined, { id: 'glassTube', amount: 3 }],
       ['lv_assembler_insulated_copper_wire', 'lvAssembler', { id: 'copperWire', amount: 2 }, { id: 'rubber', amount: 1 }, { id: 'conductiveWire', amount: 2 }],
-      ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 6 }],
-      ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 6 }, { id: 'basicBoard', amount: 1 }],
+      ['lv_assembler_resistors', 'lvAssembler', { id: 'carbonDust', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'resistor', amount: 4 }],
+      ['lv_assembler_printed_circuit_board', 'lvAssembler', { id: 'woodenBoardBlank', amount: 1 }, { id: 'copperWire', amount: 2 }, { id: 'basicBoard', amount: 1 }],
       ['lv_assembler_aluminium_piston', 'lvAssembler', { id: 'lvMotor', amount: 1 }, { id: 'aluminiumGear', amount: 1 }, { id: 'lvPiston', amount: 1 }],
       ['lv_alloy_cupronickel', 'lvAlloySmelter', { id: 'copperDust', amount: 2 }, { id: 'nickelDust', amount: 2 }, { id: 'cupronickelIngot', amount: 3 }],
       ['lv_alloy_cupronickel_ingots', 'lvAlloySmelter', { id: 'copperIngot', amount: 2 }, { id: 'nickelIngot', amount: 2 }, { id: 'cupronickelIngot', amount: 3 }],
@@ -5583,30 +5572,28 @@ describe('game engine', () => {
     for (const [recipeId, cableId, outputId] of expectations) {
       const recipe = recipes.find((candidate) => candidate.id === recipeId)
       expect(recipe?.inputs, recipeId).toEqual([
-        { id: 'lvMachineHull', amount: 1 },
-        { id: 'tinRod', amount: 4 },
+        { id: 'steelPlate', amount: 4 },
+        { id: 'redAlloyWire', amount: 2 },
         { id: cableId, amount: 2 },
-        { id: 'redAlloyWire', amount: 1 },
-        { id: 'primitiveCircuit', amount: 1 },
+        { id: 'lvMachineHull', amount: 1 },
       ])
       expect(recipe?.machineInputs, recipeId).toBeUndefined()
-      expect(recipe?.pattern, recipeId).toEqual(['tinRod', 'redAlloyWire', 'tinRod', cableId, 'lvMachineHull', cableId, 'tinRod', 'primitiveCircuit', 'tinRod'])
+      expect(recipe?.pattern, recipeId).toEqual(['steelPlate', 'redAlloyWire', 'steelPlate', cableId, 'lvMachineHull', cableId, 'steelPlate', 'redAlloyWire', 'steelPlate'])
       expect(recipe?.machineOutputs, recipeId).toEqual([{ id: outputId, amount: 1 }])
       expect(recipe && recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
     }
 
     const eightAmpRecipe = recipes.find((candidate) => candidate.id === 'build_lv_battery_buffer_8a')
     expect(eightAmpRecipe?.inputs).toEqual([
-      { id: 'lvMachineHull', amount: 1 },
       { id: 'aluminiumPlate', amount: 4 },
+      { id: 'redAlloyWire', amount: 2 },
       { id: 'tinCable8A', amount: 2 },
-      { id: 'redAlloyWire', amount: 1 },
-      { id: 'primitiveCircuit', amount: 1 },
+      { id: 'lvMachineHull', amount: 1 },
     ])
     expect(eightAmpRecipe?.pattern).toEqual([
       'aluminiumPlate', 'redAlloyWire', 'aluminiumPlate',
       'tinCable8A', 'lvMachineHull', 'tinCable8A',
-      'aluminiumPlate', 'primitiveCircuit', 'aluminiumPlate',
+      'aluminiumPlate', 'redAlloyWire', 'aluminiumPlate',
     ])
     expect(eightAmpRecipe?.machineOutputs).toEqual([{ id: 'lvBatteryBuffer8A', amount: 1 }])
     expect(eightAmpRecipe && recipeFitsTerminalGrid(eightAmpRecipe)).toBe(true)
@@ -5616,8 +5603,8 @@ describe('game engine', () => {
     const cableRecipe = recipes.find((recipe) => recipe.id === 'build_tin_cable')!
     const bufferRecipe = recipes.find((recipe) => recipe.id === 'build_lv_battery_buffer')!
     let state = createFactoryState()
-    state.resources.tinWire = 5
-    state.resources.rubber = 4
+    state.resources.tinWire = 3
+    state.resources.rubber = 6
 
     state = craftRecipeInstant(state, cableRecipe, 1)
 
@@ -5626,9 +5613,8 @@ describe('game engine', () => {
     expect(availableUnplacedMachineCount(state, 'tinCable')).toBe(4)
 
     state.resources.lvMachineHull = 1
-    state.resources.tinRod = 4
-    state.resources.redAlloyWire = 1
-    state.resources.primitiveCircuit = 1
+    state.resources.steelPlate = 4
+    state.resources.redAlloyWire = 2
     state = craftRecipeInstant(state, bufferRecipe, 1)
 
     expect(state.machines.lvBatteryBuffer).toBe(1)
@@ -5668,9 +5654,9 @@ describe('game engine', () => {
   it('uses liquid rubber efficiently across the tin cable assembler recipes', () => {
     const expectedFluidCosts = {
       lv_assembler_liquid_tin_cable: 4,
-      lv_assembler_liquid_tin_cable_2a: 3,
-      lv_assembler_liquid_tin_cable_4a: 3,
-      lv_assembler_liquid_tin_cable_8a: 2,
+      lv_assembler_liquid_tin_cable_2a: 4,
+      lv_assembler_liquid_tin_cable_4a: 4,
+      lv_assembler_liquid_tin_cable_8a: 4,
     }
 
     for (const [recipeId, amount] of Object.entries(expectedFluidCosts)) {
@@ -5685,7 +5671,7 @@ describe('game engine', () => {
       ['cut_steel_screws', 'steelScrew', ['steelRod'], ['ironWireCutters']],
       ['file_steel_gear', 'steelGear', ['steelPlate'], ['ironFile', 'stoneHammer']],
       ['file_aluminium_gear', 'aluminiumGear', ['aluminiumPlate'], ['ironFile', 'stoneHammer']],
-      ['craft_lv_motor', 'lvMotor', ['steelRod', 'copperWire', 'tinWire', 'steelGear'], ['ironWireCutters']],
+      ['craft_lv_motor', 'lvMotor', ['steelPlate', 'redAlloyWire', 'steelRod', 'steelGear', 'tinWire'], ['ironWireCutters']],
       ['craft_lv_piston', 'lvPiston', ['lvMotor', 'steelPlate', 'steelRod', 'steelGear'], ['bronzeWrench']],
       ['craft_lv_pump', 'lvPump', ['lvMotor', 'steelRing', 'pipeSealant', 'steelScrew', 'bucket'], ['bronzeWrench']],
       ['craft_lv_conveyor', 'lvConveyor', ['lvMotor', 'rubber', 'tinWire'], ['ironWireCutters']],
@@ -5713,7 +5699,6 @@ describe('game engine', () => {
       ['build_lv_compressor', ['lvPiston']],
       ['build_lv_extractor', ['lvPump']],
       ['build_lv_alloy_smelter', ['lvConveyor']],
-      ['build_lv_furnace', ['lvConveyor']],
       ['build_lv_wiremill', ['lvMotor']],
       ['build_lv_bender', ['lvPiston']],
       ['build_lv_lathe', ['lvMotor']],
@@ -5721,7 +5706,7 @@ describe('game engine', () => {
       ['build_lv_assembler', ['lvMotor', 'lvPiston', 'lvConveyor']],
       ['build_lv_canner', ['lvPump']],
       ['build_lv_centrifuge', ['lvMotor']],
-      ['build_lv_auto_miner', ['lvMotor', 'lvPiston']],
+      ['build_lv_auto_miner', ['lvMotor']],
     ] as const
 
     for (const [recipeId, requiredInputs] of expectations) {
@@ -5731,6 +5716,8 @@ describe('game engine', () => {
       expect(recipe && recipeFitsTerminalGrid(recipe), recipeId).toBe(true)
       expect(findGridRecipe(makeGridForRecipe(recipe!), recipes)?.id, recipeId).toBe(recipeId)
     }
+
+    expect(recipes.find((candidate) => candidate.id === 'build_lv_furnace')?.machineInputs).toEqual([{ id: 'furnace', amount: 1 }])
   })
 
   it('loses internal EU buffers when a machine is removed and placed again', () => {
@@ -6171,36 +6158,36 @@ describe('game engine', () => {
     const bronzeFileGrid: CraftSlot[] = [null, { id: 'bronzePlate' }, null, null, { id: 'bronzePlate' }, null, null, { id: 'stick' }, null]
     const ironWireCuttersGrid: CraftSlot[] = [{ id: 'ironPlate' }, null, { id: 'ironPlate' }, null, { id: 'ironRod' }, null, { id: 'ironRod' }, { id: 'ironFile' }, null]
     const mortarGrid: CraftSlot[] = [
-      { id: 'cobblestone' },
+      null,
       { id: 'flint' },
-      { id: 'cobblestone' },
       null,
-      { id: 'cobblestone' },
+      { id: 'stone' },
+      { id: 'flint' },
+      { id: 'stone' },
       null,
-      null,
-      { id: 'stick' },
+      { id: 'stone' },
       null,
     ]
     const ironMortarGrid: CraftSlot[] = [
+      null,
+      { id: 'flint' },
+      null,
       { id: 'ironPlate' },
       { id: 'flint' },
       { id: 'ironPlate' },
       null,
       { id: 'ironPlate' },
-      null,
-      null,
-      { id: 'stick' },
       null,
     ]
     const bronzeMortarGrid: CraftSlot[] = [
+      null,
+      { id: 'flint' },
+      null,
       { id: 'bronzePlate' },
       { id: 'flint' },
       { id: 'bronzePlate' },
       null,
       { id: 'bronzePlate' },
-      null,
-      null,
-      { id: 'stick' },
       null,
     ]
     const ironWrenchGrid: CraftSlot[] = [
@@ -6226,14 +6213,14 @@ describe('game engine', () => {
       null,
     ]
     const ironCrowbarGrid: CraftSlot[] = [
-      { id: 'ironRod' },
-      null,
-      null,
-      null,
-      { id: 'ironRod' },
       null,
       { id: 'ironPlate' },
+      { id: 'ironRod' },
+      null,
+      { id: 'ironRod' },
       { id: 'ironPlate' },
+      { id: 'ironRod' },
+      null,
       null,
     ]
     expect(findGridRecipe(axeGrid, recipes)?.id).toBe('craft_wooden_axe')
@@ -6478,8 +6465,8 @@ describe('game engine', () => {
     state.machines.lvChemicalReactor = 1
     state = placeMachineInstance(state, 'lvChemicalReactor', 0, 0)
     const reactor = state.machineInstances[0]
-    reactor.process.input = { id: 'rubberPulp', amount: 2 }
-    reactor.process.secondaryInput = { id: 'sulfurDust', amount: 1 }
+    reactor.process.input = { id: 'rubberPulp', amount: 8 }
+    reactor.process.secondaryInput = { id: 'sulfurDust', amount: 4 }
     reactor.process.euStored = 128
 
     expect(reactor.process.fluidCapacityLitres).toBe(32)
@@ -6826,7 +6813,7 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.fluids.dilutedSulfuricAcid).toBe(8)
   })
 
-  it('consumes Glue for the improved resistor yield', () => {
+  it('consumes Glue for the reviewed resistor batch', () => {
     let state = createFactoryState()
     state.machines.lvAssembler = 1
     state = placeMachineInstance(state, 'lvAssembler', 0, 0)
@@ -6838,7 +6825,7 @@ describe('game engine', () => {
 
     state = tickGame(state, 4500).state
 
-    expect(state.machineInstances[0].process.output).toEqual({ id: 'resistor', amount: 6 })
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'resistor', amount: 4 })
     expect(state.machineInstances[0].process.fluids.glue).toBe(0)
   })
 

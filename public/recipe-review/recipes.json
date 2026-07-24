@@ -1,6 +1,6 @@
 {
   "schemaVersion": 4,
-  "generatedAt": "2026-07-23T22:35:19.965Z",
+  "generatedAt": "2026-07-24T19:51:46.297Z",
   "resources": [
     {
       "id": "log",
@@ -1350,6 +1350,16 @@
       "tier": "mv"
     },
     {
+      "id": "terminalImportBus",
+      "label": "Terminal Import Bus",
+      "tier": "mv"
+    },
+    {
+      "id": "terminalExportBus",
+      "label": "Terminal Export Bus",
+      "tier": "mv"
+    },
+    {
       "id": "autoFabricator",
       "label": "Auto Fabricator",
       "tier": "mv"
@@ -2370,22 +2380,22 @@
       "inputs": [
         {
           "id": "plank",
-          "amount": 3
+          "amount": 2
         },
         {
           "id": "stick",
-          "amount": 1
+          "amount": 4
         }
       ],
       "pattern": [
         "plank",
-        "plank",
-        null,
+        "stick",
+        "stick",
         null,
         "stick",
         "plank",
         null,
-        null,
+        "stick",
         null
       ],
       "outputs": [
@@ -2694,7 +2704,7 @@
       "inputs": [
         {
           "id": "gravel",
-          "amount": 2
+          "amount": 3
         }
       ],
       "outputs": [
@@ -2703,7 +2713,30 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "firstDirt"
+      "unlockedBy": "firstDirt",
+      "pattern": [
+        "gravel",
+        "gravel",
+        "gravel",
+        null,
+        "stoneHammer",
+        null,
+        null,
+        null,
+        null
+      ],
+      "catalysts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -2918,27 +2951,23 @@
       "durationMs": 1400,
       "inputs": [
         {
-          "id": "cobblestone",
-          "amount": 3
-        },
-        {
           "id": "flint",
-          "amount": 1
+          "amount": 2
         },
         {
-          "id": "stick",
-          "amount": 1
+          "id": "stone",
+          "amount": 3
         }
       ],
       "pattern": [
-        "cobblestone",
+        null,
         "flint",
-        "cobblestone",
         null,
-        "cobblestone",
+        "stone",
+        "flint",
+        "stone",
         null,
-        null,
-        "stick",
+        "stone",
         null
       ],
       "outputs": [
@@ -2994,27 +3023,23 @@
       "durationMs": 2200,
       "inputs": [
         {
+          "id": "flint",
+          "amount": 2
+        },
+        {
           "id": "ironPlate",
           "amount": 3
-        },
-        {
-          "id": "flint",
-          "amount": 1
-        },
-        {
-          "id": "stick",
-          "amount": 1
         }
       ],
       "pattern": [
+        null,
+        "flint",
+        null,
         "ironPlate",
         "flint",
         "ironPlate",
         null,
         "ironPlate",
-        null,
-        null,
-        "stick",
         null
       ],
       "outputs": [
@@ -3034,27 +3059,23 @@
       "durationMs": 2400,
       "inputs": [
         {
+          "id": "flint",
+          "amount": 2
+        },
+        {
           "id": "bronzePlate",
           "amount": 3
-        },
-        {
-          "id": "flint",
-          "amount": 1
-        },
-        {
-          "id": "stick",
-          "amount": 1
         }
       ],
       "pattern": [
+        null,
+        "flint",
+        null,
         "bronzePlate",
         "flint",
         "bronzePlate",
         null,
         "bronzePlate",
-        null,
-        null,
-        "stick",
         null
       ],
       "outputs": [
@@ -3108,16 +3129,39 @@
       "inputs": [
         {
           "id": "clay",
-          "amount": 1
+          "amount": 3
         }
       ],
       "outputs": [
         {
           "id": "unfiredBrick",
+          "amount": 2
+        }
+      ],
+      "unlockedBy": "bronzeAge",
+      "pattern": [
+        "clay",
+        "clay",
+        "clay",
+        null,
+        "stoneHammer",
+        null,
+        null,
+        null,
+        null
+      ],
+      "catalysts": [
+        {
+          "id": "stoneHammer",
           "amount": 1
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "durabilityCosts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3182,11 +3226,11 @@
       "inputs": [
         {
           "id": "brick",
-          "amount": 2
+          "amount": 6
         },
         {
           "id": "clay",
-          "amount": 1
+          "amount": 2
         },
         {
           "id": "sand",
@@ -3197,12 +3241,12 @@
         "brick",
         "clay",
         "brick",
-        null,
+        "brick",
         "sand",
-        null,
-        null,
-        null,
-        null
+        "brick",
+        "brick",
+        "clay",
+        "brick"
       ],
       "outputs": [
         {
@@ -3222,23 +3266,27 @@
       "inputs": [
         {
           "id": "brick",
-          "amount": 2
+          "amount": 6
         },
         {
           "id": "sand",
           "amount": 2
+        },
+        {
+          "id": "gravel",
+          "amount": 1
         }
       ],
       "pattern": [
         "brick",
         "sand",
         "brick",
-        null,
+        "brick",
+        "gravel",
+        "brick",
+        "brick",
         "sand",
-        null,
-        null,
-        null,
-        null
+        "brick"
       ],
       "outputs": [
         {
@@ -3294,28 +3342,35 @@
       "durationMs": 6500,
       "inputs": [
         {
+          "id": "bronzePlate",
+          "amount": 4
+        },
+        {
+          "id": "bucket",
+          "amount": 1
+        },
+        {
           "id": "steamCasing",
           "amount": 1
         },
         {
-          "id": "bronzePlate",
-          "amount": 5
-        },
-        {
-          "id": "copperRod",
-          "amount": 3
+          "id": "brick",
+          "amount": 2
         }
       ],
       "pattern": [
         "bronzePlate",
-        "copperRod",
+        "bucket",
         "bronzePlate",
         "bronzePlate",
         "steamCasing",
         "bronzePlate",
-        "copperRod",
-        "bronzePlate",
-        "copperRod"
+        "brick",
+        {
+          "kind": "machine",
+          "id": "furnace"
+        },
+        "brick"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -3324,7 +3379,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "unlockedBy": "bronzeAge",
+      "machineInputs": [
+        {
+          "id": "furnace",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3451,15 +3512,11 @@
       "inputs": [
         {
           "id": "ironPlate",
-          "amount": 3
+          "amount": 4
         },
         {
           "id": "bronzePlate",
-          "amount": 2
-        },
-        {
-          "id": "bronzeRod",
-          "amount": 2
+          "amount": 3
         },
         {
           "id": "mechanicalPiston",
@@ -3484,10 +3541,10 @@
         "ironPlate",
         "bronzePlate",
         "mechanicalPiston",
-        "bronzeRod",
+        "bronzePlate",
         "ironPlate",
         "bronzeWrench",
-        "bronzeRod"
+        "ironPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -3508,22 +3565,18 @@
       "inputs": [
         {
           "id": "copperPlate",
-          "amount": 5
-        },
-        {
-          "id": "copperRod",
-          "amount": 4
+          "amount": 6
         }
       ],
       "pattern": [
         "copperPlate",
-        "copperRod",
         "copperPlate",
-        "copperRod",
         "copperPlate",
-        "copperRod",
+        "stoneHammer",
+        null,
+        "ironFile",
         "copperPlate",
-        "copperRod",
+        "copperPlate",
         "copperPlate"
       ],
       "outputs": [],
@@ -3533,7 +3586,27 @@
           "amount": 4
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "unlockedBy": "bronzeAge",
+      "catalysts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        },
+        {
+          "id": "ironFile",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        },
+        {
+          "id": "ironFile",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3545,22 +3618,18 @@
       "inputs": [
         {
           "id": "bronzePlate",
-          "amount": 5
-        },
-        {
-          "id": "bronzeRod",
-          "amount": 4
+          "amount": 6
         }
       ],
       "pattern": [
         "bronzePlate",
-        "bronzeRod",
         "bronzePlate",
-        "bronzeRod",
         "bronzePlate",
-        "bronzeRod",
+        "stoneHammer",
+        null,
+        "ironFile",
         "bronzePlate",
-        "bronzeRod",
+        "bronzePlate",
         "bronzePlate"
       ],
       "outputs": [],
@@ -3570,7 +3639,27 @@
           "amount": 4
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "unlockedBy": "bronzeAge",
+      "catalysts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        },
+        {
+          "id": "ironFile",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        },
+        {
+          "id": "ironFile",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3582,22 +3671,18 @@
       "inputs": [
         {
           "id": "steelPlate",
-          "amount": 5
-        },
-        {
-          "id": "steelRod",
-          "amount": 4
+          "amount": 6
         }
       ],
       "pattern": [
         "steelPlate",
-        "steelRod",
         "steelPlate",
-        "steelRod",
         "steelPlate",
-        "steelRod",
+        "stoneHammer",
+        null,
+        "ironFile",
         "steelPlate",
-        "steelRod",
+        "steelPlate",
         "steelPlate"
       ],
       "outputs": [],
@@ -3607,7 +3692,27 @@
           "amount": 4
         }
       ],
-      "unlockedBy": "steelPlateQuest"
+      "unlockedBy": "steelPlateQuest",
+      "catalysts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        },
+        {
+          "id": "ironFile",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "stoneHammer",
+          "amount": 1
+        },
+        {
+          "id": "ironFile",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3752,16 +3857,20 @@
       "durationMs": 7000,
       "inputs": [
         {
-          "id": "steamCasing",
-          "amount": 1
-        },
-        {
           "id": "bronzePlate",
           "amount": 6
         },
         {
           "id": "bronzeRod",
-          "amount": 2
+          "amount": 1
+        },
+        {
+          "id": "mechanicalPiston",
+          "amount": 1
+        },
+        {
+          "id": "steamCasing",
+          "amount": 1
         }
       ],
       "pattern": [
@@ -3769,10 +3878,10 @@
         "bronzeRod",
         "bronzePlate",
         "bronzePlate",
+        "mechanicalPiston",
+        "bronzePlate",
+        "bronzePlate",
         "steamCasing",
-        "bronzePlate",
-        "bronzePlate",
-        "bronzeRod",
         "bronzePlate"
       ],
       "outputs": [],
@@ -3793,31 +3902,31 @@
       "durationMs": 7000,
       "inputs": [
         {
-          "id": "steamCasing",
-          "amount": 1
-        },
-        {
           "id": "bronzePlate",
-          "amount": 4
-        },
-        {
-          "id": "copperRod",
-          "amount": 2
+          "amount": 5
         },
         {
           "id": "bucket",
           "amount": 2
+        },
+        {
+          "id": "mechanicalPiston",
+          "amount": 1
+        },
+        {
+          "id": "steamCasing",
+          "amount": 1
         }
       ],
       "pattern": [
         "bronzePlate",
-        "copperRod",
+        "bronzePlate",
         "bronzePlate",
         "bucket",
+        "mechanicalPiston",
+        "bucket",
+        "bronzePlate",
         "steamCasing",
-        "bucket",
-        "bronzePlate",
-        "copperRod",
         "bronzePlate"
       ],
       "outputs": [],
@@ -3838,27 +3947,30 @@
       "durationMs": 7200,
       "inputs": [
         {
-          "id": "steamCasing",
-          "amount": 1
-        },
-        {
           "id": "bronzePlate",
-          "amount": 6
+          "amount": 4
         },
         {
           "id": "firebrick",
-          "amount": 2
+          "amount": 3
+        },
+        {
+          "id": "steamCasing",
+          "amount": 1
         }
       ],
       "pattern": [
         "bronzePlate",
         "firebrick",
         "bronzePlate",
-        "bronzePlate",
-        "steamCasing",
-        "bronzePlate",
-        "bronzePlate",
         "firebrick",
+        "steamCasing",
+        "firebrick",
+        "bronzePlate",
+        {
+          "kind": "machine",
+          "id": "furnace"
+        },
         "bronzePlate"
       ],
       "outputs": [],
@@ -3868,7 +3980,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "unlockedBy": "bronzeAge",
+      "machineInputs": [
+        {
+          "id": "furnace",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3879,16 +3997,16 @@
       "durationMs": 7000,
       "inputs": [
         {
-          "id": "steamCasing",
-          "amount": 1
-        },
-        {
           "id": "bronzePlate",
           "amount": 4
         },
         {
           "id": "brick",
-          "amount": 4
+          "amount": 3
+        },
+        {
+          "id": "steamCasing",
+          "amount": 1
         }
       ],
       "pattern": [
@@ -3899,7 +4017,10 @@
         "steamCasing",
         "brick",
         "bronzePlate",
-        "brick",
+        {
+          "kind": "machine",
+          "id": "furnace"
+        },
         "bronzePlate"
       ],
       "outputs": [],
@@ -3909,7 +4030,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "unlockedBy": "bronzeAge",
+      "machineInputs": [
+        {
+          "id": "furnace",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3920,35 +4047,38 @@
       "durationMs": 7600,
       "inputs": [
         {
-          "id": "steamCasing",
-          "amount": 1
-        },
-        {
           "id": "bronzePlate",
           "amount": 4
-        },
-        {
-          "id": "bronzeRod",
-          "amount": 2
         },
         {
           "id": "ironPickaxe",
           "amount": 1
         },
         {
+          "id": "mechanicalPiston",
+          "amount": 1
+        },
+        {
           "id": "ironHammer",
+          "amount": 1
+        },
+        {
+          "id": "steamCasing",
           "amount": 1
         }
       ],
       "pattern": [
         "bronzePlate",
-        "bronzeRod",
+        {
+          "kind": "machine",
+          "id": "standardChest"
+        },
         "bronzePlate",
         "ironPickaxe",
-        "steamCasing",
+        "mechanicalPiston",
         "ironHammer",
         "bronzePlate",
-        "bronzeRod",
+        "steamCasing",
         "bronzePlate"
       ],
       "outputs": [],
@@ -3958,7 +4088,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "bronzeAge"
+      "unlockedBy": "bronzeAge",
+      "machineInputs": [
+        {
+          "id": "standardChest",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -3970,7 +4106,7 @@
       "inputs": [
         {
           "id": "steelPlate",
-          "amount": 9
+          "amount": 8
         }
       ],
       "pattern": [
@@ -3978,7 +4114,7 @@
         "steelPlate",
         "steelPlate",
         "steelPlate",
-        "steelPlate",
+        "ironWrench",
         "steelPlate",
         "steelPlate",
         "steelPlate",
@@ -3990,7 +4126,19 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "steelPlateQuest"
+      "unlockedBy": "steelPlateQuest",
+      "catalysts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ],
+      "durabilityCosts": [
+        {
+          "id": "ironWrench",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -4041,24 +4189,20 @@
       "durationMs": 8500,
       "inputs": [
         {
-          "id": "lvMachineHull",
+          "id": "tinWire",
+          "amount": 2
+        },
+        {
+          "id": "lvMotor",
           "amount": 1
         },
         {
           "id": "steelPlate",
-          "amount": 2
+          "amount": 4
         },
         {
-          "id": "bronzePlate",
+          "id": "lvMachineHull",
           "amount": 1
-        },
-        {
-          "id": "bronzeRod",
-          "amount": 2
-        },
-        {
-          "id": "tinWire",
-          "amount": 2
         },
         {
           "id": "primitiveCircuit",
@@ -4067,14 +4211,14 @@
       ],
       "pattern": [
         "tinWire",
-        "bronzePlate",
+        "lvMotor",
         "tinWire",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
-        "bronzeRod",
+        "steelPlate",
         "primitiveCircuit",
-        "bronzeRod"
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -4094,24 +4238,24 @@
       "durationMs": 3200,
       "inputs": [
         {
-          "id": "tinWire",
-          "amount": 5
+          "id": "rubber",
+          "amount": 6
         },
         {
-          "id": "rubber",
-          "amount": 4
+          "id": "tinWire",
+          "amount": 3
         }
       ],
       "pattern": [
-        "tinWire",
+        "rubber",
+        "rubber",
         "rubber",
         "tinWire",
-        "rubber",
+        "tinWire",
         "tinWire",
         "rubber",
-        "tinWire",
         "rubber",
-        "tinWire"
+        "rubber"
       ],
       "outputs": [
         {
@@ -4152,7 +4296,7 @@
       "outputs": [
         {
           "id": "tinCable2A",
-          "amount": 3
+          "amount": 4
         }
       ],
       "unlockedBy": "fillLvBatteryQuest"
@@ -4188,7 +4332,7 @@
       "outputs": [
         {
           "id": "tinCable4A",
-          "amount": 3
+          "amount": 4
         }
       ],
       "unlockedBy": "buildTwoAmpCableQuest"
@@ -4228,7 +4372,7 @@
       "outputs": [
         {
           "id": "tinCable8A",
-          "amount": 3
+          "amount": 4
         }
       ],
       "unlockedBy": "firstAluminiumQuest"
@@ -4242,23 +4386,23 @@
       "durationMs": 6200,
       "inputs": [
         {
-          "id": "steelRod",
-          "amount": 2
-        },
-        {
-          "id": "copperWire",
-          "amount": 1
-        },
-        {
-          "id": "tinWire",
-          "amount": 2
+          "id": "steelPlate",
+          "amount": 4
         },
         {
           "id": "redAlloyWire",
           "amount": 1
         },
         {
+          "id": "steelRod",
+          "amount": 1
+        },
+        {
           "id": "steelGear",
+          "amount": 1
+        },
+        {
+          "id": "tinWire",
           "amount": 1
         }
       ],
@@ -4275,15 +4419,15 @@
         }
       ],
       "pattern": [
-        "copperWire",
-        "tinWire",
+        "steelPlate",
         "redAlloyWire",
+        "steelPlate",
         "steelRod",
         "steelGear",
-        "steelRod",
-        null,
+        "tinWire",
+        "steelPlate",
         "ironWireCutters",
-        "tinWire"
+        "steelPlate"
       ],
       "outputs": [
         {
@@ -4426,11 +4570,11 @@
           "amount": 4
         },
         {
-          "id": "tinWire",
-          "amount": 1
+          "id": "lvMotor",
+          "amount": 2
         },
         {
-          "id": "lvMotor",
+          "id": "tinWire",
           "amount": 2
         }
       ],
@@ -4452,7 +4596,7 @@
         "rubber",
         "tinWire",
         "ironWireCutters",
-        null,
+        "tinWire",
         "rubber",
         "lvMotor",
         "rubber"
@@ -4474,36 +4618,32 @@
       "durationMs": 8500,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "steelPlate",
+          "amount": 4
         },
         {
-          "id": "tinRod",
-          "amount": 4
+          "id": "redAlloyWire",
+          "amount": 2
         },
         {
           "id": "tinCable",
           "amount": 2
         },
         {
-          "id": "redAlloyWire",
-          "amount": 1
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
-        "tinRod",
+        "steelPlate",
         "redAlloyWire",
-        "tinRod",
+        "steelPlate",
         "tinCable",
         "lvMachineHull",
         "tinCable",
-        "tinRod",
-        "primitiveCircuit",
-        "tinRod"
+        "steelPlate",
+        "redAlloyWire",
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -4523,36 +4663,32 @@
       "durationMs": 8500,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "steelPlate",
+          "amount": 4
         },
         {
-          "id": "tinRod",
-          "amount": 4
+          "id": "redAlloyWire",
+          "amount": 2
         },
         {
           "id": "tinCable2A",
           "amount": 2
         },
         {
-          "id": "redAlloyWire",
-          "amount": 1
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
-        "tinRod",
+        "steelPlate",
         "redAlloyWire",
-        "tinRod",
+        "steelPlate",
         "tinCable2A",
         "lvMachineHull",
         "tinCable2A",
-        "tinRod",
-        "primitiveCircuit",
-        "tinRod"
+        "steelPlate",
+        "redAlloyWire",
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -4572,36 +4708,32 @@
       "durationMs": 8500,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "steelPlate",
+          "amount": 4
         },
         {
-          "id": "tinRod",
-          "amount": 4
+          "id": "redAlloyWire",
+          "amount": 2
         },
         {
           "id": "tinCable4A",
           "amount": 2
         },
         {
-          "id": "redAlloyWire",
-          "amount": 1
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
-        "tinRod",
+        "steelPlate",
         "redAlloyWire",
-        "tinRod",
+        "steelPlate",
         "tinCable4A",
         "lvMachineHull",
         "tinCable4A",
-        "tinRod",
-        "primitiveCircuit",
-        "tinRod"
+        "steelPlate",
+        "redAlloyWire",
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -4621,23 +4753,19 @@
       "durationMs": 8500,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "aluminiumPlate",
           "amount": 4
+        },
+        {
+          "id": "redAlloyWire",
+          "amount": 2
         },
         {
           "id": "tinCable8A",
           "amount": 2
         },
         {
-          "id": "redAlloyWire",
-          "amount": 1
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
@@ -4649,7 +4777,7 @@
         "lvMachineHull",
         "tinCable8A",
         "aluminiumPlate",
-        "primitiveCircuit",
+        "redAlloyWire",
         "aluminiumPlate"
       ],
       "outputs": [],
@@ -4670,24 +4798,20 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
-          "id": "steamCasing",
-          "amount": 1
-        },
-        {
           "id": "steelPlate",
           "amount": 4
         },
         {
-          "id": "bucket",
+          "id": "pipeSealant",
           "amount": 1
         },
         {
-          "id": "pipeSealant",
+          "id": "bucket",
           "amount": 2
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
         }
       ],
       "pattern": [
@@ -4696,9 +4820,12 @@
         "steelPlate",
         "bucket",
         "lvMachineHull",
-        "steamCasing",
+        "bucket",
         "steelPlate",
-        "pipeSealant",
+        {
+          "kind": "machine",
+          "id": "furnace"
+        },
         "steelPlate"
       ],
       "outputs": [],
@@ -4708,7 +4835,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "steelPlateQuest"
+      "unlockedBy": "steelPlateQuest",
+      "machineInputs": [
+        {
+          "id": "furnace",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -4719,42 +4852,34 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "steelPlate",
-          "amount": 2
-        },
-        {
-          "id": "steelRod",
-          "amount": 1
+          "amount": 4
         },
         {
           "id": "bronzeMortar",
           "amount": 1
         },
         {
-          "id": "lvMotor",
+          "id": "lvMachineHull",
           "amount": 1
         },
         {
-          "id": "conductiveWire",
+          "id": "primitiveCircuit",
           "amount": 2
         },
         {
-          "id": "primitiveCircuit",
+          "id": "lvMotor",
           "amount": 1
         }
       ],
       "pattern": [
-        "conductiveWire",
+        "steelPlate",
         "bronzeMortar",
-        "conductiveWire",
+        "steelPlate",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
-        "steelRod",
+        "primitiveCircuit",
         "lvMotor",
         "primitiveCircuit"
       ],
@@ -4776,42 +4901,34 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "steelPlate",
-          "amount": 2
-        },
-        {
-          "id": "steelRod",
-          "amount": 1
+          "amount": 4
         },
         {
           "id": "ironHammer",
           "amount": 1
         },
         {
-          "id": "lvPiston",
+          "id": "lvMachineHull",
           "amount": 1
         },
         {
-          "id": "tinWire",
+          "id": "primitiveCircuit",
           "amount": 2
         },
         {
-          "id": "primitiveCircuit",
+          "id": "lvPiston",
           "amount": 1
         }
       ],
       "pattern": [
-        "tinWire",
+        "steelPlate",
         "ironHammer",
-        "tinWire",
+        "steelPlate",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
-        "steelRod",
+        "primitiveCircuit",
         "lvPiston",
         "primitiveCircuit"
       ],
@@ -4833,40 +4950,32 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "steelPlate",
-          "amount": 2
+          "amount": 4
         },
         {
-          "id": "steelRod",
-          "amount": 1
+          "id": "primitiveCircuit",
+          "amount": 2
         },
         {
           "id": "lvPiston",
           "amount": 2
         },
         {
-          "id": "tinWire",
-          "amount": 2
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
-        "tinWire",
         "steelPlate",
-        "tinWire",
+        "primitiveCircuit",
+        "steelPlate",
         "lvPiston",
         "lvMachineHull",
         "lvPiston",
         "steelPlate",
         "primitiveCircuit",
-        "steelRod"
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -4886,11 +4995,7 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
-          "id": "steelPlate",
+          "id": "pipeSealant",
           "amount": 2
         },
         {
@@ -4898,30 +5003,30 @@
           "amount": 1
         },
         {
-          "id": "pipeSealant",
+          "id": "steelPlate",
+          "amount": 2
+        },
+        {
+          "id": "lvMachineHull",
           "amount": 1
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 2
         },
         {
           "id": "lvPump",
           "amount": 1
-        },
-        {
-          "id": "conductiveWire",
-          "amount": 2
-        },
-        {
-          "id": "primitiveCircuit",
-          "amount": 1
         }
       ],
       "pattern": [
-        "conductiveWire",
+        "pipeSealant",
         "bucket",
-        "conductiveWire",
+        "pipeSealant",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
-        "pipeSealant",
+        "primitiveCircuit",
         "lvPump",
         "primitiveCircuit"
       ],
@@ -4943,7 +5048,11 @@
       "durationMs": 9500,
       "inputs": [
         {
-          "id": "lvMachineHull",
+          "id": "lvConveyor",
+          "amount": 2
+        },
+        {
+          "id": "firebrick",
           "amount": 1
         },
         {
@@ -4951,31 +5060,26 @@
           "amount": 2
         },
         {
-          "id": "firebrick",
-          "amount": 2
-        },
-        {
-          "id": "redAlloyWire",
-          "amount": 2
-        },
-        {
-          "id": "lvConveyor",
+          "id": "lvMachineHull",
           "amount": 1
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
-        "redAlloyWire",
+        "lvConveyor",
         "firebrick",
-        "redAlloyWire",
+        "lvConveyor",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
-        "firebrick",
-        "lvConveyor",
+        "primitiveCircuit",
+        {
+          "kind": "machine",
+          "id": "furnace"
+        },
         "primitiveCircuit"
       ],
       "outputs": [],
@@ -4985,7 +5089,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "steelPlateQuest"
+      "unlockedBy": "steelPlateQuest",
+      "machineInputs": [
+        {
+          "id": "furnace",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -4996,40 +5106,35 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "steelPlate",
-          "amount": 2
-        },
-        {
-          "id": "brick",
-          "amount": 2
-        },
-        {
-          "id": "tinWire",
-          "amount": 2
-        },
-        {
-          "id": "lvConveyor",
-          "amount": 1
+          "amount": 4
         },
         {
           "id": "primitiveCircuit",
           "amount": 1
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "brick",
+          "amount": 2
         }
       ],
       "pattern": [
-        "tinWire",
-        "brick",
-        "tinWire",
+        "steelPlate",
+        "primitiveCircuit",
+        "steelPlate",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
         "brick",
-        "lvConveyor",
-        "primitiveCircuit"
+        {
+          "kind": "machine",
+          "id": "furnace"
+        },
+        "brick"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5038,7 +5143,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "steelPlateQuest"
+      "unlockedBy": "steelPlateQuest",
+      "machineInputs": [
+        {
+          "id": "furnace",
+          "amount": 1
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -5049,38 +5160,30 @@
       "durationMs": 8500,
       "inputs": [
         {
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
+          "id": "lvMotor",
+          "amount": 2
+        },
+        {
           "id": "lvMachineHull",
           "amount": 1
         },
         {
-          "id": "steelPlate",
-          "amount": 2
-        },
-        {
-          "id": "steelRod",
-          "amount": 2
-        },
-        {
-          "id": "lvMotor",
-          "amount": 1
-        },
-        {
-          "id": "tinWire",
-          "amount": 2
-        },
-        {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
       ],
       "pattern": [
-        "tinWire",
-        "steelRod",
-        "tinWire",
+        "steelPlate",
+        "lvMotor",
+        "steelPlate",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
-        "steelRod",
+        "primitiveCircuit",
         "lvMotor",
         "primitiveCircuit"
       ],
@@ -5102,39 +5205,35 @@
       "durationMs": 8500,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
-          "id": "steelPlate",
-          "amount": 3
+          "id": "primitiveCircuit",
+          "amount": 2
         },
         {
           "id": "steelRod",
           "amount": 1
         },
         {
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
           "id": "lvPiston",
           "amount": 1
         },
         {
-          "id": "tinWire",
-          "amount": 2
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
-        "tinWire",
-        "steelPlate",
-        "tinWire",
-        "lvPiston",
-        "lvMachineHull",
-        "steelRod",
-        "steelPlate",
         "primitiveCircuit",
+        "steelRod",
+        "primitiveCircuit",
+        "steelPlate",
+        "lvPiston",
+        "steelPlate",
+        "steelPlate",
+        "lvMachineHull",
         "steelPlate"
       ],
       "outputs": [],
@@ -5155,19 +5254,27 @@
       "durationMs": 8500,
       "inputs": [
         {
-          "id": "lvMachineHull",
+          "id": "copperRod",
           "amount": 1
         },
         {
           "id": "steelRod",
-          "amount": 4
-        },
-        {
-          "id": "lvMotor",
           "amount": 1
         },
         {
-          "id": "tinWire",
+          "id": "bronzeRod",
+          "amount": 1
+        },
+        {
+          "id": "lvMotor",
+          "amount": 2
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "steelPlate",
           "amount": 2
         },
         {
@@ -5176,15 +5283,15 @@
         }
       ],
       "pattern": [
-        "tinWire",
+        "copperRod",
         "steelRod",
-        "tinWire",
+        "bronzeRod",
         "lvMotor",
         "lvMachineHull",
-        "steelRod",
-        "steelRod",
+        "lvMotor",
+        "steelPlate",
         "primitiveCircuit",
-        "steelRod"
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5204,38 +5311,34 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "glassTube",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 3
         },
         {
           "id": "steelPlate",
           "amount": 2
         },
         {
-          "id": "glassTube",
-          "amount": 2
-        },
-        {
-          "id": "lvPump",
+          "id": "lvMachineHull",
           "amount": 1
         },
         {
-          "id": "conductiveWire",
-          "amount": 2
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvPump",
           "amount": 1
         }
       ],
       "pattern": [
         "glassTube",
-        "conductiveWire",
+        "primitiveCircuit",
         "glassTube",
         "steelPlate",
         "lvMachineHull",
         "steelPlate",
-        "conductiveWire",
+        "primitiveCircuit",
         "lvPump",
         "primitiveCircuit"
       ],
@@ -5257,23 +5360,15 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "primitiveCircuit",
+          "amount": 3
         },
         {
           "id": "steelPlate",
-          "amount": 1
-        },
-        {
-          "id": "ironWrench",
-          "amount": 1
-        },
-        {
-          "id": "conductiveWire",
           "amount": 2
         },
         {
-          "id": "lvConveyor",
+          "id": "lvMachineHull",
           "amount": 1
         },
         {
@@ -5281,21 +5376,21 @@
           "amount": 1
         },
         {
-          "id": "lvMotor",
+          "id": "lvConveyor",
           "amount": 1
         },
         {
-          "id": "primitiveCircuit",
+          "id": "lvMotor",
           "amount": 1
         }
       ],
       "pattern": [
-        "conductiveWire",
-        "steelPlate",
-        "conductiveWire",
-        "ironWrench",
-        "lvMachineHull",
         "primitiveCircuit",
+        "primitiveCircuit",
+        "primitiveCircuit",
+        "steelPlate",
+        "lvMachineHull",
+        "steelPlate",
         "lvPiston",
         "lvConveyor",
         "lvMotor"
@@ -5318,27 +5413,23 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "steelPlate",
-          "amount": 2
+          "amount": 4
         },
         {
           "id": "glassTube",
-          "amount": 2
-        },
-        {
-          "id": "tinCable",
-          "amount": 1
-        },
-        {
-          "id": "bucket",
           "amount": 1
         },
         {
           "id": "lvPump",
+          "amount": 1
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "bucket",
           "amount": 1
         },
         {
@@ -5350,12 +5441,12 @@
         "steelPlate",
         "glassTube",
         "steelPlate",
-        "tinCable",
+        "lvPump",
         "lvMachineHull",
         "bucket",
-        "lvPump",
+        "steelPlate",
         "primitiveCircuit",
-        "glassTube"
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5375,15 +5466,11 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "primitiveCircuit",
+          "amount": 3
         },
         {
-          "id": "steelRod",
-          "amount": 2
-        },
-        {
-          "id": "steelPlate",
+          "id": "bucket",
           "amount": 1
         },
         {
@@ -5391,24 +5478,24 @@
           "amount": 2
         },
         {
-          "id": "tinWire",
-          "amount": 2
+          "id": "lvMachineHull",
+          "amount": 1
         },
         {
-          "id": "primitiveCircuit",
-          "amount": 1
+          "id": "steelPlate",
+          "amount": 2
         }
       ],
       "pattern": [
-        "tinWire",
-        "steelRod",
-        "tinWire",
+        "primitiveCircuit",
+        "bucket",
+        "primitiveCircuit",
         "lvMotor",
         "lvMachineHull",
         "lvMotor",
         "steelPlate",
         "primitiveCircuit",
-        "steelRod"
+        "steelPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5428,15 +5515,7 @@
       "durationMs": 9000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
-          "id": "steelPlate",
-          "amount": 2
-        },
-        {
-          "id": "tinWire",
+          "id": "diamondPickaxe",
           "amount": 2
         },
         {
@@ -5444,25 +5523,25 @@
           "amount": 1
         },
         {
-          "id": "lvPiston",
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
+          "id": "lvMachineHull",
           "amount": 1
         },
         {
           "id": "primitiveCircuit",
           "amount": 1
-        },
-        {
-          "id": "ironPickaxe",
-          "amount": 1
         }
       ],
       "pattern": [
-        "tinWire",
+        "diamondPickaxe",
         "lvMotor",
-        "tinWire",
-        "ironPickaxe",
+        "diamondPickaxe",
+        "steelPlate",
         "lvMachineHull",
-        "lvPiston",
+        "steelPlate",
         "steelPlate",
         "primitiveCircuit",
         "steelPlate"
@@ -5489,20 +5568,16 @@
           "amount": 1
         },
         {
-          "id": "redAlloyWire",
-          "amount": 2
-        },
-        {
-          "id": "steelRod",
+          "id": "ironWireCutters",
           "amount": 1
         }
       ],
       "pattern": [
-        "redAlloyWire",
         "cupronickelIngot",
-        "redAlloyWire",
+        "ironWireCutters",
         null,
-        "steelRod",
+        null,
+        null,
         null,
         null,
         null,
@@ -5525,28 +5600,24 @@
       "durationMs": 6500,
       "inputs": [
         {
-          "id": "firebrick",
-          "amount": 2
-        },
-        {
-          "id": "steelPlate",
-          "amount": 3
-        },
-        {
           "id": "heatingCoil",
-          "amount": 1
+          "amount": 5
+        },
+        {
+          "id": "firebrick",
+          "amount": 4
         }
       ],
       "pattern": [
-        "firebrick",
-        "steelPlate",
-        "firebrick",
-        "steelPlate",
         "heatingCoil",
-        "steelPlate",
-        null,
-        null,
-        null
+        "firebrick",
+        "heatingCoil",
+        "firebrick",
+        "heatingCoil",
+        "firebrick",
+        "heatingCoil",
+        "firebrick",
+        "heatingCoil"
       ],
       "outputs": [
         {
@@ -5618,32 +5689,24 @@
       "durationMs": 1800,
       "inputs": [
         {
+          "id": "invarPlate",
+          "amount": 5
+        },
+        {
           "id": "heatProofCasing",
-          "amount": 1
-        }
-      ],
-      "catalysts": [
-        {
-          "id": "ironWrench",
-          "amount": 1
-        }
-      ],
-      "durabilityCosts": [
-        {
-          "id": "ironWrench",
-          "amount": 1
+          "amount": 4
         }
       ],
       "pattern": [
-        null,
-        null,
-        null,
-        null,
+        "invarPlate",
         "heatProofCasing",
-        "ironWrench",
-        null,
-        null,
-        null
+        "invarPlate",
+        "heatProofCasing",
+        "invarPlate",
+        "heatProofCasing",
+        "invarPlate",
+        "heatProofCasing",
+        "invarPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5663,36 +5726,28 @@
       "durationMs": 5000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "tinCable2A",
+          "amount": 4
         },
         {
-          "id": "tinCable2A",
-          "amount": 2
-        }
-      ],
-      "catalysts": [
+          "id": "steelPlate",
+          "amount": 4
+        },
         {
-          "id": "ironWrench",
-          "amount": 1
-        }
-      ],
-      "durabilityCosts": [
-        {
-          "id": "ironWrench",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
         "tinCable2A",
-        null,
+        "steelPlate",
         "tinCable2A",
-        null,
+        "steelPlate",
         "lvMachineHull",
-        "ironWrench",
-        null,
-        null,
-        null
+        "steelPlate",
+        "tinCable2A",
+        "steelPlate",
+        "tinCable2A"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5712,12 +5767,16 @@
       "durationMs": 5000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "lvConveyor",
           "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 3
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
         }
       ],
       "catalysts": [
@@ -5734,14 +5793,20 @@
       ],
       "pattern": [
         "lvConveyor",
-        null,
-        "lvConveyor",
         "ironWrench",
+        "lvConveyor",
+        "steelPlate",
         "lvMachineHull",
-        null,
-        null,
-        null,
-        null
+        "steelPlate",
+        {
+          "kind": "machine",
+          "id": "standardChest"
+        },
+        "steelPlate",
+        {
+          "kind": "machine",
+          "id": "standardChest"
+        }
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5750,7 +5815,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "steelPlateQuest"
+      "unlockedBy": "steelPlateQuest",
+      "machineInputs": [
+        {
+          "id": "standardChest",
+          "amount": 2
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -5761,36 +5832,34 @@
       "durationMs": 5000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "lvConveyor",
           "amount": 2
-        }
-      ],
-      "catalysts": [
+        },
         {
-          "id": "ironWrench",
-          "amount": 1
-        }
-      ],
-      "durabilityCosts": [
+          "id": "steelPlate",
+          "amount": 4
+        },
         {
-          "id": "ironWrench",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
         "lvConveyor",
-        null,
+        "steelPlate",
         "lvConveyor",
-        null,
+        "steelPlate",
         "lvMachineHull",
-        "ironWrench",
-        null,
-        null,
-        null
+        "steelPlate",
+        {
+          "kind": "machine",
+          "id": "hopper"
+        },
+        "steelPlate",
+        {
+          "kind": "machine",
+          "id": "hopper"
+        }
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5799,7 +5868,13 @@
           "amount": 1
         }
       ],
-      "unlockedBy": "steelPlateQuest"
+      "unlockedBy": "steelPlateQuest",
+      "machineInputs": [
+        {
+          "id": "hopper",
+          "amount": 2
+        }
+      ]
     },
     {
       "kind": "crafting",
@@ -5810,36 +5885,32 @@
       "durationMs": 5000,
       "inputs": [
         {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
           "id": "lvMachineHull",
           "amount": 1
         },
         {
-          "id": "lvPump",
+          "id": "bucket",
           "amount": 2
-        }
-      ],
-      "catalysts": [
-        {
-          "id": "ironWrench",
-          "amount": 1
-        }
-      ],
-      "durabilityCosts": [
-        {
-          "id": "ironWrench",
-          "amount": 1
         }
       ],
       "pattern": [
         "lvPump",
-        null,
+        "steelPlate",
         "lvPump",
-        "ironWrench",
+        "steelPlate",
         "lvMachineHull",
-        null,
-        null,
-        null,
-        null
+        "steelPlate",
+        "bucket",
+        "steelPlate",
+        "bucket"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -5859,6 +5930,14 @@
       "durationMs": 5000,
       "inputs": [
         {
+          "id": "bucket",
+          "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
           "id": "lvMachineHull",
           "amount": 1
         },
@@ -5867,28 +5946,16 @@
           "amount": 2
         }
       ],
-      "catalysts": [
-        {
-          "id": "ironWrench",
-          "amount": 1
-        }
-      ],
-      "durabilityCosts": [
-        {
-          "id": "ironWrench",
-          "amount": 1
-        }
-      ],
       "pattern": [
-        "lvPump",
-        null,
-        "lvPump",
-        null,
+        "bucket",
+        "steelPlate",
+        "bucket",
+        "steelPlate",
         "lvMachineHull",
-        "ironWrench",
-        null,
-        null,
-        null
+        "steelPlate",
+        "lvPump",
+        "steelPlate",
+        "lvPump"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -6823,23 +6890,23 @@
       "durationMs": 2600,
       "inputs": [
         {
-          "id": "ironRod",
+          "id": "ironPlate",
           "amount": 2
         },
         {
-          "id": "ironPlate",
-          "amount": 2
+          "id": "ironRod",
+          "amount": 3
         }
       ],
       "pattern": [
-        "ironRod",
-        null,
-        null,
-        null,
-        "ironRod",
         null,
         "ironPlate",
+        "ironRod",
+        null,
+        "ironRod",
         "ironPlate",
+        "ironRod",
+        null,
         null
       ],
       "outputs": [
@@ -7483,21 +7550,29 @@
       "durationMs": 1800,
       "inputs": [
         {
-          "id": "carbonDust",
-          "amount": 1
+          "id": "rubberSap",
+          "amount": 2
         },
         {
           "id": "copperWire",
           "amount": 2
+        },
+        {
+          "id": "redAlloyWire",
+          "amount": 2
+        },
+        {
+          "id": "carbonDust",
+          "amount": 1
         }
       ],
       "pattern": [
-        null,
+        "rubberSap",
         "copperWire",
-        null,
-        null,
+        "rubberSap",
+        "redAlloyWire",
         "carbonDust",
-        null,
+        "redAlloyWire",
         null,
         "copperWire",
         null
@@ -7556,15 +7631,11 @@
       "inputs": [
         {
           "id": "glassTube",
-          "amount": 1
+          "amount": 2
         },
         {
           "id": "redAlloyWire",
-          "amount": 1
-        },
-        {
-          "id": "copperWire",
-          "amount": 1
+          "amount": 2
         },
         {
           "id": "steelRod",
@@ -7577,9 +7648,9 @@
         null,
         "redAlloyWire",
         "steelRod",
-        "copperWire",
+        "redAlloyWire",
         null,
-        null,
+        "glassTube",
         null
       ],
       "outputs": [
@@ -8058,7 +8129,7 @@
       "machineOutputs": [
         {
           "id": "reachGateCasing",
-          "amount": 4
+          "amount": 1
         }
       ],
       "unlockedBy": "gatherObsidianQuest"
@@ -8263,24 +8334,24 @@
       "durationMs": 6000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "steelPlate",
+          "amount": 2
         },
         {
           "id": "lvPump",
           "amount": 2
         },
         {
-          "id": "steelPlate",
-          "amount": 3
-        },
-        {
           "id": "tinCable",
           "amount": 2
         },
         {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 2
         }
       ],
       "pattern": [
@@ -8290,7 +8361,7 @@
         "tinCable",
         "lvMachineHull",
         "tinCable",
-        "steelPlate",
+        "primitiveCircuit",
         "lvPump",
         "primitiveCircuit"
       ],
@@ -8311,8 +8382,20 @@
       "durationMs": 10000,
       "inputs": [
         {
-          "id": "steelPlate",
-          "amount": 3
+          "id": "log",
+          "amount": 1
+        },
+        {
+          "id": "treeTap",
+          "amount": 1
+        },
+        {
+          "id": "woodenAxe",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 1
         },
         {
           "id": "lvMachineHull",
@@ -8323,34 +8406,34 @@
           "amount": 1
         },
         {
-          "id": "lvPump",
+          "id": "diamondAxe",
           "amount": 1
-        },
-        {
-          "id": "lvConveyor",
-          "amount": 2
         },
         {
           "id": "primitiveCircuit",
           "amount": 1
+        },
+        {
+          "id": "ironAxe",
+          "amount": 1
         }
       ],
       "pattern": [
-        "steelPlate",
-        "lvConveyor",
-        "steelPlate",
+        "log",
+        "treeTap",
+        "woodenAxe",
         "lvPump",
         "lvMachineHull",
         "lvMotor",
-        "steelPlate",
-        "lvConveyor",
-        "primitiveCircuit"
+        "diamondAxe",
+        "primitiveCircuit",
+        "ironAxe"
       ],
       "outputs": [],
       "machineOutputs": [
         {
           "id": "poweredFarmPart",
-          "amount": 4
+          "amount": 1
         }
       ]
     },
@@ -8364,22 +8447,18 @@
       "inputs": [
         {
           "id": "heatProofCasing",
-          "amount": 3
-        },
-        {
-          "id": "steelPlate",
-          "amount": 2
+          "amount": 4
         },
         {
           "id": "heatingCoil",
           "amount": 2
         },
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "steelPlate",
+          "amount": 2
         },
         {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
@@ -8392,13 +8471,13 @@
         "steelPlate",
         "heatProofCasing",
         "heatingCoil",
-        "primitiveCircuit"
+        "heatProofCasing"
       ],
       "outputs": [],
       "machineOutputs": [
         {
           "id": "pyrolysisOvenPart",
-          "amount": 4
+          "amount": 1
         }
       ]
     },
@@ -8411,12 +8490,8 @@
       "durationMs": 8000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
-        },
-        {
           "id": "steelPlate",
-          "amount": 3
+          "amount": 2
         },
         {
           "id": "glassTube",
@@ -8427,8 +8502,12 @@
           "amount": 2
         },
         {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 2
         }
       ],
       "pattern": [
@@ -8438,7 +8517,7 @@
         "lvPump",
         "lvMachineHull",
         "lvPump",
-        "steelPlate",
+        "primitiveCircuit",
         "glassTube",
         "primitiveCircuit"
       ],
@@ -8555,8 +8634,8 @@
       "durationMs": 10000,
       "inputs": [
         {
-          "id": "lvMachineHull",
-          "amount": 1
+          "id": "aluminiumPlate",
+          "amount": 4
         },
         {
           "id": "tinCable4A",
@@ -8567,24 +8646,20 @@
           "amount": 2
         },
         {
-          "id": "steelPlate",
-          "amount": 3
-        },
-        {
-          "id": "primitiveCircuit",
+          "id": "lvMachineHull",
           "amount": 1
         }
       ],
       "pattern": [
-        "steelPlate",
+        "aluminiumPlate",
         "tinCable4A",
-        "steelPlate",
+        "aluminiumPlate",
         "aluminiumCable",
         "lvMachineHull",
         "tinCable4A",
-        "steelPlate",
+        "aluminiumPlate",
         "aluminiumCable",
-        "primitiveCircuit"
+        "aluminiumPlate"
       ],
       "outputs": [],
       "machineOutputs": [
@@ -8603,11 +8678,7 @@
       "durationMs": 12000,
       "inputs": [
         {
-          "id": "aluminiumPlate",
-          "amount": 3
-        },
-        {
-          "id": "aluminiumCable",
+          "id": "primitiveCircuit",
           "amount": 2
         },
         {
@@ -8615,12 +8686,16 @@
           "amount": 2
         },
         {
-          "id": "primitiveCircuit",
-          "amount": 1
+          "id": "aluminiumPlate",
+          "amount": 2
+        },
+        {
+          "id": "aluminiumCable",
+          "amount": 2
         }
       ],
       "pattern": [
-        "aluminiumPlate",
+        "primitiveCircuit",
         "lvMotor",
         "aluminiumPlate",
         "aluminiumCable",
@@ -9178,7 +9253,7 @@
       },
       "output": {
         "id": "woodPulp",
-        "amount": 10
+        "amount": 4
       }
     },
     {
@@ -11385,7 +11460,7 @@
       },
       "output": {
         "id": "resistor",
-        "amount": 6
+        "amount": 4
       }
     },
     {
@@ -11397,16 +11472,20 @@
       "machineId": "lvAssembler",
       "durationMs": 6000,
       "euCost": 72,
+      "output": {
+        "id": "basicBoard",
+        "amount": 1
+      },
       "input": {
         "id": "woodenBoardBlank",
         "amount": 1
       },
       "secondaryInput": {
         "id": "copperWire",
-        "amount": 6
+        "amount": 2
       },
-      "output": {
-        "id": "basicBoard",
+      "fluidInput": {
+        "id": "dilutedSulfuricAcid",
         "amount": 1
       }
     },
@@ -11477,6 +11556,10 @@
       "machineId": "lvAssembler",
       "durationMs": 7000,
       "euCost": 112,
+      "output": {
+        "id": "lvPiston",
+        "amount": 1
+      },
       "input": {
         "id": "lvMotor",
         "amount": 1
@@ -11498,11 +11581,7 @@
           "id": "aluminiumRod",
           "amount": 1
         }
-      ],
-      "output": {
-        "id": "lvPiston",
-        "amount": 1
-      }
+      ]
     },
     {
       "kind": "process",
@@ -11513,17 +11592,17 @@
       "machineId": "lvCanner",
       "durationMs": 7000,
       "euCost": 96,
+      "output": {
+        "id": "sodiumBattery",
+        "amount": 1
+      },
       "input": {
         "id": "emptyBatteryCell",
         "amount": 1
       },
       "secondaryInput": {
         "id": "sodiumDust",
-        "amount": 1
-      },
-      "output": {
-        "id": "sodiumBattery",
-        "amount": 1
+        "amount": 8
       }
     },
     {
@@ -11535,17 +11614,17 @@
       "machineId": "lvCanner",
       "durationMs": 6000,
       "euCost": 112,
+      "output": {
+        "id": "lithiumBattery",
+        "amount": 1
+      },
       "input": {
         "id": "emptyBatteryCell",
         "amount": 1
       },
       "secondaryInput": {
         "id": "lithiumDust",
-        "amount": 1
-      },
-      "output": {
-        "id": "lithiumBattery",
-        "amount": 1
+        "amount": 16
       }
     },
     {
@@ -11557,17 +11636,17 @@
       "machineId": "lvElectrolyzer",
       "durationMs": 16000,
       "euCost": 192,
-      "input": {
-        "id": "clay",
-        "amount": 8
-      },
-      "secondaryInput": {
-        "id": "sodiumDust",
-        "amount": 1
-      },
       "output": {
         "id": "lithiumDust",
         "amount": 1
+      },
+      "input": {
+        "id": "resonantQuartzDust",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "sodiumDust",
+        "amount": 2
       }
     },
     {
@@ -11579,13 +11658,13 @@
       "machineId": "lvElectrolyzer",
       "durationMs": 12000,
       "euCost": 160,
-      "input": {
-        "id": "bauxiteDust",
-        "amount": 3
-      },
       "output": {
         "id": "aluminiumDust",
         "amount": 2
+      },
+      "input": {
+        "id": "bauxiteDust",
+        "amount": 4
       }
     },
     {
@@ -11633,10 +11712,6 @@
       "machineId": "lvCentrifuge",
       "durationMs": 14000,
       "euCost": 120,
-      "input": {
-        "id": "gravel",
-        "amount": 12
-      },
       "output": {
         "id": "aluminiumDust",
         "amount": 1
@@ -11644,6 +11719,10 @@
       "secondaryOutput": {
         "id": "flint",
         "amount": 2
+      },
+      "input": {
+        "id": "gravel",
+        "amount": 32
       }
     },
     {
@@ -11932,17 +12011,17 @@
       "machineId": "lvChemicalReactor",
       "durationMs": 8000,
       "euCost": 128,
-      "input": {
-        "id": "rubberPulp",
-        "amount": 2
-      },
-      "secondaryInput": {
-        "id": "sulfurDust",
-        "amount": 1
-      },
       "fluidOutput": {
         "id": "liquidRubber",
         "amount": 8
+      },
+      "input": {
+        "id": "rubberPulp",
+        "amount": 8
+      },
+      "secondaryInput": {
+        "id": "sulfurDust",
+        "amount": 4
       }
     },
     {
@@ -11982,10 +12061,6 @@
       "machineId": "lvChemicalReactor",
       "durationMs": 6000,
       "euCost": 96,
-      "input": {
-        "id": "emptySteelCell",
-        "amount": 1
-      },
       "fluidInputs": [
         {
           "id": "sulfuricAcid",
@@ -11998,18 +12073,12 @@
           "bufferId": "feedB"
         }
       ],
-      "output": {
-        "id": "emptySteelCell",
-        "amount": 1
-      },
       "fluidOnly": true,
-      "fluidOutputs": [
-        {
-          "id": "dilutedSulfuricAcid",
-          "amount": 8,
-          "bufferId": "reaction"
-        }
-      ]
+      "fluidOutput": {
+        "id": "dilutedSulfuricAcid",
+        "amount": 8,
+        "bufferId": "reaction"
+      }
     },
     {
       "kind": "process",
@@ -12492,6 +12561,10 @@
       "machineId": "lvAssembler",
       "durationMs": 10000,
       "euCost": 192,
+      "machineOutput": {
+        "id": "crystalEnergizer",
+        "amount": 1
+      },
       "input": {
         "id": "lvMachineHull",
         "amount": 1
@@ -12511,13 +12584,9 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
-      ],
-      "machineOutput": {
-        "id": "crystalEnergizer",
-        "amount": 1
-      }
+      ]
     },
     {
       "kind": "process",
@@ -12528,6 +12597,10 @@
       "machineId": "lvAssembler",
       "durationMs": 12000,
       "euCost": 224,
+      "machineOutput": {
+        "id": "circuitImprinter",
+        "amount": 1
+      },
       "input": {
         "id": "lvMachineHull",
         "amount": 1
@@ -12547,13 +12620,9 @@
         },
         {
           "id": "primitiveCircuit",
-          "amount": 1
+          "amount": 2
         }
-      ],
-      "machineOutput": {
-        "id": "circuitImprinter",
-        "amount": 1
-      }
+      ]
     },
     {
       "kind": "process",
@@ -12789,6 +12858,78 @@
     },
     {
       "kind": "process",
+      "id": "lv_assembler_terminal_import_bus",
+      "name": "Assemble Terminal Import Buses",
+      "description": "Build two compact intake faces that move adjacent items or fluids into a connected Terminal network.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "aluminiumPlate",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "tinCable",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "lvConveyor",
+          "amount": 2
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "computationProcessor",
+          "amount": 1
+        }
+      ],
+      "machineOutput": {
+        "id": "terminalImportBus",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_terminal_export_bus",
+      "name": "Assemble Terminal Export Buses",
+      "description": "Build two compact output faces that push filtered Terminal network contents into an adjacent target.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 10000,
+      "euCost": 192,
+      "input": {
+        "id": "aluminiumPlate",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "tinCable",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "lvConveyor",
+          "amount": 2
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "signalProcessor",
+          "amount": 1
+        }
+      ],
+      "machineOutput": {
+        "id": "terminalExportBus",
+        "amount": 2
+      }
+    },
+    {
+      "kind": "process",
       "id": "lv_assembler_planning_controller",
       "name": "Assemble Planning Controller",
       "description": "Build the structural core that schedules a complete fabrication job.",
@@ -12890,17 +13031,17 @@
       "machineId": "lvAssembler",
       "durationMs": 6000,
       "euCost": 96,
-      "input": {
-        "id": "tinCable",
-        "amount": 3
-      },
       "fluidInput": {
         "id": "liquidRubber",
-        "amount": 3
+        "amount": 4
+      },
+      "input": {
+        "id": "tinWire",
+        "amount": 8
       },
       "output": {
         "id": "tinCable2A",
-        "amount": 3
+        "amount": 4
       }
     },
     {
@@ -12913,16 +13054,16 @@
       "durationMs": 6000,
       "euCost": 96,
       "input": {
-        "id": "tinCable2A",
-        "amount": 3
+        "id": "tinWire",
+        "amount": 16
       },
       "fluidInput": {
         "id": "liquidRubber",
-        "amount": 3
+        "amount": 4
       },
       "output": {
         "id": "tinCable4A",
-        "amount": 3
+        "amount": 4
       }
     },
     {
@@ -12935,16 +13076,20 @@
       "durationMs": 6000,
       "euCost": 96,
       "input": {
-        "id": "tinCable4A",
-        "amount": 6
+        "id": "tinWire",
+        "amount": 16
       },
-      "fluidInput": {
-        "id": "liquidRubber",
-        "amount": 2
+      "secondaryInput": {
+        "id": "aluminiumPlate",
+        "amount": 1
       },
       "output": {
         "id": "tinCable8A",
-        "amount": 3
+        "amount": 4
+      },
+      "fluidInput": {
+        "id": "liquidRubber",
+        "amount": 4
       }
     },
     {
@@ -12986,23 +13131,21 @@
       "machineId": "lvAssembler",
       "durationMs": 8000,
       "euCost": 192,
-      "input": {
-        "id": "aluminiumRod",
-        "amount": 2
-      },
-      "secondaryInput": {
-        "id": "rubber",
-        "amount": 2
-      },
-      "extraInputs": [
-        {
-          "id": "redAlloyWire",
-          "amount": 1
-        }
-      ],
       "output": {
         "id": "aluminiumCable",
         "amount": 4
+      },
+      "fluidInput": {
+        "id": "liquidRubber",
+        "amount": 4
+      },
+      "input": {
+        "id": "aluminiumRod",
+        "amount": 4
+      },
+      "secondaryInput": {
+        "id": "redAlloyWire",
+        "amount": 2
       }
     },
     {
