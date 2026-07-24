@@ -150,6 +150,7 @@ import {
   toggleFabricationBusItemFilter,
   topUpCreativeState,
   offlineProgressCapMs,
+  offlineSimulationStepCount,
   unequipSlot,
   unassignAutoMiner,
   visibleQuests,
@@ -662,6 +663,10 @@ describe('game engine', () => {
     expect(result.offline.capped).toBe(true)
     expect(result.offline.simulatedMs).toBe(offlineProgressCapMs)
     expect(result.state.lastSavedAt).toBe(1000 + 24 * 60 * 60 * 1000)
+  })
+
+  it('batches long offline progress into bounded simulation steps', () => {
+    expect(offlineSimulationStepCount(offlineProgressCapMs)).toBeLessThan(250)
   })
 
   it('auto-completes quests after offline progress', () => {

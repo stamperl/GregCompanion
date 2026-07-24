@@ -149,6 +149,10 @@ export const offlineProgressCapMs = 8 * 60 * 60 * 1000
 export const suspiciousOfflineJumpMs = 72 * 60 * 60 * 1000
 export const negativeClockToleranceMs = 5 * 60 * 1000
 export const offlineSimulationChunkMs = 1000
+export const offlineSimulationMediumChunkMs = 15000
+export const offlineSimulationLongChunkMs = 10 * 60 * 1000
+const offlineShortPrecisionWindowMs = 60 * 1000
+const offlineMediumPrecisionWindowMs = 10 * 60 * 1000
 export const steamMsPerLitre = 1000
 export const boilerSteamCapacityMs = machineSteamCapacityLitres('steamBoiler') * steamMsPerLitre
 export const steamMaceratorCapacityMs = machineSteamCapacityLitres('steamMacerator') * steamMsPerLitre
@@ -7111,6 +7115,8 @@ function tickFabricationExportBus(state: GameState, network: FabricationNetwork,
 }
 
 function tickFabricationBuses(state: GameState, elapsedMs: number) {
+  if (!state.machineInstances.some((instance) => Object.values(instance.fabricationInterfaces ?? {}).some((attachment) => attachment && isFabricationBusAttachment(attachment)))) return
+
   for (const network of fabricationNetworks(state)) {
     for (const bus of [...network.buses].sort((a, b) => b.priority - a.priority || a.uid.localeCompare(b.uid))) {
       const target = fabricationFaceTarget(state, bus.cable, bus.attachment)
@@ -7321,6 +7327,8 @@ function tickFluidConductorNetwork(state: GameState, network: MachineInstance[],
 
 function tickConductorNetworks(state: GameState, elapsedMs: number) {
   for (const lane of ['item', 'fluid'] as const) {
+    if (!state.machineInstances.some((instance) => conductorSupportsLane(instance, lane))) continue
+
     const visited = new Set<string>()
     for (const instance of state.machineInstances) {
       if (visited.has(instance.uid) || !conductorSupportsLane(instance, lane)) continue
@@ -7507,14 +7515,17 @@ function completeFabricationJob(state: GameState, job: FabricationJob) {
 }
 
 function tickFabricationJobs(state: GameState, elapsedMs: number) {
-  for (const controller of state.machineInstances.filter((instance) => instance.machineId === 'planningController')) {
+  const controllers = state.machineInstances.filter((instance) => instance.machineId === 'planningController')
+  const activeJobs = state.fabricationJobs.filter((job) => job.status !== 'complete' && job.status !== 'cancelled')
+  if (controllers.length < 1 && activeJobs.length < 1) return
+
+  for (const controller of controllers) {
     if (planningRackStructureForInstance(state, controller)) {
       state.recipeMilestones.fabrication_rack_formed = Math.max(1, state.recipeMilestones.fabrication_rack_formed ?? 0)
     }
   }
 
-  for (const job of state.fabricationJobs) {
-    if (job.status === 'complete' || job.status === 'cancelled') continue
+  for (const job of activeJobs) {
     const rackController = state.machineInstances.find((instance) => instance.uid === job.controllerUid)
     const rack = rackController ? planningRackStructureForInstance(state, rackController) : null
     const network = rackController ? fabricationNetworkForController(state, rackController.uid) : null
@@ -7624,10 +7635,9 @@ function tickFabricationJobs(state: GameState, elapsedMs: number) {
   }
 }
 
-export function tickMachineInstances(state: GameState, elapsedMs: number, now = Date.now()) {
-  const next = cloneState(state)
+function tickMachineInstancesInPlace(next: GameState, elapsedMs: number, now = Date.now(), topology = activateFactoryTopology(next)) {
   const previousFactoryTopology = activeFactoryTopology
-  activeFactoryTopology = activateFactoryTopology(next)
+  activeFactoryTopology = topology
   try {
     activeSteamTransferBudgets = new Map()
     activeEuTransferBudgets = new Map()
@@ -7773,37 +7783,56 @@ export function tickMachineInstances(state: GameState, elapsedMs: number, now = 
   }
 }
 
-export function tickGame(state: GameState, elapsedMs: number, now = Date.now()): TickResult {
-  let next = cloneState(state)
+export function tickMachineInstances(state: GameState, elapsedMs: number, now = Date.now()) {
+  return tickMachineInstancesInPlace(cloneState(state), elapsedMs, now)
+}
+
+function subtractResourcesInPlace(state: GameState, amounts: ResourceAmount[]) {
+  for (const amount of amounts) state.resources[amount.id] -= amount.amount
+}
+
+function addResourcesInPlace(state: GameState, amounts: ResourceAmount[]) {
+  for (const amount of amounts) state.resources[amount.id] += amount.amount
+  state.discoveredResources = Array.from(new Set([...state.discoveredResources, ...amounts.filter((amount) => amount.amount > 0).map((amount) => amount.id)]))
+}
+
+function tickPassiveMachinesInPlace(state: GameState, elapsedMs: number) {
   const machineOutputs: ResourceAmount[] = []
 
-  for (const machineId of Object.keys(next.machines) as MachineId[]) {
-    const count = next.machines[machineId]
+  for (const machineId of Object.keys(state.machines) as MachineId[]) {
+    const count = state.machines[machineId]
     const machine = machines[machineId]
     if (!machine || count < 1 || !machine.intervalMs || !machine.produces) continue
-    if (machine.consumes && !hasResources(next, machine.consumes)) continue
+    if (machine.consumes && !hasResources(state, machine.consumes)) continue
 
-    const currentProgress = (next.machineProgress[machineId] ?? 0) + elapsedMs
+    const currentProgress = (state.machineProgress[machineId] ?? 0) + elapsedMs
     const cycles = Math.floor(currentProgress / machine.intervalMs)
-    next.machineProgress[machineId] = currentProgress % machine.intervalMs
+    state.machineProgress[machineId] = currentProgress % machine.intervalMs
     if (cycles < 1) continue
 
     if (machine.consumes) {
       const consumption = machine.consumes.map((amount) => ({ ...amount, amount: amount.amount * cycles * count }))
-      if (!hasResources(next, consumption)) continue
-      next = subtractResources(next, consumption)
+      if (!hasResources(state, consumption)) continue
+      subtractResourcesInPlace(state, consumption)
     }
 
     const produced = machine.produces.map((amount) => ({
       ...amount,
       amount: amount.amount * cycles * count,
     }))
-    next = addResources(next, produced)
-    recordResourceMilestones(next, produced)
+    addResourcesInPlace(state, produced)
+    recordResourceMilestones(state, produced)
     machineOutputs.push(...produced)
   }
 
-  next = tickMachineInstances(next, elapsedMs, now)
+  return machineOutputs
+}
+
+export function tickGame(state: GameState, elapsedMs: number, now = Date.now()): TickResult {
+  let next = cloneState(state)
+  const machineOutputs = tickPassiveMachinesInPlace(next, elapsedMs)
+
+  next = tickMachineInstancesInPlace(next, elapsedMs, now)
   const questSync = autoCompleteQuests(next)
   next = questSync.state
   next.lastSavedAt = now
@@ -7825,6 +7854,22 @@ function emptyOfflineProgress(reason: OfflineProgressResult['reason'], elapsedMs
     resourceDelta: [],
     questCompletions: [],
   }
+}
+
+export function offlineSimulationStepMs(remainingMs: number) {
+  if (remainingMs <= offlineShortPrecisionWindowMs) return Math.min(remainingMs, offlineSimulationChunkMs)
+  if (remainingMs <= offlineMediumPrecisionWindowMs) return Math.min(remainingMs, offlineSimulationMediumChunkMs)
+  return Math.min(remainingMs, offlineSimulationLongChunkMs)
+}
+
+export function offlineSimulationStepCount(elapsedMs: number) {
+  let remainingMs = Math.min(Math.max(0, elapsedMs), offlineProgressCapMs)
+  let steps = 0
+  while (remainingMs > 0) {
+    remainingMs -= offlineSimulationStepMs(remainingMs)
+    steps += 1
+  }
+  return steps
 }
 
 function resourceDelta(before: GameState, after: GameState) {
@@ -7858,18 +7903,19 @@ export function simulateOfflineProgress(state: GameState, elapsedMs: number, now
   const before = cloneState(state)
   let next = cloneState(state)
   let remainingMs = simulatedMs
-  const completedQuestIds = new Set<QuestId>()
   let simulatedAt = Math.max(now - simulatedMs, state.lastSavedAt)
+  const offlineTopology = activateFactoryTopology(next)
 
   while (remainingMs > 0) {
-    const chunkMs = Math.min(remainingMs, offlineSimulationChunkMs)
+    const chunkMs = offlineSimulationStepMs(remainingMs)
     simulatedAt += chunkMs
-    const result = tickGame(next, chunkMs, simulatedAt)
-    next = result.state
-    for (const questId of result.questCompletions) completedQuestIds.add(questId)
+    tickPassiveMachinesInPlace(next, chunkMs)
+    next = tickMachineInstancesInPlace(next, chunkMs, simulatedAt, offlineTopology)
     remainingMs -= chunkMs
   }
 
+  const questSync = autoCompleteQuests(next)
+  next = questSync.state
   next.lastSavedAt = now
   return {
     state: next,
@@ -7881,7 +7927,7 @@ export function simulateOfflineProgress(state: GameState, elapsedMs: number, now
       suspicious: false,
       reason: 'applied',
       resourceDelta: resourceDelta(before, next),
-      questCompletions: [...completedQuestIds],
+      questCompletions: questSync.completedQuestIds,
     },
   }
 }
