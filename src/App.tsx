@@ -14,6 +14,7 @@ import {
   Pickaxe,
   Route,
   Save,
+  Search,
   Sparkles,
   Toolbox,
   Trash2,
@@ -280,6 +281,7 @@ import type {
   FluidContainerKind,
   FluidAmount,
   FluidId,
+  FabricationInterfaceAttachment,
   GatherTargetId,
   GameState,
   MachineId,
@@ -341,6 +343,7 @@ type QuestMapViews = Partial<Record<QuestChapterId, QuestMapView>>
 type FactoryFloorViewMode = 'production' | 'maintenance'
 type FactoryMaintenanceState = 'running' | 'power-loss' | 'output-full' | 'idle'
 type FactoryPointerPosition = { x: number; y: number; clientX: number; clientY: number }
+type FabricationFilterPicker = { busUid: string; kind: 'item' | 'fluid' }
 type FactoryGesture =
   | { mode: 'pan'; pointerId: number; startX: number; startY: number; originX: number; originY: number; dragged: boolean }
   | { mode: 'pinch'; startDistance: number; originZoom: number; contentX: number; contentY: number; dragged: boolean }
@@ -2871,6 +2874,8 @@ function App() {
   const [fabricationRequestQuantity, setFabricationRequestQuantity] = useState(1)
   const [fabricationRequestCardUid, setFabricationRequestCardUid] = useState<string | null>(null)
   const [isFabricationRequestOpen, setIsFabricationRequestOpen] = useState(false)
+  const [fabricationFilterPicker, setFabricationFilterPicker] = useState<FabricationFilterPicker | null>(null)
+  const [fabricationFilterSearch, setFabricationFilterSearch] = useState('')
   const [terminalWorkspaceMode, setTerminalWorkspaceMode] = useState<TerminalWorkspaceMode>('crafting')
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
@@ -3475,6 +3480,26 @@ function App() {
   const selectedBusFluidFilterIds = selectedFabricationAttachment?.filters
     .filter((filter) => filter.kind === 'fluid')
     .map((filter) => filter.id) ?? []
+  const activeFabricationFilterAttachment = fabricationFilterPicker
+    ? state.machineInstances
+        .flatMap((instance) => Object.values(instance.fabricationInterfaces ?? {}))
+        .find((attachment): attachment is FabricationInterfaceAttachment => Boolean(
+          attachment &&
+          attachment.uid === fabricationFilterPicker.busUid &&
+          attachment.kind !== 'jobInterface',
+        )) ?? null
+    : null
+  const fabricationFilterQuery = fabricationFilterSearch.trim().toLowerCase()
+  const activeFabricationFilterIds = activeFabricationFilterAttachment?.filters
+    .filter((filter) => filter.kind === fabricationFilterPicker?.kind)
+    .map((filter) => filter.id) ?? []
+  const activeFabricationFilterKeys = new Set(activeFabricationFilterAttachment?.filters.map((filter) => `${filter.kind}:${filter.id}`) ?? [])
+  const fabricationFilterLimitReached = (activeFabricationFilterAttachment?.filters.length ?? 0) >= 9
+  const fabricationItemFilterOptions = resourceOrder
+    .filter((id) => isResourceDiscovered(state, id) || terminalAvailableAmount(state, terminalGrid, id) > 0)
+    .filter((id) => !fabricationFilterQuery || id.toLowerCase().includes(fabricationFilterQuery) || resourceLabels[id].toLowerCase().includes(fabricationFilterQuery))
+  const fabricationFluidFilterOptions = fluidIds
+    .filter((id) => !fabricationFilterQuery || id.toLowerCase().includes(fabricationFilterQuery) || fluidLabels[id].toLowerCase().includes(fabricationFilterQuery))
   const fabricationFaceOptions = fabricationFaceMachineIds.map((id) => ({
     id,
     available: availableUnplacedMachineCount(state, id),
@@ -7690,37 +7715,30 @@ function App() {
                               </div>
                             </section>
                             <section className="fabrication-section">
-                              <h3>Item filters <span>{selectedBusItemFilterIds.length}</span></h3>
-                              <div className="fabrication-filter-grid">
-                                {inventoryResources.slice(0, 12).map((id) => (
-                                  <button
-                                    type="button"
-                                    className={selectedBusItemFilterIds.includes(id) ? 'active' : ''}
-                                    disabled={!selectedBusItemFilterIds.includes(id) && selectedFabricationAttachment.filters.length >= 9}
-                                    onClick={() => setState((current) => toggleFabricationBusItemFilter(current, selectedFabricationAttachment.uid, id))}
-                                    key={id}
-                                  >
-                                    <PixelIcon id={id} />
-                                    <span>{resourceLabels[id]}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </section>
-                            <section className="fabrication-section">
-                              <h3>Fluid filters <span>{selectedBusFluidFilterIds.length}</span></h3>
-                              <div className="fabrication-filter-grid">
-                                {fluidIds.map((id) => (
-                                  <button
-                                    type="button"
-                                    className={selectedBusFluidFilterIds.includes(id) ? `active fluid-${id}` : `fluid-${id}`}
-                                    disabled={!selectedBusFluidFilterIds.includes(id) && selectedFabricationAttachment.filters.length >= 9}
-                                    onClick={() => setState((current) => toggleFabricationBusFluidFilter(current, selectedFabricationAttachment.uid, id))}
-                                    key={id}
-                                  >
-                                    <Droplet size={14} />
-                                    <span>{fluidLabels[id]}</span>
-                                  </button>
-                                ))}
+                              <h3>Add filters <span>{selectedFabricationAttachment.filters.length}/9</span></h3>
+                              <div className="fabrication-filter-actions">
+                                <button
+                                  type="button"
+                                  disabled={selectedFabricationAttachment.filters.length >= 9}
+                                  onClick={() => {
+                                    setFabricationFilterPicker({ busUid: selectedFabricationAttachment.uid, kind: 'item' })
+                                    setFabricationFilterSearch('')
+                                  }}
+                                >
+                                  <Search size={14} />
+                                  <span><strong>Choose item</strong><small>{selectedBusItemFilterIds.length} selected</small></span>
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={selectedFabricationAttachment.filters.length >= 9}
+                                  onClick={() => {
+                                    setFabricationFilterPicker({ busUid: selectedFabricationAttachment.uid, kind: 'fluid' })
+                                    setFabricationFilterSearch('')
+                                  }}
+                                >
+                                  <Droplet size={14} />
+                                  <span><strong>Choose fluid</strong><small>{selectedBusFluidFilterIds.length} selected</small></span>
+                                </button>
                               </div>
                             </section>
                             <button type="button" className="conductor-remove-lane" onClick={() => setState((current) => removeFabricationFaceAttachment(current, selectedFabricationAttachment.uid))}><Trash2 size={14} /> Remove bus face</button>
@@ -7889,6 +7907,81 @@ function App() {
                         ? 'Tap a side to connect or disconnect that cable face. Power remains non-directional.'
                         : 'Tap a side to cycle flow: Closed, Out, In, Both.'}
                 </p>
+              </section>
+            </div>
+          )}
+
+          {fabricationFilterPicker && activeFabricationFilterAttachment && (
+            <div
+              className="modal-backdrop compact-backdrop fabrication-filter-backdrop"
+              role="presentation"
+              onClick={() => setFabricationFilterPicker(null)}
+            >
+              <section
+                className="missing-modal fabrication-filter-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${fabricationFilterPicker.kind === 'item' ? 'Item' : 'Fluid'} filter selector`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <div>
+                    <p className="eyebrow">{machines[activeFabricationFilterAttachment.kind].name}</p>
+                    <h2>{fabricationFilterPicker.kind === 'item' ? 'Item filters' : 'Fluid filters'}</h2>
+                  </div>
+                  <button type="button" className="icon-button" aria-label="Close filter selector" onClick={() => setFabricationFilterPicker(null)}>
+                    <X size={18} />
+                  </button>
+                </div>
+                <input
+                  className="recipe-search fabrication-filter-search"
+                  type="search"
+                  placeholder={fabricationFilterPicker.kind === 'item' ? 'Search terminal items' : 'Search fluids'}
+                  value={fabricationFilterSearch}
+                  onChange={(event) => setFabricationFilterSearch(event.target.value)}
+                />
+                <div className="fabrication-filter-picker-meta">
+                  <span><small>Selected</small><strong>{activeFabricationFilterIds.length}</strong></span>
+                  <span><small>Limit</small><strong>{activeFabricationFilterAttachment.filters.length}/9</strong></span>
+                </div>
+                <div className="fabrication-filter-picker-grid" aria-label="Filter choices">
+                  {fabricationFilterPicker.kind === 'item' ? (
+                    fabricationItemFilterOptions.length > 0 ? fabricationItemFilterOptions.map((id) => {
+                      const selected = activeFabricationFilterKeys.has(`item:${id}`)
+                      const available = terminalAvailableAmount(state, terminalGrid, id)
+                      return (
+                        <button
+                          type="button"
+                          className={selected ? 'selected' : ''}
+                          disabled={!selected && fabricationFilterLimitReached}
+                          aria-pressed={selected}
+                          onClick={() => setState((current) => toggleFabricationBusItemFilter(current, activeFabricationFilterAttachment.uid, id))}
+                          key={id}
+                        >
+                          <PixelIcon id={id} />
+                          <span><strong>{resourceLabels[id]}</strong><small>{formatAmount(available)} available</small></span>
+                        </button>
+                      )
+                    }) : <p className="fabrication-empty">No matching items</p>
+                  ) : (
+                    fabricationFluidFilterOptions.length > 0 ? fabricationFluidFilterOptions.map((id) => {
+                      const selected = activeFabricationFilterKeys.has(`fluid:${id}`)
+                      return (
+                        <button
+                          type="button"
+                          className={selected ? `selected fluid-${id}` : `fluid-${id}`}
+                          disabled={!selected && fabricationFilterLimitReached}
+                          aria-pressed={selected}
+                          onClick={() => setState((current) => toggleFabricationBusFluidFilter(current, activeFabricationFilterAttachment.uid, id))}
+                          key={id}
+                        >
+                          <FluidIcon id={id} />
+                          <span><strong>{fluidLabels[id]}</strong><small>Linked fluid</small></span>
+                        </button>
+                      )
+                    }) : <p className="fabrication-empty">No matching fluids</p>
+                  )}
+                </div>
               </section>
             </div>
           )}

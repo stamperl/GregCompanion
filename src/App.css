@@ -13673,12 +13673,86 @@ button.button-primary:disabled,
   --machine-body: #3f5e66;
   --machine-trim: #9ed8e7;
   --machine-accent: #55c6ee;
+  background:
+    linear-gradient(180deg, transparent 0 14%, #9ed8e7 14% 22%, transparent 22%),
+    linear-gradient(90deg, transparent 0 12%, #12252b 12% 22%, transparent 22% 78%, #55c6ee 78% 90%, transparent 90%),
+    radial-gradient(circle at 68% 50%, #cef8ff 0 8%, #55c6ee 9% 18%, transparent 19%),
+    linear-gradient(135deg, #587982 0 20%, #3f5e66 20% 72%, #1c3036 72%);
+}
+
+.machine-terminalImportBus::before,
+.machine-terminalImportBus::after,
+.machine-terminalExportBus::before,
+.machine-terminalExportBus::after {
+  content: "";
+  position: absolute;
+}
+
+.machine-terminalImportBus::before {
+  background: #061518;
+  clip-path: polygon(0 35%, 58% 35%, 58% 8%, 100% 50%, 58% 92%, 58% 65%, 0 65%);
+  height: 12px;
+  left: 5px;
+  top: 14px;
+  width: 18px;
+}
+
+.machine-terminalImportBus::after {
+  background: #55c6ee;
+  box-shadow: 0 -5px 0 #cef8ff, 0 5px 0 #216d83;
+  height: 3px;
+  left: 9px;
+  top: 19px;
+  width: 11px;
+}
+
+.machine-terminalImportBus > span {
+  background: #071417;
+  border: 1px solid #cef8ff;
+  box-shadow: inset 0 0 0 1px #55c6ee;
+  height: 30%;
+  left: 63%;
+  top: 35%;
+  width: 22%;
 }
 
 .machine-terminalExportBus {
   --machine-body: #62563a;
   --machine-trim: #e4ca78;
   --machine-accent: #e8b94e;
+  background:
+    linear-gradient(180deg, transparent 0 14%, #e4ca78 14% 22%, transparent 22%),
+    linear-gradient(90deg, transparent 0 10%, #e8b94e 10% 22%, transparent 22% 78%, #211b0c 78% 90%, transparent 90%),
+    radial-gradient(circle at 32% 50%, #fff1b8 0 8%, #e8b94e 9% 18%, transparent 19%),
+    linear-gradient(135deg, #76683f 0 20%, #62563a 20% 72%, #312813 72%);
+}
+
+.machine-terminalExportBus::before {
+  background: #fff1b8;
+  clip-path: polygon(100% 35%, 42% 35%, 42% 8%, 0 50%, 42% 92%, 42% 65%, 100% 65%);
+  height: 12px;
+  left: 4px;
+  top: 14px;
+  width: 18px;
+}
+
+.machine-terminalExportBus::after {
+  background: #211b0c;
+  box-shadow: 0 -5px 0 #e8b94e, 0 5px 0 #8d6b1d;
+  height: 3px;
+  left: 10px;
+  top: 19px;
+  width: 11px;
+}
+
+.machine-terminalExportBus > span {
+  background: #fff1b8;
+  border: 1px solid #211b0c;
+  box-shadow: inset 0 0 0 1px #e8b94e;
+  height: 30%;
+  left: 14%;
+  top: 35%;
+  width: 22%;
 }
 
 .factory-cell.occupied.planning-rack-controller {
@@ -18438,10 +18512,147 @@ button.button-primary:disabled,
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.fabrication-filter-actions {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.fabrication-filter-actions button {
+  align-items: center;
+  background: #18201d;
+  border: 2px solid #4b5d56;
+  border-bottom-color: #0a0d0c;
+  border-radius: 0;
+  border-right-color: #0a0d0c;
+  color: #e8e0c5;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  min-height: 44px;
+  padding: 6px;
+  text-align: left;
+}
+.fabrication-filter-actions button:disabled { opacity: 0.45; }
+.fabrication-filter-actions button svg {
+  color: #83efc0;
+  justify-self: center;
+}
+.fabrication-filter-actions span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.fabrication-filter-actions strong {
+  font-size: 0.62rem;
+  overflow-wrap: anywhere;
+}
+.fabrication-filter-actions small {
+  color: #9fb9b1;
+  font: 800 0.5rem Inter, sans-serif;
+  text-transform: uppercase;
+}
 .fabrication-face-panel .fabrication-section { margin: 0; padding: 6px; }
 .fabrication-face-panel .fabrication-section h3 { align-items: center; display: flex; font-size: 0.66rem; justify-content: space-between; margin: 0 0 5px; }
 .fabrication-face-panel .fabrication-card-list { max-height: 112px; overflow-y: auto; }
 .fabrication-face-panel .fabrication-library-row { min-height: 32px; padding: 5px 7px; }
+.fabrication-filter-backdrop {
+  z-index: 120;
+}
+.fabrication-filter-dialog {
+  max-height: min(86svh, 620px);
+  max-width: 430px;
+  overflow: hidden;
+  width: min(100%, 430px);
+}
+.fabrication-filter-dialog .modal-head {
+  align-items: center;
+}
+.fabrication-filter-dialog .recipe-search {
+  margin: 0;
+}
+.fabrication-filter-picker-meta {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.fabrication-filter-picker-meta span {
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  display: grid;
+  min-width: 0;
+  padding: 5px 7px;
+}
+.fabrication-filter-picker-meta small {
+  color: var(--muted);
+  font: 900 0.52rem Inter, sans-serif;
+  text-transform: uppercase;
+}
+.fabrication-filter-picker-meta strong {
+  color: var(--ink-strong);
+  font-size: 0.72rem;
+}
+.fabrication-filter-picker-grid {
+  align-content: start;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: min(52svh, 390px);
+  overflow-y: auto;
+  padding: 5px;
+}
+.fabrication-filter-picker-grid button {
+  align-items: center;
+  background: #f1e2b6;
+  border: 2px solid #fff5c9;
+  border-bottom-color: #8b7440;
+  border-radius: 0;
+  border-right-color: #8b7440;
+  color: #2c2518;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  min-height: 48px;
+  padding: 5px;
+  text-align: left;
+}
+.fabrication-filter-picker-grid button.selected {
+  background: #d9f4de;
+  border-color: #efffed #4a8f65 #4a8f65 #efffed;
+  box-shadow: inset 0 0 0 1px rgba(54, 137, 86, 0.2);
+}
+.fabrication-filter-picker-grid button:disabled {
+  opacity: 0.45;
+}
+.fabrication-filter-picker-grid .pixel-icon,
+.fabrication-filter-picker-grid .fluid-icon {
+  height: 26px;
+  width: 26px;
+}
+.fabrication-filter-picker-grid span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.fabrication-filter-picker-grid strong {
+  font-size: 0.62rem;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.fabrication-filter-picker-grid small {
+  color: #675d48;
+  font: 800 0.5rem Inter, sans-serif;
+  text-transform: uppercase;
+}
+.fabrication-filter-picker-grid .fabrication-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 .conductor-face-grid { display: grid; gap: 3px; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, 58px); }
 .conductor-face-button, .conductor-core {
   align-items: center;
