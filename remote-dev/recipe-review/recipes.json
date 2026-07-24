@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-07-21T07:34:31.449Z",
+  "schemaVersion": 4,
+  "generatedAt": "2026-07-23T22:35:19.965Z",
   "resources": [
     {
       "id": "log",
@@ -1003,6 +1003,24 @@
       "label": "Blank Pattern",
       "category": "circuit",
       "tier": "mv"
+    },
+    {
+      "id": "rubberLog",
+      "label": "Rubber Tree Log",
+      "category": "raw",
+      "tier": "lv"
+    },
+    {
+      "id": "sugarCane",
+      "label": "Sugar Cane",
+      "category": "raw",
+      "tier": "lv"
+    },
+    {
+      "id": "aluminiumCable",
+      "label": "Aluminium Cable",
+      "category": "wire",
+      "tier": "mv"
     }
   ],
   "machines": [
@@ -1355,6 +1373,163 @@
       "id": "dispatchModule",
       "label": "Dispatch Module",
       "tier": "mv"
+    },
+    {
+      "id": "lvWaterSource",
+      "label": "LV Water Source",
+      "tier": "lv"
+    },
+    {
+      "id": "poweredFarmPart",
+      "label": "Powered Farm Block",
+      "tier": "lv"
+    },
+    {
+      "id": "poweredFarm",
+      "label": "Powered Farm",
+      "tier": "lv"
+    },
+    {
+      "id": "pyrolysisOvenPart",
+      "label": "Pyrolysis Oven Block",
+      "tier": "lv"
+    },
+    {
+      "id": "pyrolysisOven",
+      "label": "Pyrolysis Oven",
+      "tier": "lv"
+    },
+    {
+      "id": "lvDistillery",
+      "label": "LV Distillery",
+      "tier": "lv"
+    },
+    {
+      "id": "lvCombustionGenerator",
+      "label": "LV Combustion Generator",
+      "tier": "lv"
+    },
+    {
+      "id": "mvCombustionGenerator",
+      "label": "MV Combustion Generator",
+      "tier": "mv"
+    },
+    {
+      "id": "aluminiumCable",
+      "label": "Aluminium Cable",
+      "tier": "mv"
+    },
+    {
+      "id": "lvToMvTransformer",
+      "label": "LV to MV Transformer",
+      "tier": "mv"
+    },
+    {
+      "id": "mvToLvTransformer",
+      "label": "MV to LV Transformer",
+      "tier": "mv"
+    }
+  ],
+  "fluids": [
+    {
+      "id": "water",
+      "label": "Water",
+      "color": "#35acd3"
+    },
+    {
+      "id": "creosote",
+      "label": "Creosote",
+      "color": "#6f3d12"
+    },
+    {
+      "id": "liquidRubber",
+      "label": "Liquid Rubber",
+      "color": "#171d1b"
+    },
+    {
+      "id": "glue",
+      "label": "Glue",
+      "color": "#d08b2d"
+    },
+    {
+      "id": "air",
+      "label": "Air",
+      "color": "#b8d4da"
+    },
+    {
+      "id": "oxygen",
+      "label": "Oxygen",
+      "color": "#55c6ee"
+    },
+    {
+      "id": "nitrogen",
+      "label": "Nitrogen",
+      "color": "#7989d5"
+    },
+    {
+      "id": "sulfuricAcid",
+      "label": "Sulfuric Acid",
+      "color": "#c9ce4f"
+    },
+    {
+      "id": "dilutedSulfuricAcid",
+      "label": "Diluted Sulfuric Acid",
+      "color": "#b8c978"
+    },
+    {
+      "id": "woodTar",
+      "label": "Wood Tar",
+      "color": "#3a2114"
+    },
+    {
+      "id": "woodGas",
+      "label": "Wood Gas",
+      "color": "#a48f75"
+    },
+    {
+      "id": "benzene",
+      "label": "Benzene",
+      "color": "#d7c99a"
+    },
+    {
+      "id": "heavyTar",
+      "label": "Heavy Tar Residue",
+      "color": "#17120f"
+    }
+  ],
+  "toolFamilies": [
+    {
+      "id": "stoneHammer",
+      "label": "Any Stone Hammer",
+      "members": [
+        "stoneHammer",
+        "ironHammer"
+      ]
+    },
+    {
+      "id": "mortar",
+      "label": "Any Pestle & Mortar",
+      "members": [
+        "bronzeMortar",
+        "ironMortar",
+        "mortar"
+      ]
+    },
+    {
+      "id": "ironFile",
+      "label": "Any Iron File",
+      "members": [
+        "bronzeFile",
+        "ironFile"
+      ]
+    },
+    {
+      "id": "ironWrench",
+      "label": "Any Iron Wrench",
+      "members": [
+        "bronzeWrench",
+        "ironWrench"
+      ]
     }
   ],
   "quests": [
@@ -1992,6 +2167,46 @@
       "id": "runFabricationJobQuest",
       "label": "Complete a fabrication job",
       "chapter": "Auto Crafting"
+    },
+    {
+      "id": "buildLvWaterSourceQuest",
+      "label": "Outgrow the well",
+      "chapter": "Benzene Power"
+    },
+    {
+      "id": "formPoweredFarmQuest",
+      "label": "Form a 2x2 Powered Farm",
+      "chapter": "Benzene Power"
+    },
+    {
+      "id": "farmWoodQuest",
+      "label": "Choose a crop program",
+      "chapter": "Benzene Power"
+    },
+    {
+      "id": "formPyrolysisOvenQuest",
+      "label": "Seal the Pyrolysis Oven",
+      "chapter": "Benzene Power"
+    },
+    {
+      "id": "makeWoodTarQuest",
+      "label": "Carbonize the first log batch",
+      "chapter": "Benzene Power"
+    },
+    {
+      "id": "distilBenzeneQuest",
+      "label": "Separate the light fraction",
+      "chapter": "Benzene Power"
+    },
+    {
+      "id": "burnBenzeneQuest",
+      "label": "Close the LV power loop",
+      "chapter": "Benzene Power"
+    },
+    {
+      "id": "buildMvPowerQuest",
+      "label": "Step up to MV",
+      "chapter": "Benzene Power"
     }
   ],
   "recipes": [
@@ -8038,9 +8253,478 @@
         }
       ],
       "unlockedBy": "makeLvMotionPartsQuest"
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_lv_water_source",
+      "name": "Build LV Water Source",
+      "description": "Build a powered deep-water pump around two LV pumps and a steel pressure shell.",
+      "tier": "lv",
+      "durationMs": 6000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 3
+        },
+        {
+          "id": "tinCable",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "lvPump",
+        "steelPlate",
+        "tinCable",
+        "lvMachineHull",
+        "tinCable",
+        "steelPlate",
+        "lvPump",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvWaterSource",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_powered_farm_blocks",
+      "name": "Build Powered Farm Blocks",
+      "description": "Build the four irrigated blocks required for one 2x2 Powered Farm.",
+      "tier": "lv",
+      "durationMs": 10000,
+      "inputs": [
+        {
+          "id": "steelPlate",
+          "amount": 3
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "lvMotor",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 1
+        },
+        {
+          "id": "lvConveyor",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "lvConveyor",
+        "steelPlate",
+        "lvPump",
+        "lvMachineHull",
+        "lvMotor",
+        "steelPlate",
+        "lvConveyor",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "poweredFarmPart",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_pyrolysis_oven_blocks",
+      "name": "Build Pyrolysis Oven Blocks",
+      "description": "Build four sealed oven blocks with steel shells and cupronickel heating coils.",
+      "tier": "lv",
+      "durationMs": 12000,
+      "inputs": [
+        {
+          "id": "heatProofCasing",
+          "amount": 3
+        },
+        {
+          "id": "steelPlate",
+          "amount": 2
+        },
+        {
+          "id": "heatingCoil",
+          "amount": 2
+        },
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "heatProofCasing",
+        "heatingCoil",
+        "heatProofCasing",
+        "steelPlate",
+        "lvMachineHull",
+        "steelPlate",
+        "heatProofCasing",
+        "heatingCoil",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "pyrolysisOvenPart",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_lv_distillery",
+      "name": "Build LV Distillery",
+      "description": "Build a fractionating column with a sealed steel body and controlled pumping.",
+      "tier": "lv",
+      "durationMs": 8000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "steelPlate",
+          "amount": 3
+        },
+        {
+          "id": "glassTube",
+          "amount": 2
+        },
+        {
+          "id": "lvPump",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "glassTube",
+        "steelPlate",
+        "lvPump",
+        "lvMachineHull",
+        "lvPump",
+        "steelPlate",
+        "glassTube",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvDistillery",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_lv_combustion_generator",
+      "name": "Build LV Combustion Generator",
+      "description": "Build a one-amp liquid-fuel generator around an LV motor and reinforced fuel pump.",
+      "tier": "lv",
+      "durationMs": 8000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "steelPlate",
+          "amount": 4
+        },
+        {
+          "id": "lvMotor",
+          "amount": 1
+        },
+        {
+          "id": "lvPump",
+          "amount": 1
+        },
+        {
+          "id": "tinCable",
+          "amount": 2
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "lvMotor",
+        "steelPlate",
+        "tinCable",
+        "lvMachineHull",
+        "tinCable",
+        "steelPlate",
+        "lvPump",
+        "steelPlate"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvCombustionGenerator",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_lv_to_mv_transformer",
+      "name": "Build LV to MV Transformer",
+      "description": "Wind an aluminium secondary around a four-amp LV primary.",
+      "tier": "mv",
+      "durationMs": 10000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "tinCable4A",
+          "amount": 2
+        },
+        {
+          "id": "aluminiumCable",
+          "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 3
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "aluminiumCable",
+        "steelPlate",
+        "tinCable4A",
+        "lvMachineHull",
+        "aluminiumCable",
+        "steelPlate",
+        "tinCable4A",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "lvToMvTransformer",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_mv_to_lv_transformer",
+      "name": "Build MV to LV Transformer",
+      "description": "Reverse the windings to feed four LV amps from one MV supply.",
+      "tier": "mv",
+      "durationMs": 10000,
+      "inputs": [
+        {
+          "id": "lvMachineHull",
+          "amount": 1
+        },
+        {
+          "id": "tinCable4A",
+          "amount": 2
+        },
+        {
+          "id": "aluminiumCable",
+          "amount": 2
+        },
+        {
+          "id": "steelPlate",
+          "amount": 3
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "steelPlate",
+        "tinCable4A",
+        "steelPlate",
+        "aluminiumCable",
+        "lvMachineHull",
+        "tinCable4A",
+        "steelPlate",
+        "aluminiumCable",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineOutputs": [
+        {
+          "id": "mvToLvTransformer",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "kind": "crafting",
+      "id": "craft_mv_combustion_generator",
+      "name": "Build MV Combustion Generator",
+      "description": "Reinforce the combustion set with aluminium conductors for one amp of MV output.",
+      "tier": "mv",
+      "durationMs": 12000,
+      "inputs": [
+        {
+          "id": "aluminiumPlate",
+          "amount": 3
+        },
+        {
+          "id": "aluminiumCable",
+          "amount": 2
+        },
+        {
+          "id": "lvMotor",
+          "amount": 2
+        },
+        {
+          "id": "primitiveCircuit",
+          "amount": 1
+        }
+      ],
+      "pattern": [
+        "aluminiumPlate",
+        "lvMotor",
+        "aluminiumPlate",
+        "aluminiumCable",
+        {
+          "kind": "machine",
+          "id": "lvCombustionGenerator"
+        },
+        "aluminiumCable",
+        "aluminiumPlate",
+        "lvMotor",
+        "primitiveCircuit"
+      ],
+      "outputs": [],
+      "machineInputs": [
+        {
+          "id": "lvCombustionGenerator",
+          "amount": 1
+        }
+      ],
+      "machineOutputs": [
+        {
+          "id": "mvCombustionGenerator",
+          "amount": 1
+        }
+      ]
     }
   ],
   "processRecipes": [
+    {
+      "kind": "process",
+      "id": "farm_standard_trees",
+      "name": "Grow Standard Trees",
+      "description": "Irrigate a standard tree crop for a steady supply of logs.",
+      "tier": "lv",
+      "machineId": "poweredFarm",
+      "durationMs": 60000,
+      "euCost": 960,
+      "fluidInputs": [
+        {
+          "id": "water",
+          "amount": 480,
+          "bufferId": "water"
+        }
+      ],
+      "output": {
+        "id": "log",
+        "amount": 16
+      },
+      "programNumber": 1,
+      "autoSelectable": false,
+      "fluidOnly": true
+    },
+    {
+      "kind": "process",
+      "id": "farm_rubber_trees",
+      "name": "Grow Rubber Trees",
+      "description": "Irrigate rubber trees for resinous logs and sticky resin.",
+      "tier": "lv",
+      "machineId": "poweredFarm",
+      "durationMs": 70000,
+      "euCost": 1120,
+      "fluidInputs": [
+        {
+          "id": "water",
+          "amount": 560,
+          "bufferId": "water"
+        }
+      ],
+      "output": {
+        "id": "rubberLog",
+        "amount": 8
+      },
+      "secondaryOutput": {
+        "id": "rubberSap",
+        "amount": 4
+      },
+      "programNumber": 2,
+      "autoSelectable": false,
+      "fluidOnly": true
+    },
+    {
+      "kind": "process",
+      "id": "farm_sugar_cane",
+      "name": "Grow Sugar Cane",
+      "description": "Irrigate sugar cane for the later alcohol and biofuel processing line.",
+      "tier": "lv",
+      "machineId": "poweredFarm",
+      "durationMs": 50000,
+      "euCost": 800,
+      "fluidInputs": [
+        {
+          "id": "water",
+          "amount": 400,
+          "bufferId": "water"
+        }
+      ],
+      "output": {
+        "id": "sugarCane",
+        "amount": 24
+      },
+      "programNumber": 3,
+      "autoSelectable": false,
+      "fluidOnly": true
+    },
     {
       "kind": "process",
       "id": "fire_brick",
@@ -10453,10 +11137,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "steelRod",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "itemConductor",
         "amount": 2
@@ -10489,10 +11169,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "steelRing",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "fluidConductor",
         "amount": 2
@@ -10521,10 +11197,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "steelPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "steelTank",
         "amount": 1
@@ -10551,10 +11223,6 @@
         "id": "glue",
         "amount": 2
       },
-      "output": {
-        "id": "lvMachineHull",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "lvEnergyHatch2A",
         "amount": 1
@@ -10580,10 +11248,6 @@
       "fluidInput": {
         "id": "glue",
         "amount": 2
-      },
-      "output": {
-        "id": "lvMachineHull",
-        "amount": 0
       },
       "machineOutput": {
         "id": "lvInputBus",
@@ -10613,10 +11277,6 @@
         "id": "glue",
         "amount": 2
       },
-      "output": {
-        "id": "lvMachineHull",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "lvOutputBus",
         "amount": 1
@@ -10645,10 +11305,6 @@
         "id": "glue",
         "amount": 2
       },
-      "output": {
-        "id": "lvMachineHull",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "lvFluidInputHatch",
         "amount": 1
@@ -10676,10 +11332,6 @@
       "fluidInput": {
         "id": "glue",
         "amount": 2
-      },
-      "output": {
-        "id": "lvMachineHull",
-        "amount": 0
       },
       "machineOutput": {
         "id": "lvFluidOutputHatch",
@@ -10940,25 +11592,17 @@
       "kind": "process",
       "id": "collect_air",
       "name": "Collect Ambient Air",
-      "description": "Power an Air Collector to compress a steady ambient air stream without consumable inputs.",
+      "description": "Power an Air Collector to compress 16L of ambient air over a slow 80-second cycle.",
       "tier": "lv",
       "machineId": "lvAirCollector",
-      "durationMs": 1000,
-      "euCost": 8,
-      "input": {
-        "id": "emptySteelCell",
-        "amount": 1
-      },
-      "output": {
-        "id": "emptySteelCell",
-        "amount": 1
-      },
+      "durationMs": 80000,
+      "euCost": 128,
       "fluidOnly": true,
       "fluidOutputs": [
         {
           "id": "air",
-          "amount": 1,
-          "bufferId": "air"
+          "amount": 16,
+          "bufferId": "output"
         }
       ]
     },
@@ -11031,15 +11675,11 @@
       "kind": "process",
       "id": "lv_centrifuge_air",
       "name": "Separate Air",
-      "description": "Spin compressed air into separate oxygen and nitrogen streams.",
+      "description": "Spin 8L of compressed air for 45 seconds to separate Oxygen and Nitrogen.",
       "tier": "lv",
       "machineId": "lvCentrifuge",
-      "durationMs": 8000,
-      "euCost": 96,
-      "input": {
-        "id": "emptySteelCell",
-        "amount": 1
-      },
+      "durationMs": 45000,
+      "euCost": 540,
       "fluidInputs": [
         {
           "id": "air",
@@ -11047,10 +11687,6 @@
           "bufferId": "feed"
         }
       ],
-      "output": {
-        "id": "emptySteelCell",
-        "amount": 1
-      },
       "fluidOnly": true,
       "fluidOutputs": [
         {
@@ -11060,7 +11696,7 @@
         },
         {
           "id": "nitrogen",
-          "amount": 6,
+          "amount": 4,
           "bufferId": "productB"
         }
       ]
@@ -11304,10 +11940,6 @@
         "id": "sulfurDust",
         "amount": 1
       },
-      "output": {
-        "id": "rubber",
-        "amount": 0
-      },
       "fluidOutput": {
         "id": "liquidRubber",
         "amount": 8
@@ -11333,10 +11965,6 @@
           "bufferId": "feedA"
         }
       ],
-      "output": {
-        "id": "rubber",
-        "amount": 0
-      },
       "fluidOutputs": [
         {
           "id": "sulfuricAcid",
@@ -11599,12 +12227,11 @@
       "kind": "process",
       "id": "lv_compress_signal_die",
       "name": "Cut Signal Die",
-      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "description": "Cut a permanent precision die from a hardened blank and its imprint material.",
       "tier": "mv",
-      "machineId": "lvCompressor",
+      "machineId": "circuitImprinter",
       "durationMs": 8000,
       "euCost": 128,
-      "programNumber": 1,
       "input": {
         "id": "hardenedDieBlank",
         "amount": 1
@@ -11622,12 +12249,11 @@
       "kind": "process",
       "id": "lv_compress_computation_die",
       "name": "Cut Computation Die",
-      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "description": "Cut a permanent precision die from a hardened blank and its imprint material.",
       "tier": "mv",
-      "machineId": "lvCompressor",
+      "machineId": "circuitImprinter",
       "durationMs": 8000,
       "euCost": 128,
-      "programNumber": 2,
       "input": {
         "id": "hardenedDieBlank",
         "amount": 1
@@ -11645,12 +12271,11 @@
       "kind": "process",
       "id": "lv_compress_structural_die",
       "name": "Cut Structural Die",
-      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "description": "Cut a permanent precision die from a hardened blank and its imprint material.",
       "tier": "mv",
-      "machineId": "lvCompressor",
+      "machineId": "circuitImprinter",
       "durationMs": 8000,
       "euCost": 128,
-      "programNumber": 3,
       "input": {
         "id": "hardenedDieBlank",
         "amount": 1
@@ -11668,12 +12293,11 @@
       "kind": "process",
       "id": "lv_compress_silicon_die",
       "name": "Cut Silicon Die",
-      "description": "Use a numbered compressor setup to cut a permanent precision die.",
+      "description": "Cut a permanent precision die from a hardened blank and its imprint material.",
       "tier": "mv",
-      "machineId": "lvCompressor",
+      "machineId": "circuitImprinter",
       "durationMs": 8000,
       "euCost": 128,
-      "programNumber": 4,
       "input": {
         "id": "hardenedDieBlank",
         "amount": 1
@@ -11890,10 +12514,6 @@
           "amount": 1
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "crystalEnergizer",
         "amount": 1
@@ -11930,10 +12550,6 @@
           "amount": 1
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "circuitImprinter",
         "amount": 1
@@ -11998,10 +12614,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "recipeEncoder",
         "amount": 1
@@ -12034,10 +12646,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "autoFabricator",
         "amount": 1
@@ -12070,10 +12678,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "fluidStorageLink",
         "amount": 1
@@ -12106,10 +12710,6 @@
           "amount": 4
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "memoryModule",
         "amount": 1
@@ -12146,10 +12746,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "fabricationCable",
         "amount": 4
@@ -12186,10 +12782,6 @@
           "amount": 1
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "jobInterface",
         "amount": 2
@@ -12226,10 +12818,6 @@
           "amount": 1
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "planningController",
         "amount": 1
@@ -12266,10 +12854,6 @@
           "amount": 2
         }
       ],
-      "output": {
-        "id": "aluminiumPlate",
-        "amount": 0
-      },
       "machineOutput": {
         "id": "dispatchModule",
         "amount": 1
@@ -12362,6 +12946,124 @@
         "id": "tinCable8A",
         "amount": 3
       }
+    },
+    {
+      "kind": "process",
+      "id": "pyrolyse_standard_logs",
+      "name": "Pyrolyse Standard Logs",
+      "description": "Carbonize a dry log without oxygen, collecting charcoal, wood tar, and wood gas.",
+      "tier": "lv",
+      "machineId": "pyrolysisOven",
+      "durationMs": 60000,
+      "euCost": 960,
+      "input": {
+        "id": "log",
+        "amount": 8
+      },
+      "output": {
+        "id": "charcoal",
+        "amount": 10
+      },
+      "fluidOutputs": [
+        {
+          "id": "woodTar",
+          "amount": 24,
+          "bufferId": "tar"
+        },
+        {
+          "id": "woodGas",
+          "amount": 8,
+          "bufferId": "gas"
+        }
+      ]
+    },
+    {
+      "kind": "process",
+      "id": "lv_assembler_aluminium_cable",
+      "name": "Assemble Aluminium Cable",
+      "description": "Wrap aluminium conductors in rubber and add a red-alloy identification trace for one-amp MV service.",
+      "tier": "mv",
+      "machineId": "lvAssembler",
+      "durationMs": 8000,
+      "euCost": 192,
+      "input": {
+        "id": "aluminiumRod",
+        "amount": 2
+      },
+      "secondaryInput": {
+        "id": "rubber",
+        "amount": 2
+      },
+      "extraInputs": [
+        {
+          "id": "redAlloyWire",
+          "amount": 1
+        }
+      ],
+      "output": {
+        "id": "aluminiumCable",
+        "amount": 4
+      }
+    },
+    {
+      "kind": "process",
+      "id": "pyrolyse_rubber_logs",
+      "name": "Pyrolyse Rubber Logs",
+      "description": "Carbonize resinous rubber logs for a slightly richer tar fraction.",
+      "tier": "lv",
+      "machineId": "pyrolysisOven",
+      "durationMs": 60000,
+      "euCost": 960,
+      "input": {
+        "id": "rubberLog",
+        "amount": 8
+      },
+      "output": {
+        "id": "charcoal",
+        "amount": 10
+      },
+      "fluidOutputs": [
+        {
+          "id": "woodTar",
+          "amount": 28,
+          "bufferId": "tar"
+        },
+        {
+          "id": "woodGas",
+          "amount": 8,
+          "bufferId": "gas"
+        }
+      ]
+    },
+    {
+      "kind": "process",
+      "id": "distil_wood_tar_benzene",
+      "name": "Distil Wood Tar",
+      "description": "Separate a benzene-rich light fraction and leave heavy tar residue for later processing.",
+      "tier": "lv",
+      "machineId": "lvDistillery",
+      "durationMs": 30000,
+      "euCost": 480,
+      "fluidOnly": true,
+      "fluidInputs": [
+        {
+          "id": "woodTar",
+          "amount": 16,
+          "bufferId": "feed"
+        }
+      ],
+      "fluidOutputs": [
+        {
+          "id": "benzene",
+          "amount": 10,
+          "bufferId": "benzene"
+        },
+        {
+          "id": "heavyTar",
+          "amount": 6,
+          "bufferId": "residue"
+        }
+      ]
     }
   ]
 }
