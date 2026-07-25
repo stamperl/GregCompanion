@@ -390,7 +390,7 @@ describe('game engine', () => {
   it('guides the early factory and bronze steps in dependency order', () => {
     const quest = (id: (typeof quests)[number]['id']) => quests.find((candidate) => candidate.id === id)!
 
-    expect(quest('buildFoundation').prerequisites).toEqual(['mineStone'])
+    expect(quest('buildFoundation').prerequisites).toEqual(['craftAxe', 'mineStone', 'craftShovelQuest'])
     expect(quest('buildFurnace').prerequisites).toEqual(['buildFoundation'])
     expect(quest('firstDirt').prerequisites).toEqual(['buildFurnace'])
     expect(quest('craftMortar').prerequisites).toEqual(['copperAndTin'])
@@ -473,6 +473,32 @@ describe('game engine', () => {
     expect(claimQuestReward(state, 'punchTree').scrip).toBe(state.scrip)
   })
 
+  it('lets experienced players complete early milestones before returning to the quest book', () => {
+    const state = createFactoryState(1000, 1)
+    state.resourceMilestones.log = 8
+    state.resourceMilestones.plank = 4
+    state.resourceMilestones.stick = 4
+    state.resourceMilestones.woodenAxe = 1
+    state.resourceMilestones.woodenPickaxe = 1
+    state.resourceMilestones.woodenShovel = 1
+    state.resourceMilestones.cobblestone = 8
+    state.resourceMilestones.gravel = 1
+
+    const result = tickGame(state, 250)
+
+    expect(result.state.completedQuests).toEqual(expect.arrayContaining([
+      'punchTree',
+      'craftPlanks',
+      'craftSticks',
+      'craftAxe',
+      'mineStone',
+      'craftShovelQuest',
+      'buildFoundation',
+    ]))
+    expect(result.state.claimedQuests).toEqual([])
+    expect(result.state.scrip).toBe(0)
+  })
+
   it('claims all completed quest rewards without double-paying claimed quests', () => {
     let state = createInitialState(1000)
     const firstQuest = quests.find((candidate) => candidate.id === 'punchTree')!
@@ -488,6 +514,12 @@ describe('game engine', () => {
     state = claimAllQuestRewards(state)
     expect(state.scrip).toBe(paidScrip)
     expect(state.claimedQuests).toEqual(['punchTree', 'craftPlanks'])
+  })
+
+  it('keeps workshop tip quests informational rather than adding scrip', () => {
+    const tipQuest = quests.find((candidate) => candidate.id === 'equipToolTipQuest')!
+
+    expect(questScripReward(tipQuest)).toBe(0)
   })
 
   it('keeps historical quest completion authoritative after objectives change', () => {
@@ -862,7 +894,7 @@ describe('game engine', () => {
 
     const result = tickGame(state, 1, 1001)
 
-    expect(result.questCompletions).toEqual(['punchTree', 'craftPlanks'])
+    expect(result.questCompletions).toEqual(['punchTree', 'craftPlanks', 'recipeBrowserTipQuest'])
     expect(result.state.completedQuests).toContain('punchTree')
     expect(result.state.completedQuests).toContain('craftPlanks')
   })
@@ -2624,6 +2656,20 @@ describe('game engine', () => {
     expect(findGridRecipe(oldRodGrid, recipes)?.id).not.toBe('cut_copper_wire')
   })
 
+  it('winds heating coils without consuming the wire cutters', () => {
+    let state = createFactoryState(1000)
+    state.resources.cupronickelIngot = 1
+    state.resources.ironWireCutters = 1
+    const heatingCoil = recipes.find((recipe) => recipe.id === 'craft_heating_coil')!
+
+    state = craftRecipeInstant(state, heatingCoil, 1)
+
+    expect(state.resources.cupronickelIngot).toBe(0)
+    expect(state.resources.heatingCoil).toBe(1)
+    expect(state.resources.ironWireCutters).toBe(1)
+    expect(durabilityRemaining(state, 'ironWireCutters')).toBe(127)
+  })
+
   it('hammers red alloy plates and cuts them into red alloy wire', () => {
     let state = createFactoryState(1000)
     state.resources.redAlloyIngot = 2
@@ -3355,12 +3401,12 @@ describe('game engine', () => {
     const well = state.machineInstances.find((instance) => instance.machineId === 'well')!
     state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
 
-    expect(currentWellWaterFlowLitresPerSecond(state, well)).toBe(48)
+    expect(currentWellWaterFlowLitresPerSecond(state, well)).toBe(24)
     state = tickGame(state, 1000).state
 
     const pipe = state.machineInstances.find((instance) => instance.machineId === 'bronzePipe')!
     const activeWell = state.machineInstances.find((instance) => instance.machineId === 'well')!
-    expect(currentWellWaterFlowLitresPerSecond(state, activeWell)).toBe(48)
+    expect(currentWellWaterFlowLitresPerSecond(state, activeWell)).toBe(24)
     expect(pipe.process.fluids.water).toBeGreaterThan(0)
     expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(6000)
   })
@@ -3380,16 +3426,16 @@ describe('game engine', () => {
     well.process.fluids.water = 128
     state = insertProcessSlot(state, boiler.uid, 'fuel', 'log', 1)
 
-    expect(wellWaterOutputLitresPerSecond).toBe(96)
-    expect(currentWellWaterFlowLitresPerSecond(state, well)).toBe(96)
+    expect(wellWaterOutputLitresPerSecond).toBe(24)
+    expect(currentWellWaterFlowLitresPerSecond(state, well)).toBe(24)
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances.find((instance) => instance.uid === well.uid)!.process.fluids.water).toBe(32)
+    expect(state.machineInstances.find((instance) => instance.uid === well.uid)!.process.fluids.water).toBe(104)
     expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(6000)
   })
 
   it('applies source discharge and route limits to stored fluids', () => {
-    expect(machines.well.fluidOutputLitresPerSecond).toBe(96)
+    expect(machines.well.fluidOutputLitresPerSecond).toBe(24)
     expect(machines.cokeOven.fluidOutputLitresPerSecond).toBe(24)
     expect(machines.steamTank.fluidOutputLitresPerSecond).toBe(96)
 

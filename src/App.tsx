@@ -2,13 +2,16 @@ import {
   Axe,
   BookOpen,
   Bug,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
   Database,
   Droplet,
   Download,
+  Eye,
   Factory,
+  Gift,
   LayoutGrid,
   Maximize2,
   Pickaxe,
@@ -23,6 +26,8 @@ import {
   Wrench,
   X,
   Zap,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import {
@@ -73,7 +78,9 @@ import {
   isTankStorageMachine,
   machines,
   processRecipes,
-  questChapters,
+  questFolders,
+  questLineIdForQuest,
+  questLines,
   quests as questDefinitions,
   recipes,
   resourceLabels,
@@ -81,7 +88,12 @@ import {
   shopItems,
   tools,
 } from './game/content'
-import { routeQuestConnection, type QuestMapRect } from './game/questMap'
+import {
+  routeQuestConnection,
+  routeQuestSideConnection,
+  type QuestMapRect,
+  type QuestMapSide,
+} from './game/questMap'
 import {
   availableResourceAmount,
   availableUnplacedMachineCount,
@@ -295,7 +307,9 @@ import type {
   ProcessSlotId,
   Quest,
   QuestChapterId,
+  QuestFolderId,
   QuestId,
+  QuestLineId,
   Recipe,
   ResourceAmount,
   ResourceId,
@@ -339,7 +353,7 @@ type UniversalProcessChannel =
 type DragPreview = { id: ResourceId; x: number; y: number }
 type FactoryView = { x: number; y: number; zoom: number }
 type QuestMapView = { x: number; y: number; zoom: number }
-type QuestMapViews = Partial<Record<QuestChapterId, QuestMapView>>
+type QuestMapViews = Partial<Record<QuestLineId, QuestMapView>>
 type FactoryFloorViewMode = 'production' | 'maintenance'
 type FactoryMaintenanceState = 'running' | 'power-loss' | 'output-full' | 'idle'
 type FactoryPointerPosition = { x: number; y: number; clientX: number; clientY: number }
@@ -378,10 +392,10 @@ type PendingProcessInsert = {
   quantity: number
 }
 
-const questMapViewsStorageKey = 'click-foundry.quest-map-views'
+const questMapViewsStorageKey = 'click-foundry.quest-map-views.v5'
 
-function defaultQuestMapView(chapterId: QuestChapterId): QuestMapView {
-  return { x: 0, y: 0, zoom: chapterId === 'lvAge' ? 0.62 : 0.9 }
+function defaultQuestMapView(lineId: QuestLineId): QuestMapView {
+  return { x: 0, y: 0, zoom: lineId === 'circuitsAndPower' || lineId === 'heavyPower' ? 0.68 : 0.9 }
 }
 
 function loadQuestMapViews(): QuestMapViews {
@@ -389,13 +403,30 @@ function loadQuestMapViews(): QuestMapViews {
     const stored = window.localStorage.getItem(questMapViewsStorageKey)
     if (!stored) return {}
     const parsed = JSON.parse(stored) as Record<string, Partial<QuestMapView>>
-    return Object.fromEntries(
+    const validViews = Object.fromEntries(
       Object.entries(parsed).filter(([, view]) =>
         Number.isFinite(view.x) &&
         Number.isFinite(view.y) &&
         Number.isFinite(view.zoom),
       ),
-    ) as QuestMapViews
+    ) as Record<string, QuestMapView>
+    const migrated: QuestMapViews = { ...validViews } as QuestMapViews
+    const legacyLineKeys: Partial<Record<QuestChapterId, QuestLineId>> = {
+      gettingStarted: 'firstTools',
+      stoneAndFire: 'stoneAndFire',
+      steamAge: 'boilerRoom',
+      cokeAndSteel: 'cokeAndSteel',
+      lvFoundations: 'circuitsAndPower',
+      blastPrep: 'heavyPower',
+      lvAge: 'factoryAutomation',
+      shatteredReach: 'shatteredReach',
+      benzenePower: 'renewablePower',
+      mvFoundations: 'autoCrafting',
+    }
+    for (const [chapterId, lineId] of Object.entries(legacyLineKeys)) {
+      if (lineId && !migrated[lineId] && validViews[chapterId]) migrated[lineId] = validViews[chapterId]
+    }
+    return migrated
   } catch {
     return {}
   }
@@ -552,7 +583,6 @@ const noProcessStorageShelfMachineIds = new Set<MachineId>([
   'mvCombustionGenerator',
 ])
 
-const visibleQuestChapterIds = new Set<QuestChapterId>(['gettingStarted', 'steamAge', 'lvAge', 'multiblocks', 'shatteredReach', 'mvFoundations', 'benzenePower'])
 const fabricationFaceMachineIdSet = new Set<MachineId>(fabricationFaceMachineIds)
 const placeableFactoryMachineOrder = machineOrder.filter((id) => isPlaceableMachine(id) || id === 'jobInterface')
 const inventoryMachineOrder = machineOrder.filter((id) => !isResourceBackedMachine(id) && id !== 'conductorBundle')
@@ -664,22 +694,6 @@ const gatherTargetIcons: Record<GatherTargetId, ResourceId> = {
 }
 const craftSlotHitboxScale = 0.64
 
-const multiblockQuestIds = new Set<QuestId>([
-  'cokeOvenBrickQuest',
-  'cokeOvenQuest',
-  'bbfCasingsQuest',
-  'buildBbfQuest',
-  'makeHeatingCoilsQuest',
-  'makeInvarQuest',
-  'craftArcControllerQuest',
-  'buildLvAssemblerForPortsQuest',
-  'craftArcItemBusesQuest',
-  'craftArcEnergyHatchesQuest',
-  'craftArcFluidHatchesQuest',
-  'buildArcBlastFurnaceQuest',
-  'bufferArcBlastFurnaceQuest',
-])
-
 function questBookChapterId(quest: Quest): QuestChapterId {
   if (quest.chapterId === 'benzenePower') return 'benzenePower'
   if (quest.chapterId === 'mvFoundations') return 'mvFoundations'
@@ -730,26 +744,29 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   firstSteel: { x: 1995, y: 230 },
   steelPlateQuest: { x: 2170, y: 230 },
   steelTankQuest: { x: 2345, y: 350 },
-  findRedstone: { x: 70, y: 220 },
-  smeltRedAlloy: { x: 245, y: 220 },
-  cutRedAlloyWireQuest: { x: 420, y: 220 },
-  extractRubberQuest: { x: 430, y: 65 },
-  insulateWireQuest: { x: 610, y: 65 },
-  makeGlassTubes: { x: 430, y: 375 },
-  makeCarbonDustQuest: { x: 610, y: 375 },
-  makeResistors: { x: 790, y: 375 },
-  makeVacuumTubes: { x: 790, y: 220 },
-  pulpWoodQuest: { x: 970, y: 105 },
-  pressCircuitBoard: { x: 1150, y: 105 },
-  firstLvCircuit: { x: 1150, y: 270 },
-  buildSteamTurbineQuest: { x: 1335, y: 220 },
-  makeTinCableQuest: { x: 1515, y: 220 },
-  routeLvPowerQuest: { x: 1695, y: 220 },
-  makeSteelMechanicsQuest: { x: 1875, y: 90 },
-  makeLvMotorQuest: { x: 2055, y: 90 },
-  makeLvMotionPartsQuest: { x: 2235, y: 90 },
-  buildLvWiremillQuest: { x: 2415, y: 105 },
-  runLvWiremillQuest: { x: 2415, y: 335 },
+  findRedstone: { x: 270, y: 40 },
+  smeltRedAlloy: { x: 270, y: 160 },
+  cutRedAlloyWireQuest: { x: 270, y: 280 },
+  extractRubberQuest: { x: 80, y: 420 },
+  insulateWireQuest: { x: 80, y: 540 },
+  makeGlassTubes: { x: 270, y: 420 },
+  makeCarbonDustQuest: { x: 270, y: 600 },
+  makeResistors: { x: 270, y: 720 },
+  makeVacuumTubes: { x: 460, y: 540 },
+  pulpWoodQuest: { x: 460, y: 720 },
+  pressCircuitBoard: { x: 460, y: 840 },
+  firstLvCircuit: { x: 270, y: 960 },
+  buildSteamTurbineQuest: { x: 120, y: 1080 },
+  circuitStockpileQuest: { x: 420, y: 1080 },
+  makeTinCableQuest: { x: 270, y: 1200 },
+  routeLvPowerQuest: { x: 270, y: 1320 },
+  powerNetworkTipQuest: { x: 500, y: 1320 },
+  makeSteelMechanicsQuest: { x: 270, y: 1440 },
+  makeLvMotorQuest: { x: 270, y: 1560 },
+  makeLvMotionPartsQuest: { x: 270, y: 1680 },
+  buildLvWiremillQuest: { x: 270, y: 1800 },
+  runLvWiremillQuest: { x: 270, y: 1920 },
+  machineProgramTipQuest: { x: 500, y: 1920 },
   bufferLvPowerQuest: { x: 2610, y: 220 },
   creosoteBoilerQuest: { x: 2790, y: 50 },
   makeDiamondPickQuest: { x: 2790, y: 190 },
@@ -793,20 +810,37 @@ const questPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>>
   encodeCoalSurveyCardQuest: { x: 3330, y: 50 },
 }
 
-const multiblockQuestPositionOverrides: Partial<Record<QuestId, { x: number; y: number }>> = {
-  cokeOvenBrickQuest: { x: 70, y: 380 },
-  cokeOvenQuest: { x: 245, y: 380 },
-  bbfCasingsQuest: { x: 420, y: 380 },
-  buildBbfQuest: { x: 595, y: 380 },
-  makeHeatingCoilsQuest: { x: 70, y: 80 },
-  makeInvarQuest: { x: 245, y: 80 },
-  craftArcControllerQuest: { x: 420, y: 145 },
-  buildLvAssemblerForPortsQuest: { x: 420, y: 290 },
-  craftArcItemBusesQuest: { x: 595, y: 80 },
-  craftArcEnergyHatchesQuest: { x: 595, y: 210 },
-  craftArcFluidHatchesQuest: { x: 595, y: 290 },
-  buildArcBlastFurnaceQuest: { x: 770, y: 145 },
-  bufferArcBlastFurnaceQuest: { x: 945, y: 145 },
+const questAutoLayoutOffsets: Partial<Record<QuestId, { x?: number; y?: number }>> = {
+  buildFourAmpBufferQuest: { x: 118 },
+  buildFourAmpCableQuest: { x: -118 },
+  buildLvElectrolyzerQuest: { x: -118 },
+  buildArcBlastFurnaceQuest: { x: 118 },
+  bufferArcBlastFurnaceQuest: { x: 118 },
+  firstAluminiumQuest: { x: -236 },
+  separateAirQuest: { x: 118 },
+  makePhaseCrystalQuest: { x: 118 },
+}
+
+const questSidePlacements: Partial<Record<QuestId, QuestMapSide>> = {
+  equipToolTipQuest: 'left',
+  recipeBrowserTipQuest: 'right',
+  chopFaster: 'left',
+  transferWaterBucketQuest: 'left',
+  fluidHandlingTipQuest: 'right',
+  storageAutomationQuest: 'left',
+  steelTankQuest: 'right',
+  powerNetworkTipQuest: 'right',
+  machineProgramTipQuest: 'right',
+  creosoteBoilerQuest: 'left',
+  centrifugeByproductsQuest: 'right',
+  craftArcFluidHatchesQuest: 'right',
+  useGlueQuest: 'right',
+  buildConductorsQuest: 'left',
+  cureLiquidRubberQuest: 'right',
+  routeSeparatedGasesQuest: 'right',
+  runGasArcRecipesQuest: 'right',
+  craftSteelCellsQuest: 'right',
+  transferLiquidRubberCellQuest: 'left',
 }
 
 function isCenteredCraftSlotHit(element: HTMLElement, clientX: number, clientY: number) {
@@ -2159,6 +2193,15 @@ function QuestDetail({
             <p>{quest.description}</p>
           </div>
         </div>
+        {quest.workshopNote && (
+          <aside className="quest-workshop-note" aria-label="Workshop note">
+            <span className="quest-workshop-mascot" aria-hidden="true"><Toolbox size={22} /></span>
+            <div>
+              <strong>Workshop note</strong>
+              <p>{quest.workshopNote}</p>
+            </div>
+          </aside>
+        )}
         <div className="progress-track quest-progress">
           <span style={{ width: `${questProgress(state, quest) * 100}%` }} />
         </div>
@@ -2176,7 +2219,7 @@ function QuestDetail({
         </div>
         <div className="quest-reward-panel" aria-label="Quest rewards">
           <span>Reward</span>
-          <strong>{formatAmount(scripReward)} Foundry Scrip</strong>
+          <strong>{scripReward > 0 ? `${formatAmount(scripReward)} Foundry Scrip` : 'Workshop knowledge'}</strong>
           {rewardResources.map((amount) => (
             <span key={`reward-${amount.id}`}>+{formatAmount(amount.amount)} {resourceLabels[amount.id]}</span>
           ))}
@@ -2200,9 +2243,9 @@ function QuestDetail({
 function QuestBook({
   quests,
   state,
-  activeChapterId,
+  activeLineId,
   selectedQuestId,
-  onSelectChapter,
+  onSelectLine,
   onSelectQuest,
   onClaimAll,
   claimableRewardCount,
@@ -2212,9 +2255,9 @@ function QuestBook({
 }: {
   quests: Quest[]
   state: GameState
-  activeChapterId: QuestChapterId
+  activeLineId: QuestLineId
   selectedQuestId: QuestId | null
-  onSelectChapter: (chapterId: QuestChapterId) => void
+  onSelectLine: (lineId: QuestLineId) => void
   onSelectQuest: (questId: QuestId) => void
   onClaimAll: () => void
   claimableRewardCount: number
@@ -2222,51 +2265,196 @@ function QuestBook({
   onToggleLockedQuests: () => void
   mapViewsRef: { current: QuestMapViews }
 }) {
-  const visibleQuestChapters = questChapters.filter((candidate) => visibleQuestChapterIds.has(candidate.id))
-  const chapter = visibleQuestChapters.find((candidate) => candidate.id === activeChapterId) ?? visibleQuestChapters[0]
-  const chapterQuests = quests.filter((quest) => (chapter.id === 'multiblocks' ? multiblockQuestIds.has(quest.id) : questBookChapterId(quest) === chapter.id))
+  const line = questLines.find((candidate) => candidate.id === activeLineId) ?? questLines[0]
+  const activeFolder = questFolders.find((candidate) => candidate.id === line.folderId) ?? questFolders[0]
+  const lineQuests = quests.filter((quest) => questLineIdForQuest(quest) === line.id)
   const questById = new Map(quests.map((quest) => [quest.id, quest]))
-  const [mapView, setMapView] = useState<QuestMapView>(() => mapViewsRef.current[activeChapterId] ?? defaultQuestMapView(activeChapterId))
+  const lineQuestIds = new Set(lineQuests.map((quest) => quest.id))
+  const questDependsOn = (questId: QuestId, ancestorId: QuestId, visited = new Set<QuestId>()): boolean => {
+    if (visited.has(questId)) return false
+    visited.add(questId)
+    const candidate = questById.get(questId)
+    if (!candidate) return false
+    return (candidate.prerequisites ?? []).some(
+      (parentId) => parentId === ancestorId || questDependsOn(parentId, ancestorId, visited),
+    )
+  }
+  const displayedPrerequisites = (quest: Quest) => {
+    const prerequisites = (quest.prerequisites ?? []).filter((parentId) => lineQuestIds.has(parentId))
+    return prerequisites.filter(
+      (parentId) => !prerequisites.some(
+        (otherParentId) => otherParentId !== parentId && questDependsOn(otherParentId, parentId),
+      ),
+    )
+  }
+  const [mapView, setMapView] = useState<QuestMapView>(() => mapViewsRef.current[activeLineId] ?? defaultQuestMapView(activeLineId))
+  const [linePickerOpen, setLinePickerOpen] = useState(
+    () => import.meta.env.DEV && new URLSearchParams(window.location.search).get('reviewQuestMenu') === '1',
+  )
+  const [expandedFolderId, setExpandedFolderId] = useState<QuestFolderId | null>(activeFolder.id)
   const mapViewRef = useRef(mapView)
+  const mapViewportRef = useRef<HTMLDivElement | null>(null)
+  const linePickerRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<{ pointerId: number; x: number; y: number; startX: number; startY: number } | null>(null)
-  const mapMargin = 24
-  const questNodeSize = (quest: Quest) => {
+  const mapMargin = 62
+  const baseQuestNodeSize = 58
+  const autoLayoutColumnGap = 118
+  const autoLayoutRowGap = 122
+  const questNodeDimensions = (quest: Quest) => {
     const kind = questKind(quest)
-    if (kind === 'gate') return 68
-    if (kind === 'optional') return 50
-    return 58
+    if (kind === 'gate') return { width: 68, height: 68 }
+    if (kind === 'tip') return { width: 46, height: 46 }
+    if (kind === 'optional') return { width: 50, height: 50 }
+    if (kind === 'preparation') return { width: 54, height: 54 }
+    return { width: 58, height: 58 }
+  }
+  const isSideQuest = (quest: Quest) => {
+    const kind = questKind(quest)
+    return kind === 'optional' || kind === 'tip'
+  }
+  const sourceQuestPosition = (quest: Quest) => questPositionOverrides[quest.id] ?? quest.position ?? { x: 0, y: 0 }
+  const questDepths = new Map<QuestId, number>()
+  for (let pass = 0; pass < lineQuests.length; pass += 1) {
+    let changed = false
+    for (const quest of lineQuests) {
+      const parentDepths = (quest.prerequisites ?? [])
+        .filter((parentId) => lineQuestIds.has(parentId))
+        .map((parentId) => questDepths.get(parentId) ?? -1)
+      const depth = parentDepths.length ? Math.max(...parentDepths) + 1 : 0
+      if (questDepths.get(quest.id) !== depth) {
+        questDepths.set(quest.id, depth)
+        changed = true
+      }
+    }
+    if (!changed) break
+  }
+  const questsByDepth = new Map<number, Quest[]>()
+  for (const quest of lineQuests) {
+    if (isSideQuest(quest)) continue
+    const depth = questDepths.get(quest.id) ?? 0
+    const row = questsByDepth.get(depth) ?? []
+    row.push(quest)
+    questsByDepth.set(depth, row)
+  }
+  for (const row of questsByDepth.values()) {
+    row.sort((left, right) => {
+      const leftPosition = sourceQuestPosition(left)
+      const rightPosition = sourceQuestPosition(right)
+      return leftPosition.y - rightPosition.y || leftPosition.x - rightPosition.x
+    })
+  }
+  const widestAutoLayoutRow = Math.max(1, ...[...questsByDepth.values()].map((row) => row.length))
+  const autoQuestPositions = new Map<QuestId, { x: number; y: number }>()
+  for (const [depth, row] of questsByDepth) {
+    const rowOffset = ((widestAutoLayoutRow - row.length) * autoLayoutColumnGap) / 2
+    row.forEach((quest, index) => {
+      const adjustment = questAutoLayoutOffsets[quest.id]
+      autoQuestPositions.set(quest.id, {
+        x: Math.round(rowOffset + index * autoLayoutColumnGap + (adjustment?.x ?? 0)),
+        y: depth * autoLayoutRowGap + (adjustment?.y ?? 0),
+      })
+    })
+  }
+  const mainQuestPosition = (quest: Quest) => {
+    if (line.id !== 'circuitsAndPower') return autoQuestPositions.get(quest.id) ?? { x: 0, y: 0 }
+    const position = sourceQuestPosition(quest)
+    return { x: Math.round(position.x * 0.72), y: Math.round(position.y * 1.02) }
+  }
+  const mainQuestPositions = new Map<QuestId, { x: number; y: number }>(
+    lineQuests
+      .filter((quest) => !isSideQuest(quest))
+      .map((quest) => [quest.id, mainQuestPosition(quest)]),
+  )
+  const mainPositionValues = [...mainQuestPositions.values()]
+  const mainMinimumX = mainPositionValues.length ? Math.min(...mainPositionValues.map((position) => position.x)) : 0
+  const mainMaximumX = mainPositionValues.length ? Math.max(...mainPositionValues.map((position) => position.x)) : 0
+  const mainCenterX = (mainMinimumX + mainMaximumX) / 2
+  const sideLaneX: Record<QuestMapSide, number> = {
+    left: mainMinimumX - autoLayoutColumnGap,
+    right: mainMaximumX + autoLayoutColumnGap,
+  }
+  const sideQuestPositions = new Map<QuestId, { x: number; y: number }>()
+  const sideQuestDirections = new Map<QuestId, QuestMapSide>()
+  const sideQuests = lineQuests
+    .filter(isSideQuest)
+    .sort((left, right) => (questDepths.get(left.id) ?? 0) - (questDepths.get(right.id) ?? 0))
+  for (const quest of sideQuests) {
+    const parentIds = (quest.prerequisites ?? []).filter((parentId) => lineQuestIds.has(parentId))
+    const parentPositions = parentIds
+      .map((parentId) => sideQuestPositions.get(parentId) ?? mainQuestPositions.get(parentId))
+      .filter((position): position is { x: number; y: number } => Boolean(position))
+    const mainParentPositions = parentIds
+      .map((parentId) => mainQuestPositions.get(parentId))
+      .filter((position): position is { x: number; y: number } => Boolean(position))
+    const averageMainParentX = mainParentPositions.length
+      ? mainParentPositions.reduce((sum, position) => sum + position.x, 0) / mainParentPositions.length
+      : mainCenterX
+    const side = questSidePlacements[quest.id] ?? (averageMainParentX <= mainCenterX ? 'left' : 'right')
+    const hasSideParent = parentIds.some((parentId) => sideQuestPositions.has(parentId))
+    let y = parentPositions.length
+      ? Math.max(...parentPositions.map((position) => position.y)) + (hasSideParent ? autoLayoutRowGap : 0)
+      : (questDepths.get(quest.id) ?? 0) * autoLayoutRowGap
+    while ([...sideQuestPositions.entries()].some(([questId, position]) =>
+      sideQuestDirections.get(questId) === side && Math.abs(position.y - y) < baseQuestNodeSize,
+    )) {
+      y += autoLayoutRowGap
+    }
+    sideQuestDirections.set(quest.id, side)
+    sideQuestPositions.set(quest.id, { x: sideLaneX[side], y })
   }
   const questPosition = (quest: Quest) => {
-    const position =
-      chapter.id === 'multiblocks'
-        ? multiblockQuestPositionOverrides[quest.id] ?? questPositionOverrides[quest.id] ?? quest.position ?? { x: 0, y: 0 }
-        : questPositionOverrides[quest.id] ?? quest.position ?? { x: 0, y: 0 }
-    return { x: Math.round(position.x * 0.52), y: Math.round(position.y * 0.78) }
+    return sideQuestPositions.get(quest.id) ?? mainQuestPositions.get(quest.id) ?? { x: 0, y: 0 }
   }
-  const questXs = chapterQuests.map((quest) => questPosition(quest).x)
-  const questYs = chapterQuests.map((quest) => questPosition(quest).y)
-  const offsetX = mapMargin - (questXs.length ? Math.min(...questXs) : 0)
-  const offsetY = mapMargin - (questYs.length ? Math.min(...questYs) : 0)
-  const questX = (quest: Quest) => questPosition(quest).x + offsetX
-  const questY = (quest: Quest) => questPosition(quest).y + offsetY
-  const mapWidth = Math.max(360, ...chapterQuests.map((quest) => questX(quest) + questNodeSize(quest) + mapMargin))
-  const mapHeight = Math.max(160, ...chapterQuests.map((quest) => questY(quest) + questNodeSize(quest) + mapMargin))
-  const questRect = (quest: Quest): QuestMapRect => ({
-    left: questX(quest),
-    top: questY(quest),
-    width: questNodeSize(quest),
-    height: questNodeSize(quest),
+  const rawQuestXs = lineQuests.map((quest) => {
+    const dimensions = questNodeDimensions(quest)
+    return questPosition(quest).x + (baseQuestNodeSize - dimensions.width) / 2
   })
-  const questConnectionPath = (parent: Quest, child: Quest) => routeQuestConnection(
-    questRect(parent),
-    questRect(child),
-    chapterQuests
-      .filter((candidate) => candidate.id !== parent.id && candidate.id !== child.id)
-      .map(questRect),
-    mapWidth,
-    mapHeight,
-  ).path
-  const clampZoom = (zoom: number) => Math.max(0.55, Math.min(1.35, zoom))
+  const rawQuestYs = lineQuests.map((quest) => {
+    const dimensions = questNodeDimensions(quest)
+    return questPosition(quest).y + (baseQuestNodeSize - dimensions.height) / 2
+  })
+  const rawQuestRights = lineQuests.map((quest, index) => rawQuestXs[index] + questNodeDimensions(quest).width)
+  const rawQuestBottoms = lineQuests.map((quest, index) => rawQuestYs[index] + questNodeDimensions(quest).height)
+  const rawMinimumX = rawQuestXs.length ? Math.min(...rawQuestXs) : 0
+  const rawMinimumY = rawQuestYs.length ? Math.min(...rawQuestYs) : 0
+  const rawMaximumX = rawQuestRights.length ? Math.max(...rawQuestRights) : 0
+  const rawMaximumY = rawQuestBottoms.length ? Math.max(...rawQuestBottoms) : 0
+  const rawContentWidth = rawMaximumX - rawMinimumX
+  const rawContentHeight = rawMaximumY - rawMinimumY
+  const mapWidth = Math.max(360, rawContentWidth + mapMargin * 2)
+  const mapHeight = Math.max(160, rawContentHeight + mapMargin * 2)
+  const offsetX = mapMargin - rawMinimumX + Math.max(0, (mapWidth - rawContentWidth - mapMargin * 2) / 2)
+  const offsetY = mapMargin - rawMinimumY
+  const questX = (quest: Quest) => {
+    const dimensions = questNodeDimensions(quest)
+    return questPosition(quest).x + (baseQuestNodeSize - dimensions.width) / 2 + offsetX
+  }
+  const questY = (quest: Quest) => {
+    const dimensions = questNodeDimensions(quest)
+    return questPosition(quest).y + (baseQuestNodeSize - dimensions.height) / 2 + offsetY
+  }
+  const questRect = (quest: Quest): QuestMapRect => {
+    const dimensions = questNodeDimensions(quest)
+    return {
+      left: questX(quest),
+      top: questY(quest),
+      width: dimensions.width,
+      height: dimensions.height,
+    }
+  }
+  const questConnectionPath = (parent: Quest, child: Quest) => {
+    const side = sideQuestDirections.get(child.id)
+    if (side) return routeQuestSideConnection(questRect(parent), questRect(child), side).path
+    return routeQuestConnection(
+      questRect(parent),
+      questRect(child),
+      lineQuests
+        .filter((candidate) => candidate.id !== parent.id && candidate.id !== child.id)
+        .map(questRect),
+      mapWidth,
+    ).path
+  }
+  const clampZoom = (zoom: number) => Math.max(0.25, Math.min(1.35, zoom))
   const clampMapView = (view: { x: number; y: number; zoom: number }, viewport?: { width: number; height: number }) => {
     if (!viewport) return view
     const scaledWidth = mapWidth * view.zoom
@@ -2282,12 +2470,7 @@ function QuestBook({
       y: Math.max(minY, Math.min(maxY, view.y)),
     }
   }
-  const emptyChapterHint =
-    chapter.id === 'lvAge'
-      ? 'LV Age opens after the Steam Age ends: make steel in the bricked blast furnace, then hammer the first steel plate.'
-      : chapter.id === 'multiblocks'
-        ? 'Multiblock structure work appears here once the casing grind starts.'
-        : 'Complete the previous visible quest to reveal the next step.'
+  const emptyChapterHint = 'Complete the previous visible quest to reveal the next step.'
   const pointerRef = useRef<Map<number, { x: number; y: number }>>(new Map())
   const gestureRef = useRef<{
     centerX: number
@@ -2305,7 +2488,7 @@ function QuestBook({
   }
 
   const persistMapView = () => {
-    mapViewsRef.current[activeChapterId] = mapViewRef.current
+    mapViewsRef.current[activeLineId] = mapViewRef.current
     saveQuestMapViews(mapViewsRef.current)
   }
 
@@ -2313,10 +2496,43 @@ function QuestBook({
     pointerRef.current.clear()
     gestureRef.current = null
     dragRef.current = null
-    const savedView = mapViewsRef.current[activeChapterId] ?? defaultQuestMapView(activeChapterId)
-    mapViewRef.current = savedView
-    setMapView(savedView)
-  }, [activeChapterId, mapViewsRef])
+    const savedView = mapViewsRef.current[activeLineId]
+    const initialView = savedView ?? defaultQuestMapView(activeLineId)
+    mapViewRef.current = initialView
+    setMapView(initialView)
+    setExpandedFolderId(line.folderId)
+    if (savedView) return
+    const frameId = requestAnimationFrame(() => {
+      const rect = mapViewportRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const zoom = clampZoom(Math.max(0.72, Math.min((rect.width - 24) / mapWidth, 1.05)))
+      const fittedView = {
+        x: Math.round((rect.width - mapWidth * zoom) / 2),
+        y: 12,
+        zoom,
+      }
+      updateMapView(fittedView)
+      mapViewsRef.current[activeLineId] = fittedView
+      saveQuestMapViews(mapViewsRef.current)
+    })
+    return () => cancelAnimationFrame(frameId)
+  }, [activeLineId, line.folderId, mapHeight, mapViewsRef, mapWidth])
+
+  useEffect(() => {
+    if (!linePickerOpen) return
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!linePickerRef.current?.contains(event.target as Node)) setLinePickerOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setLinePickerOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePress)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [linePickerOpen])
 
   const pointerDistance = (first: { x: number; y: number }, second: { x: number; y: number }) =>
     Math.hypot(second.x - first.x, second.y - first.y)
@@ -2430,41 +2646,150 @@ function QuestBook({
     persistMapView()
   }
 
+  const fitMap = () => {
+    const rect = mapViewportRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const zoom = clampZoom(Math.min((rect.width - 24) / mapWidth, (rect.height - 24) / mapHeight, 1.05))
+    updateMapView({
+      x: Math.round((rect.width - mapWidth * zoom) / 2),
+      y: Math.round((rect.height - mapHeight * zoom) / 2),
+      zoom,
+    })
+    requestAnimationFrame(persistMapView)
+  }
+
+  const zoomMap = (delta: number) => {
+    const rect = mapViewportRef.current?.getBoundingClientRect()
+    if (!rect) return
+    updateMapView((current) => {
+      const nextZoom = clampZoom(current.zoom + delta)
+      const centerX = rect.width / 2
+      const centerY = rect.height / 2
+      const ratio = nextZoom / current.zoom
+      return clampMapView({
+        x: centerX - (centerX - current.x) * ratio,
+        y: centerY - (centerY - current.y) * ratio,
+        zoom: nextZoom,
+      }, rect)
+    })
+    requestAnimationFrame(persistMapView)
+  }
+
+  const lineProgress = (lineId: QuestLineId) => {
+    const candidateQuests = quests.filter((quest) => questLineIdForQuest(quest) === lineId)
+    const completed = candidateQuests.filter((quest) => state.completedQuests.includes(quest.id)).length
+    const claimable = candidateQuests.filter((quest) => questStatus(state, quest) === 'completed' && !state.claimedQuests.includes(quest.id)).length
+    const locked = candidateQuests.length > 0 && candidateQuests.every((quest) => questStatus(state, quest) === 'locked')
+    return { claimable, completed, locked, total: candidateQuests.length }
+  }
+
+  const activeLineProgress = lineProgress(line.id)
+
   return (
     <>
-      <div className="quest-chapter-tabs" aria-label="Quest chapters">
-        {visibleQuestChapters.map((candidate) => (
-          <button
-            type="button"
-            className={candidate.id === chapter.id ? 'active' : ''}
-            onClick={() => onSelectChapter(candidate.id)}
-            key={candidate.id}
-          >
-            {candidate.title}
-          </button>
-        ))}
+      <div className="quest-line-picker" ref={linePickerRef}>
+        <button
+          type="button"
+          className="quest-line-trigger"
+          aria-expanded={linePickerOpen}
+          aria-haspopup="menu"
+          onClick={() => setLinePickerOpen((open) => !open)}
+        >
+          <span>
+            <small>{activeFolder.title}</small>
+            <strong>{line.title}</strong>
+          </span>
+          <span className="quest-line-trigger-progress">
+            {activeLineProgress.completed}/{activeLineProgress.total}
+            {activeLineProgress.claimable > 0 && <Gift size={14} aria-label={`${activeLineProgress.claimable} rewards ready`} />}
+            <ChevronDown size={18} className={linePickerOpen ? 'open' : ''} />
+          </span>
+        </button>
+        {linePickerOpen && (
+          <div className="quest-folder-ledger" role="menu" aria-label="Quest folders">
+            {questFolders.map((folder) => {
+              const expanded = expandedFolderId === folder.id
+              return (
+                <section className={expanded ? 'quest-folder expanded' : 'quest-folder'} key={folder.id}>
+                  <button
+                    type="button"
+                    className="quest-folder-heading"
+                    aria-expanded={expanded}
+                    onClick={() => setExpandedFolderId(expanded ? null : folder.id)}
+                  >
+                    <span>
+                      <strong>{folder.title}</strong>
+                      <small>{folder.description}</small>
+                    </span>
+                    <ChevronRight size={17} />
+                  </button>
+                  {expanded && (
+                    <div className="quest-folder-lines">
+                      {folder.lineIds.map((lineId) => {
+                        const candidate = questLines.find((entry) => entry.id === lineId)
+                        if (!candidate) return null
+                        const progress = lineProgress(lineId)
+                        return (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className={candidate.id === line.id ? 'active' : ''}
+                            onClick={() => {
+                              onSelectLine(candidate.id)
+                              setLinePickerOpen(false)
+                            }}
+                            key={candidate.id}
+                          >
+                            <span>
+                              <strong>{candidate.title}</strong>
+                              <small>{candidate.description}</small>
+                            </span>
+                            <span className="quest-folder-line-state">
+                              {progress.locked ? 'Locked' : `${progress.completed}/${progress.total}`}
+                              {progress.claimable > 0 && <Gift size={13} />}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+        )}
       </div>
       <div className="quest-book-head">
         <div>
           <p className="eyebrow">Quest book</p>
-          <h2>{chapter.title}</h2>
+          <h2>{line.title}</h2>
         </div>
         <div className="quest-book-summary">
-          <p>{chapter.description}</p>
+          <p>{line.description}</p>
           <div className="quest-book-actions">
             <strong>{formatAmount(state.scrip)} Foundry Scrip</strong>
-            <button type="button" className={showLockedQuests ? 'active' : ''} aria-pressed={showLockedQuests} onClick={onToggleLockedQuests}>
-              {showLockedQuests ? 'Hide locked quests' : 'Show locked quests'}
+            <button type="button" className={showLockedQuests ? 'active' : ''} aria-label={showLockedQuests ? 'Hide locked quests' : 'Show locked quests'} title={showLockedQuests ? 'Hide locked quests' : 'Show locked quests'} aria-pressed={showLockedQuests} onClick={onToggleLockedQuests}>
+              <Eye size={16} />
             </button>
-            <button type="button" disabled={claimableRewardCount < 1} onClick={onClaimAll}>
-              Claim all rewards{claimableRewardCount > 0 ? ` (${formatAmount(claimableRewardCount)})` : ''}
+            <button type="button" aria-label={`Claim all rewards${claimableRewardCount > 0 ? ` (${claimableRewardCount})` : ''}`} title="Claim all rewards" disabled={claimableRewardCount < 1} onClick={onClaimAll}>
+              <Gift size={16} />
+              {claimableRewardCount > 0 && <span>{formatAmount(claimableRewardCount)}</span>}
             </button>
           </div>
         </div>
       </div>
+      <div className="quest-map-toolbar" aria-label="Quest map controls">
+        <span>Map</span>
+        <div>
+          <button type="button" aria-label="Zoom out" title="Zoom out" onClick={() => zoomMap(-0.12)}><ZoomOut size={15} /></button>
+          <button type="button" aria-label="Fit quest line" title="Fit quest line" onClick={fitMap}><Maximize2 size={15} /></button>
+          <button type="button" aria-label="Zoom in" title="Zoom in" onClick={() => zoomMap(0.12)}><ZoomIn size={15} /></button>
+        </div>
+      </div>
       <div
         className="quest-map-scroll"
-        aria-label={`${chapter.title} quest map`}
+        ref={mapViewportRef}
+        aria-label={`${line.title} quest map`}
         onPointerCancel={handleMapPointerEnd}
         onPointerDown={handleMapPointerDown}
         onPointerMove={handleMapPointerMove}
@@ -2480,43 +2805,67 @@ function QuestBook({
               transform: `translate(${mapView.x}px, ${mapView.y}px) scale(${mapView.zoom})`,
             } as CSSProperties
           }
-        >
+          >
           <svg className="quest-lines" viewBox={`0 0 ${mapWidth} ${mapHeight}`} aria-hidden="true">
-            {chapterQuests.flatMap((quest) =>
-              (quest.prerequisites ?? []).map((parentId) => {
+            <defs>
+              <marker id="quest-arrow-locked" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#637078" />
+              </marker>
+              <marker id="quest-arrow-open" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#d8a83d" />
+              </marker>
+              <marker id="quest-arrow-complete" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#8fe34f" />
+              </marker>
+              <marker id="quest-arrow-optional" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#d6a33d" />
+              </marker>
+              <marker id="quest-arrow-tip" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto">
+                <path d="M 0 0 L 8 4 L 0 8 z" fill="#55b9c7" />
+              </marker>
+            </defs>
+            {lineQuests.flatMap((quest) =>
+              displayedPrerequisites(quest).map((parentId) => {
                 const parent = questById.get(parentId)
                 if (!parent) return null
-                const parentInChapter = chapter.id === 'multiblocks' ? multiblockQuestIds.has(parent.id) : questBookChapterId(parent) === chapter.id
-                if (!parentInChapter) return null
+                if (questLineIdForQuest(parent) !== line.id) return null
                 const parentStatus = questStatus(state, parent)
                 const childStatus = questStatus(state, quest)
-                const className = `${parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'} ${questKind(quest)}`
+                const connectionState = parentStatus === 'completed' && childStatus !== 'locked' ? 'complete' : childStatus === 'locked' ? 'locked' : 'open'
+                const kind = questKind(quest)
+                const className = `${connectionState} ${kind}`
+                const markerKind = connectionState === 'locked'
+                  ? 'locked'
+                  : kind === 'optional' || kind === 'tip'
+                    ? kind
+                    : connectionState
                 const path = questConnectionPath(parent, quest)
                 return (
-                  <g key={`${parent.id}-${quest.id}`}>
+                  <g data-parent-quest-id={parent.id} data-child-quest-id={quest.id} key={`${parent.id}-${quest.id}`}>
                     <path className="quest-line-shadow" d={path} />
-                    <path className={className} d={path} />
+                    <path className={className} d={path} markerEnd={`url(#quest-arrow-${markerKind})`} />
                   </g>
                 )
               }),
             )}
           </svg>
-          {!chapterQuests.length && <div className="quest-map-empty">{emptyChapterHint}</div>}
-          {chapterQuests.map((quest) => {
+          {!lineQuests.length && <div className="quest-map-empty">{emptyChapterHint}</div>}
+          {lineQuests.map((quest) => {
             const status = questStatus(state, quest)
                 const selected = quest.id === selectedQuestId
                 const kind = questKind(quest)
                 const claimed = state.claimedQuests.includes(quest.id)
                 const claimState = status === 'completed' ? (claimed ? 'claimed' : 'claimable') : status === 'ready' ? 'claimable' : 'not-done'
                 const accessibleStatus = status === 'completed' ? (claimed ? 'done' : 'ready to claim') : questStatusText(status)
-                const nodeSize = questNodeSize(quest)
+                const nodeDimensions = questNodeDimensions(quest)
                 return (
                   <button
                     type="button"
                     aria-label={`${quest.title}. ${accessibleStatus}. ${kind}.`}
+                    data-quest-id={quest.id}
                     title={`${quest.title} - ${accessibleStatus}`}
                     className={`quest-node ${status} ${kind} ${claimState}${selected ? ' selected' : ''}`}
-                    style={{ left: questX(quest), minHeight: nodeSize, top: questY(quest), width: nodeSize }}
+                    style={{ height: nodeDimensions.height, left: questX(quest), top: questY(quest), width: nodeDimensions.width }}
                     onClick={() => onSelectQuest(quest.id)}
                     key={quest.id}
                   >
@@ -2538,6 +2887,22 @@ function App() {
   const reviewStateParam = reviewParams.get('reviewState') as MachineReviewState | null
   const reviewState = reviewStateParam && machineReviewStates.includes(reviewStateParam) ? reviewStateParam : null
   const reviewRackParam = reviewParams.get('reviewRack')
+  const reviewQuestLineParam = reviewParams.get('reviewQuestLine') as QuestLineId | null
+  const reviewQuestLine = reviewQuestLineParam && questLines.some((line) => line.id === reviewQuestLineParam) ? reviewQuestLineParam : null
+  const reviewQuestIdParam = reviewParams.get('reviewQuest') as QuestId | null
+  const reviewQuestId = reviewQuestIdParam && questDefinitions.some((quest) => quest.id === reviewQuestIdParam) ? reviewQuestIdParam : null
+  const reviewQuestLocked = reviewParams.get('reviewQuestState') === 'locked'
+  const questReviewState = useMemo(() => {
+    if (!import.meta.env.DEV || !reviewQuestLine) return null
+    if (reviewQuestLocked) return createInitialState()
+    const creativeState = createCreativeState(createInitialState())
+    const questIds = questDefinitions.map((quest) => quest.id)
+    return {
+      ...creativeState,
+      completedQuests: [...new Set([...creativeState.completedQuests, ...questIds])],
+      claimedQuests: [...new Set([...creativeState.claimedQuests, ...questIds])],
+    }
+  }, [reviewQuestLine, reviewQuestLocked])
   const reviewRackFootprint = reviewRackParam && ['1x1', '2x2', '3x2', '3x3'].includes(reviewRackParam)
     ? reviewRackParam
     : null
@@ -2841,12 +3206,12 @@ function App() {
     }
     return { state: reviewGame, uid: instance.uid }
   }, [reviewMachineId, reviewRackFootprint, reviewState])
-  const [state, setState] = useState<GameState>(() => reviewSetup?.state ?? loadGame(null))
+  const [state, setState] = useState<GameState>(() => reviewSetup?.state ?? questReviewState ?? loadGame(null))
   const [factoryFloorSnapshot, setFactoryFloorSnapshot] = useState<GameState>(state)
-  const [hasLoadedSave, setHasLoadedSave] = useState(Boolean(reviewSetup))
+  const [hasLoadedSave, setHasLoadedSave] = useState(Boolean(reviewSetup || questReviewState))
   const [floatTexts, setFloatTexts] = useState<FloatText[]>([])
   const [achievementToasts, setAchievementToasts] = useState<AchievementToast[]>([])
-  const [page, setPage] = useState<Page>(reviewSetup ? 'processing' : 'home')
+  const [page, setPage] = useState<Page>(reviewSetup ? 'processing' : questReviewState ? 'guide' : 'home')
   const [selectedSaveSlotId, setSelectedSaveSlotId] = useState<SaveSlotId>(defaultSaveSlotId)
   const [saveSlotSummaries, setSaveSlotSummaries] = useState<SaveSlotSummary[]>([])
   const [saveNameDraft, setSaveNameDraft] = useState('')
@@ -2883,10 +3248,10 @@ function App() {
   const [selectedCraftMachine, setSelectedCraftMachine] = useState<MachineId | null>(null)
   const [machineTerminalMode, setMachineTerminalMode] = useState<MachineTerminalMode>('items')
   const [selectedFluidContainerKey, setSelectedFluidContainerKey] = useState<string | null>(null)
-  const [activeQuestChapterId, setActiveQuestChapterId] = useState<QuestChapterId>('gettingStarted')
+  const [activeQuestLineId, setActiveQuestLineId] = useState<QuestLineId>(reviewQuestLine ?? 'firstTools')
   const questMapViewsRef = useRef<QuestMapViews>(loadQuestMapViews())
-  const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(null)
-  const [showLockedQuests, setShowLockedQuests] = useState(false)
+  const [selectedQuestId, setSelectedQuestId] = useState<QuestId | null>(reviewQuestId)
+  const [showLockedQuests, setShowLockedQuests] = useState(Boolean(reviewQuestLine))
   const [terminalNotice, setTerminalNotice] = useState('')
   const [, setFactoryNotice] = useState('')
   const [offlineNotice, setOfflineNotice] = useState('')
@@ -2897,7 +3262,7 @@ function App() {
   const [selectedMachinePopupRecipeIndex, setSelectedMachinePopupRecipeIndex] = useState(0)
   const [machineRecipeLoadNotice, setMachineRecipeLoadNotice] = useState('')
   const [isFactoryExpandModalOpen, setIsFactoryExpandModalOpen] = useState(false)
-  const [isCreativeMode, setIsCreativeMode] = useState(Boolean(reviewSetup))
+  const [isCreativeMode, setIsCreativeMode] = useState(Boolean(reviewSetup || (questReviewState && !reviewQuestLocked)))
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
   const reviewStartsInConductorRouting = Boolean(reviewSetup && isConductorMachine(reviewMachineId!))
@@ -5616,7 +5981,7 @@ function App() {
     const quest = questDefinitions.find((candidate) => candidate.id === toast.questId)
     if (!quest) return
     pushNavigationSnapshot()
-    setActiveQuestChapterId(questBookChapterId(quest))
+    setActiveQuestLineId(questLineIdForQuest(quest))
     setPage('guide')
     setIsRecipeModalOpen(false)
     setIsFactoryExpandModalOpen(false)
@@ -5730,7 +6095,7 @@ function App() {
         </header>
       )}
 
-      {!selectedQuestId && (
+      {!selectedQuestId && page !== 'guide' && (
         <div className="achievement-toast-stack" aria-label="Quest achievements" aria-live="polite">
           {achievementToasts.map((toast) => (
             <button
@@ -9983,9 +10348,9 @@ function App() {
           <QuestBook
             quests={guideQuests}
             state={state}
-            activeChapterId={activeQuestChapterId}
+            activeLineId={activeQuestLineId}
             selectedQuestId={selectedQuestId}
-            onSelectChapter={setActiveQuestChapterId}
+            onSelectLine={setActiveQuestLineId}
             onSelectQuest={handleSelectQuest}
             onClaimAll={handleClaimAllQuestRewards}
             claimableRewardCount={claimableQuestRewardCount}

@@ -260,6 +260,8 @@ export type QuestId =
   | 'craftPlanks'
   | 'craftSticks'
   | 'craftAxe'
+  | 'equipToolTipQuest'
+  | 'recipeBrowserTipQuest'
   | 'chopFaster'
   | 'mineStone'
   | 'craftShovelQuest'
@@ -277,6 +279,7 @@ export type QuestId =
   | 'makeSteam'
   | 'pipeSteam'
   | 'storageAutomationQuest'
+  | 'fluidHandlingTipQuest'
   | 'steamMaceratorQuest'
   | 'steamForgeHammerQuest'
   | 'steamCompressorQuest'
@@ -311,6 +314,7 @@ export type QuestId =
   | 'buildSteamTurbineQuest'
   | 'makeTinCableQuest'
   | 'routeLvPowerQuest'
+  | 'powerNetworkTipQuest'
   | 'makeSteelMechanicsQuest'
   | 'makeLvMotorQuest'
   | 'makeLvMotionPartsQuest'
@@ -326,6 +330,7 @@ export type QuestId =
   | 'creosoteBoilerQuest'
   | 'buildLvWiremillQuest'
   | 'runLvWiremillQuest'
+  | 'machineProgramTipQuest'
   | 'runLvBenderQuest'
   | 'buildLvLatheQuest'
   | 'runLvLatheQuest'
@@ -393,6 +398,18 @@ export type QuestId =
   | 'buildMvPowerQuest'
 
 export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations' | 'benzenePower'
+export type QuestFolderId = 'foundations' | 'steamAndSteel' | 'lvEngineering' | 'appliedIndustry' | 'mvSystems'
+export type QuestLineId =
+  | 'firstTools'
+  | 'stoneAndFire'
+  | 'boilerRoom'
+  | 'cokeAndSteel'
+  | 'circuitsAndPower'
+  | 'heavyPower'
+  | 'factoryAutomation'
+  | 'shatteredReach'
+  | 'renewablePower'
+  | 'autoCrafting'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv' | 'mv'
 
@@ -693,7 +710,8 @@ export type Quest = {
   chapter: string
   title: string
   description: string
-  kind?: 'main' | 'optional' | 'gate'
+  kind?: 'main' | 'optional' | 'gate' | 'preparation' | 'tip'
+  workshopNote?: string
   position?: {
     x: number
     y: number
@@ -724,6 +742,21 @@ export type Quest = {
 
 export type QuestChapter = {
   id: QuestChapterId
+  title: string
+  description: string
+}
+
+export type QuestFolder = {
+  id: QuestFolderId
+  title: string
+  description: string
+  lineIds: QuestLineId[]
+}
+
+export type QuestLine = {
+  id: QuestLineId
+  folderId: QuestFolderId
+  chapterIds: QuestChapterId[]
   title: string
   description: string
 }

@@ -166,7 +166,7 @@ export const euPerSteamLitre = 2
 export const boilerSteamProductionLitresPerSecond = 6
 export const wellWaterCapacityLitres = machineFluidCapacityLitres('well')
 export const wellWaterProductionLitresPerSecond = 6
-export const wellWaterOutputLitresPerSecond = 96
+export const wellWaterOutputLitresPerSecond = 24
 export const steamTurbineSteamUseLitresPerSecond = 16
 export const steamTurbineEuCapacity = machineEuCapacity('steamTurbine')
 export const lvMachineInternalEuCapacity = machineEuCapacity('lvWiremill')
@@ -8093,6 +8093,7 @@ export function questScripReward(quest: Quest) {
   if (typeof quest.rewards.scrip === 'number') return quest.rewards.scrip
   const kind = questKind(quest)
   if (kind === 'gate') return 30
+  if (kind === 'tip') return 0
   if (kind === 'optional') return 8
   return 12
 }

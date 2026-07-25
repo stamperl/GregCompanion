@@ -13,6 +13,9 @@ import {
   machines,
   processRecipes,
   questChapters,
+  questFolders,
+  questLineIdForQuest,
+  questLines,
   quests,
   recipes,
   resourceBackedMachineIds,
@@ -415,6 +418,19 @@ describe('content validation', () => {
         const prerequisite = questById.get(prerequisiteId)!
         expect(questKind(prerequisite), `${quest.id} should not depend on optional ${prerequisiteId}`).not.toBe('optional')
       }
+    }
+  })
+
+  it('assigns every quest to one ordered folder line', () => {
+    expectUnique(questFolders.map((folder) => folder.id), 'quest folder')
+    expectUnique(questLines.map((line) => line.id), 'quest line')
+    expect(questFolders.flatMap((folder) => folder.lineIds)).toEqual(questLines.map((line) => line.id))
+    for (const line of questLines) {
+      expect(questFolders.find((folder) => folder.id === line.folderId)?.lineIds).toContain(line.id)
+      expect(line.chapterIds.length, `${line.id} should own at least one chapter`).toBeGreaterThan(0)
+    }
+    for (const quest of quests) {
+      expect(questLines.map((line) => line.id), `${quest.id} should resolve to a quest line`).toContain(questLineIdForQuest(quest))
     }
   })
 
