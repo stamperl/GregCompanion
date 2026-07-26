@@ -105,15 +105,26 @@ export function ProcessItemSlot({
   label: string
   onClick: () => void
 }) {
+  const slotRole = label.toLowerCase().includes('output') || label.toLowerCase().startsWith('out')
+    ? 'output'
+    : label.toLowerCase().includes('fuel') || label.toLowerCase().includes('coke')
+      ? 'fuel'
+      : 'input'
   return (
-    <button type="button" className={slot ? 'process-slot filled' : 'process-slot'} aria-label={slot ? `${label} ${resourceLabels[slot.id]}` : label} onClick={onClick}>
+    <button
+      type="button"
+      className={['process-slot', `process-slot-${slotRole}`, slot ? 'filled' : ''].filter(Boolean).join(' ')}
+      aria-label={slot ? `${label} ${resourceLabels[slot.id]}` : label}
+      title={label}
+      onClick={onClick}
+    >
       {slot ? (
         <>
           <PixelIcon id={slot.id} />
           <span className="item-count">{formatAmount(slot.amount)}</span>
         </>
       ) : (
-        <span className="process-slot-label">{label}</span>
+        <span className="process-slot-role" aria-hidden="true" />
       )}
     </button>
   )
@@ -135,10 +146,13 @@ export function ProcessFluidSlot({
   ready?: boolean
 }) {
   const storedLitres = fluidId ? amount ?? 0 : 0
+  const slotRole = label.toLowerCase().includes('output') || label.toLowerCase().startsWith('out')
+    ? 'output'
+    : 'input'
   return (
     <button
       type="button"
-      className={['process-slot', 'fluid-process-slot', 'native-fluid-control', fluidId ? 'filled' : '', ready ? 'ready' : ''].filter(Boolean).join(' ')}
+      className={['process-slot', `process-slot-${slotRole}`, 'fluid-process-slot', 'native-fluid-control', fluidId ? 'filled' : '', ready ? 'ready' : ''].filter(Boolean).join(' ')}
       aria-label={fluidId ? `${label} ${fluidLabels[fluidId]} ${formatLitres(storedLitres)} litres` : label}
       onClick={onClick}
     >
@@ -148,7 +162,7 @@ export function ProcessFluidSlot({
           <span className="item-count">{formatLitres(storedLitres)}L</span>
         </>
       ) : emptyLabel ? (
-        <span className="process-slot-label">{emptyLabel}</span>
+        <span className="process-slot-role" aria-hidden="true" />
       ) : null}
     </button>
   )

@@ -112,6 +112,35 @@ export function MachineGlyph({ id, active = false, pipeConnections, fabricationL
       </span>
     )
   }
+  if (isEuCableMachine(id) && pipeConnections) {
+    const path = pipePath(pipeConnections)
+    const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]
+    return (
+      <span className={className} aria-hidden="true">
+        <svg className="eu-cable-svg" viewBox="0 0 40 40" shapeRendering="crispEdges" focusable="false">
+          <path className="eu-cable-shadow" d={path} />
+          <path className="eu-cable-outline" d={path} />
+          <path className="eu-cable-jacket" d={path} />
+          <path className="eu-cable-band" d={path} />
+          <path className="eu-cable-conductor" d={path} />
+          <rect className="eu-cable-hub-shadow" x="12" y="13" width="17" height="17" />
+          <rect className="eu-cable-hub-frame" x="12" y="12" width="16" height="16" />
+          <rect className="eu-cable-hub-face" x="15" y="15" width="10" height="10" />
+          <rect className="eu-cable-hub-core" x="17" y="17" width="6" height="6" />
+          <rect className="eu-cable-rivet" x="13" y="13" width="2" height="2" />
+          <rect className="eu-cable-rivet" x="25" y="13" width="2" height="2" />
+          <rect className="eu-cable-rivet" x="13" y="25" width="2" height="2" />
+          <rect className="eu-cable-rivet" x="25" y="25" width="2" height="2" />
+          {capPoints.map((point) => (
+            <g key={`${point.x}-${point.y}`}>
+              <rect className="eu-cable-cap-frame" x={point.x} y={point.y} width={point.width} height={point.height} />
+              <rect className="eu-cable-cap-core" x={point.x + 2} y={point.y + 2} width={point.width - 4} height={point.height - 4} />
+            </g>
+          ))}
+        </svg>
+      </span>
+    )
+  }
   if ((isConnector && pipeConnections) || isConductor) {
     const path = pipePath(pipeConnections)
     const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]

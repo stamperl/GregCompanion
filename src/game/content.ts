@@ -21,8 +21,22 @@ import type {
   Tool,
   ToolId,
 } from './types'
+import {
+  generateMissingMaterialCraftingRecipes,
+  generateMissingMaterialProcessRecipes,
+  materialResourceRegistry,
+} from './materialCatalogue'
+import {
+  generateMvInheritedProcessRecipes,
+  mvCraftingRecipes,
+  mvExclusiveProcessRecipes,
+  mvInfrastructureRecipes,
+  mvMachineBuildRecipes,
+  mvMachineRegistry,
+  mvResourceRegistry,
+} from './mvContent'
 
-export const resourceRegistry = {
+const authoredResourceRegistry = {
   log: { id: 'log', label: 'Log', category: 'raw', tier: 'manual' },
   plank: { id: 'plank', label: 'Plank', category: 'raw', tier: 'manual' },
   stick: { id: 'stick', label: 'Stick', category: 'raw', tier: 'manual' },
@@ -132,11 +146,14 @@ export const resourceRegistry = {
   glassTube: { id: 'glassTube', label: 'Glass Tube', category: 'component', tier: 'steam' },
   woodPulp: { id: 'woodPulp', label: 'Wood Pulp', category: 'component', tier: 'steam' },
   woodenBoardBlank: { id: 'woodenBoardBlank', label: 'Wooden Board Blank', category: 'component', tier: 'steam' },
+  coatedBoardBlank: { id: 'coatedBoardBlank', label: 'Coated Board Blank', category: 'component', tier: 'steam' },
   carbonDust: { id: 'carbonDust', label: 'Carbon Dust', category: 'dust', tier: 'steam' },
   redAlloyIngot: { id: 'redAlloyIngot', label: 'Red Alloy Ingot', category: 'ingot', tier: 'steam' },
   redAlloyPlate: { id: 'redAlloyPlate', label: 'Red Alloy Plate', category: 'plate', tier: 'steam' },
   mechanicalPiston: { id: 'mechanicalPiston', label: 'Mechanical Piston', category: 'component', tier: 'steam' },
   redAlloyWire: { id: 'redAlloyWire', label: 'Red Alloy Wire', category: 'wire', tier: 'steam' },
+  redAlloyCable: { id: 'redAlloyCable', label: 'Red Alloy Cable', category: 'wire', tier: 'lv' },
+  steelItemCasing: { id: 'steelItemCasing', label: 'Steel Item Casing', category: 'component', tier: 'steam' },
   resistor: { id: 'resistor', label: 'Resistor', category: 'component', tier: 'lv' },
   vacuumTube: { id: 'vacuumTube', label: 'Vacuum Tube', category: 'component', tier: 'lv' },
   bronzeBlend: { id: 'bronzeBlend', label: 'Bronze Dust', category: 'dust', tier: 'bronze' },
@@ -193,7 +210,17 @@ export const resourceRegistry = {
   rubberLog: { id: 'rubberLog', label: 'Rubber Tree Log', category: 'raw', tier: 'lv' },
   sugarCane: { id: 'sugarCane', label: 'Sugar Cane', category: 'raw', tier: 'lv' },
   aluminiumCable: { id: 'aluminiumCable', label: 'Aluminium Cable', category: 'wire', tier: 'mv' },
-} satisfies Record<ResourceId, ResourceSpec>
+} satisfies Partial<Record<ResourceId, ResourceSpec>>
+
+export const resourceRegistry = Object.fromEntries(
+  Object.entries({ ...materialResourceRegistry, ...mvResourceRegistry, ...authoredResourceRegistry }).map(([id, spec]) => [
+    id,
+    {
+      ...materialResourceRegistry[id as keyof typeof materialResourceRegistry],
+      ...spec,
+    },
+  ]),
+) as Record<ResourceId, ResourceSpec>
 
 export const resourceLabels: Record<ResourceId, string> = Object.fromEntries(
   Object.entries(resourceRegistry).map(([id, spec]) => [id, spec.label]),
@@ -312,6 +339,8 @@ export const tools: Record<ToolId, Tool> = {
       goldVein: 6,
       resonantQuartzSeam: 6,
       voidQuartzOutcrop: 7,
+      sphaleriteDeposit: 6,
+      realgarDeposit: 6,
     },
   },
   diamondAxe: {
@@ -515,9 +544,29 @@ export const gatherTargets: Record<GatherTargetId, GatherTarget> = {
     area: 'shatteredReach',
     autoMinerProfile: 'survey',
   },
+  sphaleriteDeposit: {
+    id: 'sphaleriteDeposit',
+    name: 'Sphalerite Deposit',
+    description: 'A zinc-rich deposit carrying the trace gallium needed for MV semiconductor work.',
+    maxHp: 144,
+    drops: [{ id: 'sphaleriteOre', amount: 1 }],
+    preferredTool: 'diamondPickaxe',
+    area: 'shatteredReach',
+    autoMinerProfile: 'survey',
+  },
+  realgarDeposit: {
+    id: 'realgarDeposit',
+    name: 'Realgar Deposit',
+    description: 'A brittle arsenic sulfide deposit used to grow gallium arsenide crystals.',
+    maxHp: 136,
+    drops: [{ id: 'realgarOre', amount: 1 }],
+    preferredTool: 'diamondPickaxe',
+    area: 'shatteredReach',
+    autoMinerProfile: 'survey',
+  },
 }
 
-export const machineRegistry = {
+const authoredMachineRegistry = {
   furnace: {
     id: 'furnace',
     name: 'Primitive Furnace',
@@ -833,6 +882,7 @@ export const machineRegistry = {
     placeable: true,
     processKind: 'euProcess',
     euCapacity: 96,
+    itemOutputSlots: 2,
   },
   lvForgeHammer: {
     id: 'lvForgeHammer',
@@ -1393,11 +1443,25 @@ export const machineRegistry = {
     euAmps: 4,
     euVoltage: 32,
   },
-} satisfies Record<MachineId, MachineSpec>
+} satisfies Partial<Record<MachineId, MachineSpec>>
+
+export const machineRegistry = {
+  ...authoredMachineRegistry,
+  ...mvMachineRegistry,
+} as Record<MachineId, MachineSpec>
 
 export const machines: Record<MachineId, MachineSpec> = machineRegistry
 
-export const resourceBackedMachineIds = ['tinCable', 'tinCable2A', 'tinCable4A', 'tinCable8A', 'aluminiumCable'] as const
+export const resourceBackedMachineIds = [
+  'aluminiumCable2A',
+  'aluminiumCable4A',
+  'aluminiumCable8A',
+  'tinCable',
+  'tinCable2A',
+  'tinCable4A',
+  'tinCable8A',
+  'aluminiumCable',
+] as const
 
 export function isResourceBackedMachine(machineId: MachineId): machineId is (typeof resourceBackedMachineIds)[number] {
   return resourceBackedMachineIds.includes(machineId as (typeof resourceBackedMachineIds)[number])
@@ -1486,8 +1550,12 @@ export function isEuBlastMachine(machineId: MachineId) {
 
 export function isProgrammableProcessMachine(machineId: MachineId) {
   const processKind = machineRegistry[machineId].processKind
-  return machineRegistry[machineId].tier === 'lv' &&
-    (processKind === 'poweredFarm' || processKind === 'euBlastProcess' || (processKind === 'euProcess' && machineId !== 'lvAirCollector' && machineId !== 'lvAutoMiner'))
+  return (machineRegistry[machineId].tier === 'lv' || machineRegistry[machineId].tier === 'mv') &&
+    (processKind === 'poweredFarm' || processKind === 'euBlastProcess' || (
+      processKind === 'euProcess'
+      && !machineId.endsWith('AirCollector')
+      && !isAutoMinerMachine(machineId)
+    ))
 }
 
 export function isLiquidSteamBoilerMachine(machineId: MachineId) {
@@ -1495,7 +1563,7 @@ export function isLiquidSteamBoilerMachine(machineId: MachineId) {
 }
 
 export function isAutoMinerMachine(machineId: MachineId) {
-  return machineId === 'steamAutoMiner' || machineId === 'lvAutoMiner'
+  return machineId === 'steamAutoMiner' || machineId === 'lvAutoMiner' || machineId === 'mvAutoMiner'
 }
 
 export function isEuNetworkMachine(machineId: MachineId) {
@@ -1558,7 +1626,7 @@ export const steamAutoMinerTargets: readonly GatherTargetId[] = ['stone', 'ironV
 
 export function canAutoMinerTarget(machineId: MachineId, targetId: GatherTargetId) {
   if (machineId === 'steamAutoMiner') return steamAutoMinerTargets.includes(targetId)
-  if (machineId === 'lvAutoMiner') return gatherTargets[targetId].preferredTool === 'woodenPickaxe' || gatherTargets[targetId].preferredTool === 'stonePickaxe' || gatherTargets[targetId].preferredTool === 'ironPickaxe' || gatherTargets[targetId].preferredTool === 'diamondPickaxe'
+  if (machineId === 'lvAutoMiner' || machineId === 'mvAutoMiner') return gatherTargets[targetId].preferredTool === 'woodenPickaxe' || gatherTargets[targetId].preferredTool === 'stonePickaxe' || gatherTargets[targetId].preferredTool === 'ironPickaxe' || gatherTargets[targetId].preferredTool === 'diamondPickaxe'
   return false
 }
 
@@ -3428,30 +3496,44 @@ export const recipes: Recipe[] = [
   {
     id: 'craft_resistor',
     name: 'Craft Resistor',
-    description: 'Bind carbon dust with copper wire into a primitive resistor.',
+    description: 'Bind a carbon core between copper leads and fine copper winding.',
     tier: 'steam',
     durationMs: 1800,
     inputs: [
       { id: 'rubberSap', amount: 2 },
       { id: 'copperWire', amount: 2 },
-      { id: 'redAlloyWire', amount: 2 },
+      { id: 'fineCopperWire', amount: 2 },
       { id: 'carbonDust', amount: 1 },
     ],
-    pattern: ['rubberSap', 'copperWire', 'rubberSap', 'redAlloyWire', 'carbonDust', 'redAlloyWire', null, 'copperWire', null],
-    outputs: [{ id: 'resistor', amount: 2 }],
+    pattern: ['rubberSap', 'copperWire', 'rubberSap', 'fineCopperWire', 'carbonDust', 'fineCopperWire', null, 'copperWire', null],
+    outputs: [{ id: 'resistor', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'coat_wooden_board_blank',
+    name: 'Coat Wooden Board Blank',
+    description: 'Seal a compressed wooden board with sticky resin before adding conductive traces.',
+    tier: 'steam',
+    durationMs: 2_400,
+    inputs: [
+      { id: 'woodenBoardBlank', amount: 1 },
+      { id: 'rubberSap', amount: 2 },
+    ],
+    pattern: ['rubberSap', null, null, 'woodenBoardBlank', null, null, 'rubberSap', null, null],
+    outputs: [{ id: 'coatedBoardBlank', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },
   {
     id: 'craft_basic_board',
     name: 'Printed Circuit Board',
-    description: 'Wrap copper wire around a compressed wooden blank so it can carry the first LV signal paths.',
+    description: 'Wrap copper wire around a resin-coated blank so it can carry the first LV signal paths.',
     tier: 'steam',
     durationMs: 2800,
     inputs: [
-      { id: 'woodenBoardBlank', amount: 1 },
+      { id: 'coatedBoardBlank', amount: 1 },
       { id: 'copperWire', amount: 8 },
     ],
-    pattern: ['copperWire', 'copperWire', 'copperWire', 'copperWire', 'woodenBoardBlank', 'copperWire', 'copperWire', 'copperWire', 'copperWire'],
+    pattern: ['copperWire', 'copperWire', 'copperWire', 'copperWire', 'coatedBoardBlank', 'copperWire', 'copperWire', 'copperWire', 'copperWire'],
     outputs: [{ id: 'basicBoard', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },
@@ -3462,12 +3544,41 @@ export const recipes: Recipe[] = [
     tier: 'steam',
     durationMs: 3600,
     inputs: [
-      { id: 'glassTube', amount: 2 },
-      { id: 'redAlloyWire', amount: 2 },
-      { id: 'steelRod', amount: 1 },
+      { id: 'glassTube', amount: 1 },
+      { id: 'copperWire', amount: 3 },
+      { id: 'fineCopperWire', amount: 2 },
+      { id: 'steelRod', amount: 2 },
+      { id: 'redAlloyBolt', amount: 1 },
     ],
-    pattern: [null, 'glassTube', null, 'redAlloyWire', 'steelRod', 'redAlloyWire', null, 'glassTube', null],
+    pattern: ['copperWire', 'fineCopperWire', 'copperWire', 'steelRod', 'glassTube', 'steelRod', 'copperWire', 'fineCopperWire', 'redAlloyBolt'],
     outputs: [{ id: 'vacuumTube', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'craft_red_alloy_cable',
+    name: 'Insulate Red Alloy Cable',
+    description: 'Wrap red alloy signal wire in rubber so adjacent circuit traces do not short.',
+    tier: 'steam',
+    durationMs: 1_800,
+    inputs: [
+      { id: 'redAlloyWire', amount: 1 },
+      { id: 'rubber', amount: 1 },
+    ],
+    pattern: ['rubber', null, null, 'redAlloyWire', null, null, null, null, null],
+    outputs: [{ id: 'redAlloyCable', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'craft_steel_item_casing',
+    name: 'Hammer Steel Item Casings',
+    description: 'Fold a steel plate into two thin circuit support casings.',
+    tier: 'steam',
+    durationMs: 2_600,
+    inputs: [{ id: 'steelPlate', amount: 1 }],
+    catalysts: [{ id: 'ironHammer', amount: 1 }],
+    durabilityCosts: [{ id: 'ironHammer', amount: 1 }],
+    pattern: ['ironHammer', null, null, 'steelPlate', null, null, null, null, null],
+    outputs: [{ id: 'steelItemCasing', amount: 2 }],
     unlockedBy: 'steelPlateQuest',
   },
   {
@@ -3478,13 +3589,12 @@ export const recipes: Recipe[] = [
     durationMs: 6000,
     inputs: [
       { id: 'basicBoard', amount: 1 },
-      { id: 'conductiveWire', amount: 2 },
       { id: 'resistor', amount: 2 },
       { id: 'vacuumTube', amount: 2 },
-      { id: 'redAlloyWire', amount: 1 },
-      { id: 'steelPlate', amount: 1 },
+      { id: 'redAlloyCable', amount: 3 },
+      { id: 'steelItemCasing', amount: 1 },
     ],
-    pattern: ['conductiveWire', 'redAlloyWire', 'conductiveWire', 'resistor', 'basicBoard', 'resistor', 'vacuumTube', 'steelPlate', 'vacuumTube'],
+    pattern: ['redAlloyCable', 'resistor', 'redAlloyCable', 'vacuumTube', 'basicBoard', 'vacuumTube', 'redAlloyCable', 'steelItemCasing', 'resistor'],
     outputs: [{ id: 'primitiveCircuit', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },
@@ -3783,6 +3893,9 @@ recipes.push(
     machineOutputs: [{ id: 'mvCombustionGenerator', amount: 1 }],
   },
 )
+
+recipes.push(...generateMissingMaterialCraftingRecipes(recipes))
+recipes.push(...mvCraftingRecipes, ...mvMachineBuildRecipes, ...mvInfrastructureRecipes)
 
 export const processRecipes: ProcessRecipe[] = [
   {
@@ -5359,6 +5472,7 @@ export const processRecipes: ProcessRecipe[] = [
       id: 'copperWire',
       amount: 2,
     },
+    extraInputs: [{ id: 'fineCopperWire', amount: 2 }],
     fluidInput: {
       id: 'glue',
       amount: 2,
@@ -6304,7 +6418,43 @@ export const processRecipes: ProcessRecipe[] = [
       { id: 'heavyTar', amount: 6, bufferId: 'residue' },
     ],
   },
+  {
+    id: 'lv_assembler_vacuum_tubes',
+    name: 'LV Assemble Vacuum Tubes',
+    description: 'Align fine windings and steel electrodes for an efficient two-valve batch.',
+    tier: 'lv',
+    machineId: 'lvAssembler',
+    durationMs: 7_000,
+    euCost: 112,
+    input: { id: 'glassTube', amount: 2 },
+    secondaryInput: { id: 'copperWire', amount: 6 },
+    extraInputs: [
+      { id: 'fineCopperWire', amount: 4 },
+      { id: 'steelRod', amount: 4 },
+      { id: 'redAlloyBolt', amount: 2 },
+    ],
+    output: { id: 'vacuumTube', amount: 2 },
+    programNumber: 5,
+    autoSelectable: false,
+  },
+  {
+    id: 'lv_bender_steel_item_casing',
+    name: 'LV Bend Steel Item Casings',
+    description: 'Set Program 5 to fold one steel plate into two circuit support casings.',
+    tier: 'lv',
+    machineId: 'lvBender',
+    durationMs: 4_000,
+    euCost: 64,
+    input: { id: 'steelPlate', amount: 1 },
+    output: { id: 'steelItemCasing', amount: 2 },
+    programNumber: 5,
+    autoSelectable: false,
+  },
 ]
+
+processRecipes.push(...mvExclusiveProcessRecipes)
+processRecipes.push(...generateMissingMaterialProcessRecipes(processRecipes))
+processRecipes.push(...generateMvInheritedProcessRecipes(processRecipes))
 
 export const questChapters: QuestChapter[] = [
   {
@@ -6341,6 +6491,11 @@ export const questChapters: QuestChapter[] = [
     id: 'benzenePower',
     title: 'Benzene Power',
     description: 'Automate biomass, capture wood chemistry, and establish renewable LV and MV combustion power.',
+  },
+  {
+    id: 'mvEngineering',
+    title: 'MV Engineering',
+    description: 'Build semiconductor circuits, 128-volt infrastructure, and a complete MV machine hall.',
   },
   {
     id: 'stoneAndFire',
@@ -6435,6 +6590,13 @@ export const questLines: QuestLine[] = [
     title: 'Auto Crafting',
     description: 'Build processors, encode physical patterns, and commission recursive fabrication.',
   },
+  {
+    id: 'mvEngineering',
+    folderId: 'mvSystems',
+    chapterIds: ['mvEngineering'],
+    title: 'MV Engineering',
+    description: 'Turn aluminium and gallium arsenide into a complete 128-volt production tier.',
+  },
 ]
 
 export const questFolders: QuestFolder[] = [
@@ -6466,7 +6628,7 @@ export const questFolders: QuestFolder[] = [
     id: 'mvSystems',
     title: 'MV Systems',
     description: 'The first networked production systems and automatic crafting.',
-    lineIds: ['autoCrafting'],
+    lineIds: ['autoCrafting', 'mvEngineering'],
   },
 ]
 
@@ -6780,12 +6942,12 @@ export const quests: Quest[] = [
     chapterId: 'gettingStarted',
     chapter: 'Getting Started',
     title: 'Lay factory foundations',
-    description: 'With an axe, pickaxe, and shovel available, build the first 7x7 factory floor. Stone & Fire begins when you are ready to place the Primitive Furnace.',
+    description: 'With an axe, pickaxe, and shovel available, build the first 8x8 factory floor. Stone & Fire begins when you are ready to place the Primitive Furnace.',
     workshopNote: 'A factory floor is a promise that the mess will become organised later.',
     position: { x: 790, y: 290 },
     icon: { type: 'gather', id: 'stone' },
     prerequisites: ['craftAxe', 'mineStone', 'craftShovelQuest'],
-    objectives: [{ type: 'factoryFoundation', level: 1, label: 'Factory floor 7x7 unlocked' }],
+    objectives: [{ type: 'factoryFoundation', level: 1, label: 'Factory floor 8x8 unlocked' }],
     requirements: {},
     rewards: {},
   },
@@ -7258,7 +7420,7 @@ export const quests: Quest[] = [
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
     title: 'Make resistors',
-    description: 'Bind Carbon Dust with Copper Wire, Red Alloy Wire, and Sticky Resin. The first hand batch makes two Resistors; Glue later improves the automated yield.',
+    description: 'Bind one Carbon Dust core with two Copper Wires, two Fine Copper Wires, and Sticky Resin. Hand crafting is deliberately wasteful; an LV Assembler with Glue later makes four at a time.',
     position: { x: 790, y: 260 },
     icon: { type: 'resource', id: 'resistor' },
     prerequisites: ['makeCarbonDustQuest'],
@@ -7272,7 +7434,7 @@ export const quests: Quest[] = [
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
     title: 'Build vacuum tubes',
-    description: 'Use two Glass Tubes, two Red Alloy Wires, and a Steel Rod to make each valve. These are the fragile switching parts in the first circuit.',
+    description: 'Combine a Glass Tube with three Copper Wires, two Fine Copper Wires, two Steel Rods, and a Red Alloy Bolt. These awkward hand-built valves are the switching parts in the first circuit.',
     position: { x: 790, y: 140 },
     icon: { type: 'resource', id: 'vacuumTube' },
     prerequisites: ['insulateWireQuest', 'makeGlassTubes'],
@@ -7300,7 +7462,7 @@ export const quests: Quest[] = [
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
     title: 'Press and wire a circuit board',
-    description: 'Compress wood pulp into a board blank, then wrap copper wire around the whole thing by hand. This gives the fragile valve parts somewhere to mount, and later LV machinery should make this less painful.',
+    description: 'Compress four Wood Pulp into a Wooden Board Blank, coat it with two Sticky Resin, then wrap eight Copper Wires around the sealed blank. Later chemistry and assembly routes make this less painful.',
     position: { x: 970, y: 20 },
     icon: { type: 'resource', id: 'basicBoard' },
     prerequisites: ['pulpWoodQuest'],
@@ -7314,7 +7476,7 @@ export const quests: Quest[] = [
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
     title: 'Assemble the first LV circuit',
-    description: 'Bring the board, insulated wire, resistors, tubes, red alloy signal wire, and steel plate together. This is the first real electric control part.',
+    description: 'Press a Steel Plate into an Item Casing, insulate three Red Alloy Wires into Cables, then combine them with the board, two Resistors, and two Vacuum Tubes. This hand-only circuit is the first real electric control part.',
     position: { x: 1150, y: 140 },
     icon: { type: 'resource', id: 'primitiveCircuit' },
     prerequisites: ['pressCircuitBoard'],
@@ -8532,6 +8694,156 @@ export const quests: Quest[] = [
       ],
     },
     rewards: {},
+  },
+  {
+    id: 'findMvSemiconductorsQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Find the semiconductor ores',
+    description: 'Survey Sphalerite and Realgar in the Shattered Reach. Sphalerite carries trace Gallium; Realgar supplies Arsenic. Keep the Zinc and Sulfur byproducts because later chemistry will use both.',
+    workshopNote: 'The useful part is measured in traces. The suffering is supplied in bulk.',
+    position: { x: 80, y: 120 },
+    icon: { type: 'resource', id: 'sphaleriteOre' },
+    prerequisites: ['buildMvPowerQuest', 'firstAluminiumQuest'],
+    requirements: {
+      resources: [
+        { id: 'sphaleriteOre', amount: 8 },
+        { id: 'realgarOre', amount: 4 },
+      ],
+    },
+    rewards: { scrip: 12 },
+  },
+  {
+    id: 'makeGaAsQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Grow gallium arsenide',
+    description: 'Macerate both ores, centrifuge the Sphalerite concentrate, mix Gallium with Arsenic, then grow that charge in the Arc Blast Furnace. Macerate the crystal once more to prepare diode-grade powder.',
+    position: { x: 280, y: 120 },
+    icon: { type: 'resource', id: 'galliumArsenideCrystal' },
+    prerequisites: ['findMvSemiconductorsQuest'],
+    requirements: { resources: [{ id: 'galliumArsenideDust', amount: 1 }] },
+    rewards: { scrip: 12 },
+  },
+  {
+    id: 'makeMvCircuitQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Hand-build the first MV circuit',
+    description: 'Bind Wood Pulp with Pipe Sealant by hand, or automate the Phenolic Board with Glue in an LV Assembler. Etch it with Fine Gold Wire and Sulfuric Acid, package Gallium Arsenide Diodes, then hand-assemble the board with three Basic Electronic Circuits.',
+    workshopNote: 'No circuit assembler yet. Your fingers are the circuit assembler.',
+    position: { x: 480, y: 120 },
+    icon: { type: 'resource', id: 'mvCircuit' },
+    prerequisites: ['makeGaAsQuest'],
+    requirements: { resources: [{ id: 'mvCircuit', amount: 1 }] },
+    rewards: { scrip: 18 },
+  },
+  {
+    id: 'makeMvCasingQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Build the aluminium shell',
+    description: 'Form eight Aluminium Plates into an MV Machine Casing, then line it with Steel Plate and two Aluminium Cables. This hull is the common body for every MV machine.',
+    position: { x: 680, y: 120 },
+    icon: { type: 'resource', id: 'mvMachineHull' },
+    prerequisites: ['makeMvCircuitQuest'],
+    requirements: { resources: [{ id: 'mvMachineHull', amount: 1 }] },
+    rewards: { scrip: 12 },
+  },
+  {
+    id: 'expandMvFactoryQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Open the MV factory wing',
+    description: 'The old floor has run out of polite ways to contain your machinery. Reinforce the final expansion with four MV Machine Casings to unlock the 24x20 production floor.',
+    workshopNote: 'At this point it is less a workshop and more a zoning dispute.',
+    position: { x: 880, y: 120 },
+    icon: { type: 'resource', id: 'mvMachineCasing' },
+    prerequisites: ['makeMvCasingQuest'],
+    objectives: [{ type: 'factoryFoundation', level: 7, label: 'Factory floor 24x20 unlocked' }],
+    requirements: {},
+    rewards: { scrip: 16 },
+  },
+  {
+    id: 'makeMvMotorQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Wind the MV motion parts',
+    description: 'Magnetise a Steel Rod, make Aluminium Wire, then build the MV Motor. Use it to assemble the Piston, Pump, and Conveyor needed by the machine roster.',
+    position: { x: 1080, y: 120 },
+    icon: { type: 'resource', id: 'mvMotor' },
+    prerequisites: ['expandMvFactoryQuest'],
+    requirements: {
+      resources: [
+        { id: 'mvMotor', amount: 1 },
+        { id: 'mvPiston', amount: 1 },
+        { id: 'mvPump', amount: 1 },
+        { id: 'mvConveyor', amount: 1 },
+      ],
+    },
+    rewards: { scrip: 18 },
+  },
+  {
+    id: 'buildMvAssemblerQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Commission the MV Assembler',
+    description: 'Upgrade the LV Assembler with an MV hull, two Good Electronic Circuits, an MV Conveyor, and Aluminium Plates. Existing LV recipes now run in half the time but consume twice the total EU.',
+    position: { x: 1280, y: 120 },
+    icon: { type: 'machine', id: 'mvAssembler' },
+    prerequisites: ['makeMvMotorQuest'],
+    requirements: { machines: [{ id: 'mvAssembler', amount: 1 }] },
+    rewards: { scrip: 20 },
+  },
+  {
+    id: 'buildMvPowerInfrastructureQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Distribute 128-volt power',
+    description: 'Build an MV Battery Buffer, an MV Lithium Battery, and bundled Aluminium Cable. MV buffers accept only MV batteries and deliver 128 EU/s for every installed cell.',
+    position: { x: 1480, y: 120 },
+    icon: { type: 'machine', id: 'mvBatteryBuffer' },
+    prerequisites: ['buildMvAssemblerQuest'],
+    requirements: {
+      resources: [
+        { id: 'mvLithiumBattery', amount: 1 },
+        { id: 'aluminiumCable4A', amount: 1 },
+      ],
+      machines: [{ id: 'mvBatteryBuffer', amount: 1 }],
+    },
+    rewards: { scrip: 20 },
+  },
+  {
+    id: 'completeMvMachineLineQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Complete the MV machine hall',
+    description: 'Upgrade one of every remaining LV process machine. The recipes are inherited, but the faster cycle demands four times the live draw and will expose weak cable or battery-buffer routes immediately.',
+    position: { x: 1680, y: 120 },
+    icon: { type: 'machine', id: 'mvMacerator' },
+    prerequisites: ['buildMvPowerInfrastructureQuest'],
+    requirements: {
+      machines: [
+        { id: 'mvMacerator', amount: 1 },
+        { id: 'mvForgeHammer', amount: 1 },
+        { id: 'mvCompressor', amount: 1 },
+        { id: 'mvExtractor', amount: 1 },
+        { id: 'mvAlloySmelter', amount: 1 },
+        { id: 'mvFurnace', amount: 1 },
+        { id: 'mvWiremill', amount: 1 },
+        { id: 'mvBender', amount: 1 },
+        { id: 'mvLathe', amount: 1 },
+        { id: 'mvElectrolyzer', amount: 1 },
+        { id: 'mvMixer', amount: 1 },
+        { id: 'mvCentrifuge', amount: 1 },
+        { id: 'mvCanner', amount: 1 },
+        { id: 'mvAutoMiner', amount: 1 },
+        { id: 'mvChemicalReactor', amount: 1 },
+        { id: 'mvAirCollector', amount: 1 },
+        { id: 'mvDistillery', amount: 1 },
+      ],
+    },
+    rewards: { scrip: 30 },
   },
 ]
 

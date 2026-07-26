@@ -101,15 +101,16 @@ import type {
 export const saveKey = 'block-tech-idle-save'
 export const currentSaveVersion = 20
 export const factoryGrid = { width: 10, height: 8 }
-export const maxFactoryFoundationLevel = 6
+export const maxFactoryFoundationLevel = 7
 export const factoryFoundationSizes = [
   { width: 0, height: 0 },
-  { width: 7, height: 7 },
-  { width: 10, height: 8 },
+  { width: 8, height: 8 },
   { width: 12, height: 10 },
   { width: 14, height: 12 },
   { width: 16, height: 14 },
   { width: 18, height: 16 },
+  { width: 20, height: 18 },
+  { width: 24, height: 20 },
 ] as const
 export const factoryFoundationCosts: Record<number, ResourceAmount[]> = {
   1: [
@@ -142,6 +143,13 @@ export const factoryFoundationCosts: Record<number, ResourceAmount[]> = {
     { id: 'brick', amount: 192 },
     { id: 'steelPlate', amount: 16 },
     { id: 'aluminiumPlate', amount: 16 },
+  ],
+  7: [
+    { id: 'cobblestone', amount: 512 },
+    { id: 'brick', amount: 256 },
+    { id: 'steelPlate', amount: 32 },
+    { id: 'aluminiumPlate', amount: 32 },
+    { id: 'mvMachineCasing', amount: 4 },
   ],
 }
 export const processStackLimit = 64
@@ -189,6 +197,14 @@ export const steamAutoMinerSteamUseLitres = 16
 export const lvAutoMinerActionDamage = 16
 export const lvAutoMinerActionMs = 4000
 export const lvAutoMinerEuUse = 16
+export const mvAutoMinerActionDamage = lvAutoMinerActionDamage
+export const mvAutoMinerActionMs = 2000
+export const mvAutoMinerEuUse = 32
+
+const isAssemblerMachineId = (machineId: MachineId) => machineId === 'lvAssembler' || machineId === 'mvAssembler'
+const isMixerMachineId = (machineId: MachineId) => machineId === 'lvMixer' || machineId === 'mvMixer'
+const isCentrifugeMachineId = (machineId: MachineId) => machineId === 'lvCentrifuge' || machineId === 'mvCentrifuge'
+const isChemicalReactorMachineId = (machineId: MachineId) => machineId === 'lvChemicalReactor' || machineId === 'mvChemicalReactor'
 
 const airCollectorRecipe = processRecipes.find((recipe) => recipe.id === 'collect_air')
 
@@ -1459,18 +1475,35 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'hopper', x: 3, y: 6 },
   { id: 'standardChest', x: 4, y: 6 },
   { id: 'lvBatteryBuffer4A', x: 5, y: 6 },
-  { id: 'planningController', x: 6, y: 6 },
-  { id: 'memoryModule', x: 7, y: 6 },
-  { id: 'dispatchModule', x: 6, y: 7 },
-  { id: 'memoryModule', x: 7, y: 7 },
-  { id: 'fabricationCable', x: 6, y: 5 },
-  { id: 'fabricationCable', x: 7, y: 5 },
-  { id: 'fabricationCable', x: 8, y: 5 },
-  { id: 'recipeEncoder', x: 8, y: 6 },
-  { id: 'autoFabricator', x: 9, y: 5 },
-  { id: 'tinCable4A', x: 8, y: 7 },
-  { id: 'lvBatteryBuffer4A', x: 9, y: 7 },
-  { id: 'tinCable4A', x: 10, y: 7 },
+  { id: 'lvBatteryBuffer8A', x: 14, y: 6 },
+  { id: 'tinCable8A', x: 15, y: 6 },
+  { id: 'recipeEncoder', x: 15, y: 5 },
+  { id: 'planningController', x: 16, y: 6 },
+  { id: 'memoryModule', x: 17, y: 6 },
+  { id: 'dispatchModule', x: 16, y: 7 },
+  { id: 'memoryModule', x: 17, y: 7 },
+  { id: 'fabricationCable', x: 16, y: 5 },
+  { id: 'fabricationCable', x: 17, y: 5 },
+  { id: 'fabricationCable', x: 18, y: 5 },
+  { id: 'fabricationCable', x: 19, y: 5 },
+  { id: 'fabricationCable', x: 20, y: 5 },
+  { id: 'fabricationCable', x: 21, y: 5 },
+  { id: 'fabricationCable', x: 22, y: 5 },
+  { id: 'fabricationCable', x: 23, y: 5 },
+  { id: 'steelTank', x: 17, y: 3 },
+  { id: 'fluidStorageLink', x: 17, y: 4 },
+  { id: 'autoFabricator', x: 18, y: 4 },
+  { id: 'lvLathe', x: 19, y: 6 },
+  { id: 'lvWiremill', x: 20, y: 6 },
+  { id: 'lvBender', x: 21, y: 6 },
+  { id: 'lvAssembler', x: 22, y: 6 },
+  { id: 'standardChest', x: 23, y: 4 },
+  { id: 'tinCable8A', x: 18, y: 7 },
+  { id: 'tinCable8A', x: 19, y: 7 },
+  { id: 'tinCable8A', x: 20, y: 7 },
+  { id: 'tinCable8A', x: 21, y: 7 },
+  { id: 'tinCable8A', x: 22, y: 7 },
+  { id: 'lvBatteryBuffer8A', x: 23, y: 7 },
   { id: 'cokeOvenPart', x: 0, y: 8 },
   { id: 'cokeOvenPart', x: 1, y: 8 },
   { id: 'cokeOvenPart', x: 0, y: 9 },
@@ -1528,6 +1561,62 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'steamTank', x: 5, y: 14 },
   { id: 'reachGateCasing', x: 0, y: 15 },
   { id: 'reachGateCasing', x: 1, y: 15 },
+  { id: 'mvBatteryBuffer8A', x: 0, y: 16 },
+  { id: 'aluminiumCable8A', x: 0, y: 17 },
+  { id: 'aluminiumCable8A', x: 1, y: 17 },
+  { id: 'aluminiumCable8A', x: 2, y: 17 },
+  { id: 'aluminiumCable8A', x: 3, y: 17 },
+  { id: 'aluminiumCable8A', x: 4, y: 17 },
+  { id: 'aluminiumCable8A', x: 5, y: 17 },
+  { id: 'aluminiumCable8A', x: 6, y: 17 },
+  { id: 'aluminiumCable8A', x: 7, y: 17 },
+  { id: 'aluminiumCable8A', x: 8, y: 17 },
+  { id: 'aluminiumCable8A', x: 9, y: 17 },
+  { id: 'aluminiumCable8A', x: 10, y: 17 },
+  { id: 'aluminiumCable8A', x: 11, y: 17 },
+  { id: 'aluminiumCable8A', x: 12, y: 17 },
+  { id: 'aluminiumCable8A', x: 13, y: 17 },
+  { id: 'aluminiumCable8A', x: 14, y: 17 },
+  { id: 'aluminiumCable8A', x: 15, y: 17 },
+  { id: 'aluminiumCable8A', x: 16, y: 17 },
+  { id: 'aluminiumCable8A', x: 17, y: 17 },
+  { id: 'aluminiumCable8A', x: 18, y: 17 },
+  { id: 'aluminiumCable8A', x: 19, y: 17 },
+  { id: 'aluminiumCable8A', x: 20, y: 17 },
+  { id: 'aluminiumCable8A', x: 21, y: 17 },
+  { id: 'aluminiumCable8A', x: 22, y: 17 },
+  { id: 'aluminiumCable8A', x: 23, y: 17 },
+  { id: 'mvMacerator', x: 1, y: 18 },
+  { id: 'mvForgeHammer', x: 2, y: 18 },
+  { id: 'mvCompressor', x: 3, y: 18 },
+  { id: 'mvExtractor', x: 4, y: 18 },
+  { id: 'mvAlloySmelter', x: 5, y: 18 },
+  { id: 'mvFurnace', x: 6, y: 18 },
+  { id: 'mvWiremill', x: 7, y: 18 },
+  { id: 'mvBender', x: 8, y: 18 },
+  { id: 'mvLathe', x: 9, y: 18 },
+  { id: 'mvElectrolyzer', x: 10, y: 18 },
+  { id: 'mvAssembler', x: 11, y: 18 },
+  { id: 'mvMixer', x: 12, y: 18 },
+  { id: 'mvCentrifuge', x: 13, y: 18 },
+  { id: 'mvCanner', x: 14, y: 18 },
+  { id: 'mvAutoMiner', x: 15, y: 18 },
+  { id: 'mvChemicalReactor', x: 16, y: 18 },
+  { id: 'mvAirCollector', x: 17, y: 18 },
+  { id: 'mvDistillery', x: 18, y: 18 },
+  { id: 'mvEnergyHatch2A', x: 19, y: 18 },
+  { id: 'mvInputBus', x: 20, y: 18 },
+  { id: 'mvOutputBus', x: 21, y: 18 },
+  { id: 'mvFluidInputHatch', x: 22, y: 18 },
+  { id: 'mvFluidOutputHatch', x: 23, y: 18 },
+  { id: 'mvBatteryBuffer', x: 0, y: 19 },
+  { id: 'mvBatteryBuffer2A', x: 1, y: 19 },
+  { id: 'mvBatteryBuffer4A', x: 2, y: 19 },
+  { id: 'mvBatteryBuffer8A', x: 3, y: 19 },
+  { id: 'aluminiumCable', x: 4, y: 19 },
+  { id: 'aluminiumCable2A', x: 5, y: 19 },
+  { id: 'aluminiumCable4A', x: 6, y: 19 },
+  { id: 'aluminiumCable8A', x: 7, y: 19 },
 ]
 
 function machineAtPosition(state: GameState, x: number, y: number) {
@@ -1612,14 +1701,25 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
 
   const batteryBuffers = state.machineInstances.filter((instance) => isEuStorageMachine(instance.machineId))
   for (const buffer of batteryBuffers) {
-    const creativeOutput = buffer.y === 2 ? 'south'
+    const creativeOutput = buffer.x === 0 && buffer.y === 16 ? 'south'
+      : buffer.y === 2 ? 'south'
       : buffer.x === 5 && buffer.y === 6 ? 'east'
+      : buffer.x === 14 && buffer.y === 6 ? 'east'
       : buffer.x === 9 && buffer.y === 7 ? 'west'
+      : buffer.x === 23 && buffer.y === 7 ? 'west'
       : buffer.x === 10 && buffer.y === 11 ? 'east'
       : 'north'
     state = setBatteryBufferOutputDirection(state, buffer.uid, creativeOutput)
     for (let index = 0; index < batteryBufferSlots(buffer.machineId); index += 1) {
-      state = installLvBatteryInBuffer(state, buffer.uid, index % 2 === 0 ? 'lithiumBattery' : 'sodiumBattery')
+      state = installLvBatteryInBuffer(
+        state,
+        buffer.uid,
+        machines[buffer.machineId].tier === 'mv'
+          ? 'mvLithiumBattery'
+          : index % 2 === 0
+            ? 'lithiumBattery'
+            : 'sodiumBattery',
+      )
     }
     const filled = state.machineInstances.find((instance) => instance.uid === buffer.uid)
     if (filled) filled.process.euStored = filled.process.euCapacity
@@ -1632,6 +1732,12 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     state.surveyCards.sulfurVent = Math.max(1, state.surveyCards.sulfurVent ?? 0)
     state = installSurveyCardInAutoMiner(state, lvMiner.uid, 'sulfurVent')
     state = assignAutoMiner(state, lvMiner.uid, 'sulfurVent')
+  }
+  const mvMiner = state.machineInstances.find((instance) => instance.machineId === 'mvAutoMiner')
+  if (mvMiner) {
+    state.surveyCards.realgarDeposit = Math.max(1, state.surveyCards.realgarDeposit ?? 0)
+    state = installSurveyCardInAutoMiner(state, mvMiner.uid, 'realgarDeposit')
+    state = assignAutoMiner(state, mvMiner.uid, 'realgarDeposit')
   }
 
   state = cloneState(state)
@@ -1723,6 +1829,44 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
       instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
       instance.process.fluids.liquidRubber = 24
     }
+    if (instance.machineId === 'mvMacerator') instance.process.input = { id: 'sphaleriteOre', amount: 8 }
+    if (instance.machineId === 'mvForgeHammer') instance.process.input = { id: 'aluminiumIngot', amount: 8 }
+    if (instance.machineId === 'mvCompressor') instance.process.input = { id: 'aluminiumPlate', amount: 8 }
+    if (instance.machineId === 'mvExtractor') instance.process.input = { id: 'rubberSap', amount: 8 }
+    if (instance.machineId === 'mvAlloySmelter') {
+      instance.process.input = { id: 'nickelDust', amount: 8 }
+      instance.process.secondaryInput = { id: 'ironDust', amount: 8 }
+    }
+    if (instance.machineId === 'mvFurnace') instance.process.input = { id: 'aluminiumDust', amount: 8 }
+    if (instance.machineId === 'mvWiremill') instance.process.input = { id: 'aluminiumIngot', amount: 8 }
+    if (instance.machineId === 'mvBender') instance.process.input = { id: 'aluminiumIngot', amount: 8 }
+    if (instance.machineId === 'mvLathe') instance.process.input = { id: 'aluminiumIngot', amount: 8 }
+    if (instance.machineId === 'mvElectrolyzer') {
+      instance.process.input = { id: 'bauxiteDust', amount: 8 }
+      instance.process.secondaryInput = { id: 'sodiumDust', amount: 4 }
+    }
+    if (instance.machineId === 'mvAssembler') {
+      instance.process.input = { id: 'woodPulp', amount: 8 }
+      instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+      instance.process.fluids.glue = 32
+    }
+    if (instance.machineId === 'mvMixer') {
+      instance.process.input = { id: 'galliumDust', amount: 8 }
+      instance.process.secondaryInput = { id: 'arsenicDust', amount: 8 }
+    }
+    if (instance.machineId === 'mvCentrifuge') instance.process.input = { id: 'sphaleriteConcentrate', amount: 8 }
+    if (instance.machineId === 'mvCanner') {
+      instance.process.input = { id: 'emptyMvBatteryHull', amount: 8 }
+      instance.process.secondaryInput = { id: 'lithiumDust', amount: 64 }
+    }
+    if (instance.machineId === 'mvChemicalReactor') {
+      instance.process.input = { id: 'rubberSap', amount: 16 }
+      instance.process.secondaryInput = { id: 'sulfurDust', amount: 8 }
+    }
+    if (instance.machineId === 'mvDistillery') {
+      instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
+      instance.process.fluids.woodTar = 32
+    }
     if (instance.machineId === 'poweredFarm') {
       instance.process.configuredProgramNumber = 1
       instance.process.fluids.water = 96
@@ -1739,6 +1883,10 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     if (instance.x === 5 && instance.y === 13 && isTankStorageMachine(instance.machineId)) {
       instance.process.steamStoredMs = 0
       instance.process.fluids = normalizeFluidStore({ heavyTar: 4 })
+    }
+    if (instance.x === 17 && instance.y === 3 && isTankStorageMachine(instance.machineId)) {
+      instance.process.steamStoredMs = 0
+      instance.process.fluids = normalizeFluidStore({ liquidRubber: 96 })
     }
     if (instance.machineId === 'mvCombustionGenerator' || instance.machineId === 'lvCombustionGenerator') {
       instance.process.euStored = 0
@@ -1799,26 +1947,146 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     [fluidTransferMilestoneKey('drain', 'steelCell', 'liquidRubber')]: fluidContainerCapacities.steelCell,
   }
 
-  const recipeEncoder = machineAtPosition(state, 8, 6)
-  const interfaceCable = machineAtPosition(state, 8, 5)
-  if (!recipeEncoder || recipeEncoder.machineId !== 'recipeEncoder' || !interfaceCable || !hasFabricationCable(interfaceCable)) {
+  const recipeEncoder = machineAtPosition(state, 15, 5)
+  const creativeController = machineAtPosition(state, 16, 6)
+  const fabricationCables = new Map(
+    state.machineInstances
+      .filter((instance) => instance.y === 5 && instance.x >= 16 && instance.x <= 23 && hasFabricationCable(instance))
+      .map((instance) => [instance.x, instance]),
+  )
+  if (
+    !recipeEncoder ||
+    recipeEncoder.machineId !== 'recipeEncoder' ||
+    creativeController?.machineId !== 'planningController' ||
+    fabricationCables.size !== 8
+  ) {
     throw new Error('Creative auto-crafting setup is incomplete')
   }
-  state.machines.jobInterface = Math.max(1, state.machines.jobInterface)
-  const creativeController = machineAtPosition(state, 6, 6)
-  if (creativeController?.machineId === 'planningController') creativeController.process.euStored = creativeController.process.euCapacity
-  state = attachFabricationInterface(state, interfaceCable.uid, 'east')
-  const interfaceFace = state.machineInstances.find((instance) => instance.uid === interfaceCable.uid)?.fabricationInterfaces?.east
-  if (!interfaceFace) throw new Error('Creative auto-crafting interface face is incomplete')
-  state = encodeCraftingRecipeCard(state, recipeEncoder.uid, 'craft_planks')
-  state = encodeCraftingRecipeCard(state, recipeEncoder.uid, 'craft_sticks')
-  for (const card of state.recipeCards) state = installRecipeCard(state, interfaceFace.uid, card.uid)
-  state.resources.plank = 0
-  const stickCard = state.recipeCards.find((card) => card.recipeId === 'craft_sticks')
-  if (!stickCard) throw new Error('Creative auto-crafting cards were not encoded')
-  const poweredController = state.machineInstances.find((instance) => instance.uid === creativeController?.uid)
+
+  const targetMachineByCableX: Record<number, MachineId> = {
+    19: 'lvLathe',
+    20: 'lvWiremill',
+    21: 'lvBender',
+    22: 'lvAssembler',
+  }
+  state.machines.jobInterface = Math.max(5, state.machines.jobInterface)
+  state.machines.terminalExportBus = Math.max(1, state.machines.terminalExportBus)
+  creativeController.process.euStored = creativeController.process.euCapacity
+
+  state = attachFabricationInterface(state, fabricationCables.get(18)!.uid, 'north')
+  for (const x of Object.keys(targetMachineByCableX).map(Number)) {
+    state = attachFabricationInterface(state, fabricationCables.get(x)!.uid, 'south')
+  }
+  state = attachFabricationFace(state, fabricationCables.get(23)!.uid, 'north', 'terminalExportBus')
+
+  const autoFabricatorInterface = state.machineInstances.find((instance) => instance.uid === fabricationCables.get(18)!.uid)?.fabricationInterfaces?.north
+  const machineInterfaces = new Map<MachineId, FabricationInterfaceAttachment>()
+  for (const [xText, machineId] of Object.entries(targetMachineByCableX)) {
+    const attachment = state.machineInstances
+      .find((instance) => instance.uid === fabricationCables.get(Number(xText))!.uid)
+      ?.fabricationInterfaces?.south
+    if (attachment) machineInterfaces.set(machineId, attachment)
+  }
+  const exportBus = state.machineInstances.find((instance) => instance.uid === fabricationCables.get(23)!.uid)?.fabricationInterfaces?.north
+  if (!autoFabricatorInterface || machineInterfaces.size !== 4 || !exportBus) {
+    throw new Error('Creative auto-crafting interfaces are incomplete')
+  }
+
+  const craftingPatternIds = [
+    'craft_magnetic_steel_rod',
+    'craft_bronze_rotor',
+    'craft_steel_pipe_section',
+    'craft_mv_motor',
+    'craft_mv_pump',
+  ]
+  const processingPatternIds = [
+    'lv_lathe_steel_rod',
+    'lv_lathe_bronze_rod',
+    'material_bronze_ring_lvLathe',
+    'material_bronze_screw_lvLathe',
+    'material_steel_ring_lvLathe',
+    'lv_lathe_aluminium_rod',
+    'material_aluminium_wire_lvWiremill',
+    'lv_wiremill_red_alloy_wire',
+    'lv_bender_bronze_plate',
+    'lv_bender_steel_plate',
+    'lv_assembler_aluminium_cable',
+  ]
+  const rechargeCreativePatternEncoder = () => {
+    const controller = state.machineInstances.find((instance) => instance.uid === creativeController.uid)
+    if (controller) controller.process.euStored = controller.process.euCapacity
+  }
+  for (const recipeId of craftingPatternIds) {
+    rechargeCreativePatternEncoder()
+    state = encodeCraftingRecipeCard(state, recipeEncoder.uid, recipeId)
+  }
+  for (const recipeId of processingPatternIds) {
+    rechargeCreativePatternEncoder()
+    state = encodeProcessingRecipeCard(state, recipeEncoder.uid, recipeId)
+  }
+
+  for (const card of state.recipeCards) {
+    const targetInterface = card.kind === 'crafting'
+      ? autoFabricatorInterface
+      : card.targetMachineId
+        ? machineInterfaces.get(card.targetMachineId)
+        : undefined
+    if (targetInterface) state = installRecipeCard(state, targetInterface.uid, card.uid)
+  }
+  state = toggleFabricationBusItemFilter(state, exportBus.uid, 'mvPump')
+
+  state = cloneState(state)
+  for (const machineId of machineInterfaces.keys()) {
+    const instance = state.machineInstances.find((candidate) => (
+      candidate.machineId === machineId &&
+      candidate.y === 6 &&
+      candidate.x >= 19 &&
+      candidate.x <= 22
+    ))
+    if (!instance) continue
+    instance.process.input = null
+    instance.process.secondaryInput = null
+    instance.process.extraInput1 = null
+    instance.process.extraInput2 = null
+    instance.process.extraInput3 = null
+    instance.process.extraInput4 = null
+    instance.process.output = null
+    instance.process.output2 = null
+    instance.process.activeRecipeId = null
+    instance.process.progressMs = 0
+    instance.process.durationMs = 0
+  }
+
+  const fabricatedIntermediateIds: ResourceId[] = [
+    'steelRod',
+    'magneticSteelRod',
+    'bronzeRod',
+    'bronzePlate',
+    'bronzeRing',
+    'bronzeScrew',
+    'bronzeRotor',
+    'steelPlate',
+    'steelRing',
+    'steelPipeSection',
+    'aluminiumRod',
+    'aluminiumWire',
+    'redAlloyWire',
+    'aluminiumCable',
+    'mvMotor',
+    'mvPump',
+  ]
+  for (const id of fabricatedIntermediateIds) state.resources[id] = 0
+
+  const pumpCard = state.recipeCards.find((card) => card.recipeId === 'craft_mv_pump')
+  if (!pumpCard || state.recipeCards.some((card) => !card.installedInUid)) {
+    const encodedIds = new Set(state.recipeCards.map((card) => card.recipeId))
+    const missingIds = [...craftingPatternIds, ...processingPatternIds].filter((recipeId) => !encodedIds.has(recipeId))
+    const uninstalledIds = state.recipeCards.filter((card) => !card.installedInUid).map((card) => card.recipeId)
+    throw new Error(`Creative auto-crafting patterns are incomplete; missing: ${missingIds.join(', ')}; uninstalled: ${uninstalledIds.join(', ')}`)
+  }
+  const poweredController = state.machineInstances.find((instance) => instance.uid === creativeController.uid)
   if (poweredController) poweredController.process.euStored = poweredController.process.euCapacity
-  state = requestFabricationJob(state, stickCard.uid, 8, now)
+  state = requestFabricationJob(state, pumpCard.uid, 4, now)
 
   state.unlockedQuests = quests.map((quest) => quest.id)
   state.craftedResources = resourceIds
@@ -2952,7 +3220,7 @@ const mixerInputSlotIds = ['input', 'secondaryInput', ...mixerExtraInputSlotIds]
 const processOutputSlotIds = ['output', 'output2'] as const
 
 function extraProcessInputSlots(machineId: MachineId, process: MachineProcessState): ProcessSlot[] {
-  const slotIds = machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
+  const slotIds = isMixerMachineId(machineId) ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   return slotIds.map((slotId) => process[slotId])
 }
 
@@ -2981,9 +3249,9 @@ function recipeFluidOutputs(recipe: ProcessRecipe) {
   return recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
 }
 
-function centrifugeFluidOutputChannelIndex(fluidId: FluidId) {
+function centrifugeFluidOutputChannelIndex(machineId: MachineId, fluidId: FluidId) {
   for (const recipe of processRecipes) {
-    if (recipe.machineId !== 'lvCentrifuge') continue
+    if (recipe.machineId !== machineId) continue
     const fluidIndex = recipeFluidOutputs(recipe).findIndex((output) => output.id === fluidId)
     if (fluidIndex < 0) continue
     const channelIndex = recipeItemOutputs(recipe).length + fluidIndex
@@ -2993,12 +3261,12 @@ function centrifugeFluidOutputChannelIndex(fluidId: FluidId) {
 }
 
 function canCentrifugeUniversalOutputsAccept(process: MachineProcessState, recipe: ProcessRecipe) {
-  if (recipe.machineId !== 'lvCentrifuge') return true
+  if (!isCentrifugeMachineId(recipe.machineId)) return true
   const occupants: Array<Set<string>> = [new Set(), new Set()]
   if (process.output) occupants[0].add(`item:${process.output.id}`)
   if (process.output2) occupants[1].add(`item:${process.output2.id}`)
   for (const fluidId of storedFluidTypes(process)) {
-    const channelIndex = centrifugeFluidOutputChannelIndex(fluidId)
+    const channelIndex = centrifugeFluidOutputChannelIndex(recipe.machineId, fluidId)
     if (channelIndex !== undefined) occupants[channelIndex].add(`fluid:${fluidId}`)
   }
 
@@ -3012,7 +3280,7 @@ function canCentrifugeUniversalOutputsAccept(process: MachineProcessState, recip
 function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, secondaryInput: ProcessSlot, extraInputs: ProcessSlot[] = []): MatchedProcessRecipe | undefined {
   if (recipe.fluidOnly) return { recipe }
   if (!recipe.input) return undefined
-  if (recipe.machineId === 'lvAssembler' || recipe.machineId === 'lvMixer') {
+  if (isAssemblerMachineId(recipe.machineId) || isMixerMachineId(recipe.machineId)) {
     const slots = [input, secondaryInput, ...extraInputs]
     const costs = [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])]
     const requiredByResource = new Map<ResourceId, number>()
@@ -3223,12 +3491,14 @@ function machineAt(state: GameState, x: number, y: number) {
 export function isFluidOutletConfigurableMachine(machineId: MachineId) {
   return (
     machineId === 'cokeOven' ||
-    machineId === 'lvChemicalReactor' ||
-    machineId === 'lvCentrifuge' ||
+    isChemicalReactorMachineId(machineId) ||
+    isCentrifugeMachineId(machineId) ||
     machineId === 'lvAirCollector' ||
+    machineId === 'mvAirCollector' ||
     machineId === 'lvWaterSource' ||
     machineId === 'pyrolysisOven' ||
-    machineId === 'lvDistillery'
+    machineId === 'lvDistillery' ||
+    machineId === 'mvDistillery'
   )
 }
 
@@ -3246,10 +3516,15 @@ function isConfigurableConnector(machineId: MachineId) {
     isItemHopperMachine(machineId) ||
     isFluidOutletConfigurableMachine(machineId) ||
     machineId === 'lvEnergyHatch2A' ||
+    machineId === 'mvEnergyHatch2A' ||
     machineId === 'lvInputBus' ||
+    machineId === 'mvInputBus' ||
     machineId === 'lvOutputBus' ||
+    machineId === 'mvOutputBus' ||
     machineId === 'lvFluidInputHatch' ||
-    machineId === 'lvFluidOutputHatch'
+    machineId === 'mvFluidInputHatch' ||
+    machineId === 'lvFluidOutputHatch' ||
+    machineId === 'mvFluidOutputHatch'
   )
 }
 
@@ -3514,11 +3789,11 @@ export function arcBlastFurnaceStructureForInstance(state: GameState, instance: 
     .map((position) => machineAt(state, position.x, position.y))
     .filter((candidate): candidate is MachineInstance => Boolean(candidate))
   const invalid = perimeter.filter((candidate) => !arcPerimeterMachineIds.has(candidate.machineId))
-  const energyHatches = perimeter.filter((candidate) => candidate.machineId === 'lvEnergyHatch2A')
-  const inputBuses = perimeter.filter((candidate) => candidate.machineId === 'lvInputBus')
-  const outputBuses = perimeter.filter((candidate) => candidate.machineId === 'lvOutputBus')
-  const fluidInputHatches = perimeter.filter((candidate) => candidate.machineId === 'lvFluidInputHatch')
-  const fluidOutputHatches = perimeter.filter((candidate) => candidate.machineId === 'lvFluidOutputHatch')
+  const energyHatches = perimeter.filter((candidate) => candidate.machineId === 'lvEnergyHatch2A' || candidate.machineId === 'mvEnergyHatch2A')
+  const inputBuses = perimeter.filter((candidate) => candidate.machineId === 'lvInputBus' || candidate.machineId === 'mvInputBus')
+  const outputBuses = perimeter.filter((candidate) => candidate.machineId === 'lvOutputBus' || candidate.machineId === 'mvOutputBus')
+  const fluidInputHatches = perimeter.filter((candidate) => candidate.machineId === 'lvFluidInputHatch' || candidate.machineId === 'mvFluidInputHatch')
+  const fluidOutputHatches = perimeter.filter((candidate) => candidate.machineId === 'lvFluidOutputHatch' || candidate.machineId === 'mvFluidOutputHatch')
   if (perimeter.length !== 8) faults.push(`Install ${8 - perimeter.length} more perimeter component${8 - perimeter.length === 1 ? '' : 's'}.`)
   if (invalid.length > 0) faults.push('Replace invalid perimeter machines with Arc Furnace components.')
   if (energyHatches.length !== 2) faults.push('Install exactly two 2A LV Energy Hatches.')
@@ -3552,7 +3827,11 @@ function arcPortOutwardDirections(structure: ArcBlastFurnaceStructure, port: Mac
 function normalizeArcPortFaces(structure: ArcBlastFurnaceStructure) {
   for (const port of structure.perimeter.filter((candidate) => candidate.machineId !== 'arcBlastFurnacePart')) {
     const outward = arcPortOutwardDirections(structure, port)
-    const activeMode: PipeSideMode = port.machineId === 'lvOutputBus' || port.machineId === 'lvFluidOutputHatch' ? 'output' : port.machineId === 'lvInputBus' || port.machineId === 'lvFluidInputHatch' ? 'input' : 'both'
+    const activeMode: PipeSideMode = port.machineId === 'lvOutputBus' || port.machineId === 'mvOutputBus' || port.machineId === 'lvFluidOutputHatch' || port.machineId === 'mvFluidOutputHatch'
+      ? 'output'
+      : port.machineId === 'lvInputBus' || port.machineId === 'mvInputBus' || port.machineId === 'lvFluidInputHatch' || port.machineId === 'mvFluidInputHatch'
+        ? 'input'
+        : 'both'
     for (const direction of pipeDirections) setConnectorSideModeInPlace(port, direction, outward.includes(direction) ? activeMode : 'blocked')
   }
 }
@@ -4290,7 +4569,7 @@ export function batteryBufferOutputDirection(instance: MachineInstance): PipeDir
   return pipeDirections.find((direction) => pipeSideMode(instance, direction) === 'output') ?? 'north'
 }
 
-const bufferBatteryIds = ['sodiumBattery', 'lithiumBattery', 'lvBattery'] as const
+const bufferBatteryIds = ['sodiumBattery', 'lithiumBattery', 'lvBattery', 'mvLithiumBattery'] as const
 type BufferBatteryId = (typeof bufferBatteryIds)[number]
 
 function isBufferBatteryId(resourceId: ResourceId): resourceId is BufferBatteryId {
@@ -4300,6 +4579,7 @@ function isBufferBatteryId(resourceId: ResourceId): resourceId is BufferBatteryI
 export function batteryEuCapacity(resourceId: ResourceId) {
   if (resourceId === 'lithiumBattery') return lithiumBatteryEuCapacity
   if (resourceId === 'sodiumBattery' || resourceId === 'lvBattery') return sodiumBatteryEuCapacity
+  if (resourceId === 'mvLithiumBattery') return 16_384
   return 0
 }
 
@@ -4322,7 +4602,7 @@ function euSourceOutputAmps(instance: MachineInstance) {
 }
 
 function euSourceOutputPerSecond(instance: MachineInstance) {
-  if (isEuStorageMachine(instance.machineId)) return euSourceOutputAmps(instance) * lvEuPerAmpSecond
+  if (isEuStorageMachine(instance.machineId)) return euSourceOutputAmps(instance) * machineEuVoltage(instance.machineId)
   return machineEuOutputPerSecond(instance.machineId)
 }
 
@@ -4455,7 +4735,7 @@ function nearestConnectedEuSourceDistance(state: GameState, instance: MachineIns
 
 export function isAutoMinerPowered(state: GameState, instance: MachineInstance) {
   if (instance.machineId === 'steamAutoMiner') return instance.process.steamStoredMs + availableConnectedSteam(state, instance) > 0
-  if (instance.machineId === 'lvAutoMiner') return instance.process.euStored + availableConnectedEu(state, instance) > 0
+  if (instance.machineId === 'lvAutoMiner' || instance.machineId === 'mvAutoMiner') return instance.process.euStored + availableConnectedEu(state, instance) > 0
   return false
 }
 
@@ -5155,6 +5435,10 @@ export function setConductorFaceSettings(state: GameState, uid: string, lane: 'i
 export function installLvBatteryInBuffer(state: GameState, uid: string, batteryId: BufferBatteryId = 'sodiumBattery') {
   const instance = state.machineInstances.find((machine) => machine.uid === uid)
   if (!instance || !isEuStorageMachine(instance.machineId) || availableResourceAmount(state, batteryId) < 1) return state
+  const acceptsBattery = machines[instance.machineId].tier === 'mv'
+    ? batteryId === 'mvLithiumBattery'
+    : batteryId !== 'mvLithiumBattery'
+  if (!acceptsBattery) return state
   const emptySlot = instance.process.batterySlots.findIndex((id) => !id)
   if (emptySlot < 0) return state
 
@@ -5270,12 +5554,14 @@ export function placeMachineInstance(state: GameState, machineId: MachineId, x: 
   }
   if (machineId === 'standardChest') placed.process.storageSlots = Array.from({ length: 12 }, () => null)
   if (isEuStorageMachine(machineId)) placed.process.batterySlots = Array.from({ length: batteryBufferSlots(machineId) }, () => null)
-  if (machineId === 'lvChemicalReactor') placed.process.fluidCapacityLitres = machineFluidCapacityLitres(machineId)
+  if (isChemicalReactorMachineId(machineId)) placed.process.fluidCapacityLitres = machineFluidCapacityLitres(machineId)
   if (isEuHatchMachine(machineId)) {
     placed.process.euCapacity = machineEuCapacity(machineId)
     placed.process.euStored = 0
   }
-  if (machineId === 'lvFluidInputHatch' || machineId === 'lvFluidOutputHatch') placed.process.fluidCapacityLitres = 64
+  if (machineId === 'lvFluidInputHatch' || machineId === 'lvFluidOutputHatch' || machineId === 'mvFluidInputHatch' || machineId === 'mvFluidOutputHatch') {
+    placed.process.fluidCapacityLitres = machineFluidCapacityLitres(machineId)
+  }
   if (isConfigurableConnector(machineId)) {
     placed.pipeDisabledSides = Object.fromEntries(pipeDirections.map((direction) => [direction, true])) as Partial<Record<PipeDirection, boolean>>
     placed.pipeSideModes = Object.fromEntries(pipeDirections.map((direction) => [direction, 'blocked'])) as Partial<Record<PipeDirection, PipeSideMode>>
@@ -5393,7 +5679,7 @@ export function assignAutoMiner(state: GameState, uid: string, targetId: GatherT
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || !isAutoMinerMachine(instance.machineId) || !canAutoMinerTarget(instance.machineId, targetId)) return state
   if (gatherTargets[targetId].area === 'shatteredReach' && !isReachGateFormed(state)) return state
-  const requiresSurveyCard = instance.machineId === 'lvAutoMiner' && !canAutoMinerTarget('steamAutoMiner', targetId)
+  const requiresSurveyCard = (instance.machineId === 'lvAutoMiner' || instance.machineId === 'mvAutoMiner') && !canAutoMinerTarget('steamAutoMiner', targetId)
   if (requiresSurveyCard && instance.surveyCardTarget !== targetId) return state
 
   const next = cloneState(state)
@@ -5406,7 +5692,7 @@ export function installSurveyCardInAutoMiner(state: GameState, uid: string, targ
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (
     !instance ||
-    instance.machineId !== 'lvAutoMiner' ||
+    (instance.machineId !== 'lvAutoMiner' && instance.machineId !== 'mvAutoMiner') ||
     canAutoMinerTarget('steamAutoMiner', targetId) ||
     (state.surveyCards[targetId] ?? 0) < 1 ||
     instance.surveyCardTarget === targetId
@@ -5430,7 +5716,7 @@ export function installSurveyCardInAutoMiner(state: GameState, uid: string, targ
 
 export function removeSurveyCardFromAutoMiner(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
-  if (!instance || instance.machineId !== 'lvAutoMiner' || !instance.surveyCardTarget) return state
+  if (!instance || (instance.machineId !== 'lvAutoMiner' && instance.machineId !== 'mvAutoMiner') || !instance.surveyCardTarget) return state
 
   const next = cloneState(state)
   const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)!
@@ -5479,7 +5765,11 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
     if (!outward.includes(direction)) return state
     const next = cloneState(state)
     const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)!
-    const activeMode: PipeSideMode = nextInstance.machineId === 'lvOutputBus' || nextInstance.machineId === 'lvFluidOutputHatch' ? 'output' : nextInstance.machineId === 'lvInputBus' || nextInstance.machineId === 'lvFluidInputHatch' ? 'input' : 'both'
+    const activeMode: PipeSideMode = nextInstance.machineId === 'lvOutputBus' || nextInstance.machineId === 'mvOutputBus' || nextInstance.machineId === 'lvFluidOutputHatch' || nextInstance.machineId === 'mvFluidOutputHatch'
+      ? 'output'
+      : nextInstance.machineId === 'lvInputBus' || nextInstance.machineId === 'mvInputBus' || nextInstance.machineId === 'lvFluidInputHatch' || nextInstance.machineId === 'mvFluidInputHatch'
+        ? 'input'
+        : 'both'
     for (const candidate of pipeDirections) setConnectorSideModeInPlace(nextInstance, candidate, candidate === direction && mode !== 'blocked' ? activeMode : 'blocked')
     next.lastSavedAt = Date.now()
     return next
@@ -5674,20 +5964,20 @@ export function crowbarRemoveMachineInstance(state: GameState, uid: string) {
 export function canResourceEnterProcessSlot(machineId: MachineId, slotId: ProcessSlotId, resourceId: ResourceId) {
   if (isItemStorageMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel'
   if (isItemHopperMachine(machineId)) return slotId === 'input' || slotId === 'secondaryInput' || slotId === 'fuel' || slotId === 'output'
-  if (isItemBusMachine(machineId)) return machineId === 'lvInputBus' && slotId === 'input'
-  const flexibleInputSlotIds: readonly ProcessSlotId[] = machineId === 'lvMixer' ? mixerInputSlotIds : assemblerInputSlotIds
-  if ((machineId === 'lvAssembler' || machineId === 'lvMixer') && flexibleInputSlotIds.includes(slotId)) {
+  if (isItemBusMachine(machineId)) return (machineId === 'lvInputBus' || machineId === 'mvInputBus') && slotId === 'input'
+  const flexibleInputSlotIds: readonly ProcessSlotId[] = isMixerMachineId(machineId) ? mixerInputSlotIds : assemblerInputSlotIds
+  if ((isAssemblerMachineId(machineId) || isMixerMachineId(machineId)) && flexibleInputSlotIds.includes(slotId)) {
     return processRecipes.some(
       (recipe) =>
         recipe.machineId === machineId &&
         [recipe.input, ...(recipe.secondaryInput ? [recipe.secondaryInput] : []), ...(recipe.extraInputs ?? [])].some((cost) => cost?.id === resourceId),
     )
   }
-  const extraInputSlotIds = machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
+  const extraInputSlotIds = isMixerMachineId(machineId) ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   const extraSlotIndex = extraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
   if (extraSlotIndex >= 0) {
     return (
-      (machineId === 'lvAssembler' || machineId === 'lvMixer') &&
+      (isAssemblerMachineId(machineId) || isMixerMachineId(machineId)) &&
       processRecipes.some((recipe) => recipe.machineId === machineId && recipe.extraInputs?.[extraSlotIndex]?.id === resourceId)
     )
   }
@@ -5756,7 +6046,7 @@ export type ProcessRecipeInputLoadStatus = {
 
 function processRecipeItemAssignments(recipe: ProcessRecipe): Array<{ slotId: ProcessSlotId; amount: ResourceAmount }> {
   if (recipe.fluidOnly) return []
-  const extraInputSlotIds = recipe.machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
+  const extraInputSlotIds = isMixerMachineId(recipe.machineId) ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   return [
     ...(recipe.input ? [{ slotId: 'input' as ProcessSlotId, amount: recipe.input }] : []),
     ...(recipe.secondaryInput ? [{ slotId: 'secondaryInput' as ProcessSlotId, amount: recipe.secondaryInput }] : []),
@@ -6268,7 +6558,7 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
     if (process.progressMs < recipe.durationMs) continue
 
     if (match.assemblerInputAmounts) {
-      const inputSlotIds = instance.machineId === 'lvMixer' ? mixerInputSlotIds : assemblerInputSlotIds
+      const inputSlotIds = isMixerMachineId(instance.machineId) ? mixerInputSlotIds : assemblerInputSlotIds
       match.assemblerInputAmounts.forEach((amount, index) => {
         const slotId = inputSlotIds[index]
         if (slotId && amount > 0) process[slotId] = decrementProcessSlot(process[slotId], amount)
@@ -6412,14 +6702,14 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
     instance.process.steamCapacityMs = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
     instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, instance.process.steamCapacityMs)
     fillInternalSteamFromConnectedStorage(state, instance, steamTransferAllowanceMs(state, instance, elapsedMs))
-  } else if (instance.machineId === 'lvAutoMiner') {
+  } else if (instance.machineId === 'lvAutoMiner' || instance.machineId === 'mvAutoMiner') {
     instance.process.euCapacity = machineEuCapacity(instance.machineId)
     instance.process.euStored = Math.min(instance.process.euStored, instance.process.euCapacity)
     fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   }
 
   const targetId = state.autoMinerAssignments[instance.uid]
-  const requiresSurveyCard = instance.machineId === 'lvAutoMiner' && Boolean(targetId) && !canAutoMinerTarget('steamAutoMiner', targetId)
+  const requiresSurveyCard = (instance.machineId === 'lvAutoMiner' || instance.machineId === 'mvAutoMiner') && Boolean(targetId) && !canAutoMinerTarget('steamAutoMiner', targetId)
   if (
     !targetId ||
     !canAutoMinerTarget(instance.machineId, targetId) ||
@@ -6432,8 +6722,16 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
     return
   }
 
-  const actionMs = instance.machineId === 'steamAutoMiner' ? steamAutoMinerActionMs : lvAutoMinerActionMs
-  const damage = instance.machineId === 'steamAutoMiner' ? steamAutoMinerActionDamage : lvAutoMinerActionDamage
+  const actionMs = instance.machineId === 'steamAutoMiner'
+    ? steamAutoMinerActionMs
+    : instance.machineId === 'mvAutoMiner'
+      ? mvAutoMinerActionMs
+      : lvAutoMinerActionMs
+  const damage = instance.machineId === 'steamAutoMiner'
+    ? steamAutoMinerActionDamage
+    : instance.machineId === 'mvAutoMiner'
+      ? mvAutoMinerActionDamage
+      : lvAutoMinerActionDamage
   instance.process.durationMs = actionMs
   instance.process.progressMs += elapsedMs
   let completedAction = false
@@ -6454,10 +6752,11 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
       instance.process.progressMs -= actionMs
       completedAction = true
     }
-  } else if (instance.machineId === 'lvAutoMiner') {
+  } else if (instance.machineId === 'lvAutoMiner' || instance.machineId === 'mvAutoMiner') {
+    const euUse = instance.machineId === 'mvAutoMiner' ? mvAutoMinerEuUse : lvAutoMinerEuUse
     while (instance.process.progressMs >= actionMs) {
       fillInternalEuFromConnectedStorage(state, instance, actionMs)
-      if (instance.process.euStored < lvAutoMinerEuUse) {
+      if (instance.process.euStored < euUse) {
         instance.process.progressMs = actionMs
         break
       }
@@ -6465,7 +6764,7 @@ function tickAutoMiner(state: GameState, instance: MachineInstance, elapsedMs: n
         instance.process.progressMs = actionMs
         break
       }
-      instance.process.euStored -= lvAutoMinerEuUse
+      instance.process.euStored -= euUse
       instance.process.progressMs -= actionMs
       completedAction = true
     }
@@ -6521,13 +6820,14 @@ function hopperInputDirections(instance: MachineInstance) {
 
 function tickAirCollector(state: GameState, instance: MachineInstance, elapsedMs: number) {
   const process = instance.process
+  const recipe = processRecipes.find((candidate) => candidate.machineId === instance.machineId && recipeFluidOutputs(candidate).some((output) => output.id === 'air')) ?? airCollectorRecipe
   fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   pushFluidToConnectedStorage(state, instance, 'air', elapsedMs)
   const capacity = machineFluidCapacityLitres(instance.machineId)
   const freeAir = Math.max(0, capacity - (process.fluids.air ?? 0))
-  const durationMs = airCollectorRecipe?.durationMs ?? 80000
-  const outputLitres = airCollectorRecipe?.fluidOutputs?.find((output) => output.id === 'air')?.amount ?? 16
-  const euCost = airCollectorRecipe?.euCost ?? 128
+  const durationMs = recipe?.durationMs ?? 80000
+  const outputLitres = recipe ? recipeFluidOutputs(recipe).find((output) => output.id === 'air')?.amount ?? 16 : 16
+  const euCost = recipe?.euCost ?? 128
   process.durationMs = durationMs
   if (freeAir < outputLitres) {
     process.activeRecipeId = null
@@ -6543,7 +6843,7 @@ function tickAirCollector(state: GameState, instance: MachineInstance, elapsedMs
 
   process.euStored -= poweredMs * euPerMs
   process.progressMs = Math.min(durationMs, Math.max(0, process.progressMs) + poweredMs)
-  process.activeRecipeId = 'collect_air'
+  process.activeRecipeId = recipe?.id ?? 'collect_air'
   if (process.progressMs < durationMs) return
 
   process.fluids.air = (process.fluids.air ?? 0) + outputLitres
@@ -6927,7 +7227,7 @@ function removableInventorySlots(instance: MachineInstance) {
   }
   if (isItemHopperMachine(instance.machineId)) {
     for (const slotId of hopperStorageSlotIds) slots.push({ get: () => instance.process[slotId], set: (slot) => { instance.process[slotId] = slot } })
-  } else if (instance.machineId === 'lvOutputBus') {
+  } else if (instance.machineId === 'lvOutputBus' || instance.machineId === 'mvOutputBus') {
     slots.push({ get: () => instance.process.output, set: (slot) => { instance.process.output = slot } })
   } else if (!isItemBusMachine(instance.machineId)) {
     const outputCount = machines[instance.machineId].itemOutputSlots ?? 1
@@ -6939,8 +7239,8 @@ function removableInventorySlots(instance: MachineInstance) {
 }
 
 function insertOneIntoInventory(instance: MachineInstance, resourceId: ResourceId) {
-  if (instance.machineId === 'lvOutputBus') return false
-  if (instance.machineId === 'lvInputBus') {
+  if (instance.machineId === 'lvOutputBus' || instance.machineId === 'mvOutputBus') return false
+  if (instance.machineId === 'lvInputBus' || instance.machineId === 'mvInputBus') {
     const slot = instance.process.input
     if (slot && (slot.id !== resourceId || slot.amount >= processStackLimit)) return false
     instance.process.input = slot ? { id: resourceId, amount: slot.amount + 1 } : { id: resourceId, amount: 1 }
@@ -7424,7 +7724,7 @@ function loadFabricationProcessBatch(state: GameState, job: FabricationJob, targ
   const fluidProcess = arcStructure?.fluidInputHatch?.process ?? target.process
   itemProcess.input = recipe.input && recipe.input.amount > 0 ? { ...recipe.input } : null
   itemProcess.secondaryInput = recipe.secondaryInput ? { ...recipe.secondaryInput } : null
-  const extraInputSlotIds = recipe.machineId === 'lvMixer' ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
+  const extraInputSlotIds = isMixerMachineId(recipe.machineId) ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   extraInputSlotIds.forEach((slotId, index) => {
     itemProcess[slotId] = recipe.extraInputs?.[index] ? { ...recipe.extraInputs[index] } : null
   })
@@ -7738,7 +8038,7 @@ function tickMachineInstancesInPlace(next: GameState, elapsedMs: number, now = D
     if (isEuHatchMachine(instance.machineId)) fillInternalEuFromConnectedStorage(next, instance, elapsedMs, 2)
   }
   for (const instance of euConsumersByDistance) {
-    if (instance.machineId === 'lvAirCollector' && canRunAutomaticLvProgram(instance)) tickAirCollector(next, instance, elapsedMs)
+    if ((instance.machineId === 'lvAirCollector' || instance.machineId === 'mvAirCollector') && canRunAutomaticLvProgram(instance)) tickAirCollector(next, instance, elapsedMs)
     else if (instance.machineId === 'lvWaterSource') tickPoweredWaterSource(next, instance, elapsedMs)
     else if (instance.machineId === 'poweredFarm') tickPoweredFarm(next, instance, elapsedMs)
     else if (isEuPoweredMachine(instance.machineId) && !isAutoMinerMachine(instance.machineId)) tickEuProcessMachine(next, instance, elapsedMs)

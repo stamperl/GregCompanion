@@ -1,3 +1,6 @@
+import type { MaterialFamilyId, MaterialFormId, MaterialResourceId } from './materialIds'
+import type { MvMachineId, MvResourceId } from './mvIds'
+
 export type ResourceId =
   | 'log'
   | 'plank'
@@ -108,11 +111,14 @@ export type ResourceId =
   | 'glassTube'
   | 'woodPulp'
   | 'woodenBoardBlank'
+  | 'coatedBoardBlank'
   | 'carbonDust'
   | 'redAlloyIngot'
   | 'redAlloyPlate'
   | 'mechanicalPiston'
   | 'redAlloyWire'
+  | 'redAlloyCable'
+  | 'steelItemCasing'
   | 'resistor'
   | 'vacuumTube'
   | 'bronzeBlend'
@@ -169,6 +175,8 @@ export type ResourceId =
   | 'rubberLog'
   | 'sugarCane'
   | 'aluminiumCable'
+  | MaterialResourceId
+  | MvResourceId
 
 export type MachineId =
   | 'furnace'
@@ -254,6 +262,7 @@ export type MachineId =
   | 'aluminiumCable'
   | 'lvToMvTransformer'
   | 'mvToLvTransformer'
+  | MvMachineId
 
 export type QuestId =
   | 'punchTree'
@@ -396,8 +405,17 @@ export type QuestId =
   | 'distilBenzeneQuest'
   | 'burnBenzeneQuest'
   | 'buildMvPowerQuest'
+  | 'findMvSemiconductorsQuest'
+  | 'makeGaAsQuest'
+  | 'makeMvCircuitQuest'
+  | 'makeMvCasingQuest'
+  | 'expandMvFactoryQuest'
+  | 'makeMvMotorQuest'
+  | 'buildMvAssemblerQuest'
+  | 'buildMvPowerInfrastructureQuest'
+  | 'completeMvMachineLineQuest'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations' | 'benzenePower'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations' | 'benzenePower' | 'mvEngineering'
 export type QuestFolderId = 'foundations' | 'steamAndSteel' | 'lvEngineering' | 'appliedIndustry' | 'mvSystems'
 export type QuestLineId =
   | 'firstTools'
@@ -410,6 +428,7 @@ export type QuestLineId =
   | 'shatteredReach'
   | 'renewablePower'
   | 'autoCrafting'
+  | 'mvEngineering'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv' | 'mv'
 
@@ -438,6 +457,8 @@ export type ResourceSpec = {
   tier: Tier
   iconKey?: string
   sortGroup?: string
+  materialFamily?: MaterialFamilyId
+  materialForm?: MaterialFormId
 }
 
 export type MachineProcessKind =
@@ -511,6 +532,8 @@ export type GatherTargetId =
   | 'goldVein'
   | 'resonantQuartzSeam'
   | 'voidQuartzOutcrop'
+  | 'sphaleriteDeposit'
+  | 'realgarDeposit'
 
 export type FluidId =
   | 'water'

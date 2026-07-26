@@ -16,6 +16,7 @@ import {
 } from './content'
 import { processRecipesProducingResource, processRecipeToCatalogRecipe, recipesProducingResource, recipesUsingResource } from './recipeGraph'
 import { groupRecipesByOutput } from './recipeGroups'
+import { mvMachineIds } from './mvIds'
 import {
   availableConnectedEu,
   availableConnectedEuAmps,
@@ -189,7 +190,7 @@ describe('game engine', () => {
     expect(placeMachineInstance(state, 'furnace', 0, 0)).toBe(state)
   })
 
-  it('builds the first 7x7 factory foundation from basic materials', () => {
+  it('builds the first 8x8 factory foundation from basic materials', () => {
     let state = createInitialState(1000)
     state.resources.plank = 16
     state.resources.cobblestone = 24
@@ -203,29 +204,27 @@ describe('game engine', () => {
     state = expandFactoryFloor(state)
 
     expect(state.factoryFoundationLevel).toBe(1)
-    expect(factoryGridForState(state)).toEqual({ width: 7, height: 7 })
+    expect(factoryGridForState(state)).toEqual({ width: 8, height: 8 })
     expect(state.resources.plank).toBe(0)
     expect(state.resources.cobblestone).toBe(0)
 
     state.machines.furnace = 1
-    state = placeMachineInstance(state, 'furnace', 6, 6)
+    state = placeMachineInstance(state, 'furnace', 7, 7)
     expect(state.machineInstances).toHaveLength(1)
-    expect(placeMachineInstance(state, 'furnace', 7, 0)).toBe(state)
+    expect(placeMachineInstance(state, 'furnace', 8, 0)).toBe(state)
   })
 
   it('expands the factory floor through capped progression sizes', () => {
     let state = createFactoryState(1000, 1)
-    state.resources.cobblestone = 1100
-    state.resources.brick = 540
+    state.resources.cobblestone = 1800
+    state.resources.brick = 800
     state.resources.ironPlate = 72
-    state.resources.steelPlate = 24
-    state.resources.aluminiumPlate = 16
+    state.resources.steelPlate = 64
+    state.resources.aluminiumPlate = 64
+    state.resources.mvMachineCasing = 4
 
     state = expandFactoryFloor(state)
     expect(state.factoryFoundationLevel).toBe(2)
-    expect(factoryGridForState(state)).toEqual({ width: 10, height: 8 })
-
-    state = expandFactoryFloor(state)
     expect(factoryGridForState(state)).toEqual({ width: 12, height: 10 })
 
     state = expandFactoryFloor(state)
@@ -233,6 +232,9 @@ describe('game engine', () => {
 
     state = expandFactoryFloor(state)
     expect(factoryGridForState(state)).toEqual({ width: 16, height: 14 })
+
+    state = expandFactoryFloor(state)
+    expect(factoryGridForState(state)).toEqual({ width: 18, height: 16 })
 
     expect(factoryFoundationCost(state)).toEqual([
       { id: 'cobblestone', amount: 384 },
@@ -243,7 +245,18 @@ describe('game engine', () => {
 
     state = expandFactoryFloor(state)
     expect(state.factoryFoundationLevel).toBe(6)
-    expect(factoryGridForState(state)).toEqual({ width: 18, height: 16 })
+    expect(factoryGridForState(state)).toEqual({ width: 20, height: 18 })
+    expect(factoryFoundationCost(state)).toEqual([
+      { id: 'cobblestone', amount: 512 },
+      { id: 'brick', amount: 256 },
+      { id: 'steelPlate', amount: 32 },
+      { id: 'aluminiumPlate', amount: 32 },
+      { id: 'mvMachineCasing', amount: 4 },
+    ])
+
+    state = expandFactoryFloor(state)
+    expect(state.factoryFoundationLevel).toBe(7)
+    expect(factoryGridForState(state)).toEqual({ width: 24, height: 20 })
     expect(factoryFoundationCost(state)).toEqual([])
     expect(expandFactoryFloor(state)).toBe(state)
   })
@@ -1109,7 +1122,7 @@ describe('game engine', () => {
     expect(state.machines.cokeOven).toBe(0)
     expect(state.machines.brickedBlastFurnace).toBe(0)
     expect(state.factoryFoundationLevel).toBe(2)
-    expect(factoryGridForState(state)).toEqual({ width: 10, height: 8 })
+    expect(factoryGridForState(state)).toEqual({ width: 12, height: 10 })
     expect(state.machineInstances).toHaveLength(2)
     expect(state.machineInstances[0]).toMatchObject({ machineId: 'furnace', x: 0, y: 0, level: 1 })
     expect(state.machineInstances[1]).toMatchObject({ machineId: 'steamBoiler', x: 1, y: 0, level: 1 })
@@ -1299,7 +1312,7 @@ describe('game engine', () => {
   it('migrates old empty saves to locked factory and clamps saved factory foundation levels', () => {
     expect(loadGame(JSON.stringify({ resources: { log: 1 } }), 1000).factoryFoundationLevel).toBe(0)
     expect(loadGame(JSON.stringify({ factoryFoundationLevel: -4 }), 1000).factoryFoundationLevel).toBe(0)
-    expect(loadGame(JSON.stringify({ factoryFoundationLevel: 99 }), 1000).factoryFoundationLevel).toBe(6)
+    expect(loadGame(JSON.stringify({ factoryFoundationLevel: 99 }), 1000).factoryFoundationLevel).toBe(7)
   })
 
   it('creates a temporary creative state with 32 of every resource and placeable machine', () => {
@@ -1321,7 +1334,8 @@ describe('game engine', () => {
     expect(state.machines.arcBlastFurnacePart).toBe(32)
     expect(state.machines.reachGate).toBe(0)
     expect(state.machines.reachGateCasing).toBe(32)
-    expect(state.factoryFoundationLevel).toBe(6)
+    expect(state.factoryFoundationLevel).toBe(7)
+    expect(factoryGridForState(state)).toEqual({ width: 24, height: 20 })
     expect(state.craftedResources).toEqual(Object.keys(state.resources))
     expect(state.lastSavedAt).toBe(2000)
   })
@@ -1359,7 +1373,7 @@ describe('game engine', () => {
     const state = createCreativeFactoryState(createInitialState(1000), 2000)
     const placedMachineIds = new Set(state.machineInstances.map((instance) => instance.machineId))
 
-    expect(state.factoryFoundationLevel).toBe(6)
+    expect(state.factoryFoundationLevel).toBe(7)
     expect(state.lastSavedAt).toBe(2000)
     expect([...placedMachineIds]).toEqual(expect.arrayContaining([
       'well',
@@ -1416,6 +1430,9 @@ describe('game engine', () => {
       'mvToLvTransformer',
     ]))
     expect(isReachGateFormed(state)).toBe(true)
+    for (const machineId of mvMachineIds) {
+      expect(placedMachineIds, `creative factory should place ${machineId}`).toContain(machineId)
+    }
     const arc = state.machineInstances.find((instance) => instance.machineId === 'arcBlastFurnace')!
     expect(arcBlastFurnaceStructureForInstance(state, arc)?.formed).toBe(true)
   })
@@ -1428,6 +1445,8 @@ describe('game engine', () => {
     const reactor = state.machineInstances.find((instance) => instance.machineId === 'lvChemicalReactor')!
     const cokeOven = state.machineInstances.find((instance) => instance.machineId === 'cokeOven')!
     const lvMiner = state.machineInstances.find((instance) => instance.machineId === 'lvAutoMiner')!
+    const mvMixer = state.machineInstances.find((instance) => instance.machineId === 'mvMixer')!
+    const mvMiner = state.machineInstances.find((instance) => instance.machineId === 'mvAutoMiner')!
 
     expect(boiler.process.steamStoredMs).toBeGreaterThan(0)
     expect(turbine.process.euStored).toBeGreaterThan(0)
@@ -1441,6 +1460,15 @@ describe('game engine', () => {
     ]))
     expect(lvMiner.surveyCardTarget).toBe('sulfurVent')
     expect(state.autoMinerAssignments[lvMiner.uid]).toBe('sulfurVent')
+    expect(mvMixer.process.euStored).toBeGreaterThan(0)
+    expect(mvMixer.process.input).toEqual({ id: 'galliumDust', amount: 8 })
+    expect(mvMixer.process.secondaryInput).toEqual({ id: 'arsenicDust', amount: 8 })
+    expect(mvMiner.surveyCardTarget).toBe('realgarDeposit')
+    expect(state.autoMinerAssignments[mvMiner.uid]).toBe('realgarDeposit')
+    for (const machineId of mvMachineIds.slice(0, 18)) {
+      const instance = state.machineInstances.find((candidate) => candidate.machineId === machineId)!
+      expect(availableConnectedEu(state, instance), `${machineId} should connect to the creative MV power spine`).toBeGreaterThan(0)
+    }
   })
 
   it('loads a routed and power-positive benzene production line in the creative factory', () => {
@@ -1488,32 +1516,56 @@ describe('game engine', () => {
   it('loads a powered end-to-end recursive auto-crafting demonstration', () => {
     let state = createCreativeFactoryState(createInitialState(1000), 2000)
     const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
-    const interfaceCable = state.machineInstances.find((instance) => instance.fabricationInterfaces?.east)!
-    const recipeInterface = interfaceCable.fabricationInterfaces!.east!
+    const interfaceCable = state.machineInstances.find((instance) => instance.x === 18 && instance.y === 5)!
+    const recipeInterface = interfaceCable.fabricationInterfaces!.north!
     const fabricator = state.machineInstances.find((instance) => instance.machineId === 'autoFabricator')!
     const rack = planningRackStructureForInstance(state, controller)
+    const processingInterfaces = state.machineInstances
+      .filter((instance) => instance.y === 5 && instance.x >= 19 && instance.x <= 22)
+      .flatMap((instance) => instance.fabricationInterfaces?.south ? [instance.fabricationInterfaces.south] : [])
+    const exportBus = state.machineInstances.find((instance) => instance.x === 23 && instance.y === 5)!.fabricationInterfaces!.north!
 
     expect(rack?.memoryUnits).toBe(192)
     expect(rack?.dispatchLanes).toBe(2)
-    expect(recipeInterface.direction).toBe('east')
-    expect(fabricator.x).toBe(interfaceCable.x + 1)
-    expect(fabricator.y).toBe(interfaceCable.y)
-    expect(state.recipeCards.map((card) => card.recipeId)).toEqual(['craft_planks', 'craft_sticks'])
-    expect(state.recipeCards.every((card) => card.installedInUid === recipeInterface.uid)).toBe(true)
-    expect(recipeInterface.installedRecipeCardUids).toEqual(state.recipeCards.map((card) => card.uid))
+    expect(recipeInterface.direction).toBe('north')
+    expect(fabricator.x).toBe(interfaceCable.x)
+    expect(fabricator.y).toBe(interfaceCable.y - 1)
+    expect(state.recipeCards).toHaveLength(16)
+    expect(state.recipeCards.filter((card) => card.kind === 'crafting')).toHaveLength(5)
+    expect(state.recipeCards.filter((card) => card.kind === 'processing')).toHaveLength(11)
+    expect(state.recipeCards.filter((card) => card.kind === 'crafting').every((card) => card.installedInUid === recipeInterface.uid)).toBe(true)
+    expect(recipeInterface.installedRecipeCardUids).toHaveLength(5)
+    expect(processingInterfaces).toHaveLength(4)
+    expect(processingInterfaces.flatMap((attachment) => attachment.installedRecipeCardUids)).toHaveLength(11)
+    expect(exportBus.filters).toContainEqual({ kind: 'item', id: 'mvPump' })
     expect(state.fabricationJobs).toHaveLength(1)
     expect(state.fabricationJobs[0].status).toBe('queued')
-    expect(state.fabricationJobs[0].steps.map((step) => state.recipeCards.find((card) => card.uid === step.cardUid)?.recipeId)).toEqual([
-      'craft_planks',
-      'craft_sticks',
-    ])
+    expect(state.fabricationJobs[0].requestedOutput).toEqual({ id: 'mvPump', amount: 4 })
+    expect(state.fabricationJobs[0].steps).toHaveLength(22)
+    expect(state.fabricationJobs[0].steps.map((step) => state.recipeCards.find((card) => card.uid === step.cardUid)?.recipeId)).toEqual(expect.arrayContaining([
+      'lv_lathe_steel_rod',
+      'material_aluminium_wire_lvWiremill',
+      'lv_assembler_aluminium_cable',
+      'craft_magnetic_steel_rod',
+      'craft_bronze_rotor',
+      'craft_steel_pipe_section',
+      'craft_mv_motor',
+      'craft_mv_pump',
+    ]))
+    expect(state.fabricationJobs[0].reservedFluids).toContainEqual({ id: 'liquidRubber', amount: 16 })
     expect(controller.process.euStored).toBeGreaterThan(0)
     expect(fabricator.process.euStored).toBe(0)
 
-    for (let step = 0; step < 4; step += 1) state = tickGame(state, 2100, 4100 + step * 2100).state
+    for (let step = 0; step < 170 && state.fabricationJobs[0].status !== 'complete'; step += 1) {
+      state = tickGame(state, 10000, 12000 + step * 10000).state
+    }
 
     expect(state.fabricationJobs[0].status).toBe('complete')
-    expect(state.resources.stick).toBeGreaterThan(256)
+    const exportChest = state.machineInstances.find((instance) => instance.x === 23 && instance.y === 4)!
+    const exportedPumps = exportChest.process.storageSlots
+      .filter((slot) => slot?.id === 'mvPump')
+      .reduce((total, slot) => total + (slot?.amount ?? 0), 0)
+    expect(state.resources.mvPump + exportedPumps).toBe(4)
   })
 
   it('saves and resumes an active fabrication job without losing cards or reserved materials', () => {
@@ -1528,13 +1580,14 @@ describe('game engine', () => {
     const resumedJob = state.fabricationJobs[0]
     expect(resumedJob.status).toBe('running')
     expect(resumedJob.reservedItems).toEqual(reservedBeforeSave)
-    expect(state.recipeCards).toHaveLength(2)
+    expect(state.recipeCards).toHaveLength(16)
     expect(state.recipeCards.every((card) => Boolean(card.installedInUid))).toBe(true)
-    expect(state.machineInstances.some((instance) => Object.values(instance.fabricationInterfaces ?? {}).some((attachment) => attachment?.installedRecipeCardUids.length === 2))).toBe(true)
+    expect(state.machineInstances.some((instance) => Object.values(instance.fabricationInterfaces ?? {}).some((attachment) => attachment?.installedRecipeCardUids.length === 6))).toBe(true)
 
-    for (let step = 0; step < 5; step += 1) state = tickGame(state, 2100, 4300 + step * 2100).state
-    expect(state.fabricationJobs[0].status).toBe('complete')
-    expect(state.resources.stick).toBeGreaterThan(256)
+    const completedBeforeResume = resumedJob.completedBatches
+    for (let step = 0; step < 5; step += 1) state = tickGame(state, 10000, 12000 + step * 10000).state
+    expect(state.fabricationJobs[0].status).toBe('running')
+    expect(state.fabricationJobs[0].completedBatches).toBeGreaterThan(completedBeforeResume)
   })
 
   it('reserves equipped items from terminal storage and crafting', () => {
@@ -4526,45 +4579,46 @@ describe('game engine', () => {
   it('crafts the first basic electronic circuit from LV foundation parts', () => {
     let state = createInitialState(1000)
     state.resources.basicBoard = 1
-    state.resources.conductiveWire = 2
     state.resources.resistor = 2
     state.resources.vacuumTube = 2
-    state.resources.redAlloyWire = 1
-    state.resources.steelPlate = 1
+    state.resources.redAlloyCable = 3
+    state.resources.steelItemCasing = 1
     const circuit = recipes.find((recipe) => recipe.id === 'craft_basic_electronic_circuit')!
 
     expect(circuit.pattern).toEqual([
-      'conductiveWire',
-      'redAlloyWire',
-      'conductiveWire',
+      'redAlloyCable',
       'resistor',
+      'redAlloyCable',
+      'vacuumTube',
       'basicBoard',
+      'vacuumTube',
+      'redAlloyCable',
+      'steelItemCasing',
       'resistor',
-      'vacuumTube',
-      'steelPlate',
-      'vacuumTube',
     ])
     expect(canCraft(state, circuit)).toBe(true)
     state = craftRecipeInstant(state, circuit, 1)
 
     expect(state.resources.primitiveCircuit).toBe(1)
     expect(state.resources.basicBoard).toBe(0)
-    expect(state.resources.conductiveWire).toBe(0)
-    expect(state.resources.redAlloyWire).toBe(0)
+    expect(state.resources.redAlloyCable).toBe(0)
+    expect(state.resources.steelItemCasing).toBe(0)
   })
 
   it('builds printed circuit boards from compressed wooden blanks and surrounding copper wire', () => {
     let state = createFactoryState(1000)
     state.machines.steamCompressor = 1
     state.resources.woodPulp = 4
+    state.resources.rubberSap = 2
     state.resources.copperWire = 8
     const board = recipes.find((recipe) => recipe.id === 'craft_basic_board')!
+    const coating = recipes.find((recipe) => recipe.id === 'coat_wooden_board_blank')!
     const press = processRecipes.find((recipe) => recipe.id === 'steam_compress_wooden_board_blank')!
 
     expect(press.input).toEqual({ id: 'woodPulp', amount: 4 })
     expect(press.output).toEqual({ id: 'woodenBoardBlank', amount: 1 })
     expect(board.inputs).toEqual([
-      { id: 'woodenBoardBlank', amount: 1 },
+      { id: 'coatedBoardBlank', amount: 1 },
       { id: 'copperWire', amount: 8 },
     ])
 
@@ -4578,6 +4632,8 @@ describe('game engine', () => {
 
     expect(pressed).toEqual({ id: 'woodenBoardBlank', amount: 1 })
     state.resources.woodenBoardBlank = pressed!.amount
+    state = craftRecipeInstant(state, coating, 1)
+    expect(state.resources.coatedBoardBlank).toBe(1)
     state.machineInstances.find((instance) => instance.uid === compressor.uid)!.process.output = null
     state = craftRecipeInstant(state, board, 1)
 
@@ -5561,7 +5617,7 @@ describe('game engine', () => {
     }
   })
 
-  it('only produces cupronickel in the LV Alloy Smelter', () => {
+  it('only produces cupronickel in the LV or inherited MV Alloy Smelter', () => {
     const handRecipes = recipes.filter((recipe) =>
       recipe.outputs.some((output) => output.id === 'cupronickelIngot'),
     )
@@ -5574,8 +5630,10 @@ describe('game engine', () => {
     expect(machineRecipes.map((recipe) => recipe.id)).toEqual([
       'lv_alloy_cupronickel',
       'lv_alloy_cupronickel_ingots',
+      'mv_inherited_lv_alloy_cupronickel',
+      'mv_inherited_lv_alloy_cupronickel_ingots',
     ])
-    expect(machineRecipes.every((recipe) => recipe.machineId === 'lvAlloySmelter')).toBe(true)
+    expect(machineRecipes.every((recipe) => recipe.machineId === 'lvAlloySmelter' || recipe.machineId === 'mvAlloySmelter')).toBe(true)
   })
 
   it('crafts empty battery cells by hand or in an efficient LV Assembler batch', () => {
@@ -6866,6 +6924,7 @@ describe('game engine', () => {
     const assembler = state.machineInstances[0]
     assembler.process.input = { id: 'carbonDust', amount: 1 }
     assembler.process.secondaryInput = { id: 'copperWire', amount: 2 }
+    assembler.process.extraInput1 = { id: 'fineCopperWire', amount: 2 }
     assembler.process.fluids.glue = 2
     assembler.process.euStored = 48
 
@@ -7023,7 +7082,11 @@ describe('game engine', () => {
 
   it('uses Assembler programs to distinguish matching bus and hatch inputs', () => {
     const programs = processRecipes
-      .filter((recipe) => recipe.machineId === 'lvAssembler' && recipe.programNumber !== undefined)
+      .filter((recipe) =>
+        recipe.machineId === 'lvAssembler' &&
+        recipe.programNumber !== undefined &&
+        ['lv_assemble_input_bus', 'lv_assemble_output_bus', 'lv_assemble_fluid_input_hatch', 'lv_assemble_fluid_output_hatch'].includes(recipe.id),
+      )
       .map((recipe) => [recipe.programNumber, recipe.id])
     expect(programs).toEqual([
       [1, 'lv_assemble_input_bus'],
