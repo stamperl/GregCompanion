@@ -349,6 +349,8 @@ function recipeOpensProcessView(recipe: Recipe) {
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'machines'
 type TerminalWorkspaceMode = 'crafting' | 'patterns' | 'jobs'
+type TerminalInventoryFilter = 'all' | 'craftable' | 'items' | 'fluids'
+type TerminalInventorySort = 'az' | 'quantity-desc' | 'quantity-asc'
 type MachineTerminalMode = 'items' | 'fluids'
 type MachineReviewState = 'idle' | 'active' | 'filled' | 'blocked' | 'missing' | 'disconnected'
 type MachineFluidBufferView = ReturnType<typeof machineFluidBuffersForInstance>[number]
@@ -3299,6 +3301,8 @@ function App() {
   const [fabricationFilterPicker, setFabricationFilterPicker] = useState<FabricationFilterPicker | null>(null)
   const [fabricationFilterSearch, setFabricationFilterSearch] = useState('')
   const [terminalWorkspaceMode, setTerminalWorkspaceMode] = useState<TerminalWorkspaceMode>('crafting')
+  const [terminalInventoryFilter, setTerminalInventoryFilter] = useState<TerminalInventoryFilter>('all')
+  const [terminalInventorySort, setTerminalInventorySort] = useState<TerminalInventorySort>('az')
   const [factoryMachineSearch, setFactoryMachineSearch] = useState('')
   const [terminalMode, setTerminalMode] = useState<TerminalMode>('recipes')
   const [selectedResource, setSelectedResource] = useState<ResourceId | null>(null)
@@ -3727,32 +3731,49 @@ function App() {
     Math.max(0, unplacedMachineCounts[id] - (reservedGridMachineCounts[id] ?? 0)),
   ])) as Record<MachineId, number>
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
-  const portableFluidGroups = fluidContainerGroups(state)
-  const filteredPortableFluidGroups = portableFluidGroups.filter((group) => {
-    const query = terminalSearch.trim().toLowerCase()
-    return !query || fluidLabel(group.fluidId).toLowerCase().includes(query) || (group.kind === 'bucket' ? 'bucket' : 'steel cell').includes(query)
-  })
-  const filteredResources = inventoryResources.filter((id) => {
-    const query = terminalSearch.trim().toLowerCase()
-    if (!query) return true
-    return id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
-  })
   const networkCraftableResourceIds = [...new Set(
     state.recipeCards
       .filter((card) => card.installedInUid && card.itemOutputs[0]?.amount > 0)
       .map((card) => card.itemOutputs[0].id),
   )]
-  const filteredVirtualCraftables = networkCraftableResourceIds.filter((id) => {
-    if (inventoryResources.includes(id)) return false
-    const query = terminalSearch.trim().toLowerCase()
-    return !query || id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
-  })
-  const filteredMachines = placeableFactoryMachineOrder.filter((id) => {
-    if (availableGridMachineCounts[id] < 1) return false
-    const query = terminalSearch.trim().toLowerCase()
-    if (!query) return true
-    return id.toLowerCase().includes(query) || machines[id].name.toLowerCase().includes(query)
-  })
+  const terminalSort = (labelA: string, quantityA: number, labelB: string, quantityB: number) => {
+    if (terminalInventorySort === 'quantity-desc' && quantityA !== quantityB) return quantityB - quantityA
+    if (terminalInventorySort === 'quantity-asc' && quantityA !== quantityB) return quantityA - quantityB
+    return labelA.localeCompare(labelB)
+  }
+  const portableFluidGroups = fluidContainerGroups(state)
+  const filteredPortableFluidGroups = terminalInventoryFilter === 'all' || terminalInventoryFilter === 'fluids'
+    ? portableFluidGroups.filter((group) => {
+        const query = terminalSearch.trim().toLowerCase()
+        return !query || fluidLabel(group.fluidId).toLowerCase().includes(query) || (group.kind === 'bucket' ? 'bucket' : 'steel cell').includes(query)
+      }).sort((a, b) => terminalSort(fluidLabel(a.fluidId), a.count, fluidLabel(b.fluidId), b.count))
+    : []
+  const terminalResourceIds = terminalInventoryFilter === 'fluids'
+    ? []
+    : terminalInventoryFilter === 'craftable'
+      ? networkCraftableResourceIds
+      : terminalInventoryFilter === 'items'
+        ? inventoryResources
+        : [...new Set([...inventoryResources, ...networkCraftableResourceIds])]
+  const filteredTerminalResourceIds = terminalResourceIds
+    .filter((id) => {
+        const query = terminalSearch.trim().toLowerCase()
+        return !query || id.toLowerCase().includes(query) || resourceLabels[id].toLowerCase().includes(query)
+      })
+    .sort((a, b) => terminalSort(
+      resourceLabels[a],
+      terminalAvailableAmount(state, terminalGrid, a),
+      resourceLabels[b],
+      terminalAvailableAmount(state, terminalGrid, b),
+    ))
+  const filteredMachines = terminalInventoryFilter === 'all' || terminalInventoryFilter === 'items'
+    ? placeableFactoryMachineOrder.filter((id) => {
+        if (availableGridMachineCounts[id] < 1) return false
+        const query = terminalSearch.trim().toLowerCase()
+        if (!query) return true
+        return id.toLowerCase().includes(query) || machines[id].name.toLowerCase().includes(query)
+      }).sort((a, b) => terminalSort(machines[a].name, availableGridMachineCounts[a], machines[b].name, availableGridMachineCounts[b]))
+    : []
   const recipeCandidates = useMemo(() => (recipeSearch.trim() ? searchTerminalRecipes(recipeSearch, recipeCatalog) : recipeCatalog), [recipeCatalog, recipeSearch])
   const recipeBrowserMachineIds = useMemo(() => {
     const query = recipeSearch.trim().toLowerCase()
@@ -6574,6 +6595,31 @@ function App() {
             />
           </div>
 
+          <div className="terminal-inventory-controls" aria-label="Terminal inventory controls">
+            <button
+              type="button"
+              onClick={() => {
+                const filters: TerminalInventoryFilter[] = ['all', 'craftable', 'items', 'fluids']
+                setTerminalInventoryFilter(filters[(filters.indexOf(terminalInventoryFilter) + 1) % filters.length])
+              }}
+              aria-label={`Filter: ${terminalInventoryFilter}. Press to cycle filter`}
+            >
+              <span>Filter</span>
+              <strong>{terminalInventoryFilter === 'all' ? 'All' : terminalInventoryFilter === 'craftable' ? 'Craftable' : terminalInventoryFilter === 'items' ? 'Items' : 'Fluids'}</strong>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const sorts: TerminalInventorySort[] = ['az', 'quantity-desc', 'quantity-asc']
+                setTerminalInventorySort(sorts[(sorts.indexOf(terminalInventorySort) + 1) % sorts.length])
+              }}
+              aria-label={`Sort: ${terminalInventorySort}. Press to cycle sort order`}
+            >
+              <span>Sort</span>
+              <strong>{terminalInventorySort === 'az' ? 'A-Z' : terminalInventorySort === 'quantity-desc' ? 'Qty high-low' : 'Qty low-high'}</strong>
+            </button>
+          </div>
+
           <div className="terminal-workspace-tabs" role="tablist" aria-label="Terminal workspace">
             <button type="button" className={terminalWorkspaceMode === 'crafting' ? 'active' : ''} onClick={() => setTerminalWorkspaceMode('crafting')}>
               <Factory size={15} />
@@ -6594,12 +6640,12 @@ function App() {
           </div>
 
           <div className={terminalWorkspaceMode === 'patterns' ? 'terminal-items pattern-item-picker' : 'terminal-items'} aria-label="Stored items">
-            {filteredResources.length > 0 || filteredVirtualCraftables.length > 0 || filteredMachines.length > 0 || filteredPortableFluidGroups.length > 0 ? (
+            {filteredTerminalResourceIds.length > 0 || filteredMachines.length > 0 || filteredPortableFluidGroups.length > 0 ? (
               <>
-                {filteredResources.map((id) => {
+                {filteredTerminalResourceIds.map((id) => {
                   const available = terminalAvailableAmount(state, terminalGrid, id)
                   const networkCraftable = networkCraftableResourceIds.includes(id)
-                  return (
+                  return available > 0 ? (
                     <button
                       type="button"
                       className={selectedResource === id ? 'item-slot selected' : 'item-slot'}
@@ -6617,9 +6663,22 @@ function App() {
                       {networkCraftable && <span className="terminal-craftable-mark" title="Craftable by fabrication network"><Factory size={9} /></span>}
                       <DurabilityBar state={state} id={id} />
                     </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="item-slot terminal-virtual-craftable"
+                      aria-label={`${resourceLabels[id]}, craftable by fabrication network`}
+                      title={`${resourceLabels[id]} · Craftable`}
+                      onClick={() => handleJumpToResourceRecipe(id)}
+                      key={`craftable-${id}`}
+                    >
+                      <PixelIcon id={id} />
+                      <span className="item-count">0</span>
+                      <span className="terminal-craftable-mark"><Factory size={9} /></span>
+                    </button>
                   )
                 })}
-                {filteredVirtualCraftables.map((id) => (
+                {([] as ResourceId[]).map((id) => (
                   <button
                     type="button"
                     className="item-slot terminal-virtual-craftable"
@@ -6674,8 +6733,22 @@ function App() {
               </>
             ) : (
               <div className="empty-storage">
-                <p>No stored items</p>
-                <span>Gather materials, then craft them here.</span>
+                <p>
+                  {terminalInventoryFilter === 'craftable'
+                    ? 'No craftable items'
+                    : terminalInventoryFilter === 'fluids'
+                      ? 'No stored fluids'
+                      : terminalInventoryFilter === 'items'
+                        ? 'No stored items'
+                        : 'No matching contents'}
+                </p>
+                <span>
+                  {terminalInventoryFilter === 'craftable'
+                    ? 'Install encoded patterns on the fabrication network.'
+                    : terminalInventoryFilter === 'fluids'
+                      ? 'Fill a bucket or steel cell to store fluid here.'
+                      : 'Gather materials, then craft them here.'}
+                </span>
               </div>
             )}
           </div>

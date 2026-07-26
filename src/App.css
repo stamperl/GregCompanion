@@ -14538,6 +14538,42 @@ button.button-primary:disabled,
   grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
 }
 
+.terminal-inventory-controls {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.terminal-inventory-controls button {
+  align-items: center;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-radius: 0;
+  border-right-color: var(--bevel-light);
+  color: var(--ink);
+  display: flex;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  justify-content: space-between;
+  min-height: 34px;
+  min-width: 0;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+
+.terminal-inventory-controls button span {
+  color: var(--muted);
+  font-size: 0.52rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.terminal-inventory-controls button strong {
+  font-size: 0.62rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .terminal-workspace-tabs button {
   align-items: center;
   background: var(--bevel-well);
