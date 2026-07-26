@@ -8796,14 +8796,36 @@ export const quests: Quest[] = [
     rewards: { scrip: 20 },
   },
   {
+    id: 'buildMvExtruderQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Commit shapes to steel',
+    description: 'Cut Plate, Rod, Bolt, Ring, and Gear Extrusion Molds from Hardened Die Blanks in the Circuit Imprinter, then build the MV Extruder. The mold stays in the machine while ingots become finished parts. One Extruder can share every mold; dedicating one Extruder to each mold is strongly recommended for clean automation, but it is not required.',
+    workshopNote: 'One machine per mold is not compulsory. Neither is labelling your storage, but both prevent future shouting.',
+    position: { x: 1480, y: 120 },
+    icon: { type: 'machine', id: 'mvExtruder' },
+    prerequisites: ['buildMvAssemblerQuest'],
+    requirements: {
+      resources: [
+        { id: 'extrusionMoldPlate', amount: 1 },
+        { id: 'extrusionMoldRod', amount: 1 },
+        { id: 'extrusionMoldBolt', amount: 1 },
+        { id: 'extrusionMoldRing', amount: 1 },
+        { id: 'extrusionMoldGear', amount: 1 },
+      ],
+      machines: [{ id: 'mvExtruder', amount: 1 }],
+    },
+    rewards: { scrip: 24 },
+  },
+  {
     id: 'buildMvPowerInfrastructureQuest',
     chapterId: 'mvEngineering',
     chapter: 'MV Engineering',
     title: 'Distribute 128-volt power',
     description: 'Build an MV Battery Buffer, an MV Lithium Battery, and bundled Aluminium Cable. MV buffers accept only MV batteries and deliver 128 EU/s for every installed cell.',
-    position: { x: 1480, y: 120 },
+    position: { x: 1680, y: 120 },
     icon: { type: 'machine', id: 'mvBatteryBuffer' },
-    prerequisites: ['buildMvAssemblerQuest'],
+    prerequisites: ['buildMvExtruderQuest'],
     requirements: {
       resources: [
         { id: 'mvLithiumBattery', amount: 1 },
@@ -8819,7 +8841,7 @@ export const quests: Quest[] = [
     chapter: 'MV Engineering',
     title: 'Complete the MV machine hall',
     description: 'Upgrade one of every remaining LV process machine. The recipes are inherited, but the faster cycle demands four times the live draw and will expose weak cable or battery-buffer routes immediately.',
-    position: { x: 1680, y: 120 },
+    position: { x: 1880, y: 120 },
     icon: { type: 'machine', id: 'mvMacerator' },
     prerequisites: ['buildMvPowerInfrastructureQuest'],
     requirements: {

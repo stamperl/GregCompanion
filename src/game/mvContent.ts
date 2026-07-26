@@ -1,5 +1,6 @@
 import type { MachineId, MachineSpec, ProcessRecipe, Recipe, ResourceId, ResourceSpec } from './types'
 import type { MvMachineId, MvResourceId } from './mvIds'
+import { materialFamilies } from './materialIds'
 
 const resource = (
   id: MvResourceId,
@@ -35,6 +36,11 @@ export const mvResourceRegistry: Record<MvResourceId, ResourceSpec> = {
   aluminiumCable2A: resource('aluminiumCable2A', '2A Aluminium Cable', 'wire'),
   aluminiumCable4A: resource('aluminiumCable4A', '4A Aluminium Cable', 'wire'),
   aluminiumCable8A: resource('aluminiumCable8A', '8A Aluminium Cable', 'wire'),
+  extrusionMoldPlate: resource('extrusionMoldPlate', 'Extrusion Mold (Plate)', 'tool'),
+  extrusionMoldRod: resource('extrusionMoldRod', 'Extrusion Mold (Rod)', 'tool'),
+  extrusionMoldBolt: resource('extrusionMoldBolt', 'Extrusion Mold (Bolt)', 'tool'),
+  extrusionMoldRing: resource('extrusionMoldRing', 'Extrusion Mold (Ring)', 'tool'),
+  extrusionMoldGear: resource('extrusionMoldGear', 'Extrusion Mold (Gear)', 'tool'),
 }
 
 const mvProcessMachines = [
@@ -130,6 +136,16 @@ const cable = (id: MvMachineId, amps: number): MachineSpec => ({
 
 export const mvMachineRegistry: Record<MvMachineId, MachineSpec> = {
   ...generatedMvMachines,
+  mvExtruder: {
+    id: 'mvExtruder',
+    name: 'MV Extruder',
+    description: 'Forces heated ingots through reusable precision molds to form efficient metal parts.',
+    tier: 'mv',
+    placeable: true,
+    processKind: 'euProcess',
+    euCapacity: 512,
+    euVoltage: 128,
+  },
   mvBatteryBuffer: batteryBuffer('mvBatteryBuffer', 1),
   mvBatteryBuffer2A: batteryBuffer('mvBatteryBuffer2A', 2),
   mvBatteryBuffer4A: batteryBuffer('mvBatteryBuffer4A', 4),
@@ -253,19 +269,34 @@ const lvMachineByMv: Record<(typeof mvProcessMachines)[number][0], MachineId> = 
   mvDistillery: 'lvDistillery',
 }
 
-export const mvMachineBuildRecipes: Recipe[] = mvProcessMachines.map(([mvId, name]) => {
-  const lvId = lvMachineByMv[mvId]
-  const part = upgradePartByMachine[mvId]!
-  return crafting(
-    `upgrade_${mvId}`,
-    name,
-    [{ id: 'mvMachineHull', amount: 1 }, { id: 'mvCircuit', amount: 2 }, { id: part, amount: 1 }, { id: 'aluminiumPlate', amount: 2 }],
+export const mvMachineBuildRecipes: Recipe[] = [
+  ...mvProcessMachines.map(([mvId, name]) => {
+    const lvId = lvMachineByMv[mvId]
+    const part = upgradePartByMachine[mvId]!
+    return crafting(
+      `upgrade_${mvId}`,
+      name,
+      [{ id: 'mvMachineHull', amount: 1 }, { id: 'mvCircuit', amount: 2 }, { id: part, amount: 1 }, { id: 'aluminiumPlate', amount: 2 }],
+      [],
+      ['aluminiumPlate', 'mvCircuit', 'aluminiumPlate', part, 'mvMachineHull', { kind: 'machine', id: lvId }, null, 'mvCircuit', null],
+      [{ id: mvId, amount: 1 }],
+      [{ id: lvId, amount: 1 }],
+    )
+  }),
+  crafting(
+    'build_mv_extruder',
+    'MV Extruder',
+    [
+      { id: 'mvMachineHull', amount: 1 },
+      { id: 'mvCircuit', amount: 2 },
+      { id: 'mvPiston', amount: 2 },
+      { id: 'aluminiumPlate', amount: 2 },
+    ],
     [],
-    ['aluminiumPlate', 'mvCircuit', 'aluminiumPlate', part, 'mvMachineHull', { kind: 'machine', id: lvId }, null, 'mvCircuit', null],
-    [{ id: mvId, amount: 1 }],
-    [{ id: lvId, amount: 1 }],
-  )
-})
+    ['aluminiumPlate', 'mvCircuit', 'aluminiumPlate', 'mvPiston', 'mvMachineHull', 'mvPiston', null, 'mvCircuit', null],
+    [{ id: 'mvExtruder', amount: 1 }],
+  ),
+]
 
 const cableRecipes: Recipe[] = ([2, 4, 8] as const).map((amps) => {
   const sourceCableId = amps === 2 ? 'aluminiumCable' : `aluminiumCable${amps / 2}A` as ResourceId
@@ -311,7 +342,49 @@ export const mvInfrastructureRecipes: Recipe[] = [
   )),
 ]
 
+const extrusionMoldRecipes: ProcessRecipe[] = ([
+  ['plate', 'extrusionMoldPlate', 'steelPlate', 5],
+  ['rod', 'extrusionMoldRod', 'steelRod', 6],
+  ['bolt', 'extrusionMoldBolt', 'steelBolt', 7],
+  ['ring', 'extrusionMoldRing', 'steelRing', 8],
+  ['gear', 'extrusionMoldGear', 'steelGear', 9],
+] as const).map(([form, moldId, referenceId, programNumber]) => ({
+  id: `imprint_extrusion_mold_${form}`,
+  name: `Cut ${form[0].toUpperCase()}${form.slice(1)} Extrusion Mold`,
+  description: 'Cut a reusable extrusion profile into a hardened blank using a finished steel part as the reference.',
+  tier: 'mv',
+  machineId: 'circuitImprinter',
+  durationMs: 12_000,
+  euCost: 256,
+  input: { id: 'hardenedDieBlank', amount: 1 },
+  secondaryInput: { id: referenceId, amount: 1 },
+  output: { id: moldId, amount: 1 },
+  programNumber,
+  autoSelectable: false,
+}))
+
+const extrusionFormRecipes: ProcessRecipe[] = materialFamilies.flatMap((family) => ([
+  ['plate', 'extrusionMoldPlate', 1, 1],
+  ['rod', 'extrusionMoldRod', 1, 2],
+  ['bolt', 'extrusionMoldBolt', 1, 8],
+  ['ring', 'extrusionMoldRing', 1, 4],
+  ['gear', 'extrusionMoldGear', 4, 1],
+] as const).map(([form, moldId, ingotAmount, outputAmount]): ProcessRecipe => ({
+  id: `mv_extrude_${family.id}_${form}`,
+  name: `Extrude ${family.label} ${form[0].toUpperCase()}${form.slice(1)}`,
+  description: 'Force ingots through a retained precision mold for a high-yield MV forming route.',
+  tier: 'mv',
+  machineId: 'mvExtruder',
+  durationMs: form === 'gear' ? 12_000 : 8_000,
+  euCost: 512,
+  input: { id: family.forms.ingot, amount: ingotAmount },
+  secondaryInput: { id: moldId, amount: 1 },
+  output: { id: family.forms[form], amount: outputAmount },
+})))
+
 export const mvExclusiveProcessRecipes: ProcessRecipe[] = [
+  ...extrusionMoldRecipes,
+  ...extrusionFormRecipes,
   {
     id: 'lv_macerate_sphalerite',
     name: 'Prepare Sphalerite Concentrate',

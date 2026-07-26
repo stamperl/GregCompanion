@@ -147,7 +147,6 @@ export const generateMissingMaterialProcessRecipes = (authored: ProcessRecipe[])
       lvProcess(family.id, 'bolt', 'lvLathe', { id: forms.rod, amount: 1 }, { id: forms.bolt, amount: 4 }, 2),
       lvProcess(family.id, 'ring', 'lvLathe', { id: forms.rod, amount: 1 }, { id: forms.ring, amount: 2 }, 3),
       lvProcess(family.id, 'screw', 'lvLathe', { id: forms.rod, amount: 1 }, { id: forms.screw, amount: 4 }, 4),
-      lvProcess(family.id, 'gear', 'lvAssembler', { id: forms.plate, amount: 4 }, { id: forms.gear, amount: 1 }, 4),
       lvProcess(family.id, 'wire', 'lvWiremill', { id: forms.ingot, amount: 1 }, { id: forms.wire, amount: 2 }, 1),
       lvProcess(family.id, 'foil', 'lvBender', { id: forms.ingot, amount: 2 }, { id: forms.foil, amount: 4 }, 2),
       lvProcess(family.id, 'fineWire', 'lvWiremill', { id: forms.ingot, amount: 3 }, { id: forms.fineWire, amount: 8 }, 3),

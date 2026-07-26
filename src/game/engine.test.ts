@@ -7145,6 +7145,22 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.secondaryInput).toEqual({ id: 'signalImprintDie', amount: 1 })
   })
 
+  it('retains an extrusion mold while consuming ingots', () => {
+    let state = createFactoryState()
+    state.machines.mvExtruder = 1
+    state = placeMachineInstance(state, 'mvExtruder', 0, 0)
+    const extruder = state.machineInstances[0]
+    extruder.process.input = { id: 'ironIngot', amount: 4 }
+    extruder.process.secondaryInput = { id: 'extrusionMoldGear', amount: 1 }
+    extruder.process.euStored = 1024
+
+    state = tickGame(state, 12_000).state
+
+    expect(state.machineInstances[0].process.input).toBeNull()
+    expect(state.machineInstances[0].process.secondaryInput).toEqual({ id: 'extrusionMoldGear', amount: 1 })
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'ironGear', amount: 1 })
+  })
+
   it('forms each supported planning rack footprint around at least one memory module', () => {
     for (const [width, height] of [[1, 1], [2, 2], [3, 2], [3, 3]] as const) {
       let state = createFactoryState()

@@ -25,6 +25,11 @@ export const mvResourceIds = [
   'aluminiumCable2A',
   'aluminiumCable4A',
   'aluminiumCable8A',
+  'extrusionMoldPlate',
+  'extrusionMoldRod',
+  'extrusionMoldBolt',
+  'extrusionMoldRing',
+  'extrusionMoldGear',
 ] as const
 
 export type MvResourceId = (typeof mvResourceIds)[number]
@@ -48,6 +53,7 @@ export const mvMachineIds = [
   'mvChemicalReactor',
   'mvAirCollector',
   'mvDistillery',
+  'mvExtruder',
   'mvBatteryBuffer',
   'mvBatteryBuffer2A',
   'mvBatteryBuffer4A',

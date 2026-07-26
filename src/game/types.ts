@@ -412,6 +412,7 @@ export type QuestId =
   | 'expandMvFactoryQuest'
   | 'makeMvMotorQuest'
   | 'buildMvAssemblerQuest'
+  | 'buildMvExtruderQuest'
   | 'buildMvPowerInfrastructureQuest'
   | 'completeMvMachineLineQuest'
 

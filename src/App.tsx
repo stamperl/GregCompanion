@@ -574,6 +574,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   lvDistillery: { kind: 'distillery', runningLabel: 'Distilling' },
   lvCombustionGenerator: { kind: 'combustionGenerator', runningLabel: 'Generating' },
   mvCombustionGenerator: { kind: 'combustionGenerator', runningLabel: 'Generating' },
+  mvExtruder: { kind: 'extruder', runningLabel: 'Extruding', secondaryInput: true },
 }
 
 const mvHmiConfigPairs: Array<[MachineId, MachineId]> = [

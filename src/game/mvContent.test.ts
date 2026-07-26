@@ -127,4 +127,69 @@ describe('MV engineering content', () => {
     expect(machineRegistry.lvMacerator.itemOutputSlots).toBe(2)
     expect(machineRegistry.mvMacerator.itemOutputSlots).toBe(2)
   })
+
+  it('moves direct ingot forming from the Assembler to the MV Extruder', () => {
+    const extrudedForms = new Set<ResourceId>(materialFamilies.flatMap((family) => [
+      family.forms.plate,
+      family.forms.rod,
+      family.forms.bolt,
+      family.forms.ring,
+      family.forms.gear,
+    ]))
+    expect(processRecipes.some((recipe) =>
+      recipe.machineId === 'lvAssembler' && recipe.output && extrudedForms.has(recipe.output.id),
+    )).toBe(false)
+
+    expect(machineRegistry.mvExtruder).toMatchObject({
+      tier: 'mv',
+      placeable: true,
+      processKind: 'euProcess',
+      euVoltage: 128,
+    })
+    expect(recipes.find((recipe) => recipe.id === 'build_mv_extruder')?.machineOutputs).toEqual([
+      { id: 'mvExtruder', amount: 1 },
+    ])
+  })
+
+  it('cuts five reusable extrusion molds in the Circuit Imprinter', () => {
+    const molds = [
+      ['extrusionMoldPlate', 'steelPlate', 5],
+      ['extrusionMoldRod', 'steelRod', 6],
+      ['extrusionMoldBolt', 'steelBolt', 7],
+      ['extrusionMoldRing', 'steelRing', 8],
+      ['extrusionMoldGear', 'steelGear', 9],
+    ] as const
+
+    for (const [moldId, referenceId, programNumber] of molds) {
+      expect(resourceRegistry[moldId]).toBeDefined()
+      expect(processRecipes.find((recipe) => recipe.output?.id === moldId)).toMatchObject({
+        machineId: 'circuitImprinter',
+        input: { id: 'hardenedDieBlank', amount: 1 },
+        secondaryInput: { id: referenceId, amount: 1 },
+        programNumber,
+        autoSelectable: false,
+      })
+    }
+  })
+
+  it('provides a mold-selected extrusion route for every ingot family', () => {
+    const forms = [
+      ['plate', 'extrusionMoldPlate', 1, 1],
+      ['rod', 'extrusionMoldRod', 1, 2],
+      ['bolt', 'extrusionMoldBolt', 1, 8],
+      ['ring', 'extrusionMoldRing', 1, 4],
+      ['gear', 'extrusionMoldGear', 4, 1],
+    ] as const
+
+    for (const family of materialFamilies) {
+      for (const [form, moldId, ingotAmount, outputAmount] of forms) {
+        expect(processRecipes.find((recipe) => recipe.id === `mv_extrude_${family.id}_${form}`)).toMatchObject({
+          machineId: 'mvExtruder',
+          input: { id: family.forms.ingot, amount: ingotAmount },
+          secondaryInput: { id: moldId, amount: 1 },
+          output: { id: family.forms[form], amount: outputAmount },
+        })
+      }
+    }
+  })
 })

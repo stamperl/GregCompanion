@@ -1617,6 +1617,7 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'aluminiumCable2A', x: 5, y: 19 },
   { id: 'aluminiumCable4A', x: 6, y: 19 },
   { id: 'aluminiumCable8A', x: 7, y: 19 },
+  { id: 'mvExtruder', x: 8, y: 19 },
 ]
 
 function machineAtPosition(state: GameState, x: number, y: number) {
@@ -1866,6 +1867,10 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     if (instance.machineId === 'mvDistillery') {
       instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
       instance.process.fluids.woodTar = 32
+    }
+    if (instance.machineId === 'mvExtruder') {
+      instance.process.input = { id: 'aluminiumIngot', amount: 8 }
+      instance.process.secondaryInput = { id: 'extrusionMoldGear', amount: 1 }
     }
     if (instance.machineId === 'poweredFarm') {
       instance.process.configuredProgramNumber = 1
@@ -3331,6 +3336,7 @@ function matchProcessRecipeInputs(recipe: ProcessRecipe, input: ProcessSlot, sec
   if (processSlotCanPay(input, recipe.input) && processSlotCanPay(secondaryInput, recipe.secondaryInput)) {
     return { recipe, inputCost: recipe.input, secondaryInputCost: recipe.secondaryInput }
   }
+  if (recipe.machineId === 'mvExtruder') return undefined
   if (processSlotCanPay(input, recipe.secondaryInput) && processSlotCanPay(secondaryInput, recipe.input)) {
     return { recipe, inputCost: recipe.secondaryInput, secondaryInputCost: recipe.input }
   }
@@ -6567,9 +6573,8 @@ function tickEuProcessMachine(state: GameState, instance: MachineInstance, elaps
       if (match.inputCost) process.input = decrementProcessSlot(process.input, match.inputCost.amount)
       if (match.secondaryInputCost) process.secondaryInput = decrementProcessSlot(process.secondaryInput, match.secondaryInputCost.amount)
       if (
-        instance.machineId === 'circuitImprinter' &&
         match.secondaryInputCost &&
-        imprintDieIds.has(match.secondaryInputCost.id)
+        reusableProcessToolIds.has(match.secondaryInputCost.id)
       ) {
         process.secondaryInput = addToProcessOutput(process.secondaryInput, match.secondaryInputCost)
       }
@@ -7685,7 +7690,17 @@ function tickArcOutputBus(state: GameState, structure: ArcBlastFurnaceStructure,
   }
 }
 
-const imprintDieIds = new Set<ResourceId>(['signalImprintDie', 'computationImprintDie', 'structuralImprintDie', 'siliconImprintDie'])
+const reusableProcessToolIds = new Set<ResourceId>([
+  'signalImprintDie',
+  'computationImprintDie',
+  'structuralImprintDie',
+  'siliconImprintDie',
+  'extrusionMoldPlate',
+  'extrusionMoldRod',
+  'extrusionMoldBolt',
+  'extrusionMoldRing',
+  'extrusionMoldGear',
+])
 
 function processSlotsAreEmpty(process: MachineProcessState) {
   return !process.input &&
@@ -7783,7 +7798,7 @@ function collectFabricationProcessBatch(state: GameState, job: FabricationJob, t
   addReservedItems(job, actualItems)
   addReservedFluids(job, actualFluids)
   const die = target.process.secondaryInput
-  if (die && imprintDieIds.has(die.id)) {
+  if (die && reusableProcessToolIds.has(die.id)) {
     addReservedItems(job, [die])
     target.process.secondaryInput = null
   }
