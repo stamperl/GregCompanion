@@ -1317,13 +1317,6 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                 : []
             })
           : []
-        const planningRackFabricationAttachments = planningRack && instance?.uid === planningRack.controller.uid
-          ? pipeDirections.filter((direction) => {
-              const offset = pipeDirectionOffsets[direction]
-              const neighbour = machineAtCell(instance.x + offset.dx, instance.y + offset.dy)
-              return Boolean(neighbour && hasFabricationCable(neighbour))
-            })
-          : []
         const pipePolarity = viewMode === 'maintenance' && instance ? pipePolarityForInstance(instance) : null
         const itemAutomationDirection =
           viewMode === 'maintenance' && instance && isLvItemAutomationMachine(instance.machineId)
@@ -1451,11 +1444,6 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
             )}
             {structurePipeAttachments.map(({ direction, pipeId }) => (
               <span className={`multiblock-pipe-attachment ${direction} pipe-${pipeId}`} aria-hidden="true" key={`${direction}-${pipeId}`} />
-            ))}
-            {planningRackFabricationAttachments.map((direction) => (
-              <span className={`planning-rack-cable-attachment ${direction}`} aria-hidden="true" key={direction}>
-                <span />
-              </span>
             ))}
             {pipePolarity && (
               <span className="pipe-polarity-overlay" aria-label="Pipe polarity">
