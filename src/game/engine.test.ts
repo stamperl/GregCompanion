@@ -7210,6 +7210,46 @@ describe('game engine', () => {
     expect(planningRackStructureForInstance(incomplete, incompleteController)).toBeNull()
   })
 
+  it('disassembles a complete Planning Rack and cancels its active jobs', () => {
+    let state = createFactoryState()
+    state.machines.planningController = 1
+    state.machines.memoryModule = 2
+    state.machines.dispatchModule = 1
+    state = placeMachineInstance(state, 'planningController', 3, 3)
+    state = placeMachineInstance(state, 'memoryModule', 4, 3)
+    state = placeMachineInstance(state, 'memoryModule', 3, 4)
+    state = placeMachineInstance(state, 'dispatchModule', 4, 4)
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!
+    const module = state.machineInstances.find((instance) => instance.machineId === 'dispatchModule')!
+    const initialSticks = state.resources.stick
+    state.fabricationJobs.push({
+      uid: 'job-rack-removal',
+      cardUid: 'card-rack-removal',
+      requestedOutput: { id: 'plank', amount: 4 },
+      batches: 1,
+      completedBatches: 0,
+      status: 'running',
+      controllerUid: controller.uid,
+      reservedItems: [{ id: 'stick', amount: 2 }],
+      reservedFluids: [{ id: 'oxygen', amount: 3 }],
+      steps: [],
+      progressMs: 0,
+      createdAt: 1,
+    })
+
+    state = removeMachineInstance(state, module.uid)
+
+    expect(state.machineInstances.some((instance) => (
+      instance.machineId === 'planningController' ||
+      instance.machineId === 'memoryModule' ||
+      instance.machineId === 'dispatchModule'
+    ))).toBe(false)
+    expect(state.fabricationJobs[0].status).toBe('cancelled')
+    expect(state.fabricationJobs[0].reservedItems).toEqual([])
+    expect(state.fabricationJobs[0].reservedFluids).toEqual([])
+    expect(state.resources.stick).toBe(initialSticks + 2)
+  })
+
   it('dispatches a processing pattern through a cable-mounted Job Interface Face', () => {
     let state = createFactoryState()
     state.machines.planningController = 1

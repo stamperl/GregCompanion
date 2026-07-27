@@ -5851,6 +5851,35 @@ export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTarg
 export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
+  const planningRack = planningRackStructureForPart(state, instance)
+  if (planningRack) {
+    let next = state
+    const activeJobUids = next.fabricationJobs
+      .filter((job) => (
+        job.controllerUid === planningRack.controller.uid &&
+        job.status !== 'complete' &&
+        job.status !== 'cancelled'
+      ))
+      .map((job) => job.uid)
+    for (const jobUid of activeJobUids) next = cancelFabricationJob(next, jobUid)
+    for (const job of next.fabricationJobs) {
+      if (
+        job.controllerUid !== planningRack.controller.uid ||
+        job.status === 'complete' ||
+        job.status === 'cancelled'
+      ) continue
+      job.reservedItems = []
+      job.reservedFluids = []
+      job.status = 'cancelled'
+      job.blockedReason = undefined
+    }
+
+    next = cloneState(next)
+    const rackUids = new Set(planningRack.cells.map((cell) => cell.uid))
+    next.machineInstances = next.machineInstances.filter((candidate) => !rackUids.has(candidate.uid))
+    next.lastSavedAt = Date.now()
+    return next
+  }
   const protectedArcControllerUid = arcControllerNearInstance(state, instance)?.uid
   const ownedInterfaceUids = new Set([
     ...(instance.machineId === 'jobInterface' ? [instance.uid] : []),

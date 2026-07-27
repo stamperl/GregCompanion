@@ -3957,8 +3957,8 @@ function App() {
     ? state.recipeCards.filter((card) => card.installedInUid === selectedInterfaceUid)
     : []
   const availableRecipeCards = state.recipeCards.filter((card) => !card.installedInUid)
-  const selectedPlanningRack = selectedMachine?.machineId === 'planningController'
-    ? planningRackStructureForInstance(state, selectedMachine)
+  const selectedPlanningRack = selectedMachine
+    ? planningRackStructureForPart(state, selectedMachine)
     : null
   const selectedFabricationJobs = selectedMachine?.machineId === 'planningController'
     ? state.fabricationJobs.filter((job) => job.controllerUid === selectedMachine.uid)
@@ -4967,6 +4967,15 @@ function App() {
     if (!selectedMachineSource || !selectedMachineCanRemove) return
     const warnings = []
     if (selectedMachineMultiblock) warnings.push(`This will disassemble the entire ${machines[selectedMachineMultiblock.spec.controller].name} structure and return its blocks.`)
+    if (selectedPlanningRack) {
+      warnings.push(`This will disassemble the entire ${selectedPlanningRack.width}×${selectedPlanningRack.height} Planning Rack and return its controller and modules.`)
+      const activeJobs = state.fabricationJobs.filter((job) => (
+        job.controllerUid === selectedPlanningRack.controller.uid &&
+        job.status !== 'complete' &&
+        job.status !== 'cancelled'
+      )).length
+      if (activeJobs > 0) warnings.push(`${activeJobs} active auto-crafting job${activeJobs === 1 ? '' : 's'} will be cancelled. Reserved items will be returned; fluid that cannot return to connected storage will be vented.`)
+    }
     if (storedFluids(selectedMachineSource.process).some((fluid) => fluid.amount > 0)) warnings.push('Stored fluid will be discarded.')
     if ((selectedMachine?.process.steamStoredMs ?? selectedMachineSource.process.steamStoredMs) > 0) warnings.push('Stored steam will be vented.')
     if (selectedMachineSource.surveyCardTarget) warnings.push(`The installed ${gatherTargets[selectedMachineSource.surveyCardTarget].name} Survey Card will be returned to inventory.`)
@@ -8547,7 +8556,7 @@ function App() {
                     {selectedMachineCanRemove && (
                       <button type="button" className="danger" onClick={handleRemoveSelectedMachine}>
                         <Trash2 size={14} />
-                        {selectedMachineMultiblock ? 'Disassemble' : 'Remove'}
+                        {selectedMachineMultiblock || selectedPlanningRack ? 'Disassemble' : 'Remove'}
                       </button>
                     )}
                   </div>
