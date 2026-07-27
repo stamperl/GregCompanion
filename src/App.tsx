@@ -78,6 +78,7 @@ import {
   isSteamPipeMachine,
   isSteamPoweredMachine,
   isTankStorageMachine,
+  machineEuVoltage,
   machines,
   processRecipes,
   questFolders,
@@ -207,7 +208,6 @@ import {
   steamTankStructureForInstance,
   steamNetworkMetrics,
   lvBatteryBufferEuCapacity,
-  lvBatteryBufferOutputEuPerSecond,
   batteryBufferInstalledBatteries,
   batteryBufferLiveEuRates,
   batteryBufferOutputDirection,
@@ -4133,7 +4133,7 @@ function App() {
       const liveRates = batteryBufferLiveEuRates(selectedMachine)
       addEuMetric('Stored EU', process.euStored, process.euCapacity || batterySlots * lvBatteryBufferEuCapacity)
       addRateMetric('Input', liveRates.inputEuPerSecond, ' EU/s', 'supply', 'live charge')
-      addRateMetric('Output', liveRates.outputEuPerSecond, ' EU/s', 'usage', `${installedBatteries * lvBatteryBufferOutputEuPerSecond} EU/s max`)
+      addRateMetric('Output', liveRates.outputEuPerSecond, ' EU/s', 'usage', `${installedBatteries * machineEuVoltage(selectedMachine.machineId)} EU/s max`)
     } else if (machines[selectedMachine.machineId].processKind === 'combustionGenerator') {
       addEuMetric('Stored EU', process.euStored, process.euCapacity || machines[selectedMachine.machineId].euCapacity || 0)
       addFluidMetric(fluidLabel('benzene'), process.fluids.benzene ?? 0, process.fluidCapacityLitres || machines[selectedMachine.machineId].fluidCapacityLitres || 0)
@@ -9148,7 +9148,7 @@ function App() {
                         })}
                       </div>
                       <span>
-                        Cells {installedCount}/{slotCount} | {formatAmount(selectedMachine.process.euCapacity)} EU total | {Math.min(installedCount, slotCount) * lvBatteryBufferOutputEuPerSecond} EU/s max
+                        Cells {installedCount}/{slotCount} | {formatAmount(selectedMachine.process.euCapacity)} EU total | {Math.min(installedCount, slotCount) * machineEuVoltage(selectedMachine.machineId)} EU/s max
                       </span>
                           </>
                         )

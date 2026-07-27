@@ -1471,6 +1471,41 @@ describe('game engine', () => {
     }
   })
 
+  it('feeds the creative MV Extruder from its 8A buffer over an 8A route', () => {
+    let state = createCreativeFactoryState(createInitialState(1000), 2000)
+    const buffer = state.machineInstances.find((instance) => instance.machineId === 'mvBatteryBuffer8A' && instance.y === 19)!
+    const cable = state.machineInstances.find((instance) => instance.x === 7 && instance.y === 19)!
+    const extruder = state.machineInstances.find((instance) => instance.machineId === 'mvExtruder')!
+
+    expect(buffer.machineId).toBe('mvBatteryBuffer8A')
+    expect(batteryBufferOutputDirection(buffer)).toBe('east')
+    expect(cable.machineId).toBe('aluminiumCable8A')
+    expect(availableConnectedEu(state, extruder)).toBeGreaterThan(0)
+
+    extruder.process.euStored = 336
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === extruder.uid)!.process.euStored).toBeGreaterThan(336)
+  })
+
+  it('supplies MV machines at MV voltage instead of the LV 32 EU per amp rate', () => {
+    let state = createCreativeFactoryState(createInitialState(1000), 2000)
+    const macerator = state.machineInstances.find((instance) => instance.machineId === 'mvMacerator')!
+    macerator.process.input = { id: 'copperIngot', amount: 64 }
+    macerator.process.output = null
+    macerator.process.euStored = macerator.process.euCapacity
+
+    state = tickGame(state, 250).state
+    const firstRunningTick = state.machineInstances.find((instance) => instance.uid === macerator.uid)!
+    const firstStoredEu = firstRunningTick.process.euStored
+    expect(firstRunningTick.process.activeRecipeId).not.toBeNull()
+
+    state = tickGame(state, 250).state
+    const secondRunningTick = state.machineInstances.find((instance) => instance.uid === macerator.uid)!
+
+    expect(secondRunningTick.process.euStored).toBeGreaterThanOrEqual(firstStoredEu - 0.001)
+  })
+
   it('loads a routed and power-positive benzene production line in the creative factory', () => {
     let state = createCreativeFactoryState(createInitialState(1000), 2000)
     const farm = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!

@@ -1610,12 +1610,12 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'mvFluidInputHatch', x: 22, y: 18 },
   { id: 'mvFluidOutputHatch', x: 23, y: 18 },
   { id: 'mvBatteryBuffer', x: 0, y: 19 },
-  { id: 'mvBatteryBuffer2A', x: 1, y: 19 },
-  { id: 'mvBatteryBuffer4A', x: 2, y: 19 },
-  { id: 'mvBatteryBuffer8A', x: 3, y: 19 },
-  { id: 'aluminiumCable', x: 4, y: 19 },
-  { id: 'aluminiumCable2A', x: 5, y: 19 },
-  { id: 'aluminiumCable4A', x: 6, y: 19 },
+  { id: 'aluminiumCable', x: 1, y: 19 },
+  { id: 'mvBatteryBuffer2A', x: 2, y: 19 },
+  { id: 'aluminiumCable2A', x: 3, y: 19 },
+  { id: 'mvBatteryBuffer4A', x: 4, y: 19 },
+  { id: 'aluminiumCable4A', x: 5, y: 19 },
+  { id: 'mvBatteryBuffer8A', x: 6, y: 19 },
   { id: 'aluminiumCable8A', x: 7, y: 19 },
   { id: 'mvExtruder', x: 8, y: 19 },
 ]
@@ -1703,6 +1703,7 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
   const batteryBuffers = state.machineInstances.filter((instance) => isEuStorageMachine(instance.machineId))
   for (const buffer of batteryBuffers) {
     const creativeOutput = buffer.x === 0 && buffer.y === 16 ? 'south'
+      : buffer.y === 19 ? 'east'
       : buffer.y === 2 ? 'south'
       : buffer.x === 5 && buffer.y === 6 ? 'east'
       : buffer.x === 14 && buffer.y === 6 ? 'east'
@@ -5100,7 +5101,7 @@ export function currentEuCableFlowEuPerSecond(state: GameState, instance: Machin
     }, 0)
 
   if (demandEu <= 0) return 0
-  return Math.min(euNetworkCableAmps(state, instance) * lvEuPerAmpSecond, availableEu, demandEu)
+  return Math.min(euNetworkCableAmps(state, instance) * machineEuVoltage(instance.machineId), availableEu, demandEu)
 }
 
 function fluidSupplyForPipe(state: GameState, pipe: MachineInstance) {
@@ -5371,7 +5372,7 @@ function fillInternalEuFromConnectedStorage(state: GameState, instance: MachineI
   if (availableConnectedEuAmps(state, instance) < requiredAmps) return 0
   const needed = capacity - instance.process.euStored
   if (needed <= 0) return 0
-  const consumerLimit = (Math.max(1, requiredAmps) * lvEuPerAmpSecond * elapsedMs) / 1000
+  const consumerLimit = (Math.max(1, requiredAmps) * machineEuVoltage(instance.machineId) * elapsedMs) / 1000
   const moved = consumeConnectedEu(state, instance, Math.min(needed, consumerLimit), elapsedMs, requiredAmps)
   instance.process.euStored += moved
   return moved
@@ -6401,7 +6402,7 @@ function tickEuStorage(state: GameState, instance: MachineInstance, elapsedMs: n
     return
   }
 
-  const consumerLimit = (Math.max(1, batteryBufferInstalledBatteries(instance)) * lvEuPerAmpSecond * elapsedMs) / 1000
+  const consumerLimit = (Math.max(1, batteryBufferInstalledBatteries(instance)) * machineEuVoltage(instance.machineId) * elapsedMs) / 1000
   const installedBatteries = batteryBufferInstalledBatteries(instance)
   const moved = consumeConnectedEuFromProducers(state, instance, Math.min(needed, consumerLimit), elapsedMs, installedBatteries)
   process.euStored += moved
