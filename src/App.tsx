@@ -1216,6 +1216,7 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
     timer: number
   } | null>(null)
   const suppressHeldCellClickRef = useRef<number | null>(null)
+  const clearHeldCellSuppressionTimerRef = useRef<number | null>(null)
   const machineByCell = useMemo(
     () => new Map(state.machineInstances.map((instance) => [`${instance.x},${instance.y}`, instance])),
     [state.machineInstances],
@@ -1302,11 +1303,18 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
     if (heldCellRef.current) window.clearTimeout(heldCellRef.current.timer)
     heldCellRef.current = null
   }
+  const clearHeldCellSuppressionTimer = () => {
+    if (clearHeldCellSuppressionTimerRef.current !== null) {
+      window.clearTimeout(clearHeldCellSuppressionTimerRef.current)
+      clearHeldCellSuppressionTimerRef.current = null
+    }
+  }
   cellHoldCancelRef.current = cancelHeldCell
 
   const beginHeldCell = (event: ReactPointerEvent<HTMLButtonElement>, instance?: MachineInstance) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
     cancelHeldCell()
+    clearHeldCellSuppressionTimer()
     suppressHeldCellClickRef.current = null
     if (!instance) return
     const bounds = event.currentTarget.getBoundingClientRect()
@@ -1335,12 +1343,14 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
     cancelHeldCell()
     if (suppressHeldCellClickRef.current !== event.pointerId) return
     if (cancelled) {
+      clearHeldCellSuppressionTimer()
       suppressHeldCellClickRef.current = null
       return
     }
-    window.setTimeout(() => {
+    clearHeldCellSuppressionTimerRef.current = window.setTimeout(() => {
       if (suppressHeldCellClickRef.current === event.pointerId) suppressHeldCellClickRef.current = null
-    }, 0)
+      clearHeldCellSuppressionTimerRef.current = null
+    }, 1000)
   }
 
   const fabricationInterfacesForTarget = (target: MachineInstance) =>
@@ -1582,6 +1592,7 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
             aria-keyshortcuts={instance ? 'I Shift+Enter' : undefined}
             onClick={() => {
               if (suppressHeldCellClickRef.current !== null) {
+                clearHeldCellSuppressionTimer()
                 suppressHeldCellClickRef.current = null
                 return
               }

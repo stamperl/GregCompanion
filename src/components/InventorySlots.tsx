@@ -18,6 +18,7 @@ function useSlotInspection(contentId: string | undefined, onClick: () => void) {
   const holdRef = useRef<{ pointerId: number; startX: number; startY: number; timer: number } | null>(null)
   const activePointerRef = useRef<number | null>(null)
   const suppressClickRef = useRef<number | null>(null)
+  const clearSuppressionTimerRef = useRef<number | null>(null)
   const hideTimerRef = useRef<number | null>(null)
   const [position, setPosition] = useState<SlotInspectionPosition | null>(null)
 
@@ -31,6 +32,11 @@ function useSlotInspection(contentId: string | undefined, onClick: () => void) {
     hideTimerRef.current = null
   }
 
+  const clearSuppressionTimer = () => {
+    if (clearSuppressionTimerRef.current !== null) window.clearTimeout(clearSuppressionTimerRef.current)
+    clearSuppressionTimerRef.current = null
+  }
+
   useEffect(() => {
     if (!contentId) setPosition(null)
   }, [contentId])
@@ -38,12 +44,14 @@ function useSlotInspection(contentId: string | undefined, onClick: () => void) {
   useEffect(() => () => {
     clearHold()
     clearHideTimer()
+    clearSuppressionTimer()
   }, [])
 
   useEffect(() => {
     const dismiss = () => {
       clearHold()
       clearHideTimer()
+      clearSuppressionTimer()
       activePointerRef.current = null
       suppressClickRef.current = null
       setPosition(null)
@@ -56,6 +64,7 @@ function useSlotInspection(contentId: string | undefined, onClick: () => void) {
     if (!contentId || (event.pointerType === 'mouse' && event.button !== 0)) return
     clearHold()
     clearHideTimer()
+    clearSuppressionTimer()
     setPosition(null)
     suppressClickRef.current = null
     activePointerRef.current = event.pointerId
@@ -106,13 +115,15 @@ function useSlotInspection(contentId: string | undefined, onClick: () => void) {
       setPosition(null)
       hideTimerRef.current = null
     }, 1600)
-    window.setTimeout(() => {
+    clearSuppressionTimerRef.current = window.setTimeout(() => {
       if (suppressClickRef.current === event.pointerId) suppressClickRef.current = null
-    }, 0)
+      clearSuppressionTimerRef.current = null
+    }, 1000)
   }
 
   const onSlotClick = () => {
     if (suppressClickRef.current !== null) {
+      clearSuppressionTimer()
       suppressClickRef.current = null
       return
     }
