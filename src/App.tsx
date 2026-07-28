@@ -1081,6 +1081,113 @@ function isFactoryFloorLayoutRecipe(recipe: Recipe) {
   return recipe.recipeType === 'machine'
 }
 
+type FactoryMachinePeek = {
+  uid: string
+  structureUids: string[]
+  left: number
+  top: number
+  arrowLeft: number
+  rowsMaxHeight: number
+  placement: 'above' | 'below'
+}
+
+type FactoryMachinePeekRow =
+  | { kind: 'resource'; id: ResourceId; label: string; value: string }
+  | { kind: 'machine'; id: MachineId; label: string; value: string }
+  | { kind: 'fluid'; id: FluidId; label: string; value: string }
+  | { kind: 'steam' | 'eu' | 'detail'; label: string; value: string }
+
+function factoryMachinePeekRows(state: GameState, instances: MachineInstance[]): FactoryMachinePeekRow[] {
+  const resourceAmounts = new Map<string, { id: ResourceId; role: string; amount: number }>()
+  const machineAmounts = new Map<MachineId, number>()
+  const fluidAmounts = new Map<string, { id: FluidId; role: string; amount: number }>()
+  let steamStoredMs = 0
+  let euStored = 0
+  let installedPatterns = 0
+  const details: FactoryMachinePeekRow[] = []
+  const addResource = (slot: ProcessSlot, role: string) => {
+    if (!slot || slot.amount <= 0) return
+    const key = `${role}:${slot.id}`
+    const current = resourceAmounts.get(key)
+    resourceAmounts.set(key, { id: slot.id, role, amount: (current?.amount ?? 0) + slot.amount })
+  }
+  for (const instance of instances) {
+    const process = instance.process
+    addResource(process.input, 'Input')
+    addResource(process.secondaryInput, 'Input 2')
+    addResource(process.extraInput1, 'Input 3')
+    addResource(process.extraInput2, 'Input 4')
+    addResource(process.extraInput3, 'Input 5')
+    addResource(process.extraInput4, 'Input 6')
+    addResource(process.fuel, 'Fuel')
+    addResource(process.output, 'Output')
+    addResource(process.output2, 'Output 2')
+    process.storageSlots.forEach((slot) => addResource(slot, 'Storage'))
+    process.batterySlots.forEach((id) => {
+      if (id) addResource({ id, amount: 1 }, 'Battery')
+    })
+    if (process.machineOutput?.amount) {
+      machineAmounts.set(process.machineOutput.id, (machineAmounts.get(process.machineOutput.id) ?? 0) + process.machineOutput.amount)
+    }
+    const fluidBuffers = machineFluidBuffersForInstance(state, instance)
+    for (const fluid of storedFluids(process)) {
+      const matchingBuffers = fluidBuffers.filter((buffer) => buffer.acceptedFluids.includes(fluid.id))
+      const accesses = new Set(matchingBuffers.map((buffer) => buffer.access))
+      const role = accesses.size === 1 && accesses.has('input')
+        ? 'Input fluid'
+        : accesses.size === 1 && accesses.has('output')
+          ? 'Output fluid'
+          : 'Stored fluid'
+      const key = `${role}:${fluid.id}`
+      const current = fluidAmounts.get(key)
+      fluidAmounts.set(key, { id: fluid.id, role, amount: (current?.amount ?? 0) + fluid.amount })
+    }
+    steamStoredMs += process.steamStoredMs
+    euStored += process.euStored
+    installedPatterns += state.recipeCards.filter((card) => card.installedInUid === instance.uid).length
+    if (instance.surveyCardTarget) {
+      details.push({
+        kind: 'detail',
+        label: `${gatherTargets[instance.surveyCardTarget].name} survey card`,
+        value: 'Installed',
+      })
+    }
+  }
+
+  const rows: FactoryMachinePeekRow[] = [...resourceAmounts.values()].map(({ id, role, amount }) => ({
+    kind: 'resource',
+    id,
+    label: `${role}: ${resourceLabels[id]}`,
+    value: `x${formatAmount(amount)}`,
+  }))
+  for (const [id, amount] of machineAmounts) {
+    rows.push({
+      kind: 'machine',
+      id,
+      label: `Output: ${machines[id].name}`,
+      value: `x${formatAmount(amount)}`,
+    })
+  }
+  for (const { id, role, amount } of fluidAmounts.values()) {
+    rows.push({
+      kind: 'fluid',
+      id,
+      label: `${role}: ${fluidLabel(id)}`,
+      value: `${formatLitres(amount)}L`,
+    })
+  }
+  if (steamStoredMs > 0) {
+    rows.push({ kind: 'steam', label: 'Steam', value: `${formatSteamLitres(steamStoredMs)}L` })
+  }
+  if (euStored > 0) {
+    rows.push({ kind: 'eu', label: 'Stored power', value: `${formatAmount(Math.floor(euStored))} EU` })
+  }
+  if (installedPatterns > 0) {
+    rows.push({ kind: 'detail', label: 'Encoded patterns', value: `${installedPatterns}` })
+  }
+  return [...rows, ...details]
+}
+
 type FactoryFloorGridProps = {
   state: GameState
   width: number
@@ -1088,6 +1195,8 @@ type FactoryFloorGridProps = {
   viewMode: FactoryFloorViewMode
   placingMachineId: MachineId | null
   cellPressRef: { current: (x: number, y: number, instance?: MachineInstance) => void }
+  cellInspectRef: { current: (instance: MachineInstance, clientX: number, clientY: number) => void }
+  cellHoldCancelRef: { current: () => void }
 }
 
 const FactoryFloorGrid = memo(function FactoryFloorGrid({
@@ -1097,7 +1206,16 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
   viewMode,
   placingMachineId,
   cellPressRef,
+  cellInspectRef,
+  cellHoldCancelRef,
 }: FactoryFloorGridProps) {
+  const heldCellRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    timer: number
+  } | null>(null)
+  const suppressHeldCellClickRef = useRef<number | null>(null)
   const machineByCell = useMemo(
     () => new Map(state.machineInstances.map((instance) => [`${instance.x},${instance.y}`, instance])),
     [state.machineInstances],
@@ -1178,6 +1296,51 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
     const planningRack = planningRackStructureForPart(state, instance)
     if (planningRack) return planningRack.controller
     return controllerForMultiblockPart(instance)
+  }
+
+  const cancelHeldCell = () => {
+    if (heldCellRef.current) window.clearTimeout(heldCellRef.current.timer)
+    heldCellRef.current = null
+  }
+  cellHoldCancelRef.current = cancelHeldCell
+
+  const beginHeldCell = (event: ReactPointerEvent<HTMLButtonElement>, instance?: MachineInstance) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+    cancelHeldCell()
+    suppressHeldCellClickRef.current = null
+    if (!instance) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const hold = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      timer: 0,
+    }
+    hold.timer = window.setTimeout(() => {
+      if (heldCellRef.current !== hold) return
+      suppressHeldCellClickRef.current = hold.pointerId
+      heldCellRef.current = null
+      cellInspectRef.current(instance, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+    }, 550)
+    heldCellRef.current = hold
+  }
+
+  const moveHeldCell = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const hold = heldCellRef.current
+    if (!hold || hold.pointerId !== event.pointerId) return
+    if (Math.hypot(event.clientX - hold.startX, event.clientY - hold.startY) >= factoryPanThreshold) cancelHeldCell()
+  }
+
+  const endHeldCell = (event: ReactPointerEvent<HTMLButtonElement>, cancelled = false) => {
+    cancelHeldCell()
+    if (suppressHeldCellClickRef.current !== event.pointerId) return
+    if (cancelled) {
+      suppressHeldCellClickRef.current = null
+      return
+    }
+    window.setTimeout(() => {
+      if (suppressHeldCellClickRef.current === event.pointerId) suppressHeldCellClickRef.current = null
+    }, 0)
   }
 
   const fabricationInterfacesForTarget = (target: MachineInstance) =>
@@ -1404,7 +1567,26 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                 ? `${isStructureCell && structureMachineId ? machines[structureMachineId].name : machines[instance.machineId].name} at ${x + 1}, ${y + 1}${statusLabel ? `, ${statusLabel}` : ''}`
                 : `Empty factory cell ${x + 1}, ${y + 1}`
             }
-            onClick={() => cellPressRef.current(x, y, instance)}
+            onPointerDown={(event) => beginHeldCell(event, instance)}
+            onPointerMove={moveHeldCell}
+            onPointerUp={(event) => endHeldCell(event)}
+            onPointerCancel={(event) => endHeldCell(event, true)}
+            onLostPointerCapture={cancelHeldCell}
+            onContextMenu={(event) => event.preventDefault()}
+            onKeyDown={(event) => {
+              if (!instance || (event.key.toLowerCase() !== 'i' && !(event.key === 'Enter' && event.shiftKey))) return
+              event.preventDefault()
+              const bounds = event.currentTarget.getBoundingClientRect()
+              cellInspectRef.current(instance, bounds.left + bounds.width / 2, bounds.top + bounds.height / 2)
+            }}
+            aria-keyshortcuts={instance ? 'I Shift+Enter' : undefined}
+            onClick={() => {
+              if (suppressHeldCellClickRef.current !== null) {
+                suppressHeldCellClickRef.current = null
+                return
+              }
+              cellPressRef.current(x, y, instance)
+            }}
             key={`${x}-${y}`}
           >
             {isPlanningRackOrigin && planningRack ? (
@@ -3350,6 +3532,7 @@ function App() {
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const [factoryView, setFactoryView] = useState<FactoryView>({ x: factoryViewportPadding, y: factoryViewportPadding, zoom: factoryDefaultZoom })
   const [factoryFloorViewMode, setFactoryFloorViewMode] = useState<FactoryFloorViewMode>('production')
+  const [factoryMachinePeek, setFactoryMachinePeek] = useState<FactoryMachinePeek | null>(null)
   const [navigationStack, setNavigationStack] = useState<NavigationSnapshot[]>([])
   const [highlightedGatherTarget, setHighlightedGatherTarget] = useState<GatherTargetId | null>(null)
   const floatTextIdRef = useRef(0)
@@ -3373,6 +3556,9 @@ function App() {
   const factoryGestureRef = useRef<FactoryGesture | null>(null)
   const isFactoryPanningRef = useRef(false)
   const factoryCellPressRef = useRef<(x: number, y: number, instance?: MachineInstance) => void>(() => {})
+  const factoryCellInspectRef = useRef<(instance: MachineInstance, clientX: number, clientY: number) => void>(() => {})
+  const factoryCellHoldCancelRef = useRef<() => void>(() => {})
+  const factoryPeekScrollRef = useRef<{ pointerId: number; startY: number; startScrollTop: number } | null>(null)
   const suppressFactoryCellClickRef = useRef(false)
   const suppressClickRef = useRef(false)
 
@@ -3868,6 +4054,13 @@ function App() {
 
   const maxBatchQuantity = terminalMatch ? craftableQuantity(state, terminalMatch, terminalGrid) : 0
   const selectedMachineSource = state.machineInstances.find((instance) => instance.uid === selectedMachineUid) ?? null
+  const factoryPeekMachine = factoryMachinePeek
+    ? state.machineInstances.find((instance) => instance.uid === factoryMachinePeek.uid) ?? null
+    : null
+  const factoryPeekMachines = factoryMachinePeek
+    ? state.machineInstances.filter((instance) => factoryMachinePeek.structureUids.includes(instance.uid))
+    : []
+  const factoryPeekRows = factoryPeekMachine ? factoryMachinePeekRows(state, factoryPeekMachines) : []
   const selectedMachineMultiblock = selectedMachineSource ? multiblockControllerForInstance(state, selectedMachineSource) : null
   const selectedArcStructure = selectedMachineSource?.machineId === 'arcBlastFurnace'
     ? arcBlastFurnaceStructureForInstance(state, selectedMachineSource)
@@ -4728,6 +4921,7 @@ function App() {
   }
 
   const beginFactoryPinchGesture = () => {
+    factoryCellHoldCancelRef.current()
     const pointers = [...factoryPointersRef.current.values()]
     if (pointers.length < 2) return
     const { distance, midpointX, midpointY } = factoryPinchMetrics(pointers.slice(0, 2))
@@ -4744,6 +4938,7 @@ function App() {
 
   const handleFactoryPanPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
+    if (factoryMachinePeek) setFactoryMachinePeek(null)
     const pointer = factoryPointerFromEvent(event)
     factoryPointersRef.current.set(event.pointerId, pointer)
     if (factoryPointersRef.current.size >= 2) {
@@ -4787,6 +4982,7 @@ function App() {
     const dx = event.clientX - gesture.startX
     const dy = event.clientY - gesture.startY
     if (!gesture.dragged && Math.hypot(dx, dy) >= factoryPanThreshold) {
+      factoryCellHoldCancelRef.current()
       gesture.dragged = true
       setFactoryPanActive(true)
       if (!event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId)
@@ -4831,11 +5027,13 @@ function App() {
 
   const handleFactoryWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
     event.preventDefault()
+    setFactoryMachinePeek(null)
     const zoomDelta = event.deltaY > 0 ? -factoryZoomStep : factoryZoomStep
     zoomFactoryAtPoint(event.clientX, event.clientY, factoryViewRef.current.zoom + zoomDelta)
   }
 
   const handleFactoryFitView = () => {
+    setFactoryMachinePeek(null)
     const nextView = factoryFitView()
     commitFactoryView(nextView)
   }
@@ -4928,7 +5126,69 @@ function App() {
     })
   }
 
+  const handleFactoryCellInspect = (instance: MachineInstance, clientX: number, clientY: number) => {
+    const currentInstance = state.machineInstances.find((candidate) => candidate.uid === instance.uid)
+    const viewport = factoryViewportRef.current
+    if (!currentInstance || !viewport) return
+    const controller = controllerForFactoryStructure(currentInstance) ?? currentInstance
+    const bounds = viewport.getBoundingClientRect()
+    const localX = clientX - bounds.left
+    const localY = clientY - bounds.top
+    const structureInstances = state.machineInstances.filter((candidate) => (
+      (controllerForFactoryStructure(candidate) ?? candidate).uid === controller.uid
+    ))
+    const tooltipWidth = Math.min(232, Math.max(1, bounds.width - 16))
+    const tooltipRows = factoryMachinePeekRows(state, structureInstances).length
+    const desiredRowsHeight = Math.min(155, Math.max(31, tooltipRows * 31))
+    const left = Math.max(8, Math.min(bounds.width - tooltipWidth - 8, localX - tooltipWidth / 2))
+    const spaceAbove = localY - 12
+    const spaceBelow = bounds.height - localY - 12
+    const placement: FactoryMachinePeek['placement'] =
+      spaceAbove >= desiredRowsHeight + 62 || spaceAbove >= spaceBelow ? 'above' : 'below'
+    const availableSide = placement === 'above' ? spaceAbove : spaceBelow
+    const rowsMaxHeight = Math.max(24, Math.min(desiredRowsHeight, availableSide - 62))
+    const estimatedHeight = 62 + rowsMaxHeight
+    const top = placement === 'above'
+      ? Math.max(8, localY - estimatedHeight - 12)
+      : Math.max(8, Math.min(bounds.height - estimatedHeight - 8, localY + 12))
+    factoryPointersRef.current.clear()
+    factoryGestureRef.current = null
+    setFactoryPanActive(false)
+    setFactoryMachinePeek({
+      uid: controller.uid,
+      structureUids: structureInstances.map((candidate) => candidate.uid),
+      left,
+      top,
+      arrowLeft: Math.max(12, Math.min(tooltipWidth - 12, localX - left)),
+      rowsMaxHeight,
+      placement,
+    })
+  }
+
+  const handleFactoryPeekScrollStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.stopPropagation()
+    factoryPeekScrollRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startScrollTop: event.currentTarget.scrollTop,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handleFactoryPeekScrollMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = factoryPeekScrollRef.current
+    if (!gesture || gesture.pointerId !== event.pointerId) return
+    event.currentTarget.scrollTop = gesture.startScrollTop + gesture.startY - event.clientY
+  }
+
+  const handleFactoryPeekScrollEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (factoryPeekScrollRef.current?.pointerId !== event.pointerId) return
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    factoryPeekScrollRef.current = null
+  }
+
   factoryCellPressRef.current = handleFactoryCellPress
+  factoryCellInspectRef.current = handleFactoryCellInspect
 
   const handleTogglePipeSide = (uid: string, direction: PipeDirection) => {
     const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
@@ -7991,8 +8251,64 @@ function App() {
                     viewMode={factoryFloorViewMode}
                     placingMachineId={placingMachineId}
                     cellPressRef={factoryCellPressRef}
+                    cellInspectRef={factoryCellInspectRef}
+                    cellHoldCancelRef={factoryCellHoldCancelRef}
                   />
                 </div>
+                {factoryMachinePeek && factoryPeekMachine && (
+                  <aside
+                    className={`factory-machine-peek factory-machine-peek-${factoryMachinePeek.placement}`}
+                    style={{
+                      left: factoryMachinePeek.left,
+                      top: factoryMachinePeek.top,
+                      '--factory-peek-arrow-left': `${factoryMachinePeek.arrowLeft}px`,
+                      '--factory-peek-rows-max-height': `${factoryMachinePeek.rowsMaxHeight}px`,
+                    } as CSSProperties}
+                    role="region"
+                    aria-live="polite"
+                    aria-label={`${machines[factoryPeekMachine.machineId].name} contents`}
+                    onPointerDown={(event) => event.stopPropagation()}
+                  >
+                    <div className="factory-machine-peek-head">
+                      <MachineGlyph id={factoryPeekMachine.machineId} />
+                      <span>
+                        <strong>{machines[factoryPeekMachine.machineId].name}</strong>
+                        <small>{machineStatus(state, factoryPeekMachine)}</small>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Close machine contents"
+                        onClick={() => setFactoryMachinePeek(null)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div
+                      className="factory-machine-peek-rows"
+                      onPointerDown={handleFactoryPeekScrollStart}
+                      onPointerMove={handleFactoryPeekScrollMove}
+                      onPointerUp={handleFactoryPeekScrollEnd}
+                      onPointerCancel={handleFactoryPeekScrollEnd}
+                    >
+                      {factoryPeekRows.length > 0 ? factoryPeekRows.map((row, index) => (
+                        <div className="factory-machine-peek-row" key={`${row.kind}-${row.label}-${index}`}>
+                          <span className={`factory-machine-peek-icon peek-${row.kind}`}>
+                            {row.kind === 'resource' && <PixelIcon id={row.id} />}
+                            {row.kind === 'machine' && <MachineGlyph id={row.id} />}
+                            {row.kind === 'fluid' && <FluidIcon id={row.id} />}
+                            {row.kind === 'steam' && <Droplet size={15} />}
+                            {row.kind === 'eu' && <Zap size={15} />}
+                            {row.kind === 'detail' && <Database size={15} />}
+                          </span>
+                          <span>{row.label}</span>
+                          <strong>{row.value}</strong>
+                        </div>
+                      )) : (
+                        <p className="factory-machine-peek-empty">No stored contents</p>
+                      )}
+                    </div>
+                  </aside>
+                )}
               </div>
             </>
           )}

@@ -4293,6 +4293,155 @@ button.craft-output:disabled {
   will-change: transform;
 }
 
+.factory-machine-peek {
+  background: #101817;
+  border: 2px solid #cabd78;
+  box-sizing: border-box;
+  box-shadow:
+    0 0 0 2px #263432,
+    0 8px 18px rgba(0, 0, 0, 0.58);
+  color: #eef2dd;
+  cursor: default;
+  max-width: calc(100% - 16px);
+  padding: 5px;
+  position: absolute;
+  width: 232px;
+  z-index: 35;
+}
+
+.factory-machine-peek-above::after,
+.factory-machine-peek-below::before {
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  content: '';
+  left: calc(var(--factory-peek-arrow-left, 50%) - 7px);
+  position: absolute;
+}
+
+.factory-machine-peek-above::after {
+  border-top: 7px solid #cabd78;
+  bottom: -8px;
+}
+
+.factory-machine-peek-below::before {
+  border-bottom: 7px solid #cabd78;
+  top: -8px;
+}
+
+.factory-machine-peek-head {
+  align-items: center;
+  border-bottom: 1px solid #52615c;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 30px minmax(0, 1fr) 38px;
+  min-height: 42px;
+  padding: 2px 2px 5px;
+}
+
+.factory-machine-peek-head > .machine-glyph {
+  height: 28px;
+  width: 28px;
+}
+
+.factory-machine-peek-head > span {
+  display: grid;
+  min-width: 0;
+}
+
+.factory-machine-peek-head strong {
+  font-size: 12px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.factory-machine-peek-head small {
+  color: #8fcfc5;
+  font-size: 9px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.factory-machine-peek-head button {
+  align-items: center;
+  background: #2b302d;
+  border: 1px solid #778078;
+  color: #f5f0d3;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  padding: 0;
+  width: 38px;
+}
+
+.factory-machine-peek-rows {
+  display: grid;
+  max-height: var(--factory-peek-rows-max-height, 155px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  touch-action: none;
+}
+
+.factory-machine-peek-row {
+  align-items: center;
+  border-bottom: 1px solid rgba(119, 128, 120, 0.3);
+  display: grid;
+  font-size: 10px;
+  gap: 6px;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  min-height: 31px;
+  padding: 2px;
+}
+
+.factory-machine-peek-row:last-child {
+  border-bottom: 0;
+}
+
+.factory-machine-peek-row > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.factory-machine-peek-row > strong {
+  color: #f1d86e;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.factory-machine-peek-icon {
+  align-items: center;
+  color: #6ed8ef;
+  display: flex;
+  height: 25px;
+  justify-content: center;
+  width: 25px;
+}
+
+.factory-machine-peek-icon .pixel-icon,
+.factory-machine-peek-icon .machine-glyph {
+  height: 23px;
+  width: 23px;
+}
+
+.factory-machine-peek-icon .fluid-icon {
+  height: 18px;
+  width: 18px;
+}
+
+.factory-machine-peek-empty {
+  color: #aeb9b2;
+  font-size: 10px;
+  margin: 0;
+  padding: 12px 6px;
+  text-align: center;
+}
+
 .factory-grid {
   display: grid;
   gap: 4px;
