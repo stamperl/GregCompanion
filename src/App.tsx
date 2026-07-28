@@ -5246,6 +5246,7 @@ function App() {
     }
     if (storedFluids(selectedMachineSource.process).some((fluid) => fluid.amount > 0)) warnings.push('Stored fluid will be discarded.')
     if ((selectedMachine?.process.steamStoredMs ?? selectedMachineSource.process.steamStoredMs) > 0) warnings.push('Stored steam will be vented.')
+    if (selectedMachine?.process.inputsCommitted ?? selectedMachineSource.process.inputsCommitted) warnings.push('The active batch has already consumed its inputs and will be lost.')
     if (selectedMachineSource.surveyCardTarget) warnings.push(`The installed ${gatherTargets[selectedMachineSource.surveyCardTarget].name} Survey Card will be returned to inventory.`)
     if (warnings.length > 0 && !window.confirm(`${warnings.join('\n\n')}\n\nContinue?`)) return
     const uid = selectedMachineSource.uid

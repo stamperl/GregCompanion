@@ -2557,7 +2557,8 @@ describe('game engine', () => {
     state = tickGame(state, 1200, 2200).state
 
     expect(state.machineInstances.find((instance) => instance.uid === hopper.uid)!.process.input).toEqual({ id: 'coal', amount: 1 })
-    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.input).toEqual({ id: 'coal', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.input).toBeNull()
+    expect(state.machineInstances.find((instance) => instance.uid === cokeOven.uid)!.process.activeRecipeId).toBe('coke_coal')
   })
 
   it('requires pestle and mortar as a non-consumed catalyst for dust grinding', () => {
@@ -2940,7 +2941,7 @@ describe('game engine', () => {
     expect(offline.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: processStackLimit })
   })
 
-  it('keeps lit furnace fuel burning even after the recipe becomes invalid', () => {
+  it('keeps a lit furnace craft running after its committed input leaves the visible slot', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1
     state.resources.log = 2
@@ -2958,7 +2959,8 @@ describe('game engine', () => {
     state = tickGame(state, 2500).state
 
     expect(state.machineInstances[0].process.input).toBeNull()
-    expect(state.machineInstances[0].process.activeRecipeId).toBeNull()
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('charcoal_from_log')
+    expect(state.machineInstances[0].process.progressMs).toBe(6500)
     expect(state.machineInstances[0].process.fuelRemainingMs).toBe(3500)
     expect(state.machineInstances[0].process.fuelDurationMs).toBe(10000)
 
@@ -2966,6 +2968,7 @@ describe('game engine', () => {
 
     expect(state.machineInstances[0].process.fuelRemainingMs).toBe(0)
     expect(state.machineInstances[0].process.fuelDurationMs).toBe(0)
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
   })
 
   it('does not light a new furnace fuel item without a valid process recipe', () => {
@@ -4925,7 +4928,110 @@ describe('game engine', () => {
 
     const process = state.machineInstances.find((instance) => instance.uid === wiremill.uid)!.process
     expect(process.progressMs).toBe(0)
+    expect(process.input).toEqual({ id: 'tinIngot', amount: 1 })
+    expect(process.inputsCommitted).toBe(false)
     expect(process.output).toBeNull()
+  })
+
+  it('commits EU machine inputs at startup and resumes the same craft after power returns', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvWiremill = 1
+    state.resources.tinIngot = 1
+    state = placeMachineInstance(state, 'lvWiremill', 0, 0)
+    const wiremill = state.machineInstances[0]
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)
+    state.machineInstances[0].process.euStored = 8
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances[0].process.input).toBeNull()
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('lv_wiremill_tin_wire')
+    expect(state.machineInstances[0].process.inputsCommitted).toBe(true)
+    expect(state.machineInstances[0].process.progressMs).toBe(1000)
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('lv_wiremill_tin_wire')
+    expect(state.machineInstances[0].process.progressMs).toBe(1000)
+    expect(state.machineInstances[0].process.output).toBeNull()
+
+    state.machineInstances[0].process.euStored = 24
+    state = tickGame(state, 3000).state
+
+    expect(state.machineInstances[0].process.activeRecipeId).toBeNull()
+    expect(state.machineInstances[0].process.inputsCommitted).toBe(false)
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'tinWire', amount: 2 })
+  })
+
+  it('preserves committed crafts across saves without consuming their inputs twice', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvWiremill = 1
+    state.resources.tinIngot = 1
+    state = placeMachineInstance(state, 'lvWiremill', 0, 0)
+    const wiremill = state.machineInstances[0]
+    state = insertProcessSlot(state, wiremill.uid, 'input', 'tinIngot', 1)
+    state.machineInstances[0].process.euStored = 8
+    state = tickGame(state, 1000, 2000).state
+
+    const loaded = loadGame(saveGame(state, 2000, true), 2000)
+
+    expect(loaded.machineInstances[0].process.input).toBeNull()
+    expect(loaded.machineInstances[0].process.activeRecipeId).toBe('lv_wiremill_tin_wire')
+    expect(loaded.machineInstances[0].process.inputsCommitted).toBe(true)
+    expect(loaded.resources.tinIngot).toBe(0)
+  })
+
+  it('commits legacy mid-craft inputs once and rejects orphaned committed flags', () => {
+    let state = createFactoryState(1000)
+    state.machines.lvWiremill = 1
+    state.resources.tinIngot = 2
+    state = placeMachineInstance(state, 'lvWiremill', 0, 0)
+    state = insertProcessSlot(state, state.machineInstances[0].uid, 'input', 'tinIngot', 2)
+    state.machineInstances[0].process.activeRecipeId = 'lv_wiremill_tin_wire'
+    state.machineInstances[0].process.progressMs = 1000
+    state.machineInstances[0].process.durationMs = 4000
+    state.machineInstances[0].process.euStored = 8
+
+    state = loadGame(saveGame(state, 1000, true), 1000)
+    expect(state.machineInstances[0].process.inputsCommitted).toBe(false)
+
+    state = tickGame(state, 1000, 2000).state
+    expect(state.machineInstances[0].process.input).toEqual({ id: 'tinIngot', amount: 1 })
+    expect(state.machineInstances[0].process.inputsCommitted).toBe(true)
+
+    state.machineInstances[0].process.activeRecipeId = null
+    state.machineInstances[0].process.inputsCommitted = true
+    const normalized = loadGame(saveGame(state, 2000, true), 2000)
+    expect(normalized.machineInstances[0].process.inputsCommitted).toBe(false)
+  })
+
+  it('continues a committed craft after its reusable tooling is removed', () => {
+    let state = createFactoryState(1000)
+    state.machines.mvExtruder = 1
+    state.resources.ironIngot = 4
+    state.resources.extrusionMoldGear = 1
+    state = placeMachineInstance(state, 'mvExtruder', 0, 0)
+    const extruder = state.machineInstances[0]
+    state = insertProcessSlot(state, extruder.uid, 'input', 'ironIngot', 4)
+    state = insertProcessSlot(state, extruder.uid, 'secondaryInput', 'extrusionMoldGear', 1)
+    state.machineInstances[0].process.euStored = 64
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances[0].process.input).toBeNull()
+    expect(state.machineInstances[0].process.secondaryInput).toEqual({ id: 'extrusionMoldGear', amount: 1 })
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('mv_extrude_iron_gear')
+
+    state = removeProcessSlot(state, extruder.uid, 'secondaryInput')
+
+    expect(state.machineInstances[0].process.secondaryInput).toBeNull()
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('mv_extrude_iron_gear')
+    expect(state.resources.extrusionMoldGear).toBe(1)
+
+    state.machineInstances[0].process.euStored = 1024
+    state = tickGame(state, 12000).state
+
+    expect(state.machineInstances[0].process.output).toEqual({ id: 'ironGear', amount: 1 })
   })
 
   it('runs an LV Wiremill through tin cable and applies per-tile power loss', () => {
@@ -5490,6 +5596,23 @@ describe('game engine', () => {
     const chargedStructure = arcBlastFurnaceStructureForInstance(state, state.machineInstances.find((instance) => instance.uid === arc.uid)!)!
     expect(chargedStructure.energyHatches.reduce((sum, hatch) => sum + hatch.process.euStored, 0)).toBeGreaterThan(0)
     expect(chargedStructure.controller.process.activeRecipeId).toBe('arc_blast_aluminium')
+    expect(chargedStructure.controller.process.inputsCommitted).toBe(true)
+    expect(chargedStructure.inputBus?.process.input).toBeNull()
+
+    const pausedProgress = chargedStructure.controller.process.progressMs
+    state = setPipeSideMode(state, buffer.uid, 'east', 'blocked')
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 0
+    for (const hatch of chargedStructure.energyHatches) {
+      state.machineInstances.find((instance) => instance.uid === hatch.uid)!.process.euStored = 0
+    }
+    state = tickGame(state, 2000).state
+
+    const pausedStructure = arcBlastFurnaceStructureForInstance(state, state.machineInstances.find((instance) => instance.uid === arc.uid)!)!
+    expect(pausedStructure.controller.process.activeRecipeId).toBe('arc_blast_aluminium')
+    expect(pausedStructure.controller.process.progressMs).toBe(pausedProgress)
+
+    state = setBatteryBufferOutputDirection(state, buffer.uid, 'east')
+    state.machineInstances.find((instance) => instance.uid === buffer.uid)!.process.euStored = 8192
 
     for (let step = 0; step < 30; step += 1) state = tickGame(state, 1000).state
 
@@ -6831,6 +6954,39 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.fluids.air).toBe(8)
     expect(state.machineInstances[0].process.fluids.oxygen ?? 0).toBe(0)
     expect(state.machineInstances[0].process.fluids.nitrogen ?? 0).toBe(0)
+  })
+
+  it('commits fluid inputs when an EU recipe starts and pauses without losing the craft', () => {
+    let state = createFactoryState()
+    state.machines.lvCentrifuge = 1
+    state = placeMachineInstance(state, 'lvCentrifuge', 0, 0)
+    state.machineInstances[0].process.fluids.air = 8
+    state.machineInstances[0].process.euStored = 12
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances[0].process.fluids.air ?? 0).toBe(0)
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('lv_centrifuge_air')
+    expect(state.machineInstances[0].process.inputsCommitted).toBe(true)
+    expect(state.machineInstances[0].process.progressMs).toBe(1000)
+
+    state = tickGame(state, 5000).state
+
+    expect(state.machineInstances[0].process.activeRecipeId).toBe('lv_centrifuge_air')
+    expect(state.machineInstances[0].process.progressMs).toBe(1000)
+    expect(state.machineInstances[0].process.fluids.oxygen ?? 0).toBe(0)
+    expect(state.machineInstances[0].process.fluids.nitrogen ?? 0).toBe(0)
+
+    for (let index = 0; index < 4; index += 1) {
+      state.machineInstances[0].process.euStored = 120
+      state = tickGame(state, 10000).state
+    }
+    state.machineInstances[0].process.euStored = 48
+    state = tickGame(state, 4000).state
+
+    expect(state.machineInstances[0].process.activeRecipeId).toBeNull()
+    expect(state.machineInstances[0].process.fluids.oxygen).toBe(2)
+    expect(state.machineInstances[0].process.fluids.nitrogen).toBe(4)
   })
 
   it('releases one 16L Air batch only after the full powered 80-second cycle', () => {

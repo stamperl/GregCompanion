@@ -955,6 +955,7 @@ export type MachineProcessState = {
   storageSlots: ProcessSlot[]
   batterySlots: Array<ResourceId | null>
   activeRecipeId: string | null
+  inputsCommitted?: boolean
   configuredProgramNumber: number
   configuredRecipeId?: string | null
   progressMs: number
