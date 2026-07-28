@@ -14804,21 +14804,21 @@ button.button-primary:disabled,
   display: flex;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   justify-content: space-between;
-  min-height: 34px;
+  min-height: 28px;
   min-width: 0;
-  padding: 4px 7px;
+  padding: 2px 6px;
   white-space: nowrap;
 }
 
 .terminal-inventory-controls button span {
   color: var(--muted);
-  font-size: 0.52rem;
+  font-size: 0.46rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .terminal-inventory-controls button strong {
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }

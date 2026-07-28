@@ -73,7 +73,6 @@ import {
   isLiquidSteamBoilerMachine,
   isPlaceableMachine,
   isProgrammableProcessMachine,
-  isResourceBackedMachine,
   isSteamNetworkMachine,
   isSteamPipeMachine,
   isSteamPoweredMachine,
@@ -623,7 +622,6 @@ const noProcessStorageShelfMachineIds = new Set<MachineId>([
 
 const fabricationFaceMachineIdSet = new Set<MachineId>(fabricationFaceMachineIds)
 const placeableFactoryMachineOrder = machineOrder.filter((id) => isPlaceableMachine(id) || id === 'jobInterface')
-const inventoryMachineOrder = machineOrder.filter((id) => !isResourceBackedMachine(id) && id !== 'conductorBundle')
 
 function fluidLabel(fluidId: FluidId) {
   return fluidLabels[fluidId]
@@ -3907,7 +3905,6 @@ function App() {
   const selectedQuest = useMemo(() => guideQuests.find((quest) => quest.id === selectedQuestId) ?? null, [guideQuests, selectedQuestId])
   const claimableQuestRewardCount = guideQuests.filter((quest) => state.completedQuests.includes(quest.id) && !state.claimedQuests.includes(quest.id)).length
   const terminalMatch = findGridRecipe(terminalGrid, unlockedRecipes)
-  const totalMachines = inventoryMachineOrder.reduce((sum, id) => sum + state.machines[id], 0)
   const processRecipeCards = useMemo(
     () =>
       processRecipesInMachineTierOrder(processRecipes, machines).map(
@@ -7397,35 +7394,6 @@ function App() {
           </div>
 
           {terminalNotice && <p className="recipe-notice">{terminalNotice}</p>}
-
-          <details className="machine-drawer">
-            <summary>
-              <Factory size={16} />
-              Machines x{totalMachines}
-            </summary>
-            <div className="machine-list compact-machines">
-              {inventoryMachineOrder.map((id) => {
-                const machine = machines[id]
-                const count = state.machines[id]
-                const progress = machine.intervalMs ? ((state.machineProgress[id] ?? 0) / machine.intervalMs) * 100 : 0
-
-                return (
-                  <article className={count > 0 ? 'machine-card online' : 'machine-card'} key={id}>
-                    <div>
-                      <h3>{machine.name}</h3>
-                      <p>{machine.description}</p>
-                    </div>
-                    <strong>x{count}</strong>
-                    {machine.intervalMs && count > 0 && (
-                      <div className="progress-track">
-                        <span style={{ width: `${progress}%` }} />
-                      </div>
-                    )}
-                  </article>
-                )
-              })}
-            </div>
-          </details>
 
           {isRecipeModalOpen && (
             <div className="modal-backdrop recipe-backdrop" role="presentation" onClick={() => setIsRecipeModalOpen(false)}>
