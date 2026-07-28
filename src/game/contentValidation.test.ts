@@ -24,7 +24,7 @@ import {
   tools,
 } from './content'
 import { questKind } from './engine'
-import type { FluidAmount, MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount, ResourceId } from './types'
+import type { FluidAmount, MachineAmount, MachineId, ProcessRecipe, QuestObjective, Recipe, ResourceAmount, ResourceId } from './types'
 
 const appCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../App.css'), 'utf8')
 const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../public')
@@ -116,6 +116,32 @@ function expectQuestObjectiveReferences(objective: QuestObjective, context: stri
     }
     expect(objective.amount, `${context} recipe amount should be positive`).toBeGreaterThan(0)
   }
+}
+
+function processRecipeInputSignature(recipe: ProcessRecipe) {
+  const amountKey = (amount: ResourceAmount | undefined) => amount ? `${amount.id}:${amount.amount}` : '-'
+  const aggregateAmounts = (amounts: ResourceAmount[]) => {
+    const totals = new Map<ResourceId, number>()
+    for (const amount of amounts) totals.set(amount.id, (totals.get(amount.id) ?? 0) + amount.amount)
+    return [...totals.entries()]
+      .sort(([first], [second]) => first.localeCompare(second))
+      .map(([id, amount]) => `${id}:${amount}`)
+  }
+
+  const inputs = recipe.fluidOnly
+    ? ['fluid-only']
+    : recipe.machineId === 'lvAssembler' ||
+        recipe.machineId === 'mvAssembler' ||
+        recipe.machineId === 'lvMixer' ||
+        recipe.machineId === 'mvMixer'
+      ? aggregateAmounts([recipe.input, recipe.secondaryInput, ...(recipe.extraInputs ?? [])].filter((amount): amount is ResourceAmount => Boolean(amount)))
+      : recipe.extraInputs?.length
+        ? [amountKey(recipe.input), amountKey(recipe.secondaryInput), ...recipe.extraInputs.map(amountKey)]
+        : recipe.machineId === 'mvExtruder'
+          ? [amountKey(recipe.input), amountKey(recipe.secondaryInput)]
+          : [amountKey(recipe.input), amountKey(recipe.secondaryInput)].sort()
+
+  return JSON.stringify([recipe.machineId, amountKey(recipe.fuelInput), inputs])
 }
 
 describe('content validation', () => {
@@ -419,6 +445,26 @@ describe('content validation', () => {
         expect(questKind(prerequisite), `${quest.id} should not depend on optional ${prerequisiteId}`).not.toBe('optional')
       }
     }
+  })
+
+  it('keeps machine recipe inputs unambiguous in every selectable program', () => {
+    const selectableSignatures = new Map<string, string[]>()
+    for (const recipe of processRecipes) {
+      const modes = [
+        ...(recipe.autoSelectable !== false ? ['auto'] : []),
+        ...(recipe.programNumber !== undefined ? [`program:${recipe.programNumber}`] : []),
+      ]
+      for (const mode of modes) {
+        const signature = `${mode}:${processRecipeInputSignature(recipe)}`
+        selectableSignatures.set(signature, [...(selectableSignatures.get(signature) ?? []), recipe.id])
+      }
+    }
+
+    const collisions = [...selectableSignatures.entries()]
+      .filter(([, recipeIds]) => recipeIds.length > 1)
+      .map(([signature, recipeIds]) => ({ signature, recipeIds }))
+
+    expect(collisions, 'machine recipes with identical inputs must use different programs or fuel').toEqual([])
   })
 
   it('assigns every quest to one ordered folder line', () => {
