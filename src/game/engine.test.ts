@@ -2918,10 +2918,6 @@ describe('game engine', () => {
     expect(state.machineInstances[0].process.output).toEqual({ id: 'charcoal', amount: 1 })
   })
 
-  it('does not expose obsolete Stone recipes after Stone was folded into Cobblestone', () => {
-    expect(processRecipes.some((recipe) => recipe.output?.id === 'stone' && recipe.output.amount > 0)).toBe(false)
-  })
-
   it('continues furnace processing during offline progress and respects full outputs', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 1
@@ -4590,6 +4586,22 @@ describe('game engine', () => {
     expect(charcoalRecipe.durationMs).toBe(80000)
     expect(coalRecipe.durationMs).toBe(70000)
     expect(coalCokeRecipe.durationMs).toBe(50000)
+  })
+
+  it('fires cobblestone into stone in every furnace tier', () => {
+    const routes = [
+      ['stone_from_cobblestone', 'furnace'],
+      ['steam_furnace_stone', 'steamFurnace'],
+      ['lv_furnace_stone', 'lvFurnace'],
+      ['mv_inherited_lv_furnace_stone', 'mvFurnace'],
+    ] as const
+
+    routes.forEach(([recipeId, machineId]) => {
+      const recipe = processRecipes.find((candidate) => candidate.id === recipeId)
+      expect(recipe?.machineId).toBe(machineId)
+      expect(recipe?.input).toEqual({ id: 'cobblestone', amount: 1 })
+      expect(recipe?.output).toEqual({ id: 'stone', amount: 1 })
+    })
   })
 
   it('makes steel plates from steel ingots with hammer recipes', () => {
