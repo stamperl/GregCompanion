@@ -78,6 +78,20 @@ function loosePipeCapPoints(connections?: PipeConnections) {
   ]
 }
 
+function euCableAmperage(id: MachineId) {
+  if (id === 'tinCable8A' || id === 'aluminiumCable8A') return 8
+  if (id === 'tinCable4A' || id === 'aluminiumCable4A') return 4
+  if (id === 'tinCable2A' || id === 'aluminiumCable2A') return 2
+  return 1
+}
+
+function euCableAmpPipPositions(amperage: number) {
+  if (amperage === 8) return [13, 17, 21, 25]
+  if (amperage === 4) return [15, 19, 23]
+  if (amperage === 2) return [17, 21]
+  return [19]
+}
+
 export function MachineGlyph({ id, active = false, pipeConnections, fabricationLane = false }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections; fabricationLane?: boolean }) {
   const [failed, setFailed] = useState(false)
   const isCodeNativeBus = id === 'terminalImportBus' || id === 'terminalExportBus'
@@ -115,6 +129,8 @@ export function MachineGlyph({ id, active = false, pipeConnections, fabricationL
   if (isEuCableMachine(id) && pipeConnections) {
     const path = pipePath(pipeConnections)
     const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]
+    const cableAmperage = euCableAmperage(id)
+    const ampPipPositions = euCableAmpPipPositions(cableAmperage)
     return (
       <span className={className} aria-hidden="true">
         <svg className="eu-cable-svg" viewBox="0 0 40 40" shapeRendering="crispEdges" focusable="false">
@@ -126,7 +142,9 @@ export function MachineGlyph({ id, active = false, pipeConnections, fabricationL
           <rect className="eu-cable-hub-shadow" x="12" y="13" width="17" height="17" />
           <rect className="eu-cable-hub-frame" x="12" y="12" width="16" height="16" />
           <rect className="eu-cable-hub-face" x="15" y="15" width="10" height="10" />
-          <rect className="eu-cable-hub-core" x="17" y="17" width="6" height="6" />
+          <rect className="eu-cable-hub-core" x="16" y="16" width="8" height="8" />
+          <text className="eu-cable-amp-mark" x="20" y="23">{cableAmperage}</text>
+          {ampPipPositions.map((x) => <rect className="eu-cable-amp-pip" key={x} x={x} y="29" width="3" height="2" />)}
           <rect className="eu-cable-rivet" x="13" y="13" width="2" height="2" />
           <rect className="eu-cable-rivet" x="25" y="13" width="2" height="2" />
           <rect className="eu-cable-rivet" x="13" y="25" width="2" height="2" />

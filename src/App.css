@@ -21660,6 +21660,21 @@ button.button-primary:disabled,
   fill: var(--eu-cable-core);
 }
 
+.eu-cable-amp-mark {
+  fill: var(--eu-cable-outline);
+  font-family: "Silkscreen", monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-anchor: middle;
+}
+
+.eu-cable-amp-pip {
+  fill: var(--eu-cable-core);
+  stroke: var(--eu-cable-outline);
+  stroke-width: 0.5;
+}
+
 .eu-cable-rivet {
   fill: var(--eu-cable-band);
   opacity: 0.8;
