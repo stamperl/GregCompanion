@@ -5,6 +5,7 @@ import {
   fuelDefinitions,
   gatherTargets,
   isEuCableMachine,
+  isItemConductorMachine,
   isResourceBackedMachine,
   isTankStorageMachine,
   machines,
@@ -1563,10 +1564,8 @@ describe('game engine', () => {
     const solidifier = machineAt(15, 14)
     const recoveryDistillery = machineAt(17, 12)
     const byproductMixer = machineAt(19, 12)
-    const superTank = machineAt(18, 16)
+    const superTank = machineAt(15, 16)
     const airCollector = machineAt(16, 12)
-    const itemFeedConductor = machineAt(22, 13)
-    const extractorConductor = machineAt(21, 13)
 
     expect(farm.machineId).toBe('poweredFarm')
     expect(multiblockControllerForInstance(state, farm)).not.toBeNull()
@@ -1583,8 +1582,8 @@ describe('game engine', () => {
     expect(byproductMixer.process.configuredProgramNumber).toBe(4)
     expect(superTank.machineId).toBe('lvSuperTank')
     expect(airCollector.machineId).toBe('lvAirCollector')
-    expect(conductorFaceSettings(itemFeedConductor, 'item', 'south')).toMatchObject({ mode: 'input', channel: 2 })
-    expect(conductorFaceSettings(extractorConductor, 'item', 'south')).toMatchObject({ mode: 'output', channel: 2 })
+    expect(farm.itemOutputDirection).toBe('west')
+    expect(state.machineInstances.filter((instance) => instance.y === 13 && instance.x >= 15 && isItemConductorMachine(instance.machineId))).toHaveLength(0)
     expect(availableConnectedEu(state, extractor)).toBeGreaterThan(0)
     expect(availableConnectedEu(state, recoveryDistillery)).toBeGreaterThan(0)
     expect(availableConnectedEu(state, airCollector)).toBeGreaterThan(0)

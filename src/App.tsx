@@ -6148,9 +6148,11 @@ function App() {
           && savedCreativeFactory.recipeCards.some((card) => card.recipeId === 'craft_mv_pump')
           && savedCreativeFactory.recipeCards.filter((card) => card.kind === 'processing' && card.installedInUid).length >= 11
           && [
+            ['lvSuperTank', 15, 16],
             ['lvAirCollector', 16, 12],
             ['lvDistillery', 17, 12],
             ['lvMixer', 19, 12],
+            ['lvWaterSource', 23, 12],
             ['lvFluidSolidifier', 15, 14],
             ['lvChemicalReactor', 16, 14],
             ['lvChemicalReactor', 17, 14],
@@ -6159,7 +6161,6 @@ function App() {
             ['lvMixer', 20, 14],
             ['lvExtractor', 21, 14],
             ['poweredFarm', 22, 14],
-            ['lvSuperTank', 18, 16],
           ].every(([machineId, x, y]) =>
             savedCreativeFactory.machineInstances.some((instance) =>
               instance.machineId === machineId && instance.x === x && instance.y === y))
