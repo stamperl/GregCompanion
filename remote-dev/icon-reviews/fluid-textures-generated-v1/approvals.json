@@ -23,6 +23,7 @@
     { "id": "vinasse", "kind": "fluid", "status": "approved" },
     { "id": "ethylene", "kind": "fluid", "status": "approved" },
     { "id": "liquidPolyethylene", "kind": "fluid", "status": "approved" },
-    { "id": "fertilizerLiquor", "kind": "fluid", "status": "approved" }
+    { "id": "fertilizerLiquor", "kind": "fluid", "status": "approved" },
+    { "id": "steam", "kind": "stored-medium", "status": "approved" }
   ]
 }
