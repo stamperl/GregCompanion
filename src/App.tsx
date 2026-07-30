@@ -606,6 +606,7 @@ const isCentrifugeUiMachine = (machineId: MachineId) => machineId === 'lvCentrif
 const isChemicalReactorUiMachine = (machineId: MachineId) => machineId === 'lvChemicalReactor' || machineId === 'mvChemicalReactor'
 const isAirCollectorUiMachine = (machineId: MachineId) => machineId === 'lvAirCollector' || machineId === 'mvAirCollector'
 const isDistilleryUiMachine = (machineId: MachineId) => machineId === 'lvDistillery' || machineId === 'mvDistillery'
+const isExtractorUiMachine = (machineId: MachineId) => machineId === 'lvExtractor' || machineId === 'mvExtractor'
 
 const fluidFirstTerminalMachineIds = new Set<MachineId>([
   'lvWaterSource',
@@ -10031,6 +10032,7 @@ function App() {
                     const isCentrifuge = isCentrifugeUiMachine(selectedMachine.machineId)
                     const isMixer = isMixerUiMachine(selectedMachine.machineId)
                     const isDistillery = isDistilleryUiMachine(selectedMachine.machineId)
+                    const isExtractor = isExtractorUiMachine(selectedMachine.machineId)
                     const isFluidSolidifier = selectedMachine.machineId === 'lvFluidSolidifier'
                     const isAirCollector = isAirCollectorUiMachine(selectedMachine.machineId)
                     const isPoweredWaterSource = selectedMachine.machineId === 'lvWaterSource'
@@ -10038,9 +10040,10 @@ function App() {
                     const isPyrolysisOven = selectedMachine.machineId === 'pyrolysisOven'
                     const isCombustionGenerator = machines[selectedMachine.machineId].processKind === 'combustionGenerator'
                     const usesUniversalFluidInputs = isDistillery || isPoweredFarm || isCombustionGenerator || isFluidSolidifier
-                    const usesUniversalFluidOutputs = isDistillery || isAirCollector || isPoweredWaterSource || isPyrolysisOven
+                    const usesUniversalFluidOutputs = isDistillery || isExtractor || isAirCollector || isPoweredWaterSource || isPyrolysisOven
                     const usesUniversalInputBank = usesUniversalFluidInputs || isAirCollector || isPoweredWaterSource
                     const usesUniversalOutputBank = usesUniversalFluidOutputs || isCombustionGenerator
+                    const hasUniversalItemOutput = isExtractor || isPyrolysisOven
                     const universalExpectedInputs = usesUniversalFluidInputs && selectedMachineRecipe
                       ? selectedMachineRecipe.fluidInputs ?? (selectedMachineRecipe.fluidInput ? [selectedMachineRecipe.fluidInput] : [])
                       : []
@@ -10071,7 +10074,7 @@ function App() {
                           return { buffer, fluidId, amount: fluidId ? process.fluids[fluidId] ?? 0 : 0 }
                         })
                       : []
-                    const universalOutputCount = universalFluidOutputChannels.length + (isPyrolysisOven ? 1 : 0)
+                    const universalOutputCount = universalFluidOutputChannels.length + (hasUniversalItemOutput ? 1 : 0)
                     const mixerFluidInputBuffers = isMixer
                       ? selectedMachineFluidBuffers.filter((buffer) => buffer.access === 'input' || buffer.access === 'both').slice(0, 2)
                       : []
@@ -10401,14 +10404,14 @@ function App() {
                           <span>Output</span>
                           {usesUniversalOutputBank ? (
                             <div className={universalOutputCount > 1 ? 'machine-universal-output-bank' : 'machine-fluid-slot-bank'}>
-                              {isPyrolysisOven && (
+                              {hasUniversalItemOutput && (
                                 <ProcessItemSlot slot={process.output} label="Output 1" onClick={() => handleProcessSlotPress('output')} />
                               )}
                               {universalFluidOutputChannels.map(({ buffer, fluidId, amount }, index) => (
                                 <ProcessFluidSlot
                                   fluidId={fluidId}
                                   amount={amount}
-                                  label={`Output ${index + (isPyrolysisOven ? 2 : 1)}`}
+                                  label={`Output ${index + (hasUniversalItemOutput ? 2 : 1)}`}
                                   ready={canUseFluidPort(buffer, 'output')}
                                   onClick={() => handleFluidPortPress(buffer, 'output')}
                                   key={buffer.id}
