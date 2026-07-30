@@ -21490,7 +21490,7 @@ button.button-primary:disabled,
 
 .machine-terminal .mixer-console-body {
   display: grid;
-  grid-template-columns: minmax(158px, 1fr) 66px 64px;
+  grid-template-columns: minmax(158px, 1fr) 74px 64px;
   grid-template-areas: "inputs outputs power";
   gap: 8px;
 }
@@ -21501,6 +21501,7 @@ button.button-primary:disabled,
 
 .machine-terminal .mixer-console-outputs {
   grid-area: outputs;
+  padding-inline: 8px;
 }
 
 .machine-terminal .mixer-console-power {
@@ -22038,7 +22039,7 @@ button.button-primary:disabled,
   }
 
   .machine-terminal .mixer-console-body {
-    grid-template-columns: minmax(148px, 1fr) 54px 58px;
+    grid-template-columns: minmax(140px, 1fr) 68px 58px;
     gap: 5px;
   }
 
