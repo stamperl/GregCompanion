@@ -1574,6 +1574,33 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'reachGateCasing', x: 0, y: 15 },
   { id: 'reachGateCasing', x: 1, y: 15 },
   { id: 'mvBatteryBuffer8A', x: 0, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 5, y: 15 },
+  { id: 'tinCable8A', x: 6, y: 15 },
+  { id: 'tinCable8A', x: 7, y: 15 },
+  { id: 'tinCable8A', x: 8, y: 15 },
+  { id: 'tinCable8A', x: 9, y: 15 },
+  { id: 'tinCable8A', x: 10, y: 15 },
+  { id: 'tinCable8A', x: 11, y: 15 },
+  { id: 'tinCable8A', x: 12, y: 15 },
+  { id: 'tinCable8A', x: 13, y: 15 },
+  { id: 'tinCable8A', x: 14, y: 15 },
+  { id: 'lvExtractor', x: 6, y: 16 },
+  { id: 'lvMixer', x: 7, y: 16 },
+  { id: 'lvChemicalReactor', x: 8, y: 16 },
+  { id: 'lvDistillery', x: 9, y: 16 },
+  { id: 'lvChemicalReactor', x: 10, y: 16 },
+  { id: 'lvDistillery', x: 11, y: 16 },
+  { id: 'lvChemicalReactor', x: 12, y: 16 },
+  { id: 'lvFluidSolidifier', x: 13, y: 16 },
+  { id: 'lvMixer', x: 14, y: 16 },
+  { id: 'lvSuperTank', x: 15, y: 16 },
+  { id: 'lvBatteryBuffer4A', x: 18, y: 14 },
+  { id: 'tinCable4A', x: 19, y: 14 },
+  { id: 'lvWaterSource', x: 20, y: 13 },
+  { id: 'poweredFarmPart', x: 20, y: 14 },
+  { id: 'poweredFarmPart', x: 21, y: 14 },
+  { id: 'poweredFarmPart', x: 20, y: 15 },
+  { id: 'poweredFarmPart', x: 21, y: 15 },
   { id: 'aluminiumCable8A', x: 0, y: 17 },
   { id: 'aluminiumCable8A', x: 1, y: 17 },
   { id: 'aluminiumCable8A', x: 2, y: 17 },
@@ -1700,6 +1727,8 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
   }
   const waterSource = machineAtPosition(state, 2, 11)
   if (waterSource?.machineId === 'lvWaterSource') state = setFluidOutputDirection(state, waterSource.uid, 'west')
+  const polymerWaterSource = machineAtPosition(state, 20, 13)
+  if (polymerWaterSource?.machineId === 'lvWaterSource') state = setFluidOutputDirection(state, polymerWaterSource.uid, 'south')
   const pyrolysisOven = machineAtPosition(state, 3, 11)
   if (pyrolysisOven?.machineId === 'pyrolysisOven') {
     state = setFluidOutputDirection(state, pyrolysisOven.uid, 'east')
@@ -1715,6 +1744,7 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
   const batteryBuffers = state.machineInstances.filter((instance) => isEuStorageMachine(instance.machineId))
   for (const buffer of batteryBuffers) {
     const creativeOutput = buffer.x === 0 && buffer.y === 16 ? 'south'
+      : buffer.x === 5 && buffer.y === 15 ? 'east'
       : buffer.y === 19 ? 'east'
       : buffer.y === 2 ? 'south'
       : buffer.x === 5 && buffer.y === 6 ? 'east'
@@ -1722,6 +1752,7 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
       : buffer.x === 9 && buffer.y === 7 ? 'west'
       : buffer.x === 23 && buffer.y === 7 ? 'west'
       : buffer.x === 10 && buffer.y === 11 ? 'east'
+      : buffer.x === 18 && buffer.y === 14 ? 'east'
       : 'north'
     state = setBatteryBufferOutputDirection(state, buffer.uid, creativeOutput)
     for (let index = 0; index < batteryBufferSlots(buffer.machineId); index += 1) {
@@ -1886,13 +1917,67 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
       instance.process.secondaryInput = { id: 'extrusionMoldGear', amount: 1 }
     }
     if (instance.machineId === 'poweredFarm') {
-      instance.process.configuredProgramNumber = 1
-      instance.process.fluids.water = 96
+      const isPolymerFarm = instance.x === 20 && instance.y === 14
+      instance.process.configuredProgramNumber = isPolymerFarm ? 3 : 1
+      instance.process.fluids.water = Math.min(instance.process.fluidCapacityLitres, isPolymerFarm ? 400 : 96)
     }
     if (instance.machineId === 'pyrolysisOven') instance.process.input = { id: 'log', amount: 8 }
     if (instance.machineId === 'lvDistillery') {
       instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
       instance.process.fluids.woodTar = 8
+    }
+    if (instance.x === 6 && instance.y === 16 && instance.machineId === 'lvExtractor') {
+      instance.process.input = { id: 'sugarCane', amount: 24 }
+    }
+    if (instance.x === 7 && instance.y === 16 && instance.machineId === 'lvMixer') {
+      instance.process.configuredProgramNumber = 1
+      instance.process.input = null
+      instance.process.secondaryInput = null
+      instance.process.fluids = normalizeFluidStore({ caneJuice: 48, water: 24 })
+    }
+    if (instance.x === 8 && instance.y === 16 && instance.machineId === 'lvChemicalReactor') {
+      instance.process.configuredProgramNumber = 3
+      instance.process.input = null
+      instance.process.secondaryInput = null
+      instance.process.fluids = normalizeFluidStore({ sugarWash: 60 })
+    }
+    if (instance.x === 9 && instance.y === 16 && instance.machineId === 'lvDistillery') {
+      instance.process.configuredProgramNumber = 2
+      instance.process.fluids = normalizeFluidStore({ fermentedWash: 48 })
+    }
+    if (instance.x === 10 && instance.y === 16 && instance.machineId === 'lvChemicalReactor') {
+      instance.process.configuredProgramNumber = 5
+      instance.process.input = null
+      instance.process.secondaryInput = null
+      instance.process.fluids = normalizeFluidStore({ ethanol: 24, sulfuricAcid: 4 })
+    }
+    if (instance.x === 11 && instance.y === 16 && instance.machineId === 'lvDistillery') {
+      instance.process.configuredProgramNumber = 3
+      instance.process.fluids = normalizeFluidStore({ dilutedSulfuricAcid: 8 })
+    }
+    if (instance.x === 12 && instance.y === 16 && instance.machineId === 'lvChemicalReactor') {
+      instance.process.configuredProgramNumber = 6
+      instance.process.input = null
+      instance.process.secondaryInput = null
+      instance.process.fluids = normalizeFluidStore({ ethylene: 18, air: 8 })
+    }
+    if (instance.x === 13 && instance.y === 16 && instance.machineId === 'lvFluidSolidifier') {
+      instance.process.configuredProgramNumber = 1
+      instance.process.input = { id: 'plateMold', amount: 1 }
+      instance.process.fluids = normalizeFluidStore({ liquidPolyethylene: 16 })
+    }
+    if (instance.x === 14 && instance.y === 16 && instance.machineId === 'lvMixer') {
+      instance.process.configuredProgramNumber = 4
+      instance.process.input = null
+      instance.process.secondaryInput = null
+      instance.process.fluids = normalizeFluidStore({ vinasse: 24, carbonDioxide: 12 })
+    }
+    if (instance.x === 15 && instance.y === 16 && instance.machineId === 'lvSuperTank') {
+      instance.process.steamStoredMs = 0
+      instance.process.fluids = normalizeFluidStore()
+    }
+    if (instance.x === 20 && instance.y === 13 && instance.machineId === 'lvWaterSource') {
+      instance.process.fluids.water = Math.min(instance.process.fluidCapacityLitres, 128)
     }
     if (instance.x === 4 && instance.y === 13 && isTankStorageMachine(instance.machineId)) {
       instance.process.steamStoredMs = 0
@@ -3461,10 +3546,22 @@ function addRecipeItemOutputs(process: MachineProcessState, recipe: ProcessRecip
 }
 
 function canFluidOutputAccept(state: GameState, instance: MachineInstance, recipe: ProcessRecipe) {
-  return recipeFluidOutputs(recipe).every((output) => {
-    const configuredCapacity = fluidCapacityForFluid(state, instance, output.id, 'output')
-    const capacity = configuredCapacity > 0 ? configuredCapacity : instance.process.fluidCapacityLitres
-    return (instance.process.fluids[output.id] ?? 0) + output.amount <= capacity
+  const totals = recipeFluidOutputs(recipe).reduce((combined, output) => {
+    combined.set(output.id, (combined.get(output.id) ?? 0) + output.amount)
+    return combined
+  }, new Map<FluidId, number>())
+  const buffers = machineFluidBuffersForInstance(state, instance)
+  return [...totals].every(([fluidId, amount]) => {
+    const declaredOutput = recipeFluidOutputs(recipe).find((output) => output.id === fluidId)
+    const configuredBuffer = declaredOutput?.bufferId
+      ? buffers.find((buffer) => (
+        buffer.id === declaredOutput.bufferId &&
+        (buffer.access === 'output' || buffer.access === 'both') &&
+        buffer.acceptedFluids.includes(fluidId)
+      ))
+      : compatibleFluidBuffer(state, instance, fluidId, 'output')
+    const capacity = configuredBuffer?.capacityLitres ?? instance.process.fluidCapacityLitres
+    return (instance.process.fluids[fluidId] ?? 0) + amount <= capacity
   })
 }
 
@@ -3980,6 +4077,7 @@ function steamTankStructureAtOrigin(
 
 export function steamTankStructureForInstance(state: GameState, instance: MachineInstance) {
   if (!isTankStorageMachine(instance.machineId)) return null
+  if (instance.machineId === 'lvSuperTank') return null
 
   if (instance.level > 1) {
     const spec = steamTankStructureSpecForLevel(instance.level)
@@ -4036,6 +4134,7 @@ function canAbsorbSteamTankStructures(state: GameState, positions: Array<{ x: nu
 
 function tryFormSteamTankStructure(state: GameState, placed: MachineInstance) {
   if (!isTankStorageMachine(placed.machineId)) return false
+  if (placed.machineId === 'lvSuperTank') return false
 
   for (const spec of steamTankStructureSpecs) {
     const area = spec.width * spec.height
@@ -5916,6 +6015,13 @@ export function autoMinerAssignmentCounts(state: GameState, targetId: GatherTarg
 export function removeMachineInstance(state: GameState, uid: string) {
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance) return state
+  if (
+    instance.machineId === 'lvSuperTank' &&
+    (
+      instance.process.steamStoredMs > 0 ||
+      Object.values(instance.process.fluids).some((amount) => (amount ?? 0) > 0)
+    )
+  ) return state
   const planningRack = planningRackStructureForPart(state, instance)
   if (planningRack) {
     let next = state
@@ -7768,6 +7874,7 @@ const reusableProcessToolIds = new Set<ResourceId>([
   'extrusionMoldBolt',
   'extrusionMoldRing',
   'extrusionMoldGear',
+  'plateMold',
 ])
 
 function processSlotsAreEmpty(process: MachineProcessState) {
@@ -7865,10 +7972,12 @@ function collectFabricationProcessBatch(state: GameState, job: FabricationJob, t
   for (const amount of actualFluids) fluidProcess.fluids[amount.id] = Math.max(0, (fluidProcess.fluids[amount.id] ?? 0) - amount.amount)
   addReservedItems(job, actualItems)
   addReservedFluids(job, actualFluids)
-  const die = target.process.secondaryInput
-  if (die && reusableProcessToolIds.has(die.id)) {
-    addReservedItems(job, [die])
-    target.process.secondaryInput = null
+  const reusableSlots: ProcessSlotId[] = ['input', 'secondaryInput', ...assemblerExtraInputSlotIds]
+  for (const slotId of reusableSlots) {
+    const tool = target.process[slotId]
+    if (!tool || !reusableProcessToolIds.has(tool.id)) continue
+    addReservedItems(job, [tool])
+    target.process[slotId] = null
   }
   return ''
 }

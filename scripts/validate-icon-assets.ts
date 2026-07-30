@@ -1,13 +1,16 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { machineRegistry, resourceRegistry } from '../src/game/content'
+import { fluidIds, machineRegistry, resourceRegistry } from '../src/game/content'
 
 const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
 const resourcesDir = path.join(root, 'public/game-icons/resources')
 const machinesDir = path.join(root, 'public/game-icons/machines')
+const fluidsDir = path.join(root, 'public/game-icons/fluids')
 const approvalsPath = path.join(root, 'public/icon-reviews/approvals.json')
 const mvApprovalsPath = path.join(root, 'public/icon-reviews/mv-engineering/approvals.json')
+const polymerApprovalsPath = path.join(root, 'public/icon-reviews/polymer-works-v1/approvals.json')
+const fluidApprovalsPath = path.join(root, 'public/icon-reviews/fluid-textures-generated-v1/approvals.json')
 
 function pngInfo(filePath: string) {
   const buffer = readFileSync(filePath)
@@ -48,17 +51,26 @@ function checkSet(kind: string, ids: string[], dir: string) {
 const readJson = (filePath: string) => JSON.parse(readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''))
 const approvals = readJson(approvalsPath).approvals ?? []
 const mvApprovals = readJson(mvApprovalsPath).entries ?? []
+const polymerApprovals = readJson(polymerApprovalsPath).entries ?? []
+const fluidApprovals = readJson(fluidApprovalsPath).entries ?? []
 const resourceIds = Object.keys(resourceRegistry)
 const machineIds = Object.keys(machineRegistry)
 const failures = [
   ...checkSet('resource', resourceIds, resourcesDir),
   ...checkSet('machine', machineIds, machinesDir),
+  ...checkSet('fluid', fluidIds, fluidsDir),
   ...approvals
     .filter((approval: { status: string }) => approval.status !== 'approved')
     .map((approval: { id: string; status: string }) => `approval ${approval.id}: status is ${approval.status}`),
   ...mvApprovals
     .filter((approval: { status: string }) => approval.status !== 'approved')
     .map((approval: { id: string; status: string }) => `MV approval ${approval.id}: status is ${approval.status}`),
+  ...polymerApprovals
+    .filter((approval: { status: string }) => approval.status !== 'approved')
+    .map((approval: { id: string; status: string }) => `Polymer Works approval ${approval.id}: status is ${approval.status}`),
+  ...fluidApprovals
+    .filter((approval: { status: string }) => approval.status !== 'approved')
+    .map((approval: { id: string; status: string }) => `fluid approval ${approval.id}: status is ${approval.status}`),
 ]
 
 if (failures.length > 0) {
@@ -67,4 +79,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Icon asset validation passed for ${resourceIds.length} resources and ${machineIds.length} machines.`)
+console.log(`Icon asset validation passed for ${resourceIds.length} resources, ${machineIds.length} machines, and ${fluidIds.length} fluids.`)

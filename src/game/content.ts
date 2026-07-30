@@ -35,6 +35,13 @@ import {
   mvMachineRegistry,
   mvResourceRegistry,
 } from './mvContent'
+import {
+  polymerCraftingRecipes,
+  polymerMachineRegistry,
+  polymerProcessRecipes,
+  polymerQuests,
+  polymerResourceRegistry,
+} from './polymerContent'
 
 const authoredResourceRegistry = {
   log: { id: 'log', label: 'Log', category: 'raw', tier: 'manual' },
@@ -213,7 +220,7 @@ const authoredResourceRegistry = {
 } satisfies Partial<Record<ResourceId, ResourceSpec>>
 
 export const resourceRegistry = Object.fromEntries(
-  Object.entries({ ...materialResourceRegistry, ...mvResourceRegistry, ...authoredResourceRegistry }).map(([id, spec]) => [
+  Object.entries({ ...materialResourceRegistry, ...mvResourceRegistry, ...authoredResourceRegistry, ...polymerResourceRegistry }).map(([id, spec]) => [
     id,
     {
       ...materialResourceRegistry[id as keyof typeof materialResourceRegistry],
@@ -240,6 +247,15 @@ export const fluidRegistry = {
   woodGas: { id: 'woodGas', label: 'Wood Gas', color: '#a48f75' },
   benzene: { id: 'benzene', label: 'Benzene', color: '#d7c99a' },
   heavyTar: { id: 'heavyTar', label: 'Heavy Tar Residue', color: '#17120f' },
+  caneJuice: { id: 'caneJuice', label: 'Cane Juice', color: '#9fba3d' },
+  sugarWash: { id: 'sugarWash', label: 'Sugar Wash', color: '#d4bd75' },
+  fermentedWash: { id: 'fermentedWash', label: 'Fermented Wash', color: '#a77c45' },
+  carbonDioxide: { id: 'carbonDioxide', label: 'Carbon Dioxide', color: '#aab3b4' },
+  ethanol: { id: 'ethanol', label: 'Ethanol', color: '#e8edf0' },
+  vinasse: { id: 'vinasse', label: 'Vinasse', color: '#66401e' },
+  ethylene: { id: 'ethylene', label: 'Ethylene', color: '#8dd7d4' },
+  liquidPolyethylene: { id: 'liquidPolyethylene', label: 'Liquid Polyethylene', color: '#dbe7e8' },
+  fertilizerLiquor: { id: 'fertilizerLiquor', label: 'Fertilizer Liquor', color: '#627c2e' },
 } satisfies Record<FluidId, { id: FluidId; label: string; color: string }>
 
 export const fluidIds = Object.keys(fluidRegistry) as FluidId[]
@@ -910,6 +926,9 @@ const authoredMachineRegistry = {
     placeable: true,
     processKind: 'euProcess',
     euCapacity: 96,
+    fluidCapacityLitres: 64,
+    fluidOutputLitresPerSecond: 24,
+    fluidBuffers: [{ id: 'product', label: 'Fluid output', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' }],
   },
   lvAlloySmelter: {
     id: 'lvAlloySmelter',
@@ -1002,7 +1021,7 @@ const authoredMachineRegistry = {
     processKind: 'euProcess',
     euCapacity: 128,
     itemOutputSlots: 2,
-    fluidCapacityLitres: 32,
+    fluidCapacityLitres: 64,
     fluidOutputLitresPerSecond: 24,
     fluidBuffers: [
       { id: 'feed', label: 'Fluid input', capacityLitres: 32, access: 'input', fluidRule: 'recipe-inputs' },
@@ -1041,7 +1060,8 @@ const authoredMachineRegistry = {
     fluidBuffers: [
       { id: 'feedA', label: 'Fluid input A', capacityLitres: 32, access: 'input', fluidRule: 'recipe-inputs' },
       { id: 'feedB', label: 'Fluid input B', capacityLitres: 32, access: 'input', fluidRule: 'recipe-inputs' },
-      { id: 'reaction', label: 'Fluid output', capacityLitres: 32, access: 'output', fluidRule: 'recipe-outputs' },
+      { id: 'reactionA', label: 'Fluid output A', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
+      { id: 'reactionB', label: 'Fluid output B', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
     ],
   },
   lvAirCollector: {
@@ -1321,7 +1341,10 @@ const authoredMachineRegistry = {
     euCapacity: 256,
     euVoltage: 32,
     fluidCapacityLitres: 128,
-    fluidBuffers: [{ id: 'water', label: 'Irrigation water', capacityLitres: 128, access: 'input', fluidRule: ['water'] }],
+    fluidBuffers: [
+      { id: 'water', label: 'Irrigation water', capacityLitres: 128, access: 'input', fluidRule: ['water'] },
+      { id: 'fertilizer', label: 'Fertilizer feed', capacityLitres: 64, access: 'input', fluidRule: ['fertilizerLiquor'] },
+    ],
     itemOutputSlots: 2,
     multiblock: {
       width: 2,
@@ -1376,9 +1399,9 @@ const authoredMachineRegistry = {
     fluidCapacityLitres: 192,
     fluidOutputLitresPerSecond: 24,
     fluidBuffers: [
-      { id: 'feed', label: 'Wood tar input', capacityLitres: 64, access: 'input', fluidRule: ['woodTar'] },
-      { id: 'benzene', label: 'Benzene output', capacityLitres: 64, access: 'output', fluidRule: ['benzene'] },
-      { id: 'residue', label: 'Heavy residue output', capacityLitres: 64, access: 'output', fluidRule: ['heavyTar'] },
+      { id: 'feed', label: 'Distillation feed', capacityLitres: 64, access: 'input', fluidRule: 'recipe-inputs' },
+      { id: 'light', label: 'Light fraction', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
+      { id: 'heavy', label: 'Heavy fraction', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
     ],
   },
   lvCombustionGenerator: {
@@ -1448,6 +1471,7 @@ const authoredMachineRegistry = {
 export const machineRegistry = {
   ...authoredMachineRegistry,
   ...mvMachineRegistry,
+  ...polymerMachineRegistry,
 } as Record<MachineId, MachineSpec>
 
 export const machines: Record<MachineId, MachineSpec> = machineRegistry
@@ -3896,6 +3920,7 @@ recipes.push(
 
 recipes.push(...generateMissingMaterialCraftingRecipes(recipes))
 recipes.push(...mvCraftingRecipes, ...mvMachineBuildRecipes, ...mvInfrastructureRecipes)
+recipes.push(...polymerCraftingRecipes)
 
 export const processRecipes: ProcessRecipe[] = [
   {
@@ -5909,7 +5934,7 @@ export const processRecipes: ProcessRecipe[] = [
     euCost: 160,
     input: { id: 'sulfurDust', amount: 1 },
     fluidInputs: [{ id: 'water', amount: 8, bufferId: 'feedA' }],
-    fluidOutputs: [{ id: 'sulfuricAcid', amount: 8, bufferId: 'reaction' }],
+    fluidOutputs: [{ id: 'sulfuricAcid', amount: 8, bufferId: 'reactionA' }],
   },
   {
     id: 'lv_reactor_diluted_sulfuric_acid',
@@ -5927,7 +5952,7 @@ export const processRecipes: ProcessRecipe[] = [
     fluidOutput: {
       id: 'dilutedSulfuricAcid',
       amount: 8,
-      bufferId: 'reaction',
+      bufferId: 'reactionA',
     },
   },
   {
@@ -6454,8 +6479,8 @@ export const processRecipes: ProcessRecipe[] = [
     fluidOnly: true,
     fluidInputs: [{ id: 'woodTar', amount: 16, bufferId: 'feed' }],
     fluidOutputs: [
-      { id: 'benzene', amount: 10, bufferId: 'benzene' },
-      { id: 'heavyTar', amount: 6, bufferId: 'residue' },
+      { id: 'benzene', amount: 10, bufferId: 'light' },
+      { id: 'heavyTar', amount: 6, bufferId: 'heavy' },
     ],
   },
   {
@@ -6492,6 +6517,7 @@ export const processRecipes: ProcessRecipe[] = [
   },
 ]
 
+processRecipes.push(...polymerProcessRecipes)
 processRecipes.push(...mvExclusiveProcessRecipes)
 processRecipes.push(...generateMissingMaterialProcessRecipes(processRecipes))
 processRecipes.push(...generateMvInheritedProcessRecipes(processRecipes))
@@ -6531,6 +6557,11 @@ export const questChapters: QuestChapter[] = [
     id: 'benzenePower',
     title: 'Benzene Power',
     description: 'Automate biomass, capture wood chemistry, and establish renewable LV and MV combustion power.',
+  },
+  {
+    id: 'polymerWorks',
+    title: 'Polymer Works',
+    description: 'Turn farmed sugar into ethanol, ethylene, liquid plastic, and extreme fluid storage.',
   },
   {
     id: 'mvEngineering',
@@ -6624,6 +6655,13 @@ export const questLines: QuestLine[] = [
     description: 'Farm wood, manage pyrolysis byproducts, and close a renewable benzene power loop.',
   },
   {
+    id: 'polymerWorks',
+    folderId: 'appliedIndustry',
+    chapterIds: ['polymerWorks'],
+    title: 'Polymer Works',
+    description: 'Ferment sugar, recover chemical byproducts, cast polyethylene, and build Super Tank I.',
+  },
+  {
     id: 'autoCrafting',
     folderId: 'mvSystems',
     chapterIds: ['mvFoundations'],
@@ -6662,7 +6700,7 @@ export const questFolders: QuestFolder[] = [
     id: 'appliedIndustry',
     title: 'Applied Industry',
     description: 'Remote resources, chemistry, automation, and renewable liquid fuel.',
-    lineIds: ['shatteredReach', 'renewablePower'],
+    lineIds: ['shatteredReach', 'renewablePower', 'polymerWorks'],
   },
   {
     id: 'mvSystems',
@@ -8908,6 +8946,8 @@ export const quests: Quest[] = [
     rewards: { scrip: 30 },
   },
 ]
+
+quests.push(...polymerQuests)
 
 export const initialResources: Record<ResourceId, number> = Object.keys(resourceRegistry).reduce(
   (resources, id) => ({ ...resources, [id]: 0 }),

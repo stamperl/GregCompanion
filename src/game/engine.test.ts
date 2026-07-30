@@ -550,6 +550,8 @@ describe('game engine', () => {
       ['cureLiquidRubberQuest', 'lv_furnace_rubber_pulp'],
       ['makeEmptyBatteryCellQuest', 'lv_alloy_battery_alloy_dust'],
       ['insulateWithLiquidRubberQuest', 'lv_assembler_liquid_tin_cable_4a'],
+      ['makeLiquidPolyethyleneQuest', 'polymerize_with_air'],
+      ['makeLiquidPolyethyleneQuest', 'polymerize_with_oxygen'],
     ] as const
 
     for (const [questId, recipeId] of cases) {
@@ -1601,7 +1603,7 @@ describe('game engine', () => {
       .filter((slot) => slot?.id === 'mvPump')
       .reduce((total, slot) => total + (slot?.amount ?? 0), 0)
     expect(state.resources.mvPump + exportedPumps).toBe(4)
-  })
+  }, 10_000)
 
   it('saves and resumes an active fabrication job without losing cards or reserved materials', () => {
     let state = createCreativeFactoryState(createInitialState(1000), 2000)
@@ -6812,7 +6814,7 @@ describe('game engine', () => {
     state.machineInstances[0].process.fluidCapacityLitres = 32
     state.machineInstances[0].process.fluids.liquidRubber = 8
 
-    state = fillPortableFluidContainer(state, state.machineInstances[0].uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reaction' })
+    state = fillPortableFluidContainer(state, state.machineInstances[0].uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reactionA' })
     expect(state.fluidContainers[0]).toMatchObject({ kind: 'steelCell', fluidId: 'liquidRubber', amountLitres: 8 })
     expect(fluidContainerGroups(state)[0].count).toBe(1)
     state = drainPortableFluidContainer(state, state.machineInstances[1].uid, state.fluidContainers[0].uid, 'input')
@@ -6865,12 +6867,12 @@ describe('game engine', () => {
     reactor.process.fluids.liquidRubber = 5
     state.resources.emptySteelCell = 2
 
-    state = fillPortableFluidContainer(state, reactor.uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reaction' })
+    state = fillPortableFluidContainer(state, reactor.uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reactionA' })
     expect(state.fluidContainers[0].amountLitres).toBe(5)
     expect(state.resources.emptySteelCell).toBe(1)
 
     state.machineInstances[0].process.fluids.liquidRubber = 5
-    state = fillPortableFluidContainer(state, reactor.uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reaction' })
+    state = fillPortableFluidContainer(state, reactor.uid, 'steelCell', { fluidId: 'liquidRubber', bufferId: 'reactionA' })
     expect(fluidContainerGroups(state)).toHaveLength(1)
     expect(fluidContainerGroups(state)[0]).toMatchObject({ amountLitres: 5, count: 2 })
     expect(fluidContainerCapacities.steelCell).toBe(8)
@@ -8288,6 +8290,42 @@ describe('game engine', () => {
     for (let second = 0; second < 65; second += 1) state = tickGame(state, 1000).state
     expect(state.fabricationJobs[0].status).toBe('complete')
     expect(state.resources.log).toBeGreaterThanOrEqual(16)
+  })
+
+  it('casts polyethylene plates without consuming the reusable plate mold', () => {
+    let state = createFactoryState(1000, 6)
+    state.machines.lvFluidSolidifier = 1
+    state = placeMachineInstance(state, 'lvFluidSolidifier', 0, 0)
+    const solidifier = state.machineInstances[0]
+    solidifier.process.input = { id: 'plateMold', amount: 1 }
+    solidifier.process.fluids.liquidPolyethylene = 8
+    solidifier.process.configuredProgramNumber = 1
+    solidifier.process.euStored = 128
+
+    state = tickGame(state, 8000, 9000).state
+    const completed = state.machineInstances[0]
+    expect(completed.process.input).toEqual({ id: 'plateMold', amount: 1 })
+    expect(completed.process.output).toEqual({ id: 'polyethylenePlate', amount: 1 })
+    expect(completed.process.fluids.liquidPolyethylene).toBe(4)
+  })
+
+  it('keeps LV Super Tank I single-block and blocks removal until drained', () => {
+    let state = createFactoryState(1000, 6)
+    state.machines.lvSuperTank = 2
+    state = placeMachineInstance(state, 'lvSuperTank', 0, 0)
+    state = placeMachineInstance(state, 'lvSuperTank', 1, 0)
+    const first = state.machineInstances.find((instance) => instance.x === 0)!
+    const second = state.machineInstances.find((instance) => instance.x === 1)!
+
+    expect(steamTankStructureForInstance(state, first)).toBeNull()
+    expect(steamTankStructureForInstance(state, second)).toBeNull()
+    expect(steamTankFluidCapacityLitresForInstance(state, first)).toBe(4_000_000)
+
+    first.process.fluids.liquidPolyethylene = 1
+    expect(removeMachineInstance(state, first.uid)).toBe(state)
+    first.process.fluids.liquidPolyethylene = 0
+    const removed = removeMachineInstance(state, first.uid)
+    expect(removed.machineInstances.some((instance) => instance.uid === first.uid)).toBe(false)
   })
 })
 

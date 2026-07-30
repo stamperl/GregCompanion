@@ -71,6 +71,9 @@ const fluidMachineBuffers: Partial<Record<MvMachineId, MachineSpec['fluidBuffers
     { id: 'feed-b', label: 'Fluid input 2', capacityLitres: 64, access: 'input', fluidRule: 'recipe-inputs' },
     { id: 'product', label: 'Fluid output', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
   ],
+  mvExtractor: [
+    { id: 'product', label: 'Fluid output', capacityLitres: 128, access: 'output', fluidRule: 'recipe-outputs' },
+  ],
   mvCentrifuge: [
     { id: 'feed', label: 'Fluid input', capacityLitres: 64, access: 'input', fluidRule: 'recipe-inputs' },
     { id: 'productA', label: 'Fluid output A', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
@@ -79,13 +82,14 @@ const fluidMachineBuffers: Partial<Record<MvMachineId, MachineSpec['fluidBuffers
   mvChemicalReactor: [
     { id: 'feedA', label: 'Fluid input A', capacityLitres: 64, access: 'input', fluidRule: 'recipe-inputs' },
     { id: 'feedB', label: 'Fluid input B', capacityLitres: 64, access: 'input', fluidRule: 'recipe-inputs' },
-    { id: 'reaction', label: 'Fluid output', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
+    { id: 'reactionA', label: 'Fluid output A', capacityLitres: 128, access: 'output', fluidRule: 'recipe-outputs' },
+    { id: 'reactionB', label: 'Fluid output B', capacityLitres: 128, access: 'output', fluidRule: 'recipe-outputs' },
   ],
   mvAirCollector: [{ id: 'output', label: 'Air output', capacityLitres: 64, access: 'output', fluidRule: ['air'] }],
   mvDistillery: [
     { id: 'feed', label: 'Distillation feed', capacityLitres: 128, access: 'input', fluidRule: 'recipe-inputs' },
-    { id: 'benzene', label: 'Light fraction', capacityLitres: 128, access: 'output', fluidRule: 'recipe-outputs' },
-    { id: 'residue', label: 'Heavy fraction', capacityLitres: 128, access: 'output', fluidRule: 'recipe-outputs' },
+    { id: 'light', label: 'Light fraction', capacityLitres: 128, access: 'output', fluidRule: 'recipe-outputs' },
+    { id: 'heavy', label: 'Heavy fraction', capacityLitres: 128, access: 'output', fluidRule: 'recipe-outputs' },
   ],
 }
 

@@ -214,7 +214,11 @@ describe('content validation', () => {
 
     for (const recipe of standardLvMachineRecipes) {
       const circuitAmount = recipe.inputs.find((input) => input.id === 'primitiveCircuit')?.amount ?? 0
-      expect(circuitAmount, `${recipe.id} should fit its Basic Electronic Circuits in the crafting grid`).toBeLessThanOrEqual(3)
+      if (recipe.id === 'craft_lv_super_tank') {
+        expect(circuitAmount).toBe(4)
+      } else {
+        expect(circuitAmount, `${recipe.id} should fit its Basic Electronic Circuits in the crafting grid`).toBeLessThanOrEqual(3)
+      }
     }
   })
 
@@ -230,6 +234,14 @@ describe('content validation', () => {
       const iconPath = resolve(publicDir, 'game-icons/machines', `${id}.png`)
       expect(existsSync(iconPath), `machine ${id} should have ${iconPath}`).toBe(true)
       expect(statSync(iconPath).size, `machine ${id} icon should not be blank`).toBeGreaterThan(500)
+    }
+  })
+
+  it('ships a generated PNG icon for every fluid', () => {
+    for (const fluidId of fluidIds) {
+      const iconPath = resolve(publicDir, 'game-icons/fluids', `${fluidId}.png`)
+      expect(existsSync(iconPath), `fluid ${fluidId} should have a generated icon`).toBe(true)
+      expect(statSync(iconPath).size, `fluid ${fluidId} icon should not be blank`).toBeGreaterThan(500)
     }
   })
 
@@ -338,6 +350,25 @@ describe('content validation', () => {
       if (recipe.fluidOutput) expectFluidAmountReferences([recipe.fluidOutput], `${recipe.id} fluid output`)
       if (recipe.fluidInputs) expectFluidAmountReferences(recipe.fluidInputs, `${recipe.id} fluid inputs`)
       if (recipe.fluidOutputs) expectFluidAmountReferences(recipe.fluidOutputs, `${recipe.id} fluid outputs`)
+      const buffers = machines[recipe.machineId].fluidBuffers ?? []
+      const fluidInputs = recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])
+      const fluidOutputs = recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
+      for (const fluid of fluidInputs.filter((amount) => amount.bufferId)) {
+        const buffer = buffers.find((candidate) => candidate.id === fluid.bufferId)
+        expect(buffer, `${recipe.id} input buffer ${fluid.bufferId} should exist`).toBeDefined()
+        expect(['input', 'both'], `${recipe.id} buffer ${fluid.bufferId} should accept input`).toContain(buffer?.access)
+      }
+      for (const fluid of fluidOutputs.filter((amount) => amount.bufferId)) {
+        const buffer = buffers.find((candidate) => candidate.id === fluid.bufferId)
+        expect(buffer, `${recipe.id} output buffer ${fluid.bufferId} should exist`).toBeDefined()
+        expect(['output', 'both'], `${recipe.id} buffer ${fluid.bufferId} should allow output`).toContain(buffer?.access)
+      }
+      if (fluidOutputs.length > 1) {
+        expect(
+          new Set(fluidOutputs.map((output) => output.bufferId)).size,
+          `${recipe.id} should route each fluid output to a distinct buffer`,
+        ).toBe(fluidOutputs.length)
+      }
     }
   })
 

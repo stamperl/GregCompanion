@@ -15,5 +15,5 @@ export function formatSteamLitres(ms: number) {
 }
 
 export function formatLitres(litres: number) {
-  return Math.max(0, Math.floor(litres))
+  return Math.max(0, Math.floor(litres)).toLocaleString()
 }

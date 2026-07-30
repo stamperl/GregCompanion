@@ -1,4 +1,11 @@
 /* PNG-backed MV expansion fallbacks. The approved PNGs remain the primary art. */
+.pixel-bagasse,
+.pixel-plateMold,
+.pixel-polyethylenePlate,
+.pixel-polyethylenePipe,
+.pixel-tankCasing1,
+.pixel-pulsatingIronIngot,
+.pixel-pulsatingIronPlate,
 .pixel-ironBolt,
 .pixel-ironRing,
 .pixel-ironScrew,
@@ -158,7 +165,9 @@
 .machine-mvInputBus,
 .machine-mvOutputBus,
 .machine-mvFluidInputHatch,
-.machine-mvFluidOutputHatch {
+.machine-mvFluidOutputHatch,
+.machine-lvFluidSolidifier,
+.machine-lvSuperTank {
   background-color: #42565f;
 }
 
@@ -11365,16 +11374,141 @@ button.craft-output:disabled {
 
 .fluid-icon {
   aspect-ratio: 1;
-  background-color: var(--fluid-color);
-  border: 2px solid #1d2525;
-  border-radius: 1px;
-  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.22), inset -2px -2px 0 rgba(0, 0, 0, 0.48);
+  background: var(--fluid-color);
   display: block;
   height: 28px;
-  image-rendering: pixelated;
   overflow: hidden;
   position: relative;
   width: 28px;
+}
+
+.fluid-icon-image {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  width: 100%;
+}
+
+.fluid-texture-review {
+  background:
+    repeating-linear-gradient(90deg, rgba(105, 184, 191, 0.045) 0 1px, transparent 1px 24px),
+    #0b1213;
+  color: #e9f0ec;
+  min-height: 100dvh;
+  padding: 18px 14px 42px;
+}
+
+.fluid-texture-review > header,
+.fluid-texture-review-grid,
+.fluid-texture-review-tank {
+  margin-inline: auto;
+  max-width: 760px;
+}
+
+.fluid-texture-review > header {
+  border-bottom: 2px solid #6c7e7c;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+}
+
+.fluid-texture-review > header h1 {
+  color: #f6e9b8;
+  font-size: 1.45rem;
+  letter-spacing: 0;
+  margin: 3px 0 5px;
+}
+
+.fluid-texture-review > header p:last-child {
+  color: #afbfba;
+  margin: 0;
+}
+
+.fluid-texture-review-grid {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fluid-texture-review-grid article {
+  align-items: center;
+  background: #151f20;
+  border: 1px solid #475b59;
+  border-bottom-color: #172120;
+  border-right-color: #172120;
+  display: grid;
+  gap: 1px 8px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  min-width: 0;
+  padding: 7px;
+}
+
+.fluid-texture-review-grid article strong {
+  align-self: end;
+  color: #edf4ef;
+  font-size: 0.76rem;
+  letter-spacing: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fluid-texture-review-grid article small {
+  align-self: start;
+  color: #75b9bd;
+  font: 700 0.58rem "Courier New", ui-monospace, monospace;
+  grid-column: 2;
+  overflow-wrap: anywhere;
+}
+
+.fluid-texture-review-icon.fluid-icon {
+  grid-row: 1 / span 2;
+  height: 48px;
+  width: 48px;
+}
+
+.fluid-texture-review-tank {
+  align-items: center;
+  background: #11191a;
+  border: 2px solid #566d6c;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 86px minmax(0, 1fr);
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.fluid-texture-review-tank-shell {
+  background:
+    linear-gradient(90deg, #202b2c 0 10%, #59686a 11% 16%, #182122 17% 83%, #59686a 84% 89%, #202b2c 90%),
+    #263234;
+  border: 3px solid #101617;
+  box-shadow: inset 0 0 0 2px #829091, 3px 4px 0 #050808;
+  height: 112px;
+  position: relative;
+  width: 78px;
+}
+
+.fluid-texture-review-tank-shell .super-tank-floor-sight-glass {
+  bottom: 16px;
+  height: 76px;
+  width: 34px;
+}
+
+.fluid-texture-review-tank strong {
+  color: #f2e5ad;
+}
+
+.fluid-texture-review-tank p {
+  color: #b7c8c3;
+  line-height: 1.35;
+  margin: 5px 0 0;
+}
+
+@media (min-width: 620px) {
+  .fluid-texture-review-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .machine-lvAirCollector span {
@@ -11384,26 +11518,6 @@ button.craft-output:disabled {
   left: 27%;
   top: 54%;
   width: 16%;
-}
-
-.fluid-icon::before {
-  background:
-    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, 0.09) 3px 5px, transparent 5px 8px),
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 4px, transparent 4px 9px);
-  content: "";
-  inset: 3px;
-  position: absolute;
-}
-
-.fluid-icon::after {
-  background: rgba(255, 255, 255, 0.3);
-  box-shadow: 8px 7px 0 rgba(255, 255, 255, 0.12), 15px 3px 0 rgba(0, 0, 0, 0.22), 3px 15px 0 rgba(0, 0, 0, 0.2);
-  content: "";
-  height: 3px;
-  left: 5px;
-  position: absolute;
-  top: 5px;
-  width: 5px;
 }
 
 .recipe-fluid-slot {
@@ -12592,6 +12706,61 @@ button.button-primary:disabled,
   position: relative;
   width: 48px;
   z-index: 2;
+}
+
+.factory-cell.occupied.machine-lvSuperTank-cell > .machine-glyph.machine-sprite-glyph {
+  height: 58px;
+  width: 58px;
+}
+
+.super-tank-floor-sight-glass {
+  background:
+    linear-gradient(90deg, #77888d 0 2px, #1a2325 2px 4px, #071012 4px calc(100% - 4px), #1a2325 calc(100% - 4px) calc(100% - 2px), #77888d calc(100% - 2px));
+  border: 1px solid #0a0f10;
+  border-bottom-color: #9aa7a8;
+  border-right-color: #9aa7a8;
+  box-shadow:
+    0 0 0 1px rgba(191, 213, 214, 0.52),
+    2px 3px 0 rgba(0, 0, 0, 0.42),
+    inset 0 0 5px rgba(146, 222, 229, 0.24);
+  bottom: 7px;
+  height: 43px;
+  left: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 27px;
+  z-index: 5;
+}
+
+.super-tank-floor-sight-glass.empty::before {
+  background: repeating-linear-gradient(135deg, rgba(121, 144, 147, 0.17) 0 2px, transparent 2px 5px);
+  content: "";
+  inset: 4px;
+  position: absolute;
+}
+
+.super-tank-floor-fluid {
+  background-color: #152021;
+  background-image: var(--fluid-image);
+  background-position: center;
+  background-repeat: repeat-y;
+  background-size: 70px 70px;
+  bottom: 3px;
+  left: 3px;
+  min-height: 2px;
+  position: absolute;
+  right: 3px;
+  transition: height 240ms linear;
+}
+
+.super-tank-floor-glass-shine {
+  background: linear-gradient(100deg, transparent 0 15%, rgba(231, 254, 255, 0.52) 18% 30%, transparent 34% 100%);
+  inset: 3px;
+  pointer-events: none;
+  position: absolute;
+  z-index: 3;
 }
 
 .factory-cell.occupied .machine-glyph.machine-connector-glyph {

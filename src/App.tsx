@@ -45,6 +45,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react'
 import './App.css'
+import { fluidIconSrc } from './components/gameIconAssets'
 import { machineUiPanelSrc } from './components/machineUiAssets'
 import { mvMachineIds } from './game/mvIds'
 import {
@@ -535,6 +536,8 @@ const machineOrder: MachineId[] = [
   'pyrolysisOven',
   'lvDistillery',
   'lvCombustionGenerator',
+  'lvFluidSolidifier',
+  'lvSuperTank',
   'aluminiumCable',
   'lvToMvTransformer',
   'mvToLvTransformer',
@@ -572,6 +575,7 @@ const machineHmiConfigs: Partial<Record<MachineId, MachineHmiConfig>> = {
   pyrolysisOven: { kind: 'pyrolysisOven', runningLabel: 'Pyrolysing' },
   lvDistillery: { kind: 'distillery', runningLabel: 'Distilling' },
   lvCombustionGenerator: { kind: 'combustionGenerator', runningLabel: 'Generating' },
+  lvFluidSolidifier: { kind: 'fluidSolidifier', runningLabel: 'Casting' },
   mvCombustionGenerator: { kind: 'combustionGenerator', runningLabel: 'Generating' },
   mvExtruder: { kind: 'extruder', runningLabel: 'Extruding', secondaryInput: true },
 }
@@ -631,7 +635,7 @@ function fluidVisualColor(fluidId: FluidId | undefined) {
   return fluidId ? fluidColors[fluidId] : '#73c6b8'
 }
 
-const gaseousFluidIds = new Set<FluidId>(['air', 'oxygen', 'nitrogen', 'woodGas'])
+const gaseousFluidIds = new Set<FluidId>(['air', 'oxygen', 'nitrogen', 'woodGas', 'carbonDioxide', 'ethylene'])
 
 function storedFluids(process: MachineProcessState) {
   return fluidIds
@@ -1540,6 +1544,16 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
                   ? 'running'
                   : 'idle'
         const animateMachine = viewMode === 'maintenance' && maintenanceState === 'running'
+        const superTankFluid = instance?.machineId === 'lvSuperTank'
+          ? (Object.entries(instance.process.fluids) as Array<[FluidId, number]>)
+            .find(([, amount]) => (amount ?? 0) > 0)
+          : undefined
+        const superTankCapacity = instance?.machineId === 'lvSuperTank'
+          ? instance.process.fluidCapacityLitres || machines.lvSuperTank.fluidCapacityLitres || 1
+          : 1
+        const superTankFillPercent = superTankFluid
+          ? metricFill(superTankFluid[1], superTankCapacity)
+          : 0
 
         return (
           <button
@@ -1632,6 +1646,24 @@ const FactoryFloorGrid = memo(function FactoryFloorGrid({
               <MachineGlyph id={instance.machineId} active={animateMachine} pipeConnections={pipeConnectionsForInstance(instance)} fabricationLane={hasFabricationCable(instance)} />
             ) : (
               <span />
+            )}
+            {instance?.machineId === 'lvSuperTank' && (
+              <span
+                className={`super-tank-floor-sight-glass ${superTankFluid ? 'filled' : 'empty'}`}
+                title={superTankFluid ? `${fluidLabel(superTankFluid[0])}: ${formatLitres(superTankFluid[1])}L` : 'Empty'}
+                aria-hidden="true"
+              >
+                {superTankFluid && (
+                  <span
+                    className="super-tank-floor-fluid"
+                    style={{
+                      '--fluid-image': `url("${fluidIconSrc(superTankFluid[0])}")`,
+                      height: `${superTankFillPercent}%`,
+                    } as CSSProperties}
+                  />
+                )}
+                <span className="super-tank-floor-glass-shine" />
+              </span>
             )}
             {structurePipeAttachments.map(({ direction, pipeId }) => (
               <span className={`multiblock-pipe-attachment ${direction} pipe-${pipeId}`} aria-hidden="true" key={`${direction}-${pipeId}`} />
@@ -1844,6 +1876,45 @@ function FluidTank({ fluidId, label, storedLitres, capacityLitres }: { fluidId: 
       </div>
       <small className="steam-tank-capacity">{formatLitres(capacityLitres)}L max</small>
     </div>
+  )
+}
+
+function FluidTextureReview() {
+  return (
+    <main className="fluid-texture-review">
+      <header>
+        <p className="eyebrow">Visual system review</p>
+        <h1>Fluid textures</h1>
+        <p>Each fluid uses its own generated PNG artwork at slot and tank-glass scale.</p>
+      </header>
+      <section className="fluid-texture-review-grid">
+        {fluidIds.map((fluidId) => (
+          <article key={fluidId}>
+            <FluidIcon id={fluidId} className="fluid-texture-review-icon" />
+            <strong>{fluidLabels[fluidId]}</strong>
+            <small>{fluidId}</small>
+          </article>
+        ))}
+      </section>
+      <section className="fluid-texture-review-tank">
+        <div className="fluid-texture-review-tank-shell">
+          <span className="super-tank-floor-sight-glass filled">
+            <span
+              className="super-tank-floor-fluid"
+              style={{
+                '--fluid-image': `url("${fluidIconSrc('liquidPolyethylene')}")`,
+                height: '68%',
+              } as CSSProperties}
+            />
+            <span className="super-tank-floor-glass-shine" />
+          </span>
+        </div>
+        <div>
+          <strong>LV Super Tank I</strong>
+          <p>The factory-floor glass uses the stored fluid texture and live fill level.</p>
+        </div>
+      </section>
+    </main>
   )
 }
 
@@ -3134,9 +3205,11 @@ function QuestBook({
 
 function App() {
   const reviewParams = useMemo(() => new URLSearchParams(window.location.search), [])
+  const reviewFluids = import.meta.env.DEV && reviewParams.get('reviewFluids') === '1'
   const reviewMachineId = reviewParams.get('reviewMachine') as MachineId | null
   const reviewStateParam = reviewParams.get('reviewState') as MachineReviewState | null
   const reviewState = reviewStateParam && machineReviewStates.includes(reviewStateParam) ? reviewStateParam : null
+  const reviewFloorOnly = reviewParams.get('reviewFloor') === '1'
   const reviewRackParam = reviewParams.get('reviewRack')
   const reviewQuestLineParam = reviewParams.get('reviewQuestLine') as QuestLineId | null
   const reviewQuestLine = reviewQuestLineParam && questLines.some((line) => line.id === reviewQuestLineParam) ? reviewQuestLineParam : null
@@ -3519,7 +3592,7 @@ function App() {
   const [isEquipmentOpen, setIsEquipmentOpen] = useState(false)
   const [placingMachineId, setPlacingMachineId] = useState<MachineId | null>(null)
   const reviewStartsInConductorRouting = Boolean(reviewSetup && isConductorMachine(reviewMachineId!))
-  const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(reviewStartsInConductorRouting ? null : reviewSetup?.uid ?? null)
+  const [selectedMachineUid, setSelectedMachineUid] = useState<string | null>(reviewStartsInConductorRouting || reviewFloorOnly ? null : reviewSetup?.uid ?? null)
   const [isArcStructureOpen, setIsArcStructureOpen] = useState(false)
   const [isMachineAutomationOpen, setIsMachineAutomationOpen] = useState(false)
   const [isAutoMinerTargetOpen, setIsAutoMinerTargetOpen] = useState(false)
@@ -5233,6 +5306,16 @@ function App() {
 
   const handleRemoveSelectedMachine = () => {
     if (!selectedMachineSource || !selectedMachineCanRemove) return
+    if (
+      selectedMachineSource.machineId === 'lvSuperTank' &&
+      (
+        selectedMachineSource.process.steamStoredMs > 0 ||
+        storedFluids(selectedMachineSource.process).some((fluid) => fluid.amount > 0)
+      )
+    ) {
+      window.alert('Drain LV Super Tank I before removing it.')
+      return
+    }
     const warnings = []
     if (selectedMachineMultiblock) warnings.push(`This will disassemble the entire ${machines[selectedMachineMultiblock.spec.controller].name} structure and return its blocks.`)
     if (selectedPlanningRack) {
@@ -6401,6 +6484,8 @@ function App() {
       setIsInstalledApp(isStandaloneInstall())
     }
   }
+
+  if (reviewFluids) return <FluidTextureReview />
 
   if (!isMobileClient) {
     return (
@@ -9926,12 +10011,13 @@ function App() {
                     const isCentrifuge = isCentrifugeUiMachine(selectedMachine.machineId)
                     const isMixer = isMixerUiMachine(selectedMachine.machineId)
                     const isDistillery = isDistilleryUiMachine(selectedMachine.machineId)
+                    const isFluidSolidifier = selectedMachine.machineId === 'lvFluidSolidifier'
                     const isAirCollector = isAirCollectorUiMachine(selectedMachine.machineId)
                     const isPoweredWaterSource = selectedMachine.machineId === 'lvWaterSource'
                     const isPoweredFarm = selectedMachine.machineId === 'poweredFarm'
                     const isPyrolysisOven = selectedMachine.machineId === 'pyrolysisOven'
                     const isCombustionGenerator = machines[selectedMachine.machineId].processKind === 'combustionGenerator'
-                    const usesUniversalFluidInputs = isDistillery || isPoweredFarm || isCombustionGenerator
+                    const usesUniversalFluidInputs = isDistillery || isPoweredFarm || isCombustionGenerator || isFluidSolidifier
                     const usesUniversalFluidOutputs = isDistillery || isAirCollector || isPoweredWaterSource || isPyrolysisOven
                     const usesUniversalInputBank = usesUniversalFluidInputs || isAirCollector || isPoweredWaterSource
                     const usesUniversalOutputBank = usesUniversalFluidOutputs || isCombustionGenerator
@@ -9945,7 +10031,8 @@ function App() {
                       ? selectedMachineFluidBuffers
                         .filter((buffer) => buffer.access === 'input' || buffer.access === 'both')
                         .map((buffer, index) => {
-                          const expectedId = universalExpectedInputs[index]?.id
+                          const expected = universalExpectedInputs.find((fluid) => fluid.bufferId === buffer.id) ?? universalExpectedInputs[index]
+                          const expectedId = expected?.id
                           const fluidId = expectedId && buffer.acceptedFluids.includes(expectedId)
                             ? expectedId
                             : buffer.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
@@ -9956,7 +10043,8 @@ function App() {
                       ? selectedMachineFluidBuffers
                         .filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
                         .map((buffer, index) => {
-                          const expectedId = universalExpectedOutputs[index]?.id
+                          const expected = universalExpectedOutputs.find((fluid) => fluid.bufferId === buffer.id) ?? universalExpectedOutputs[index]
+                          const expectedId = expected?.id
                           const fluidId = expectedId && buffer.acceptedFluids.includes(expectedId)
                             ? expectedId
                             : buffer.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
@@ -9994,22 +10082,35 @@ function App() {
                     const chemicalInputBuffers = isChemicalReactor
                       ? selectedMachineFluidBuffers.filter((buffer) => buffer.access === 'input' || buffer.access === 'both')
                       : []
-                    const chemicalOutputBuffer = isChemicalReactor
-                      ? selectedMachineFluidBuffers.find((buffer) => buffer.id === 'reaction')
-                      : undefined
+                    const chemicalOutputBuffers = isChemicalReactor
+                      ? selectedMachineFluidBuffers.filter((buffer) => buffer.access === 'output' || buffer.access === 'both')
+                      : []
                     const chemicalItemInputs = [process.input, process.secondaryInput].filter((slot): slot is NonNullable<ProcessSlot> => Boolean(slot))
                     const chemicalItemRecipe = isChemicalReactor && chemicalItemInputs.length > 0
                       ? selectedMachineRecipe
                       : undefined
-                    const chemicalFluidOnlyRecipe = isChemicalReactor && chemicalItemInputs.length === 0 && (process.fluids.water ?? 0) > 0
-                      ? processRecipes.find((recipe) => recipe.machineId === selectedMachine.machineId && recipe.fluidOnly)
+                    const chemicalFluidOnlyRecipe = isChemicalReactor && chemicalItemInputs.length === 0
+                      ? selectedMachineRecipe ?? processRecipes.find((recipe) => (
+                        recipe.machineId === selectedMachine.machineId &&
+                        recipe.fluidOnly &&
+                        (recipe.programNumber ?? 0) === process.configuredProgramNumber
+                      ))
                       : undefined
                     const chemicalInputRecipe = chemicalItemRecipe ?? chemicalFluidOnlyRecipe
                     const chemicalExpectedFluidInputs = chemicalInputRecipe
                       ? chemicalInputRecipe.fluidInputs ?? (chemicalInputRecipe.fluidInput ? [chemicalInputRecipe.fluidInput] : [])
                       : []
                     const chemicalInputFluidIds = new Set(chemicalExpectedFluidInputs.map((fluid) => fluid.id))
-                    const chemicalFluidOutputId = chemicalOutputBuffer?.acceptedFluids.find((id) => !chemicalInputFluidIds.has(id) && (process.fluids[id] ?? 0) > 0)
+                    const chemicalExpectedFluidOutputs = chemicalInputRecipe
+                      ? chemicalInputRecipe.fluidOutputs ?? (chemicalInputRecipe.fluidOutput ? [chemicalInputRecipe.fluidOutput] : [])
+                      : []
+                    const chemicalOutputChannels = chemicalOutputBuffers.map((buffer, index) => {
+                      const expected = chemicalExpectedFluidOutputs.find((fluid) => fluid.bufferId === buffer.id) ?? chemicalExpectedFluidOutputs[index]
+                      const fluidId = expected?.id && buffer.acceptedFluids.includes(expected.id)
+                        ? expected.id
+                        : buffer.acceptedFluids.find((id) => !chemicalInputFluidIds.has(id) && (process.fluids[id] ?? 0) > 0)
+                      return { buffer, fluidId, amount: fluidId ? process.fluids[fluidId] ?? 0 : 0 }
+                    })
                     const chemicalInputChannels: Array<UniversalProcessChannel | undefined> = [
                       process.input ? { kind: 'item', slotId: 'input', slot: process.input } : undefined,
                       process.secondaryInput ? { kind: 'item', slotId: 'secondaryInput', slot: process.secondaryInput } : undefined,
@@ -10029,7 +10130,7 @@ function App() {
                         })
                       } else if (machineTerminalMode === 'fluids' && chemicalItemInputs.length === 0) {
                         chemicalInputBuffers.slice(0, 2).forEach((buffer, index) => {
-                          const fluidId = buffer.acceptedFluids.find((id) => id !== chemicalFluidOutputId && (process.fluids[id] ?? 0) > 0)
+                          const fluidId = buffer.acceptedFluids.find((id) => !chemicalOutputChannels.some((channel) => channel.fluidId === id) && (process.fluids[id] ?? 0) > 0)
                           chemicalInputChannels[index] = { kind: 'fluid', bufferId: buffer.id, fluidId, amount: fluidId ? process.fluids[fluidId] ?? 0 : 0 }
                         })
                       }
@@ -10176,7 +10277,28 @@ function App() {
                         </div>
                         <div className={['forge-io-slot', 'forge-input-slot', hmiUsesSecondaryInput ? 'dual-inputs' : '', hmiExtraInputCount > 0 ? 'multi-inputs' : ''].join(' ')}>
                           <span>Input</span>
-                          {usesUniversalInputBank ? (
+                          {isFluidSolidifier ? (
+                            <div className="centrifuge-input-pair">
+                              <div className="centrifuge-port">
+                                <ProcessItemSlot slot={process.input} label="Mold input" onClick={() => handleProcessSlotPress('input')} />
+                                <span>Item</span>
+                              </div>
+                              <div className="centrifuge-port">
+                                {universalFluidInputChannels[0] ? (
+                                  <ProcessFluidSlot
+                                    fluidId={universalFluidInputChannels[0].fluidId}
+                                    amount={universalFluidInputChannels[0].amount}
+                                    label="Fluid input"
+                                    ready={canUseFluidPort(universalFluidInputChannels[0].buffer, 'input')}
+                                    onClick={() => handleFluidPortPress(universalFluidInputChannels[0].buffer, 'input')}
+                                  />
+                                ) : (
+                                  <span className="process-slot machine-empty-process-port" aria-label="No fluid input" />
+                                )}
+                                <span>Fluid</span>
+                              </div>
+                            </div>
+                          ) : usesUniversalInputBank ? (
                             <div className="machine-fluid-slot-bank">
                               {universalFluidInputChannels.map(({ buffer, fluidId, amount }, index) => (
                                 <ProcessFluidSlot
@@ -10274,14 +10396,19 @@ function App() {
                               ))}
                               {universalOutputCount === 0 && <span className="process-slot machine-empty-process-port" aria-label="No item or fluid output" />}
                             </div>
-                          ) : isChemicalReactor && !process.output && chemicalOutputBuffer ? (
-                            <ProcessFluidSlot
-                              fluidId={chemicalFluidOutputId}
-                              amount={chemicalFluidOutputId ? process.fluids[chemicalFluidOutputId] ?? 0 : 0}
-                              label="Output"
-                              ready={nativeFluidControlReady(chemicalOutputBuffer.id, 'output')}
-                              onClick={() => handleNativeFluidControl(chemicalOutputBuffer.id, 'output')}
-                            />
+                          ) : isChemicalReactor && !process.output && chemicalOutputChannels.length > 0 ? (
+                            <div className={chemicalOutputChannels.length > 1 ? 'machine-universal-output-bank' : 'machine-fluid-slot-bank'}>
+                              {chemicalOutputChannels.map(({ buffer, fluidId, amount }, index) => (
+                                <ProcessFluidSlot
+                                  fluidId={fluidId}
+                                  amount={amount}
+                                  label={`Output ${index + 1}`}
+                                  ready={nativeFluidControlReady(buffer.id, 'output')}
+                                  onClick={() => handleNativeFluidControl(buffer.id, 'output')}
+                                  key={buffer.id}
+                                />
+                              ))}
+                            </div>
                           ) : isCentrifuge ? (
                             <div className="machine-dual-output centrifuge-universal-outputs">
                               {centrifugeOutputChannels.map((channel, index) => channel?.kind === 'fluid' ? (
