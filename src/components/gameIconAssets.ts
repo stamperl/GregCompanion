@@ -15,12 +15,12 @@ export function machineIconSrc(id: MachineId) {
   return `${import.meta.env.BASE_URL}game-icons/machines/${id}.png?v=${iconAssetVersion}`
 }
 
-export function fluidIconSrc(id: FluidId) {
+export function fluidIconSrc(id: FluidId | 'steam') {
   return `${import.meta.env.BASE_URL}game-icons/fluids/${id}.png?v=${iconAssetVersion}`
 }
 
 export function storedMediumTextureSrc(id: FluidId | 'steam') {
-  return `${import.meta.env.BASE_URL}game-icons/fluids/${id}.png?v=${iconAssetVersion}`
+  return `${import.meta.env.BASE_URL}game-icons/fluid-textures/${id}.png?v=${iconAssetVersion}`
 }
 
 function preloadImage(src: string) {
@@ -44,7 +44,8 @@ function preloadImage(src: string) {
 function generatedIconUrls() {
   const resourceUrls = (Object.keys(resourceRegistry) as ResourceId[]).map(resourceIconSrc)
   const machineUrls = (Object.keys(machines) as MachineId[]).map(machineIconSrc)
-  const fluidUrls = [...fluidIds.map(fluidIconSrc), storedMediumTextureSrc('steam')]
+  const fluidVisualIds = [...fluidIds, 'steam'] as const
+  const fluidUrls = fluidVisualIds.flatMap((id) => [fluidIconSrc(id), storedMediumTextureSrc(id)])
   return [...resourceUrls, ...machineUrls, ...fluidUrls]
 }
 

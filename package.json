@@ -16,6 +16,7 @@
     "icons:extract": "powershell -ExecutionPolicy Bypass -File scripts/extract-icon-assets.ps1",
     "icons:lv": "powershell -ExecutionPolicy Bypass -File scripts/generate-lv-icon-assets.ps1",
     "icons:check": "tsx scripts/validate-icon-assets.ts",
+    "icons:fluid-fills": "node scripts/extract-fluid-fill-textures.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "android:add": "cap add android",

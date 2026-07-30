@@ -7,6 +7,7 @@ const root = path.dirname(fileURLToPath(new URL('../package.json', import.meta.u
 const resourcesDir = path.join(root, 'public/game-icons/resources')
 const machinesDir = path.join(root, 'public/game-icons/machines')
 const fluidsDir = path.join(root, 'public/game-icons/fluids')
+const fluidFillsDir = path.join(root, 'public/game-icons/fluid-textures')
 const approvalsPath = path.join(root, 'public/icon-reviews/approvals.json')
 const mvApprovalsPath = path.join(root, 'public/icon-reviews/mv-engineering/approvals.json')
 const polymerApprovalsPath = path.join(root, 'public/icon-reviews/polymer-works-v1/approvals.json')
@@ -62,6 +63,7 @@ const failures = [
   ...checkSet('resource', resourceIds, resourcesDir),
   ...checkSet('machine', machineIds, machinesDir),
   ...checkSet('fluid', fluidVisualIds, fluidsDir),
+  ...checkSet('fluid fill', fluidVisualIds, fluidFillsDir),
   ...fluidVisualIds.flatMap((id) => {
     const approval = fluidApprovalById.get(id)
     if (!approval) return [`fluid approval ${id}: missing approval entry`]

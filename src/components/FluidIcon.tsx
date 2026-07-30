@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { fluidColors } from '../game/content'
 import type { FluidId } from '../game/types'
-import { storedMediumTextureSrc } from './gameIconAssets'
+import { fluidIconSrc, storedMediumTextureSrc } from './gameIconAssets'
 
 export type StoredMediumId = FluidId | 'steam'
 
@@ -17,7 +17,7 @@ export function FluidIcon({ id, className = '' }: { id: StoredMediumId; classNam
       style={{ '--fluid-color': storedMediumColors[id] } as CSSProperties}
       aria-hidden="true"
     >
-      <img className="fluid-icon-image" src={storedMediumTextureSrc(id)} alt="" draggable="false" />
+      <img className="fluid-icon-image" src={fluidIconSrc(id)} alt="" draggable="false" />
     </span>
   )
 }

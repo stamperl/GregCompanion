@@ -16,7 +16,7 @@ describe('fluid artwork', () => {
   it('renders the dedicated steam texture at the requested level', () => {
     const markup = renderToStaticMarkup(<StoredMediumFill id="steam" fillPercent={42} gaseous />)
 
-    expect(markup).toContain('/game-icons/fluids/steam.png')
+    expect(markup).toContain('/game-icons/fluid-textures/steam.png')
     expect(markup).toContain('height:42%')
     expect(markup).toContain('stored-medium-gas')
   })
