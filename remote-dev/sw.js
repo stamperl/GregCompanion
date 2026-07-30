@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'click-foundry-v1'
+const CACHE_VERSION = 'click-foundry-v2'
 const APP_CACHE = `${CACHE_VERSION}-app`
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 const scopeUrl = new URL(self.registration.scope)
@@ -87,10 +87,14 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys
-        .filter((key) => !key.startsWith(CACHE_VERSION))
-        .map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+      .then(async (keys) => {
+        const staleKeys = keys.filter((key) => !key.startsWith(CACHE_VERSION))
+        await Promise.all(staleKeys.map((key) => caches.delete(key)))
+        await self.clients.claim()
+        if (staleKeys.length === 0) return
+        const clients = await self.clients.matchAll({ type: 'window' })
+        await Promise.all(clients.map((client) => client.navigate(client.url)))
+      }),
   )
 })
 
