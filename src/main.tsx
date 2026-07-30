@@ -11,8 +11,11 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   })
 }
 
-if (import.meta.env.DEV) {
+const isRemoteDevelopmentBuild = import.meta.env.VITE_RELEASE_CHANNEL === 'remote-dev'
+
+if (import.meta.env.DEV || isRemoteDevelopmentBuild) {
   const clearOldPwaState = async () => {
+    if (!import.meta.env.DEV) return
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations()
       await Promise.all(registrations.map((registration) => registration.unregister()))
@@ -31,7 +34,10 @@ if (import.meta.env.DEV) {
     freshnessCheckRunning = true
     try {
       await clearOldPwaState()
-      const response = await fetch(`/src/dev-manifest.json?fresh=${Date.now()}`, { cache: 'no-store' })
+      const revisionUrl = import.meta.env.DEV
+        ? `/src/dev-manifest.json?fresh=${Date.now()}`
+        : `${import.meta.env.BASE_URL}dev-revision.json?fresh=${Date.now()}`
+      const response = await fetch(revisionUrl, { cache: 'no-store' })
       if (!response.ok) return
       const latest = await response.json() as { revision?: string | number }
       if (latest.revision && latest.revision !== devManifest.revision) {

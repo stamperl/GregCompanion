@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const devManifestPath = new URL('../src/dev-manifest.json', import.meta.url)
+const publicDevManifestPath = new URL('../public/dev-revision.json', import.meta.url)
 
 function readManifest() {
   try {
@@ -18,4 +19,5 @@ const next = {
 }
 
 writeFileSync(devManifestPath, `${JSON.stringify(next, null, 2)}\n`)
+writeFileSync(publicDevManifestPath, `${JSON.stringify(next, null, 2)}\n`)
 console.log(`Dev revision bumped to dev.${next.revision}`)
