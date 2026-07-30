@@ -10052,7 +10052,7 @@ function App() {
                         .map((buffer, index) => {
                           const expected = universalExpectedInputs.find((fluid) => fluid.bufferId === buffer.id) ?? universalExpectedInputs[index]
                           const expectedId = expected?.id
-                          const fluidId = expectedId && buffer.acceptedFluids.includes(expectedId)
+                          const fluidId = expectedId && buffer.acceptedFluids.includes(expectedId) && (process.fluids[expectedId] ?? 0) > 0
                             ? expectedId
                             : buffer.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
                           return { buffer, fluidId, amount: fluidId ? process.fluids[fluidId] ?? 0 : 0 }
@@ -10064,7 +10064,7 @@ function App() {
                         .map((buffer, index) => {
                           const expected = universalExpectedOutputs.find((fluid) => fluid.bufferId === buffer.id) ?? universalExpectedOutputs[index]
                           const expectedId = expected?.id
-                          const fluidId = expectedId && buffer.acceptedFluids.includes(expectedId)
+                          const fluidId = expectedId && buffer.acceptedFluids.includes(expectedId) && (process.fluids[expectedId] ?? 0) > 0
                             ? expectedId
                             : buffer.acceptedFluids.find((id) => (process.fluids[id] ?? 0) > 0)
                           return { buffer, fluidId, amount: fluidId ? process.fluids[fluidId] ?? 0 : 0 }
@@ -10125,7 +10125,7 @@ function App() {
                       : []
                     const chemicalOutputChannels = chemicalOutputBuffers.map((buffer, index) => {
                       const expected = chemicalExpectedFluidOutputs.find((fluid) => fluid.bufferId === buffer.id) ?? chemicalExpectedFluidOutputs[index]
-                      const fluidId = expected?.id && buffer.acceptedFluids.includes(expected.id)
+                      const fluidId = expected?.id && buffer.acceptedFluids.includes(expected.id) && (process.fluids[expected.id] ?? 0) > 0
                         ? expected.id
                         : buffer.acceptedFluids.find((id) => !chemicalInputFluidIds.has(id) && (process.fluids[id] ?? 0) > 0)
                       return { buffer, fluidId, amount: fluidId ? process.fluids[fluidId] ?? 0 : 0 }

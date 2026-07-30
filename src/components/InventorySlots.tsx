@@ -347,7 +347,8 @@ export function ProcessFluidSlot({
   ready?: boolean
 }) {
   const storedLitres = fluidId ? amount ?? 0 : 0
-  const inspection = useSlotInspection(fluidId, onClick)
+  const storedFluidId = fluidId && storedLitres > 0 ? fluidId : undefined
+  const inspection = useSlotInspection(storedFluidId, onClick)
   const inspectionId = useId()
   const slotRole = label.toLowerCase().includes('output') || label.toLowerCase().startsWith('out')
     ? 'output'
@@ -355,25 +356,25 @@ export function ProcessFluidSlot({
   return (
     <button
       type="button"
-      className={['process-slot', `process-slot-${slotRole}`, 'fluid-process-slot', 'native-fluid-control', fluidId ? 'filled' : '', ready ? 'ready' : ''].filter(Boolean).join(' ')}
-      aria-label={fluidId ? `${label} ${fluidLabels[fluidId]} ${formatLitres(storedLitres)} litres` : label}
+      className={['process-slot', `process-slot-${slotRole}`, 'fluid-process-slot', 'native-fluid-control', storedFluidId ? 'filled' : '', ready ? 'ready' : ''].filter(Boolean).join(' ')}
+      aria-label={storedFluidId ? `${label} ${fluidLabels[storedFluidId]} ${formatLitres(storedLitres)} litres` : label}
       aria-describedby={inspection.position ? inspectionId : undefined}
       {...inspection.eventHandlers}
     >
-      {fluidId ? (
+      {storedFluidId ? (
         <>
-          <FluidIcon id={fluidId} />
+          <FluidIcon id={storedFluidId} />
           <span className="item-count">{formatLitres(storedLitres)}L</span>
         </>
       ) : emptyLabel ? (
         <span className="process-slot-role" aria-hidden="true" />
       ) : null}
-      {fluidId && (
+      {storedFluidId && (
         <SlotInspectionTooltip
           position={inspection.position}
-          icon={<FluidIcon id={fluidId} />}
+          icon={<FluidIcon id={storedFluidId} />}
           label={label}
-          name={fluidLabels[fluidId]}
+          name={fluidLabels[storedFluidId]}
           value={`${formatLitres(storedLitres)}L`}
           id={inspectionId}
         />
