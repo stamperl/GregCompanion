@@ -19,6 +19,10 @@ export function fluidIconSrc(id: FluidId) {
   return `${import.meta.env.BASE_URL}game-icons/fluids/${id}.png?v=${iconAssetVersion}`
 }
 
+export function storedMediumTextureSrc(id: FluidId | 'steam') {
+  return `${import.meta.env.BASE_URL}game-icons/fluids/${id}.png?v=${iconAssetVersion}`
+}
+
 function preloadImage(src: string) {
   if (typeof window === 'undefined' || preloadedIconImages.has(src)) return Promise.resolve()
 
@@ -40,7 +44,7 @@ function preloadImage(src: string) {
 function generatedIconUrls() {
   const resourceUrls = (Object.keys(resourceRegistry) as ResourceId[]).map(resourceIconSrc)
   const machineUrls = (Object.keys(machines) as MachineId[]).map(machineIconSrc)
-  const fluidUrls = fluidIds.map(fluidIconSrc)
+  const fluidUrls = [...fluidIds.map(fluidIconSrc), storedMediumTextureSrc('steam')]
   return [...resourceUrls, ...machineUrls, ...fluidUrls]
 }
 

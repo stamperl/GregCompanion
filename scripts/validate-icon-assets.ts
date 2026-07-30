@@ -11,6 +11,7 @@ const approvalsPath = path.join(root, 'public/icon-reviews/approvals.json')
 const mvApprovalsPath = path.join(root, 'public/icon-reviews/mv-engineering/approvals.json')
 const polymerApprovalsPath = path.join(root, 'public/icon-reviews/polymer-works-v1/approvals.json')
 const fluidApprovalsPath = path.join(root, 'public/icon-reviews/fluid-textures-generated-v1/approvals.json')
+const fluidCandidatesDir = path.join(root, 'public/icon-reviews/fluid-textures-generated-v1/candidates')
 
 function pngInfo(filePath: string) {
   const buffer = readFileSync(filePath)
@@ -55,10 +56,25 @@ const polymerApprovals = readJson(polymerApprovalsPath).entries ?? []
 const fluidApprovals = readJson(fluidApprovalsPath).entries ?? []
 const resourceIds = Object.keys(resourceRegistry)
 const machineIds = Object.keys(machineRegistry)
+const fluidVisualIds = [...fluidIds, 'steam']
+const fluidApprovalById = new Map(fluidApprovals.map((approval: { id: string; status: string }) => [approval.id, approval]))
 const failures = [
   ...checkSet('resource', resourceIds, resourcesDir),
   ...checkSet('machine', machineIds, machinesDir),
-  ...checkSet('fluid', fluidIds, fluidsDir),
+  ...checkSet('fluid', fluidVisualIds, fluidsDir),
+  ...fluidVisualIds.flatMap((id) => {
+    const approval = fluidApprovalById.get(id)
+    if (!approval) return [`fluid approval ${id}: missing approval entry`]
+    const candidatePath = path.join(fluidCandidatesDir, `${id}.png`)
+    const runtimePath = path.join(fluidsDir, `${id}.png`)
+    try {
+      return readFileSync(candidatePath).equals(readFileSync(runtimePath))
+        ? []
+        : [`fluid approval ${id}: approved candidate differs from runtime PNG`]
+    } catch {
+      return [`fluid approval ${id}: missing approved candidate PNG`]
+    }
+  }),
   ...approvals
     .filter((approval: { status: string }) => approval.status !== 'approved')
     .map((approval: { id: string; status: string }) => `approval ${approval.id}: status is ${approval.status}`),
@@ -79,4 +95,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Icon asset validation passed for ${resourceIds.length} resources, ${machineIds.length} machines, and ${fluidIds.length} fluids.`)
+console.log(`Icon asset validation passed for ${resourceIds.length} resources, ${machineIds.length} machines, and ${fluidVisualIds.length} fluid visuals.`)

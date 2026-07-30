@@ -238,7 +238,7 @@ describe('content validation', () => {
   })
 
   it('ships a generated PNG icon for every fluid', () => {
-    for (const fluidId of fluidIds) {
+    for (const fluidId of [...fluidIds, 'steam']) {
       const iconPath = resolve(publicDir, 'game-icons/fluids', `${fluidId}.png`)
       expect(existsSync(iconPath), `fluid ${fluidId} should have a generated icon`).toBe(true)
       expect(statSync(iconPath).size, `fluid ${fluidId} icon should not be blank`).toBeGreaterThan(500)
