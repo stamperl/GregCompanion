@@ -22070,9 +22070,9 @@ button.button-primary:disabled,
   background-image:
     linear-gradient(90deg, rgb(255 255 255 / 18%), transparent 22%, transparent 72%, rgb(0 0 0 / 24%)),
     var(--fluid-image);
-  background-position: center, center bottom;
-  background-repeat: no-repeat, repeat;
-  background-size: 100% 100%, 96px 96px;
+  background-position: center, center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%, cover;
   box-shadow:
     inset 0 1px rgb(255 255 255 / 56%),
     inset 8px 0 10px rgb(255 255 255 / 8%),
@@ -22141,9 +22141,9 @@ button.button-primary:disabled,
   background-image:
     linear-gradient(90deg, rgb(255 255 255 / 18%), transparent 22%, transparent 72%, rgb(0 0 0 / 24%)),
     var(--fluid-image) !important;
-  background-position: center, center bottom !important;
-  background-repeat: no-repeat, repeat !important;
-  background-size: 100% 100%, 76px 76px !important;
+  background-position: center, center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100%, cover !important;
   box-shadow:
     inset 0 1px rgb(255 255 255 / 56%),
     inset 8px 0 10px rgb(255 255 255 / 8%),
@@ -22246,9 +22246,9 @@ button.button-primary:disabled,
   background-image:
     linear-gradient(90deg, rgb(255 255 255 / 22%), transparent 45%, rgb(0 0 0 / 18%)),
     var(--fluid-image) !important;
-  background-position: center, center bottom !important;
-  background-repeat: no-repeat, repeat !important;
-  background-size: 100% 100%, 46px 46px !important;
+  background-position: center, center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100%, cover !important;
   transform: none !important;
 }
 
@@ -22276,9 +22276,9 @@ button.button-primary:disabled,
   background-image:
     linear-gradient(180deg, rgb(255 255 255 / 22%), transparent 35%, rgb(0 0 0 / 18%)),
     var(--fluid-image) !important;
-  background-position: center, center bottom !important;
-  background-repeat: no-repeat, repeat-x !important;
-  background-size: 100% 100%, 92px 92px !important;
+  background-position: center, center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100%, cover !important;
   opacity: .9;
   transform: none !important;
 }
@@ -22288,8 +22288,8 @@ button.button-primary:disabled,
 }
 
 @keyframes pipe-medium-travel {
-  from { background-position: center, 0 bottom; }
-  to { background-position: center, 92px bottom; }
+  from { background-position: center, 47% center; }
+  to { background-position: center, 53% center; }
 }
 
 /* Boiler terminals share a compact process schematic instead of room artwork. */
@@ -22523,5 +22523,73 @@ button.button-primary:disabled,
   .furnace-modal.machine-terminal .liquid-boiler-core .boiler-combustion-visual {
     width: 47px;
     height: 72px;
+  }
+}
+
+/* Storage tanks use the same instrumented vessel as boiler buffers, scaled up. */
+.furnace-modal.machine-terminal .iron-tank-hmi {
+  grid-template-columns: minmax(168px, 1fr) minmax(118px, .62fr);
+}
+
+.furnace-modal.machine-terminal .storage-buffer-vessel.utility-vessel {
+  display: block;
+  width: 100%;
+  height: 286px;
+  min-height: 286px;
+  overflow: hidden;
+}
+
+.furnace-modal.machine-terminal .storage-buffer-vessel > .steam-tank {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 9px;
+  border: 1px solid var(--machine-accent);
+  background: #101718 !important;
+}
+
+.furnace-modal.machine-terminal .storage-buffer-vessel .steam-tank-readout {
+  padding: 5px 7px;
+}
+
+.furnace-modal.machine-terminal .storage-buffer-vessel .steam-tank-readout span {
+  font-size: .54rem;
+}
+
+.furnace-modal.machine-terminal .storage-buffer-vessel .steam-tank-readout strong {
+  font-size: .76rem;
+}
+
+.furnace-modal.machine-terminal .storage-buffer-vessel .steam-tank-gauge {
+  width: 100% !important;
+  min-height: 188px;
+  border: 2px solid color-mix(in srgb, var(--machine-accent) 74%, #111);
+}
+
+.furnace-modal.machine-terminal .storage-buffer-vessel .steam-tank-capacity {
+  font-size: .52rem;
+}
+
+.furnace-modal.machine-terminal .empty-storage-buffer .steam-tank-gauge {
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 3%) 25%, transparent 25% 50%, rgb(255 255 255 / 3%) 50% 75%, transparent 75%),
+    #071012 !important;
+  background-size: 18px 18px !important;
+}
+
+@media (max-width: 430px) {
+  .furnace-modal.machine-steamTank-terminal .iron-tank-hmi,
+  .furnace-modal.machine-steelTank-terminal .iron-tank-hmi {
+    grid-template-columns: minmax(0, 1fr) minmax(102px, .42fr);
+  }
+
+  .furnace-modal.machine-terminal .storage-buffer-vessel.utility-vessel {
+    height: clamp(240px, 34svh, 286px);
+    min-height: 240px;
+  }
+
+  .furnace-modal.machine-terminal .storage-buffer-vessel .steam-tank-gauge {
+    min-height: 150px;
   }
 }

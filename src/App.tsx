@@ -9389,26 +9389,32 @@ function App() {
                     {(() => {
                       const fluid = selectedMachineStoredFluids[0]
                       const isSteam = selectedMachine.process.steamStoredMs > 0
-                      const mediumId = isSteam ? 'steam' : fluid?.id
-                      const contents = mediumId ? (isSteam ? 'Steam' : fluidLabel(fluid!.id)) : 'Empty'
+                      const contents = isSteam ? 'Steam' : fluid ? fluidLabel(fluid.id) : 'Empty'
                       const amount = isSteam ? formatSteamLitres(selectedMachine.process.steamStoredMs) : fluid?.amount ?? 0
                       const capacity = isSteam ? formatSteamLitres(selectedSteamTankCapacityMs) : selectedSteamTankFluidCapacityLitres
                       const outputFaces = pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output').map((direction) => pipeDirectionOffsets[direction].label)
                       const fluidOutflow = currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0)
                       return <>
-                        <button type="button" className={`utility-vessel iron-tank-vessel native-fluid-control ${isSteam ? 'steam-contents' : fluid ? `fluid-contents fluid-${fluid.id} ${gaseousFluidIds.has(fluid.id) ? 'gaseous-fluid' : 'liquid-fluid'}` : 'empty-contents'} ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
-                          <MachineGlyph id={selectedMachine.machineId} active={amount > 0} />
-                          {mediumId && (
-                            <span className="tank-vessel-window" aria-hidden="true">
-                              <StoredMediumFill
-                                id={mediumId}
-                                fillPercent={metricFill(amount, capacity)}
-                                gaseous={isSteam || Boolean(fluid && gaseousFluidIds.has(fluid.id))}
-                                className="tank-vessel-fill"
-                              />
-                            </span>
+                        <button type="button" className={`utility-vessel storage-buffer-vessel native-fluid-control ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
+                          {isSteam ? (
+                            <SteamTank storedMs={selectedMachine.process.steamStoredMs} capacityMs={selectedSteamTankCapacityMs} />
+                          ) : fluid ? (
+                            <FluidTank
+                              fluidId={fluid.id}
+                              label={fluidLabel(fluid.id)}
+                              storedLitres={fluid.amount}
+                              capacityLitres={selectedSteamTankFluidCapacityLitres}
+                            />
+                          ) : (
+                            <div className="steam-tank fluid-tank empty-storage-buffer">
+                              <div className="steam-tank-readout">
+                                <span>Contents</span>
+                                <strong>Empty</strong>
+                              </div>
+                              <div className="steam-tank-gauge fluid-tank-gauge" />
+                              <small className="steam-tank-capacity">{formatLitres(selectedSteamTankFluidCapacityLitres)}L max</small>
+                            </div>
                           )}
-                          <strong>{contents}</strong>
                         </button>
                         <div className="utility-readout-grid">
                           <span><small>Contents</small><strong>{contents}</strong><em>Single fluid tank</em></span>
