@@ -1550,6 +1550,81 @@ describe('game engine', () => {
     expect(generatedBenzenePower).toBe(true)
   })
 
+  it('loads a fully routed polyethylene production line in the creative factory', () => {
+    let state = createCreativeFactoryState(createInitialState(1000), 2000)
+    const machineAt = (x: number, y: number) => state.machineInstances.find((instance) => instance.x === x && instance.y === y)!
+    const farm = machineAt(22, 14)
+    const extractor = machineAt(21, 14)
+    const sugarMixer = machineAt(20, 14)
+    const fermenter = machineAt(19, 14)
+    const ethanolDistillery = machineAt(18, 14)
+    const dehydrator = machineAt(17, 14)
+    const polymerReactor = machineAt(16, 14)
+    const solidifier = machineAt(15, 14)
+    const recoveryDistillery = machineAt(17, 12)
+    const byproductMixer = machineAt(19, 12)
+    const superTank = machineAt(18, 16)
+    const airCollector = machineAt(16, 12)
+    const itemFeedConductor = machineAt(22, 13)
+    const extractorConductor = machineAt(21, 13)
+
+    expect(farm.machineId).toBe('poweredFarm')
+    expect(multiblockControllerForInstance(state, farm)).not.toBeNull()
+    expect(farm.process.configuredProgramNumber).toBe(4)
+    expect(extractor.machineId).toBe('lvExtractor')
+    expect(sugarMixer.process.configuredProgramNumber).toBe(1)
+    expect(fermenter.process.configuredProgramNumber).toBe(3)
+    expect(ethanolDistillery.process.configuredProgramNumber).toBe(2)
+    expect(dehydrator.process.configuredProgramNumber).toBe(5)
+    expect(polymerReactor.process.configuredProgramNumber).toBe(6)
+    expect(solidifier.process.configuredProgramNumber).toBe(1)
+    expect(solidifier.process.input).toEqual({ id: 'plateMold', amount: 1 })
+    expect(recoveryDistillery.process.configuredProgramNumber).toBe(3)
+    expect(byproductMixer.process.configuredProgramNumber).toBe(4)
+    expect(superTank.machineId).toBe('lvSuperTank')
+    expect(airCollector.machineId).toBe('lvAirCollector')
+    expect(conductorFaceSettings(itemFeedConductor, 'item', 'south')).toMatchObject({ mode: 'input', channel: 2 })
+    expect(conductorFaceSettings(extractorConductor, 'item', 'south')).toMatchObject({ mode: 'output', channel: 2 })
+    expect(availableConnectedEu(state, extractor)).toBeGreaterThan(0)
+    expect(availableConnectedEu(state, recoveryDistillery)).toBeGreaterThan(0)
+    expect(availableConnectedEu(state, airCollector)).toBeGreaterThan(0)
+
+    for (const recipeId of [
+      'farm_enriched_sugar_cane',
+      'extract_cane_juice',
+      'mix_sugar_wash',
+      'ferment_sugar_wash',
+      'distil_ethanol',
+      'dehydrate_ethanol',
+      'recover_sulfuric_acid',
+      'polymerize_with_air',
+      'solidify_polyethylene_plate',
+      'mix_fertilizer_liquor',
+    ]) {
+      state.recipeMilestones[recipeId] = 0
+    }
+
+    for (let step = 0; step < 120; step += 1) {
+      state = tickGame(state, 10000, 12000 + step * 10000).state
+    }
+    for (const recipeId of [
+      'farm_enriched_sugar_cane',
+      'extract_cane_juice',
+      'mix_sugar_wash',
+      'ferment_sugar_wash',
+      'distil_ethanol',
+      'dehydrate_ethanol',
+      'polymerize_with_air',
+      'solidify_polyethylene_plate',
+    ]) {
+      expect(state.recipeMilestones[recipeId] ?? 0, `${recipeId} should complete in the creative line`).toBeGreaterThan(0)
+    }
+    expect((state.recipeMilestones.recover_sulfuric_acid ?? 0) + (state.recipeMilestones.mix_fertilizer_liquor ?? 0)).toBeGreaterThan(0)
+    const completedSolidifier = state.machineInstances.find((instance) => instance.uid === solidifier.uid)!
+    const completedTank = state.machineInstances.find((instance) => instance.uid === superTank.uid)!
+    expect((completedSolidifier.process.output?.amount ?? 0) + (completedTank.process.fluids.liquidPolyethylene ?? 0)).toBeGreaterThan(0)
+  }, 15_000)
+
   it('loads a powered end-to-end recursive auto-crafting demonstration', () => {
     let state = createCreativeFactoryState(createInitialState(1000), 2000)
     const controller = state.machineInstances.find((instance) => instance.machineId === 'planningController')!

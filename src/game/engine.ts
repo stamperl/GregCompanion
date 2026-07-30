@@ -1584,23 +1584,58 @@ const creativeFactoryPlacements: CreativeFactoryPlacement[] = [
   { id: 'tinCable8A', x: 12, y: 15 },
   { id: 'tinCable8A', x: 13, y: 15 },
   { id: 'tinCable8A', x: 14, y: 15 },
-  { id: 'lvExtractor', x: 6, y: 16 },
-  { id: 'lvMixer', x: 7, y: 16 },
-  { id: 'lvChemicalReactor', x: 8, y: 16 },
-  { id: 'lvDistillery', x: 9, y: 16 },
-  { id: 'lvChemicalReactor', x: 10, y: 16 },
-  { id: 'lvDistillery', x: 11, y: 16 },
-  { id: 'lvChemicalReactor', x: 12, y: 16 },
-  { id: 'lvFluidSolidifier', x: 13, y: 16 },
-  { id: 'lvMixer', x: 14, y: 16 },
-  { id: 'lvSuperTank', x: 15, y: 16 },
-  { id: 'lvBatteryBuffer4A', x: 18, y: 14 },
-  { id: 'tinCable4A', x: 19, y: 14 },
-  { id: 'lvWaterSource', x: 20, y: 13 },
-  { id: 'poweredFarmPart', x: 20, y: 14 },
-  { id: 'poweredFarmPart', x: 21, y: 14 },
-  { id: 'poweredFarmPart', x: 20, y: 15 },
-  { id: 'poweredFarmPart', x: 21, y: 15 },
+  { id: 'tinCable8A', x: 15, y: 15 },
+  { id: 'tinCable8A', x: 16, y: 15 },
+  { id: 'tinCable8A', x: 17, y: 15 },
+  { id: 'tinCable8A', x: 18, y: 15 },
+  { id: 'tinCable8A', x: 19, y: 15 },
+  { id: 'tinCable8A', x: 20, y: 15 },
+  { id: 'tinCable8A', x: 21, y: 15 },
+  { id: 'lvFluidSolidifier', x: 15, y: 14 },
+  { id: 'lvChemicalReactor', x: 16, y: 14 },
+  { id: 'lvChemicalReactor', x: 17, y: 14 },
+  { id: 'lvDistillery', x: 18, y: 14 },
+  { id: 'lvChemicalReactor', x: 19, y: 14 },
+  { id: 'lvMixer', x: 20, y: 14 },
+  { id: 'lvExtractor', x: 21, y: 14 },
+  { id: 'poweredFarmPart', x: 22, y: 14 },
+  { id: 'poweredFarmPart', x: 23, y: 14 },
+  { id: 'poweredFarmPart', x: 22, y: 15 },
+  { id: 'poweredFarmPart', x: 23, y: 15 },
+  { id: 'lvBatteryBuffer8A', x: 6, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 7, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 8, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 9, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 10, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 11, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 12, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 13, y: 16 },
+  { id: 'lvBatteryBuffer8A', x: 14, y: 16 },
+  { id: 'lvAirCollector', x: 16, y: 12 },
+  { id: 'lvDistillery', x: 17, y: 12 },
+  { id: 'lvMixer', x: 19, y: 12 },
+  { id: 'fluidConductor', x: 20, y: 12 },
+  { id: 'fluidConductor', x: 21, y: 12 },
+  { id: 'fluidConductor', x: 22, y: 12 },
+  { id: 'lvBatteryBuffer', x: 23, y: 12 },
+  { id: 'fluidConductor', x: 16, y: 13 },
+  { id: 'fluidConductor', x: 17, y: 13 },
+  { id: 'fluidConductor', x: 18, y: 13 },
+  { id: 'fluidConductor', x: 19, y: 13 },
+  { id: 'fluidConductor', x: 20, y: 13 },
+  { id: 'fluidConductor', x: 21, y: 13 },
+  { id: 'fluidConductor', x: 22, y: 13 },
+  { id: 'itemConductor', x: 21, y: 13 },
+  { id: 'itemConductor', x: 22, y: 13 },
+  { id: 'lvWaterSource', x: 23, y: 13 },
+  { id: 'lvBatteryBuffer4A', x: 16, y: 11 },
+  { id: 'lvBatteryBuffer', x: 17, y: 11 },
+  { id: 'lvBatteryBuffer4A', x: 18, y: 11 },
+  { id: 'tinCable4A', x: 19, y: 11 },
+  { id: 'tinCable4A', x: 20, y: 11 },
+  { id: 'tinCable4A', x: 21, y: 11 },
+  { id: 'tinCable4A', x: 22, y: 11 },
+  { id: 'lvSuperTank', x: 18, y: 16 },
   { id: 'aluminiumCable8A', x: 0, y: 17 },
   { id: 'aluminiumCable8A', x: 1, y: 17 },
   { id: 'aluminiumCable8A', x: 2, y: 17 },
@@ -1727,8 +1762,8 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
   }
   const waterSource = machineAtPosition(state, 2, 11)
   if (waterSource?.machineId === 'lvWaterSource') state = setFluidOutputDirection(state, waterSource.uid, 'west')
-  const polymerWaterSource = machineAtPosition(state, 20, 13)
-  if (polymerWaterSource?.machineId === 'lvWaterSource') state = setFluidOutputDirection(state, polymerWaterSource.uid, 'south')
+  const polymerWaterSource = machineAtPosition(state, 23, 13)
+  if (polymerWaterSource?.machineId === 'lvWaterSource') state = setFluidOutputDirection(state, polymerWaterSource.uid, 'west')
   const pyrolysisOven = machineAtPosition(state, 3, 11)
   if (pyrolysisOven?.machineId === 'pyrolysisOven') {
     state = setFluidOutputDirection(state, pyrolysisOven.uid, 'east')
@@ -1739,6 +1774,64 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
     state = setFluidOutputDirection(state, distillery.uid, 'north')
     state = setFluidOutputDirection(state, distillery.uid, 'east')
     state = setFluidOutputDirection(state, distillery.uid, 'south')
+  }
+  const dehydrationReactor = machineAtPosition(state, 17, 14)
+  if (dehydrationReactor?.machineId === 'lvChemicalReactor') {
+    state = setFluidOutputDirection(state, dehydrationReactor.uid, 'west')
+    state = setFluidOutputDirection(state, dehydrationReactor.uid, 'north')
+  }
+  const polymerReactor = machineAtPosition(state, 16, 14)
+  if (polymerReactor?.machineId === 'lvChemicalReactor') {
+    state = setFluidOutputDirection(state, polymerReactor.uid, 'west')
+  }
+  const polymerAirCollector = machineAtPosition(state, 16, 12)
+  if (polymerAirCollector?.machineId === 'lvAirCollector') {
+    state = setFluidOutputDirection(state, polymerAirCollector.uid, 'south')
+  }
+  const polymerAirConductor = machineAtPosition(state, 16, 13)
+  if (polymerAirConductor && isFluidConductorMachine(polymerAirConductor.machineId)) {
+    state = setConductorFaceSettings(state, polymerAirConductor.uid, 'fluid', 'north', { mode: 'input', channel: 3 })
+    state = setConductorFaceSettings(state, polymerAirConductor.uid, 'fluid', 'south', { mode: 'output', channel: 3 })
+  }
+  const fermentationReactor = machineAtPosition(state, 19, 14)
+  if (fermentationReactor?.machineId === 'lvChemicalReactor') {
+    state = setFluidOutputDirection(state, fermentationReactor.uid, 'west')
+  }
+  const ethanolDistillery = machineAtPosition(state, 18, 14)
+  if (ethanolDistillery?.machineId === 'lvDistillery') {
+    state = setFluidOutputDirection(state, ethanolDistillery.uid, 'west')
+  }
+  const acidRecoveryConductor = machineAtPosition(state, 17, 13)
+  if (acidRecoveryConductor && isFluidConductorMachine(acidRecoveryConductor.machineId)) {
+    state = setConductorFaceSettings(state, acidRecoveryConductor.uid, 'fluid', 'south', { mode: 'both', channel: 0 })
+    state = setConductorFaceSettings(state, acidRecoveryConductor.uid, 'fluid', 'north', { mode: 'both', channel: 0 })
+  }
+  const distilleryByproductConductor = machineAtPosition(state, 18, 13)
+  if (distilleryByproductConductor && isFluidConductorMachine(distilleryByproductConductor.machineId)) {
+    state = setConductorFaceSettings(state, distilleryByproductConductor.uid, 'fluid', 'south', { mode: 'input', channel: 1 })
+  }
+  const fermenterByproductConductor = machineAtPosition(state, 19, 13)
+  if (fermenterByproductConductor && isFluidConductorMachine(fermenterByproductConductor.machineId)) {
+    state = setConductorFaceSettings(state, fermenterByproductConductor.uid, 'fluid', 'south', { mode: 'input', channel: 1 })
+    state = setConductorFaceSettings(state, fermenterByproductConductor.uid, 'fluid', 'north', { mode: 'output', channel: 1 })
+  }
+  const fertilizerSourceConductor = machineAtPosition(state, 20, 12)
+  if (fertilizerSourceConductor && isFluidConductorMachine(fertilizerSourceConductor.machineId)) {
+    state = setConductorFaceSettings(state, fertilizerSourceConductor.uid, 'fluid', 'west', { mode: 'input', channel: 2 })
+  }
+  const sugarMixerWaterConductor = machineAtPosition(state, 20, 13)
+  if (sugarMixerWaterConductor && isFluidConductorMachine(sugarMixerWaterConductor.machineId)) {
+    state = setConductorFaceSettings(state, sugarMixerWaterConductor.uid, 'fluid', 'south', { mode: 'output', channel: 2 })
+  }
+  const extractorConductor = machineAtPosition(state, 21, 13)
+  if (extractorConductor && isFluidConductorMachine(extractorConductor.machineId)) {
+    state = setConductorFaceSettings(state, extractorConductor.uid, 'item', 'south', { mode: 'output', channel: 2 })
+  }
+  const farmConductor = machineAtPosition(state, 22, 13)
+  if (farmConductor && isFluidConductorMachine(farmConductor.machineId)) {
+    state = setConductorFaceSettings(state, farmConductor.uid, 'fluid', 'south', { mode: 'output', channel: 2 })
+    state = setConductorFaceSettings(state, farmConductor.uid, 'fluid', 'east', { mode: 'input', channel: 2 })
+    state = setConductorFaceSettings(state, farmConductor.uid, 'item', 'south', { mode: 'input', channel: 2 })
   }
 
   const batteryBuffers = state.machineInstances.filter((instance) => isEuStorageMachine(instance.machineId))
@@ -1752,7 +1845,10 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
       : buffer.x === 9 && buffer.y === 7 ? 'west'
       : buffer.x === 23 && buffer.y === 7 ? 'west'
       : buffer.x === 10 && buffer.y === 11 ? 'east'
-      : buffer.x === 18 && buffer.y === 14 ? 'east'
+      : buffer.x === 16 && buffer.y === 11 ? 'south'
+      : buffer.x === 17 && buffer.y === 11 ? 'south'
+      : buffer.x === 18 && buffer.y === 11 ? 'east'
+      : buffer.x === 23 && buffer.y === 12 ? 'south'
       : 'north'
     state = setBatteryBufferOutputDirection(state, buffer.uid, creativeOutput)
     for (let index = 0; index < batteryBufferSlots(buffer.machineId); index += 1) {
@@ -1917,66 +2013,69 @@ export function createCreativeFactoryState(base: GameState = createInitialState(
       instance.process.secondaryInput = { id: 'extrusionMoldGear', amount: 1 }
     }
     if (instance.machineId === 'poweredFarm') {
-      const isPolymerFarm = instance.x === 20 && instance.y === 14
-      instance.process.configuredProgramNumber = isPolymerFarm ? 3 : 1
-      instance.process.fluids.water = Math.min(instance.process.fluidCapacityLitres, isPolymerFarm ? 400 : 96)
+      const isPolymerFarm = instance.x === 22 && instance.y === 14
+      instance.process.configuredProgramNumber = isPolymerFarm ? 4 : 1
+      instance.process.fluids.water = Math.min(instance.process.fluidCapacityLitres, isPolymerFarm ? 128 : 96)
+      if (isPolymerFarm) instance.process.fluids.fertilizerLiquor = 24
     }
     if (instance.machineId === 'pyrolysisOven') instance.process.input = { id: 'log', amount: 8 }
     if (instance.machineId === 'lvDistillery') {
       instance.process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
       instance.process.fluids.woodTar = 8
     }
-    if (instance.x === 6 && instance.y === 16 && instance.machineId === 'lvExtractor') {
-      instance.process.input = { id: 'sugarCane', amount: 24 }
+    if (instance.x === 21 && instance.y === 14 && instance.machineId === 'lvExtractor') {
+      instance.process.input = null
+      instance.process.output = null
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 7 && instance.y === 16 && instance.machineId === 'lvMixer') {
+    if (instance.x === 20 && instance.y === 14 && instance.machineId === 'lvMixer') {
       instance.process.configuredProgramNumber = 1
       instance.process.input = null
       instance.process.secondaryInput = null
-      instance.process.fluids = normalizeFluidStore({ caneJuice: 48, water: 24 })
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 8 && instance.y === 16 && instance.machineId === 'lvChemicalReactor') {
+    if (instance.x === 19 && instance.y === 14 && instance.machineId === 'lvChemicalReactor') {
       instance.process.configuredProgramNumber = 3
       instance.process.input = null
       instance.process.secondaryInput = null
-      instance.process.fluids = normalizeFluidStore({ sugarWash: 60 })
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 9 && instance.y === 16 && instance.machineId === 'lvDistillery') {
+    if (instance.x === 18 && instance.y === 14 && instance.machineId === 'lvDistillery') {
       instance.process.configuredProgramNumber = 2
-      instance.process.fluids = normalizeFluidStore({ fermentedWash: 48 })
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 10 && instance.y === 16 && instance.machineId === 'lvChemicalReactor') {
+    if (instance.x === 17 && instance.y === 14 && instance.machineId === 'lvChemicalReactor') {
       instance.process.configuredProgramNumber = 5
       instance.process.input = null
       instance.process.secondaryInput = null
-      instance.process.fluids = normalizeFluidStore({ ethanol: 24, sulfuricAcid: 4 })
+      instance.process.fluids = normalizeFluidStore({ sulfuricAcid: 16 })
     }
-    if (instance.x === 11 && instance.y === 16 && instance.machineId === 'lvDistillery') {
+    if (instance.x === 17 && instance.y === 12 && instance.machineId === 'lvDistillery') {
       instance.process.configuredProgramNumber = 3
-      instance.process.fluids = normalizeFluidStore({ dilutedSulfuricAcid: 8 })
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 12 && instance.y === 16 && instance.machineId === 'lvChemicalReactor') {
+    if (instance.x === 16 && instance.y === 14 && instance.machineId === 'lvChemicalReactor') {
       instance.process.configuredProgramNumber = 6
       instance.process.input = null
       instance.process.secondaryInput = null
-      instance.process.fluids = normalizeFluidStore({ ethylene: 18, air: 8 })
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 13 && instance.y === 16 && instance.machineId === 'lvFluidSolidifier') {
+    if (instance.x === 15 && instance.y === 14 && instance.machineId === 'lvFluidSolidifier') {
       instance.process.configuredProgramNumber = 1
       instance.process.input = { id: 'plateMold', amount: 1 }
-      instance.process.fluids = normalizeFluidStore({ liquidPolyethylene: 16 })
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 14 && instance.y === 16 && instance.machineId === 'lvMixer') {
+    if (instance.x === 19 && instance.y === 12 && instance.machineId === 'lvMixer') {
       instance.process.configuredProgramNumber = 4
       instance.process.input = null
       instance.process.secondaryInput = null
-      instance.process.fluids = normalizeFluidStore({ vinasse: 24, carbonDioxide: 12 })
+      instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 15 && instance.y === 16 && instance.machineId === 'lvSuperTank') {
+    if (instance.x === 18 && instance.y === 16 && instance.machineId === 'lvSuperTank') {
       instance.process.steamStoredMs = 0
       instance.process.fluids = normalizeFluidStore()
     }
-    if (instance.x === 20 && instance.y === 13 && instance.machineId === 'lvWaterSource') {
+    if (instance.x === 23 && instance.y === 13 && instance.machineId === 'lvWaterSource') {
       instance.process.fluids.water = Math.min(instance.process.fluidCapacityLitres, 128)
     }
     if (instance.x === 4 && instance.y === 13 && isTankStorageMachine(instance.machineId)) {
@@ -4264,10 +4363,23 @@ export function fluidBufferAcceptedFluids(machineId: MachineId, buffer: MachineF
 }
 
 export function machineFluidBuffersForInstance(state: GameState, instance: MachineInstance) {
+  const configuredProgram = instance.process.configuredProgramNumber
+  const programmedRecipes = configuredProgram > 0
+    ? processRecipes.filter((recipe) => recipe.machineId === instance.machineId && recipe.programNumber === configuredProgram)
+    : []
   return (machines[instance.machineId].fluidBuffers ?? []).map((buffer) => ({
     ...buffer,
     capacityLitres: isTankStorageMachine(instance.machineId) ? steamTankFluidCapacityLitresForInstance(state, instance) : buffer.capacityLitres,
-    acceptedFluids: fluidBufferAcceptedFluids(instance.machineId, buffer),
+    acceptedFluids: programmedRecipes.length > 0 && (buffer.fluidRule === 'recipe-inputs' || buffer.fluidRule === 'recipe-outputs')
+      ? [...new Set(
+          (buffer.fluidRule === 'recipe-inputs'
+            ? programmedRecipes.flatMap(recipeFluidInputs)
+            : programmedRecipes.flatMap(recipeFluidOutputs)
+          )
+            .filter((fluid) => !fluid.bufferId || fluid.bufferId === buffer.id)
+            .map((fluid) => fluid.id),
+        )]
+      : fluidBufferAcceptedFluids(instance.machineId, buffer),
   }))
 }
 

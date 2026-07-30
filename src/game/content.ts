@@ -1007,9 +1007,9 @@ const authoredMachineRegistry = {
     fluidCapacityLitres: 96,
     fluidOutputLitresPerSecond: 24,
     fluidBuffers: [
-      { id: 'feed-a', label: 'Fluid input 1', capacityLitres: 32, access: 'input', fluidRule: 'recipe-inputs' },
+      { id: 'feed-a', label: 'Fluid input 1', capacityLitres: 64, access: 'input', fluidRule: 'recipe-inputs' },
       { id: 'feed-b', label: 'Fluid input 2', capacityLitres: 32, access: 'input', fluidRule: 'recipe-inputs' },
-      { id: 'product', label: 'Fluid output', capacityLitres: 32, access: 'output', fluidRule: 'recipe-outputs' },
+      { id: 'product', label: 'Fluid output', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
     ],
   },
   lvCentrifuge: {
@@ -1058,7 +1058,7 @@ const authoredMachineRegistry = {
     fluidCapacityLitres: 32,
     fluidOutputLitresPerSecond: 24,
     fluidBuffers: [
-      { id: 'feedA', label: 'Fluid input A', capacityLitres: 32, access: 'input', fluidRule: 'recipe-inputs' },
+      { id: 'feedA', label: 'Fluid input A', capacityLitres: 64, access: 'input', fluidRule: 'recipe-inputs' },
       { id: 'feedB', label: 'Fluid input B', capacityLitres: 32, access: 'input', fluidRule: 'recipe-inputs' },
       { id: 'reactionA', label: 'Fluid output A', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
       { id: 'reactionB', label: 'Fluid output B', capacityLitres: 64, access: 'output', fluidRule: 'recipe-outputs' },
