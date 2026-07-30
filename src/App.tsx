@@ -6147,7 +6147,24 @@ function App() {
             savedCreativeFactory.machineInstances.some((instance) => instance.machineId === machineId))
           && savedCreativeFactory.recipeCards.some((card) => card.recipeId === 'craft_mv_pump')
           && savedCreativeFactory.recipeCards.filter((card) => card.kind === 'processing' && card.installedInUid).length >= 11
+          && [
+            ['lvAirCollector', 16, 12],
+            ['lvDistillery', 17, 12],
+            ['lvMixer', 19, 12],
+            ['lvFluidSolidifier', 15, 14],
+            ['lvChemicalReactor', 16, 14],
+            ['lvChemicalReactor', 17, 14],
+            ['lvDistillery', 18, 14],
+            ['lvChemicalReactor', 19, 14],
+            ['lvMixer', 20, 14],
+            ['lvExtractor', 21, 14],
+            ['poweredFarm', 22, 14],
+            ['lvSuperTank', 18, 16],
+          ].every(([machineId, x, y]) =>
+            savedCreativeFactory.machineInstances.some((instance) =>
+              instance.machineId === machineId && instance.x === x && instance.y === y))
         : false
+      const rebuiltCreativeTemplate = Boolean(savedCreativeFactory && !hasCurrentCreativeTemplate)
       const creativeFactory = savedCreativeFactory && hasCurrentCreativeTemplate
         ? savedCreativeFactory
         : createCreativeFactoryState(createInitialState(now), now)
@@ -6157,7 +6174,9 @@ function App() {
       setState(creativeFactory)
       knownCompletedQuestsRef.current = new Set(creativeFactory.completedQuests)
       handleClearGrid()
-      setOfflineNotice('Creative Test loaded from its separate save. Player saves are unchanged.')
+      setOfflineNotice(rebuiltCreativeTemplate
+        ? 'Creative Test updated to the latest factory template. Player saves are unchanged.'
+        : 'Creative Test loaded from its separate save. Player saves are unchanged.')
       setOfflinePrompt('')
       setMigrationPrompt('')
       setTerminalNotice('')
