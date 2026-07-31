@@ -61,7 +61,7 @@ function chromePath() {
   return candidates.find((candidate) => candidate && existsSync(candidate)) ?? null
 }
 
-function htmlFor(manifest, pdfName) {
+function htmlFor(manifest, pdfName, artworkName) {
   const notePages = []
   for (let index = 0; index < manifest.notes.length; index += 8) {
     notePages.push(manifest.notes.slice(index, index + 8))
@@ -76,6 +76,7 @@ function htmlFor(manifest, pdfName) {
           <p class="subtitle">Gameplay-facing changes for the public build. Share the PDF version as ${escapeHtml(pdfName)}.</p>
         </div>
       </header>
+      ${pageIndex === 0 && artworkName ? `<img class="release-art" src="assets/${escapeHtml(artworkName)}" alt="Medium-voltage factory release artwork">` : ''}
       <section>
         <h2>${pageIndex === 0 ? 'Patch Notes' : 'Patch Notes Continued'}</h2>
         <ul>
@@ -101,6 +102,7 @@ function htmlFor(manifest, pdfName) {
       h1, h2 { margin: 0; font-family: Arial, sans-serif; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
       h1 { font-size: 28px; line-height: 1; }
       .subtitle { margin: 8px 0 0; max-width: 650px; font-size: 14px; font-weight: 700; }
+      .release-art { display: block; width: 100%; height: 178px; margin-top: 14px; border: 3px solid #4a3924; object-fit: cover; object-position: center; }
       section { margin-top: 16px; padding: 14px; border: 2px solid #6d6041; background: rgba(239,231,198,.45); }
       h2 { margin-bottom: 8px; color: #3b3123; font-size: 15px; }
       ul { margin: 0; padding-left: 20px; }
@@ -127,11 +129,13 @@ const slug = `r${manifest.revision}-${slugify(manifest.title)}`
 const htmlName = `${slug}.html`
 const pdfName = `Click-Foundry-r${manifest.revision}-${slugify(manifest.title)}-Patch-Notes.pdf`
 const publicPdfName = `click-foundry-r${manifest.revision}-patch-notes.pdf`
+const artworkName = `click-foundry-r${manifest.revision}-artwork.png`
+const artworkPath = path.join(docsDir, 'assets', artworkName)
 
 mkdirSync(docsDir, { recursive: true })
 mkdirSync(publicDir, { recursive: true })
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-writeFileSync(path.join(docsDir, htmlName), htmlFor(manifest, publicPdfName))
+writeFileSync(path.join(docsDir, htmlName), htmlFor(manifest, publicPdfName, existsSync(artworkPath) ? artworkName : null))
 
 const browser = chromePath()
 if (browser && existsSync(logoPath)) {
