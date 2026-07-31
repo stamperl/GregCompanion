@@ -1,0 +1,14 @@
+{
+  "review": "superconductors-v1",
+  "status": "pending",
+  "items": {
+    "lvSuperconductorCable": "pending",
+    "lvSuperconductorCable2A": "pending",
+    "lvSuperconductorCable4A": "pending",
+    "lvSuperconductorCable8A": "pending",
+    "mvSuperconductorCable": "pending",
+    "mvSuperconductorCable2A": "pending",
+    "mvSuperconductorCable4A": "pending",
+    "mvSuperconductorCable8A": "pending"
+  }
+}
