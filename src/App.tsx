@@ -4082,31 +4082,22 @@ function App() {
     [machineRecipeGroups, recipeCandidates, terminalMode],
   )
   const recipeGroupCollections = useMemo(
-    () => terminalMode === 'recipes'
-      ? collectRecipeGroupsByItemType(listedRecipeGroups, resourceRegistry)
-      : listedRecipeGroups.map((group) => ({
-          key: `direct:${group.key}`,
-          label: group.output.kind === 'machine' ? machines[group.output.id].name : group.key,
-          groups: [group],
-          grouped: false,
-        })),
-    [listedRecipeGroups, terminalMode],
+    () => collectRecipeGroupsByItemType(listedRecipeGroups, resourceRegistry, machines),
+    [listedRecipeGroups],
   )
-  const displayedRecipeGroups = useMemo(() => {
-    if (terminalMode === 'machines') return listedRecipeGroups
-    return expandRecipeGroupCollections(recipeGroupCollections, expandedRecipeCollectionKey)
-  }, [expandedRecipeCollectionKey, listedRecipeGroups, recipeGroupCollections, terminalMode])
+  const displayedRecipeGroups = useMemo(
+    () => expandRecipeGroupCollections(recipeGroupCollections, expandedRecipeCollectionKey),
+    [expandedRecipeCollectionKey, recipeGroupCollections],
+  )
   const collapsedRecipeCollectionsByGroupKey = useMemo(
     () => new Map(
-      terminalMode === 'recipes'
-        ? recipeGroupCollections
-            .filter((collection) => collection.grouped && collection.key !== expandedRecipeCollectionKey)
-            .map((collection) => [collection.groups[0].key, collection] as const)
-        : [],
+      recipeGroupCollections
+        .filter((collection) => collection.grouped && collection.key !== expandedRecipeCollectionKey)
+        .map((collection) => [collection.groups[0].key, collection] as const),
     ),
-    [expandedRecipeCollectionKey, recipeGroupCollections, terminalMode],
+    [expandedRecipeCollectionKey, recipeGroupCollections],
   )
-  const expandedRecipeCollection = terminalMode === 'recipes' && expandedRecipeCollectionKey
+  const expandedRecipeCollection = expandedRecipeCollectionKey
     ? recipeGroupCollections.find((collection) => collection.key === expandedRecipeCollectionKey && collection.grouped)
     : undefined
   const expandedRecipeCollectionAnchorKey = expandedRecipeCollection?.groups[0]?.key
@@ -7617,7 +7608,11 @@ function App() {
                           : isExpandedCollectionAnchor
                             ? `Collapse ${expandedRecipeCollection?.label ?? 'item group'}`
                           : isMachineResult ? `${output.label}, ${machineIsOnFloor ? 'on factory floor' : 'not on factory floor'}` : output.label}
-                        title={isMachineResult ? `${output.label} · ${machineIsOnFloor ? 'On factory floor' : 'Not on factory floor'}` : recipeGroupDisplayOutput(group).label}
+                        title={collapsedCollection
+                          ? `${collapsedCollection.label} - tap to expand`
+                          : isExpandedCollectionAnchor
+                            ? `${expandedRecipeCollection?.label ?? output.label} - tap to collapse`
+                            : isMachineResult ? `${output.label} - ${machineIsOnFloor ? 'On factory floor' : 'Not on factory floor'}` : recipeGroupDisplayOutput(group).label}
                         onClick={() => {
                           if (collapsedCollection) {
                             setExpandedRecipeCollectionKey(collapsedCollection.key)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { resourceRegistry } from './content'
+import { machineRegistry, resourceRegistry } from './content'
 import { collectRecipeGroupsByItemType, expandRecipeGroupCollections, groupRecipesByOutput } from './recipeGroups'
-import type { Recipe, ResourceId } from './types'
+import type { MachineId, Recipe, ResourceId } from './types'
 
 const recipeFor = (id: string, outputId: ResourceId): Recipe => ({
   id,
@@ -16,6 +16,12 @@ const recipeFor = (id: string, outputId: ResourceId): Recipe => ({
   pattern: [null, null, null, null, null, null, null, null, null],
 })
 
+const machineRecipeFor = (id: string, outputId: MachineId): Recipe => ({
+  ...recipeFor(id, 'stick'),
+  outputs: [],
+  machineOutputs: [{ id: outputId, amount: 1 }],
+})
+
 describe('recipe browser item-type collections', () => {
   it('groups material outputs by form while leaving unique items direct', () => {
     const groups = groupRecipesByOutput([
@@ -28,7 +34,7 @@ describe('recipe browser item-type collections', () => {
     const collections = collectRecipeGroupsByItemType(groups, resourceRegistry)
     const ingots = collections.find((collection) => collection.key === 'material-form:ingot')
     const plates = collections.find((collection) => collection.key === 'material-form:plate')
-    const woodenAxe = collections.find((collection) => collection.key === 'direct:resource:woodenAxe')
+    const woodenAxe = collections.find((collection) => collection.key === 'tool-family:axe')
 
     expect(ingots?.label).toBe('Ingots')
     expect(ingots?.grouped).toBe(true)
@@ -57,5 +63,21 @@ describe('recipe browser item-type collections', () => {
       'ironPlate',
       'woodenAxe',
     ])
+  })
+  it('groups tool families, tank tiers, and tiered machine variants', () => {
+    const groups = groupRecipesByOutput([
+      recipeFor('wooden-pickaxe', 'woodenPickaxe'),
+      recipeFor('iron-pickaxe', 'ironPickaxe'),
+      machineRecipeFor('iron-tank', 'steamTank'),
+      machineRecipeFor('steel-tank', 'steelTank'),
+      machineRecipeFor('lv-macerator', 'lvMacerator'),
+      machineRecipeFor('mv-macerator', 'mvMacerator'),
+    ])
+
+    const collections = collectRecipeGroupsByItemType(groups, resourceRegistry, machineRegistry)
+
+    expect(collections.find((collection) => collection.key === 'tool-family:pickaxe')?.groups).toHaveLength(2)
+    expect(collections.find((collection) => collection.key === 'machine-family:tank')?.groups).toHaveLength(2)
+    expect(collections.find((collection) => collection.key === 'machine-family:Macerator')?.groups).toHaveLength(2)
   })
 })
