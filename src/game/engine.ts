@@ -6288,9 +6288,8 @@ export function canResourceEnterProcessSlot(machineId: MachineId, slotId: Proces
   const extraInputSlotIds = isMixerMachineId(machineId) ? mixerExtraInputSlotIds : assemblerExtraInputSlotIds
   const extraSlotIndex = extraInputSlotIds.findIndex((extraSlotId) => extraSlotId === slotId)
   if (extraSlotIndex >= 0) {
-    return (
-      (isAssemblerMachineId(machineId) || isMixerMachineId(machineId)) &&
-      processRecipes.some((recipe) => recipe.machineId === machineId && recipe.extraInputs?.[extraSlotIndex]?.id === resourceId)
+    return processRecipes.some(
+      (recipe) => recipe.machineId === machineId && recipe.extraInputs?.[extraSlotIndex]?.id === resourceId,
     )
   }
   if (slotId === 'input') {
@@ -6577,6 +6576,8 @@ function tickSteamBoiler(state: GameState, instance: MachineInstance, elapsedMs:
   burnProcessFuel(process, burnMs)
   process.fluids.water = Math.max(0, (process.fluids.water ?? 0) - (burnMs / 1000) * boilerSteamProductionLitresPerSecond)
   process.steamStoredMs += produced
+  state.recipeMilestones.operation_steam_generated =
+    (state.recipeMilestones.operation_steam_generated ?? 0) + produced / steamMsPerLitre
 }
 
 function tickSteamProcessMachine(state: GameState, instance: MachineInstance, elapsedMs: number) {
@@ -7165,7 +7166,6 @@ function tickPoweredFarm(state: GameState, instance: MachineInstance, elapsedMs:
   process.euCapacity = machineEuCapacity(instance.machineId)
   process.fluidCapacityLitres = machineFluidCapacityLitres(instance.machineId)
   process.euStored = Math.min(process.euStored, process.euCapacity)
-  process.fluids.water = Math.min(process.fluidCapacityLitres, process.fluids.water ?? 0)
   if (!program) {
     process.activeRecipeId = null
     process.progressMs = 0
@@ -7173,14 +7173,20 @@ function tickPoweredFarm(state: GameState, instance: MachineInstance, elapsedMs:
     return
   }
 
-  const waterNeeded = Math.max(0, process.fluidCapacityLitres - (process.fluids.water ?? 0))
-  if (waterNeeded > 0) {
-    process.fluids.water = (process.fluids.water ?? 0) + pullFluidFromConnectedSources(state, instance, 'water', waterNeeded, elapsedMs)
+  const fluidInputs = recipeFluidInputs(program)
+  for (const fluid of fluidInputs) {
+    const capacity = fluidCapacityForFluid(state, instance, fluid.id, 'input')
+    process.fluids[fluid.id] = Math.min(capacity, process.fluids[fluid.id] ?? 0)
+    const needed = Math.max(0, capacity - (process.fluids[fluid.id] ?? 0))
+    if (needed > 0) {
+      process.fluids[fluid.id] =
+        (process.fluids[fluid.id] ?? 0) + pullFluidFromConnectedSources(state, instance, fluid.id, needed, elapsedMs)
+    }
   }
   const outputs = recipeItemOutputs(program)
-  const waterLitres = recipeFluidInputs(program).find((fluid) => fluid.id === 'water')?.amount ?? 0
   const outputsFit = outputs.every((output, index) => canOutputAccept(index === 0 ? process.output : process.output2, output))
-  if ((process.fluids.water ?? 0) <= 0 || !outputsFit) {
+  const fluidsReady = fluidInputs.every((fluid) => (process.fluids[fluid.id] ?? 0) > 0)
+  if (!fluidsReady || !outputsFit) {
     process.activeRecipeId = null
     process.durationMs = program.durationMs
     return
@@ -7188,15 +7194,26 @@ function tickPoweredFarm(state: GameState, instance: MachineInstance, elapsedMs:
 
   fillInternalEuFromConnectedStorage(state, instance, elapsedMs)
   const euPerMs = recipeEuCost(program) / program.durationMs
-  const waterPerMs = waterLitres / program.durationMs
-  const poweredMs = Math.min(elapsedMs, process.euStored / euPerMs, (process.fluids.water ?? 0) / waterPerMs, program.durationMs - process.progressMs)
+  const fluidLimits = fluidInputs.map((fluid) => {
+    const fluidPerMs = fluid.amount / program.durationMs
+    return (process.fluids[fluid.id] ?? 0) / fluidPerMs
+  })
+  const poweredMs = Math.min(
+    elapsedMs,
+    process.euStored / euPerMs,
+    ...fluidLimits,
+    program.durationMs - process.progressMs,
+  )
   if (poweredMs <= 0) {
     process.activeRecipeId = null
     process.durationMs = program.durationMs
     return
   }
   process.euStored -= poweredMs * euPerMs
-  process.fluids.water = Math.max(0, (process.fluids.water ?? 0) - poweredMs * waterPerMs)
+  for (const fluid of fluidInputs) {
+    const fluidPerMs = fluid.amount / program.durationMs
+    process.fluids[fluid.id] = Math.max(0, (process.fluids[fluid.id] ?? 0) - poweredMs * fluidPerMs)
+  }
   process.progressMs += poweredMs
   process.durationMs = program.durationMs
   process.activeRecipeId = program.id
@@ -7237,6 +7254,10 @@ function tickCombustionGenerator(state: GameState, instance: MachineInstance, el
   process.activeRecipeId = 'burn_benzene'
   process.durationMs = 8000
   process.progressMs = (process.progressMs + elapsedMs) % process.durationMs
+  const milestoneId = instance.machineId === 'mvCombustionGenerator'
+    ? 'operation_mv_benzene_generated_eu'
+    : 'operation_lv_benzene_generated_eu'
+  state.recipeMilestones[milestoneId] = (state.recipeMilestones[milestoneId] ?? 0) + generated
 }
 
 function hopperOutputDirections(instance: MachineInstance) {
@@ -8577,6 +8598,7 @@ function questObjectiveCurrent(state: GameState, objective: QuestObjective) {
   if (objective.type === 'recipeAny') {
     return objective.ids.reduce((total, recipeId) => total + (state.recipeMilestones[recipeId] ?? 0), 0)
   }
+  if (objective.type === 'milestone') return state.recipeMilestones[objective.id] ?? 0
   if (objective.type === 'fabrication') {
     const milestoneId = objective.id === 'cardEncoded'
       ? 'fabrication_card_encoded'
@@ -8610,6 +8632,7 @@ export function questObjectiveLabel(objective: QuestObjective) {
   if (objective.type === 'surveyCard') return `${gatherTargets[objective.id].name} Survey Card`
   if (objective.type === 'recipe') return processRecipes.find((recipe) => recipe.id === objective.id)?.name ?? recipes.find((recipe) => recipe.id === objective.id)?.name ?? objective.id
   if (objective.type === 'recipeAny') return objective.label
+  if (objective.type === 'milestone') return objective.label
   if (objective.type === 'fabrication') {
     return objective.id === 'cardEncoded' ? 'Fabrication pattern encoded' : objective.id === 'rackFormed' ? 'Planning rack formed' : 'Fabrication job completed'
   }

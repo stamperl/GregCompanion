@@ -38,6 +38,7 @@ import {
   fluidContainerGroups,
   canBuyShopItem,
   canCrowbarRemoveMachine,
+  canResourceEnterProcessSlot,
   canExpandFactoryFloor,
   canSellShopItem,
   cokeOvenFluidCapacityLitres,
@@ -937,12 +938,13 @@ describe('game engine', () => {
     expect(tickGame(state, 1, 1001).state.completedQuests).not.toContain('firstSteel')
   })
 
-  it('counts a placed machine toward build milestones', () => {
+  it('requires the placed boiler to produce steam before completing the lesson', () => {
     let state = createFactoryState(1000)
     state.completedQuests.push('craftSteamCasingQuest')
     state.machines.steamBoiler = 1
     state.machineMilestones.steamBoiler = 1
     state = placeMachineInstance(state, 'steamBoiler', 0, 0)
+    state.recipeMilestones.operation_steam_generated = 1
 
     state = tickGame(state, 1, 1001).state
 
@@ -8056,6 +8058,37 @@ describe('game engine', () => {
     }
   })
 
+  it('requires and consumes fertilizer for enriched sugar cane', () => {
+    let state = createFactoryState()
+    state.machines.poweredFarmPart = 4
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, 'poweredFarmPart', x, y)
+    }
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!
+    state = setConfiguredProcessProgram(state, controller.uid, 4)
+    controller.process.fluids.water = 128
+    controller.process.euStored = 256
+    state = tickGame(state, 10000).state
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.progressMs).toBe(0)
+
+    state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.fluids.fertilizerLiquor = 24
+    for (let elapsed = 0; elapsed < 60000; elapsed += 10000) {
+      const process = state.machineInstances.find((instance) => instance.uid === controller.uid)!.process
+      process.euStored = 256
+      process.fluids.water = 128
+      state = tickGame(state, 10000).state
+    }
+
+    const process = state.machineInstances.find((instance) => instance.uid === controller.uid)!.process
+    expect(process.output).toEqual({ id: 'sugarCane', amount: 36 })
+    expect(process.fluids.fertilizerLiquor).toBe(0)
+    expect(state.recipeMilestones.farm_enriched_sugar_cane).toBe(1)
+  })
+
+  it('accepts the Circuit Imprinter third recipe ingredient in its extra slot', () => {
+    expect(canResourceEnterProcessSlot('circuitImprinter', 'extraInput1', 'phaseDust')).toBe(true)
+  })
+
   it('carbonizes logs and distils both liquid fractions without hiding byproducts', () => {
     let state = createFactoryState()
     state.machines.pyrolysisOvenPart = 4
@@ -8247,6 +8280,20 @@ describe('game engine', () => {
     state = tickGame(state, 1000).state
     expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.euStored).toBe(30)
     expect(state.machineInstances.find((instance) => instance.uid === generator.uid)!.process.euStored).toBe(68)
+  })
+
+  it('rates every LV and MV superconductor cable as lossless at its advertised amperage', () => {
+    const families = [
+      ['lvSuperconductorCable', 'lvSuperconductorCable2A', 'lvSuperconductorCable4A', 'lvSuperconductorCable8A'],
+      ['mvSuperconductorCable', 'mvSuperconductorCable2A', 'mvSuperconductorCable4A', 'mvSuperconductorCable8A'],
+    ] as const
+    for (const [familyIndex, family] of families.entries()) {
+      family.forEach((machineId, ampIndex) => {
+        expect(machines[machineId].euAmps).toBe(2 ** ampIndex)
+        expect(machines[machineId].euVoltage).toBe(familyIndex === 0 ? 32 : 128)
+        expect(machines[machineId].euCableLossPerTile).toBe(0)
+      })
+    }
   })
 
   it('charges shared source and cable budgets for delivered EU plus route loss', () => {

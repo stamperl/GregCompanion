@@ -106,6 +106,10 @@ export type ResourceId =
   | 'tinCable2A'
   | 'tinCable4A'
   | 'tinCable8A'
+  | 'lvSuperconductorCable'
+  | 'lvSuperconductorCable2A'
+  | 'lvSuperconductorCable4A'
+  | 'lvSuperconductorCable8A'
   | 'copperWire'
   | 'glass'
   | 'glassTube'
@@ -182,6 +186,10 @@ export type ResourceId =
   | 'pulsatingIronIngot'
   | 'pulsatingIronPlate'
   | 'aluminiumCable'
+  | 'mvSuperconductorCable'
+  | 'mvSuperconductorCable2A'
+  | 'mvSuperconductorCable4A'
+  | 'mvSuperconductorCable8A'
   | MaterialResourceId
   | MvResourceId
 
@@ -212,6 +220,10 @@ export type MachineId =
   | 'tinCable2A'
   | 'tinCable4A'
   | 'tinCable8A'
+  | 'lvSuperconductorCable'
+  | 'lvSuperconductorCable2A'
+  | 'lvSuperconductorCable4A'
+  | 'lvSuperconductorCable8A'
   | 'lvBatteryBuffer'
   | 'lvBatteryBuffer2A'
   | 'lvBatteryBuffer4A'
@@ -269,6 +281,10 @@ export type MachineId =
   | 'lvCombustionGenerator'
   | 'mvCombustionGenerator'
   | 'aluminiumCable'
+  | 'mvSuperconductorCable'
+  | 'mvSuperconductorCable2A'
+  | 'mvSuperconductorCable4A'
+  | 'mvSuperconductorCable8A'
   | 'lvToMvTransformer'
   | 'mvToLvTransformer'
   | MvMachineId
@@ -423,6 +439,8 @@ export type QuestId =
   | 'buildMvAssemblerQuest'
   | 'buildMvExtruderQuest'
   | 'buildMvPowerInfrastructureQuest'
+  | 'buildLvSuperconductorQuest'
+  | 'buildMvSuperconductorQuest'
   | 'completeMvMachineLineQuest'
   | 'growSugarCaneQuest'
   | 'extractCaneJuiceQuest'
@@ -843,6 +861,7 @@ export type QuestObjective =
   | { type: 'surveyCard'; id: GatherTargetId; amount: number; label?: string }
   | { type: 'recipe'; id: string; amount: number; label?: string }
   | { type: 'recipeAny'; ids: string[]; amount: number; label: string }
+  | { type: 'milestone'; id: string; amount: number; label: string }
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'installedBattery'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }

@@ -85,6 +85,7 @@ import {
   questLines,
   quests as questDefinitions,
   recipes,
+  resourceRegistry,
   resourceLabels,
   sellItems,
   shopItems,
@@ -280,6 +281,7 @@ import {
 import { deploymentInfo, githubBugReportUrl, hasNewerDeployment, isCreativeTestBuild, reloadLatestDeployment } from './game/deployment'
 import { localTimeProvider, networkTimeProvider } from './game/time'
 import {
+  collectRecipeGroupsByItemType,
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
   type RecipeGroup,
@@ -3175,23 +3177,23 @@ function QuestBook({
           {!lineQuests.length && <div className="quest-map-empty">{emptyChapterHint}</div>}
           {lineQuests.map((quest) => {
             const status = questStatus(state, quest)
-                const selected = quest.id === selectedQuestId
-                const kind = questKind(quest)
-                const claimed = state.claimedQuests.includes(quest.id)
-                const claimState = status === 'completed' ? (claimed ? 'claimed' : 'claimable') : status === 'ready' ? 'claimable' : 'not-done'
-                const accessibleStatus = status === 'completed' ? (claimed ? 'done' : 'ready to claim') : questStatusText(status)
-                const nodeDimensions = questNodeDimensions(quest)
-                return (
-                  <button
-                    type="button"
-                    aria-label={`${quest.title}. ${accessibleStatus}. ${kind}.`}
-                    data-quest-id={quest.id}
-                    title={`${quest.title} - ${accessibleStatus}`}
-                    className={`quest-node ${status} ${kind} ${claimState}${selected ? ' selected' : ''}`}
-                    style={{ height: nodeDimensions.height, left: questX(quest), top: questY(quest), width: nodeDimensions.width }}
-                    onClick={() => onSelectQuest(quest.id)}
-                    key={quest.id}
-                  >
+            const selected = quest.id === selectedQuestId
+            const kind = questKind(quest)
+            const claimed = state.claimedQuests.includes(quest.id)
+            const rewardState = status === 'completed' ? (claimed ? 'claimed' : 'claimable') : 'unclaimed'
+            const accessibleStatus = status === 'completed' ? (claimed ? 'done' : 'ready to claim') : questStatusText(status)
+            const nodeDimensions = questNodeDimensions(quest)
+            return (
+              <button
+                type="button"
+                aria-label={`${quest.title}. ${accessibleStatus}. ${kind}.`}
+                data-quest-id={quest.id}
+                title={`${quest.title} - ${accessibleStatus}`}
+                className={`quest-node ${status} ${kind} ${rewardState}${selected ? ' selected' : ''}`}
+                style={{ height: nodeDimensions.height, left: questX(quest), top: questY(quest), width: nodeDimensions.width }}
+                onClick={() => onSelectQuest(quest.id)}
+                key={quest.id}
+              >
                 <span className="quest-node-icon">
                   <QuestIcon quest={quest} muted={status === 'locked'} />
                 </span>
@@ -3603,6 +3605,7 @@ function App() {
   )
   const [selectedConductorDirection, setSelectedConductorDirection] = useState<PipeDirection>('north')
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
+  const [expandedRecipeCollectionKey, setExpandedRecipeCollectionKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
   const [batchQuantity, setBatchQuantity] = useState(1)
   const [pendingProcessInsert, setPendingProcessInsert] = useState<PendingProcessInsert | null>(null)
@@ -4077,6 +4080,35 @@ function App() {
     () => terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : machineRecipeGroups,
     [machineRecipeGroups, recipeCandidates, terminalMode],
   )
+  const recipeGroupCollections = useMemo(
+    () => terminalMode === 'recipes'
+      ? collectRecipeGroupsByItemType(listedRecipeGroups, resourceRegistry)
+      : listedRecipeGroups.map((group) => ({
+          key: `direct:${group.key}`,
+          label: group.output.kind === 'machine' ? machines[group.output.id].name : group.key,
+          groups: [group],
+          grouped: false,
+        })),
+    [listedRecipeGroups, terminalMode],
+  )
+  const displayedRecipeGroups = useMemo(() => {
+    if (terminalMode === 'machines') return listedRecipeGroups
+    if (expandedRecipeCollectionKey) {
+      return recipeGroupCollections.find((collection) => collection.key === expandedRecipeCollectionKey)?.groups
+        ?? recipeGroupCollections.map((collection) => collection.groups[0])
+    }
+    return recipeGroupCollections.map((collection) => collection.groups[0])
+  }, [expandedRecipeCollectionKey, listedRecipeGroups, recipeGroupCollections, terminalMode])
+  const collapsedRecipeCollectionsByGroupKey = useMemo(
+    () => new Map(
+      terminalMode === 'recipes' && !expandedRecipeCollectionKey
+        ? recipeGroupCollections
+            .filter((collection) => collection.grouped)
+            .map((collection) => [collection.groups[0].key, collection] as const)
+        : [],
+    ),
+    [expandedRecipeCollectionKey, recipeGroupCollections, terminalMode],
+  )
   const selectedRecipeGroup = listedRecipeGroups.find((group) => group.key === selectedRecipeGroupKey) ?? listedRecipeGroups[0]
   const clampedSelectedRecipeIndex = selectedRecipeGroup
     ? Math.min(selectedRecipeIndex, Math.max(0, selectedRecipeGroup.recipes.length - 1))
@@ -4326,6 +4358,15 @@ function App() {
     }
     if (selectedRecipeIndex !== clampedSelectedRecipeIndex) setSelectedRecipeIndex(clampedSelectedRecipeIndex)
   }, [clampedSelectedRecipeIndex, listedRecipeGroups, selectedRecipeGroupKey, selectedRecipeIndex])
+
+  useEffect(() => {
+    if (
+      expandedRecipeCollectionKey
+      && !recipeGroupCollections.some((collection) => collection.key === expandedRecipeCollectionKey && collection.grouped)
+    ) {
+      setExpandedRecipeCollectionKey(null)
+    }
+  }, [expandedRecipeCollectionKey, recipeGroupCollections])
   const selectedMachineMetrics: MachineMetric[] = []
   if (selectedMachine) {
     const process = selectedMachine.process
@@ -7539,8 +7580,35 @@ function App() {
                 </div>
 
                 <div className="recipe-modal-body">
+                  <div className="recipe-results-pane">
+                  {terminalMode === 'recipes' && (
+                    <label className="recipe-type-picker">
+                      <span>Item type</span>
+                      <select
+                        value={expandedRecipeCollectionKey ?? ''}
+                        onChange={(event) => {
+                          const collectionKey = event.target.value || null
+                          setExpandedRecipeCollectionKey(collectionKey)
+                          const firstGroup = collectionKey
+                            ? recipeGroupCollections.find((collection) => collection.key === collectionKey)?.groups[0]
+                            : null
+                          if (firstGroup) handleSelectRecipeGroup(firstGroup.key, true)
+                        }}
+                      >
+                        <option value="">Grouped items</option>
+                        {recipeGroupCollections
+                          .filter((collection) => collection.grouped)
+                          .map((collection) => (
+                            <option value={collection.key} key={collection.key}>
+                              {collection.label} ({collection.groups.length})
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
                   <div className="recipe-icon-grid" aria-label="Recipe results">
-                  {listedRecipeGroups.map((group) => {
+                  {displayedRecipeGroups.map((group) => {
+                    const collapsedCollection = collapsedRecipeCollectionsByGroupKey.get(group.key)
                     const output = terminalMode === 'machines' && group.output.kind === 'machine'
                       ? { ...group.output, label: machines[group.output.id].name }
                       : recipeGroupDisplayOutput(group)
@@ -7554,22 +7622,36 @@ function App() {
                         type="button"
                         className={[
                           'recipe-icon-button',
+                          collapsedCollection ? 'recipe-collection-button' : '',
                           group.key === selectedRecipeGroup?.key ? 'selected' : '',
                           networkCraftable ? 'network-craftable' : '',
                           isMachineResult ? machineIsOnFloor ? 'machine-on-floor' : 'machine-off-floor' : locked ? 'locked' : missing ? 'missing' : 'ready',
                         ].join(' ')}
-                        aria-label={isMachineResult ? `${output.label}, ${machineIsOnFloor ? 'on factory floor' : 'not on factory floor'}` : output.label}
+                        aria-label={collapsedCollection
+                          ? `${collapsedCollection.label}, ${collapsedCollection.groups.length} items`
+                          : isMachineResult ? `${output.label}, ${machineIsOnFloor ? 'on factory floor' : 'not on factory floor'}` : output.label}
                         title={isMachineResult ? `${output.label} · ${machineIsOnFloor ? 'On factory floor' : 'Not on factory floor'}` : recipeGroupDisplayOutput(group).label}
-                        onClick={() => handleSelectRecipeGroup(group.key, true)}
+                        onClick={() => {
+                          if (collapsedCollection) {
+                            setExpandedRecipeCollectionKey(collapsedCollection.key)
+                            handleSelectRecipeGroup(collapsedCollection.groups[0].key, true)
+                            return
+                          }
+                          handleSelectRecipeGroup(group.key, true)
+                        }}
                         key={group.key}
                       >
                         <RecipeDisplayIcon output={output} />
                         <span className="item-count">{recipeDisplayAmount(output)}</span>
-                        {(terminalMode === 'machines' || group.recipes.length > 1) && <span className="recipe-count-badge">{group.recipes.length}</span>}
+                        {(collapsedCollection || terminalMode === 'machines' || group.recipes.length > 1) && (
+                          <span className="recipe-count-badge">{collapsedCollection?.groups.length ?? group.recipes.length}</span>
+                        )}
+                        {collapsedCollection && <ChevronDown className="recipe-collection-chevron" size={11} aria-hidden="true" />}
                         {networkCraftable && <span className="network-craftable-badge" title="Craftable by fabrication network"><Factory size={9} /></span>}
                       </button>
                     )
                   })}
+                  </div>
                   </div>
 
                   {selectedRecipe && selectedRecipeOutput && selectedRecipeMissing && selectedRecipeGroup && (

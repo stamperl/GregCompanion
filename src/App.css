@@ -1,5 +1,21 @@
 /* PNG-backed MV expansion fallbacks. The approved PNGs remain the primary art. */
 .pixel-bagasse,
+.pixel-lvSuperconductorCable,
+.pixel-lvSuperconductorCable2A,
+.pixel-lvSuperconductorCable4A,
+.pixel-lvSuperconductorCable8A,
+.pixel-mvSuperconductorCable,
+.pixel-mvSuperconductorCable2A,
+.pixel-mvSuperconductorCable4A,
+.pixel-mvSuperconductorCable8A,
+.machine-lvSuperconductorCable,
+.machine-lvSuperconductorCable2A,
+.machine-lvSuperconductorCable4A,
+.machine-lvSuperconductorCable8A,
+.machine-mvSuperconductorCable,
+.machine-mvSuperconductorCable2A,
+.machine-mvSuperconductorCable4A,
+.machine-mvSuperconductorCable8A,
 .pixel-plateMold,
 .pixel-polyethylenePlate,
 .pixel-polyethylenePipe,
@@ -9097,27 +9113,6 @@ button.craft-output:disabled {
   z-index: 2;
 }
 
-.quest-node.not-done {
-  background: transparent;
-  border-color: transparent;
-}
-
-.quest-node.claimable {
-  background: transparent;
-  border-color: transparent;
-  filter:
-    drop-shadow(0 2px 0 #21190a)
-    drop-shadow(0 0 5px rgba(255, 218, 89, 0.95));
-}
-
-.quest-node.claimed {
-  background: transparent;
-  border-color: transparent;
-  filter:
-    drop-shadow(0 2px 0 #071405)
-    drop-shadow(0 0 4px rgba(125, 235, 72, 0.8));
-}
-
 .quest-node.locked {
   background: transparent;
   color: #4d4d4d;
@@ -9159,9 +9154,6 @@ button.craft-output:disabled {
 
 .quest-node.gate {
   border: 0;
-  filter:
-    drop-shadow(0 2px 0 #201506)
-    drop-shadow(0 0 7px rgba(230, 177, 69, 0.9));
 }
 
 .quest-node.gate .quest-node-icon {
@@ -9205,11 +9197,8 @@ button.craft-output:disabled {
 }
 
 .quest-node.selected {
-  filter:
-    drop-shadow(0 2px 0 #21190a)
-    drop-shadow(0 0 8px #ffe777)
-    drop-shadow(0 0 2px #fff8c8);
   outline: 0;
+  transform: scale(1.08);
 }
 
 .quest-node-icon {
@@ -9222,6 +9211,58 @@ button.craft-output:disabled {
   justify-items: center;
   overflow: visible;
   width: 100%;
+}
+
+.quest-node.available .quest-node-icon {
+  filter:
+    drop-shadow(0 2px 0 #21190a)
+    drop-shadow(0 0 4px rgba(255, 177, 35, 0.98))
+    drop-shadow(0 0 10px rgba(255, 198, 55, 0.82));
+}
+
+.quest-node.ready .quest-node-icon {
+  filter:
+    drop-shadow(0 2px 0 #21190a)
+    drop-shadow(0 0 4px #fff1a1)
+    drop-shadow(0 0 11px rgba(255, 188, 35, 1))
+    drop-shadow(0 0 17px rgba(255, 137, 16, 0.78));
+}
+
+.quest-node.completed.claimed .quest-node-icon {
+  filter:
+    drop-shadow(0 2px 0 #071405)
+    drop-shadow(0 0 4px rgba(151, 255, 92, 1))
+    drop-shadow(0 0 11px rgba(66, 219, 68, 0.9));
+}
+
+.quest-node.completed.claimable .quest-node-icon {
+  animation: quest-claimable-pulse 1.25s ease-in-out infinite alternate;
+  filter:
+    drop-shadow(0 2px 0 #071405)
+    drop-shadow(0 0 4px #efff9b)
+    drop-shadow(0 0 10px rgba(86, 238, 71, 1))
+    drop-shadow(0 0 17px rgba(255, 191, 44, 0.95));
+}
+
+.quest-node.selected .quest-node-icon {
+  outline: 2px solid rgba(255, 249, 195, 0.92);
+  outline-offset: 3px;
+}
+
+@keyframes quest-claimable-pulse {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.09);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-node.completed.claimable .quest-node-icon {
+    animation: none;
+  }
 }
 
 .quest-detail-icon {
@@ -10979,6 +11020,41 @@ button.craft-output:disabled {
   overflow: hidden;
 }
 
+.recipe-results-pane {
+  align-content: start;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.recipe-type-picker {
+  align-items: center;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 3px 4px;
+}
+
+.recipe-type-picker > span {
+  color: var(--muted);
+  font: 900 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.recipe-type-picker select {
+  background: var(--bevel-well);
+  border: 1px solid var(--bevel-inset);
+  color: var(--ink);
+  font: 800 0.68rem Inter, ui-sans-serif, system-ui, sans-serif;
+  height: 26px;
+  min-width: 0;
+  padding: 0 22px 0 6px;
+}
+
 .recipe-icon-grid {
   align-content: start;
   background: var(--bevel-well);
@@ -11007,6 +11083,26 @@ button.craft-output:disabled {
   min-height: 40px;
   padding: 3px;
   position: relative;
+}
+
+.recipe-icon-button.recipe-collection-button {
+  box-shadow: inset 3px 3px 0 color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.recipe-collection-button::before {
+  border-left: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  content: "";
+  inset: 2px 5px 5px 2px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.recipe-collection-chevron {
+  bottom: 2px;
+  color: var(--ink);
+  position: absolute;
+  right: 1px;
 }
 
 .recipe-icon-button .pixel-icon,

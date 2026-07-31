@@ -1,14 +1,14 @@
 {
   "review": "superconductors-v1",
-  "status": "pending",
+  "status": "approved",
   "items": {
-    "lvSuperconductorCable": "pending",
-    "lvSuperconductorCable2A": "pending",
-    "lvSuperconductorCable4A": "pending",
-    "lvSuperconductorCable8A": "pending",
-    "mvSuperconductorCable": "pending",
-    "mvSuperconductorCable2A": "pending",
-    "mvSuperconductorCable4A": "pending",
-    "mvSuperconductorCable8A": "pending"
+    "lvSuperconductorCable": "approved",
+    "lvSuperconductorCable2A": "approved",
+    "lvSuperconductorCable4A": "approved",
+    "lvSuperconductorCable8A": "approved",
+    "mvSuperconductorCable": "approved",
+    "mvSuperconductorCable2A": "approved",
+    "mvSuperconductorCable4A": "approved",
+    "mvSuperconductorCable8A": "approved"
   }
 }

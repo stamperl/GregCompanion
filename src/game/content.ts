@@ -148,6 +148,10 @@ const authoredResourceRegistry = {
   tinCable2A: { id: 'tinCable2A', label: '2A Tin Cable', category: 'wire', tier: 'lv' },
   tinCable4A: { id: 'tinCable4A', label: '4A Tin Cable', category: 'wire', tier: 'lv' },
   tinCable8A: { id: 'tinCable8A', label: '8A Tin Cable', category: 'wire', tier: 'lv' },
+  lvSuperconductorCable: { id: 'lvSuperconductorCable', label: '1A LV Superconductor Cable', category: 'wire', tier: 'lv' },
+  lvSuperconductorCable2A: { id: 'lvSuperconductorCable2A', label: '2A LV Superconductor Cable', category: 'wire', tier: 'lv' },
+  lvSuperconductorCable4A: { id: 'lvSuperconductorCable4A', label: '4A LV Superconductor Cable', category: 'wire', tier: 'lv' },
+  lvSuperconductorCable8A: { id: 'lvSuperconductorCable8A', label: '8A LV Superconductor Cable', category: 'wire', tier: 'lv' },
   copperWire: { id: 'copperWire', label: 'Copper Wire', category: 'wire', tier: 'steam' },
   glass: { id: 'glass', label: 'Glass', category: 'component', tier: 'steam' },
   glassTube: { id: 'glassTube', label: 'Glass Tube', category: 'component', tier: 'steam' },
@@ -217,6 +221,10 @@ const authoredResourceRegistry = {
   rubberLog: { id: 'rubberLog', label: 'Rubber Tree Log', category: 'raw', tier: 'lv' },
   sugarCane: { id: 'sugarCane', label: 'Sugar Cane', category: 'raw', tier: 'lv' },
   aluminiumCable: { id: 'aluminiumCable', label: 'Aluminium Cable', category: 'wire', tier: 'mv' },
+  mvSuperconductorCable: { id: 'mvSuperconductorCable', label: '1A MV Superconductor Cable', category: 'wire', tier: 'mv' },
+  mvSuperconductorCable2A: { id: 'mvSuperconductorCable2A', label: '2A MV Superconductor Cable', category: 'wire', tier: 'mv' },
+  mvSuperconductorCable4A: { id: 'mvSuperconductorCable4A', label: '4A MV Superconductor Cable', category: 'wire', tier: 'mv' },
+  mvSuperconductorCable8A: { id: 'mvSuperconductorCable8A', label: '8A MV Superconductor Cable', category: 'wire', tier: 'mv' },
 } satisfies Partial<Record<ResourceId, ResourceSpec>>
 
 export const resourceRegistry = Object.fromEntries(
@@ -582,6 +590,19 @@ export const gatherTargets: Record<GatherTargetId, GatherTarget> = {
   },
 }
 
+const superconductorCable = (id: MachineId, tier: 'lv' | 'mv', amps: number): MachineSpec => ({
+  id,
+  name: `${amps}A ${tier.toUpperCase()} Superconductor Cable`,
+  description: `A cryogenically stabilized ${amps}A ${tier.toUpperCase()} cable with no route loss.`,
+  tier,
+  placeable: true,
+  processKind: 'euCable',
+  euAmps: amps,
+  euVoltage: tier === 'lv' ? 32 : 128,
+  euCapacity: amps * (tier === 'lv' ? 12 : 24),
+  euCableLossPerTile: 0,
+})
+
 const authoredMachineRegistry = {
   furnace: {
     id: 'furnace',
@@ -836,6 +857,10 @@ const authoredMachineRegistry = {
     euCapacity: 48,
     euCableLossPerTile: 1,
   },
+  lvSuperconductorCable: superconductorCable('lvSuperconductorCable', 'lv', 1),
+  lvSuperconductorCable2A: superconductorCable('lvSuperconductorCable2A', 'lv', 2),
+  lvSuperconductorCable4A: superconductorCable('lvSuperconductorCable4A', 'lv', 4),
+  lvSuperconductorCable8A: superconductorCable('lvSuperconductorCable8A', 'lv', 8),
   lvBatteryBuffer: {
     id: 'lvBatteryBuffer',
     name: '1A LV Battery Buffer',
@@ -1444,6 +1469,10 @@ const authoredMachineRegistry = {
     euCapacity: 12,
     euCableLossPerTile: 2,
   },
+  mvSuperconductorCable: superconductorCable('mvSuperconductorCable', 'mv', 1),
+  mvSuperconductorCable2A: superconductorCable('mvSuperconductorCable2A', 'mv', 2),
+  mvSuperconductorCable4A: superconductorCable('mvSuperconductorCable4A', 'mv', 4),
+  mvSuperconductorCable8A: superconductorCable('mvSuperconductorCable8A', 'mv', 8),
   lvToMvTransformer: {
     id: 'lvToMvTransformer',
     name: 'LV to MV Transformer',
@@ -1484,7 +1513,15 @@ export const resourceBackedMachineIds = [
   'tinCable2A',
   'tinCable4A',
   'tinCable8A',
+  'lvSuperconductorCable',
+  'lvSuperconductorCable2A',
+  'lvSuperconductorCable4A',
+  'lvSuperconductorCable8A',
   'aluminiumCable',
+  'mvSuperconductorCable',
+  'mvSuperconductorCable2A',
+  'mvSuperconductorCable4A',
+  'mvSuperconductorCable8A',
 ] as const
 
 export function isResourceBackedMachine(machineId: MachineId): machineId is (typeof resourceBackedMachineIds)[number] {
@@ -3918,11 +3955,124 @@ recipes.push(
   },
 )
 
+recipes.push(
+  {
+    id: 'craft_lv_superconductor_cable_2a',
+    name: 'Bundle 2A LV Superconductor Cable',
+    description: 'Bind two lossless LV conductors into a two-amp trunk.',
+    tier: 'lv',
+    durationMs: 6000,
+    inputs: [
+      { id: 'lvSuperconductorCable', amount: 2 },
+      { id: 'rubber', amount: 1 },
+    ],
+    pattern: ['lvSuperconductorCable', 'rubber', 'lvSuperconductorCable', null, null, null, null, null, null],
+    outputs: [{ id: 'lvSuperconductorCable2A', amount: 1 }],
+  },
+  {
+    id: 'craft_lv_superconductor_cable_4a',
+    name: 'Bundle 4A LV Superconductor Cable',
+    description: 'Bind two two-amp lossless LV conductors into a four-amp trunk.',
+    tier: 'lv',
+    durationMs: 7000,
+    inputs: [
+      { id: 'lvSuperconductorCable2A', amount: 2 },
+      { id: 'rubber', amount: 1 },
+    ],
+    pattern: ['lvSuperconductorCable2A', 'rubber', 'lvSuperconductorCable2A', null, null, null, null, null, null],
+    outputs: [{ id: 'lvSuperconductorCable4A', amount: 1 }],
+  },
+  {
+    id: 'craft_lv_superconductor_cable_8a',
+    name: 'Bundle 8A LV Superconductor Cable',
+    description: 'Bind two four-amp lossless LV conductors into an eight-amp trunk.',
+    tier: 'lv',
+    durationMs: 8000,
+    inputs: [
+      { id: 'lvSuperconductorCable4A', amount: 2 },
+      { id: 'rubber', amount: 1 },
+    ],
+    pattern: ['lvSuperconductorCable4A', 'rubber', 'lvSuperconductorCable4A', null, null, null, null, null, null],
+    outputs: [{ id: 'lvSuperconductorCable8A', amount: 1 }],
+  },
+  {
+    id: 'craft_mv_superconductor_cable_2a',
+    name: 'Bundle 2A MV Superconductor Cable',
+    description: 'Bind two lossless MV conductors into a two-amp trunk.',
+    tier: 'mv',
+    durationMs: 7000,
+    inputs: [
+      { id: 'mvSuperconductorCable', amount: 2 },
+      { id: 'rubber', amount: 1 },
+    ],
+    pattern: ['mvSuperconductorCable', 'rubber', 'mvSuperconductorCable', null, null, null, null, null, null],
+    outputs: [{ id: 'mvSuperconductorCable2A', amount: 1 }],
+  },
+  {
+    id: 'craft_mv_superconductor_cable_4a',
+    name: 'Bundle 4A MV Superconductor Cable',
+    description: 'Bind two two-amp lossless MV conductors into a four-amp trunk.',
+    tier: 'mv',
+    durationMs: 8000,
+    inputs: [
+      { id: 'mvSuperconductorCable2A', amount: 2 },
+      { id: 'rubber', amount: 1 },
+    ],
+    pattern: ['mvSuperconductorCable2A', 'rubber', 'mvSuperconductorCable2A', null, null, null, null, null, null],
+    outputs: [{ id: 'mvSuperconductorCable4A', amount: 1 }],
+  },
+  {
+    id: 'craft_mv_superconductor_cable_8a',
+    name: 'Bundle 8A MV Superconductor Cable',
+    description: 'Bind two four-amp lossless MV conductors into an eight-amp trunk.',
+    tier: 'mv',
+    durationMs: 9000,
+    inputs: [
+      { id: 'mvSuperconductorCable4A', amount: 2 },
+      { id: 'rubber', amount: 1 },
+    ],
+    pattern: ['mvSuperconductorCable4A', 'rubber', 'mvSuperconductorCable4A', null, null, null, null, null, null],
+    outputs: [{ id: 'mvSuperconductorCable8A', amount: 1 }],
+  },
+)
+
 recipes.push(...generateMissingMaterialCraftingRecipes(recipes))
 recipes.push(...mvCraftingRecipes, ...mvMachineBuildRecipes, ...mvInfrastructureRecipes)
 recipes.push(...polymerCraftingRecipes)
 
 export const processRecipes: ProcessRecipe[] = [
+  {
+    id: 'lv_assembler_superconductor_cable',
+    name: 'Seal LV Superconductor Cable',
+    description: 'Seal a pumped fine-wire core in a nitrogen-cooled steel jacket. Program 9.',
+    tier: 'lv',
+    machineId: 'lvAssembler',
+    durationMs: 20000,
+    euCost: 640,
+    input: { id: 'fineCupronickelWire', amount: 3 },
+    secondaryInput: { id: 'steelPipeSection', amount: 2 },
+    extraInputs: [{ id: 'lvPump', amount: 1 }],
+    fluidInputs: [{ id: 'nitrogen', amount: 32, bufferId: 'input' }],
+    output: { id: 'lvSuperconductorCable', amount: 3 },
+    programNumber: 9,
+    autoSelectable: false,
+  },
+  {
+    id: 'mv_assembler_superconductor_cable',
+    name: 'Seal MV Superconductor Cable',
+    description: 'Seal an aluminium conductor in a reinforced nitrogen-cooled steel jacket. Program 9.',
+    tier: 'mv',
+    machineId: 'mvAssembler',
+    durationMs: 20000,
+    euCost: 2560,
+    input: { id: 'aluminiumWire', amount: 3 },
+    secondaryInput: { id: 'steelPipeSection', amount: 2 },
+    extraInputs: [{ id: 'mvPump', amount: 1 }],
+    fluidInputs: [{ id: 'nitrogen', amount: 64, bufferId: 'input' }],
+    output: { id: 'mvSuperconductorCable', amount: 3 },
+    programNumber: 9,
+    autoSelectable: false,
+  },
   {
     id: 'farm_standard_trees',
     name: 'Grow Standard Trees',
@@ -7070,6 +7220,7 @@ export const quests: Quest[] = [
     objectives: [
       { type: 'machine', id: 'steamBoiler', amount: 1, progressMode: 'lifetime' },
       { type: 'placedMachine', id: 'steamBoiler', amount: 1, label: 'Steam boiler placed' },
+      { type: 'milestone', id: 'operation_steam_generated', amount: 1, label: 'Produce steam with water and fuel' },
     ],
     requirements: {
       machines: [{ id: 'steamBoiler', amount: 1 }],
@@ -7177,7 +7328,7 @@ export const quests: Quest[] = [
     icon: { type: 'resource', id: 'crushedIronOre' },
     prerequisites: ['steamMaceratorQuest'],
     requirements: {
-      resources: [{ id: 'crushedIronOre', amount: 8 }],
+      recipes: [{ id: 'steam_crush_iron_ore', amount: 4 }],
     },
     rewards: {},
   },
@@ -7414,7 +7565,7 @@ export const quests: Quest[] = [
     chapterId: 'lvFoundations',
     chapter: 'LV Foundations',
     title: 'Stock red alloy',
-    description: 'In the Steam Alloy Smelter, combine one Copper Ingot with four Redstone Dust to make two Red Alloy Ingots. Bank four for circuits, motors, and buffers.',
+    description: 'In the Steam Alloy Smelter, combine one Copper Dust with four Redstone Dust to make two Red Alloy Ingots. Bank four for circuits, motors, and buffers.',
     position: { x: 250, y: 140 },
     icon: { type: 'resource', id: 'redAlloyIngot' },
     prerequisites: ['findRedstone', 'steamUtilityBranch'],
@@ -7710,7 +7861,7 @@ export const quests: Quest[] = [
     icon: { type: 'resource', id: 'tinWire' },
     prerequisites: ['buildLvWiremillQuest'],
     requirements: {
-      resources: [{ id: 'tinWire', amount: 8 }],
+      recipes: [{ id: 'lv_wiremill_tin_wire', amount: 4 }],
     },
     rewards: {},
   },
@@ -7897,7 +8048,7 @@ export const quests: Quest[] = [
     prerequisites: ['fillLvBatteryQuest'],
     requirements: {
       machines: [{ id: 'lvBender', amount: 1 }],
-      resources: [{ id: 'steelPlate', amount: 8 }],
+      recipes: [{ id: 'lv_bender_steel_plate', amount: 8 }],
     },
     rewards: {},
   },
@@ -7924,9 +8075,13 @@ export const quests: Quest[] = [
     position: { x: 1330, y: 260 },
     icon: { type: 'resource', id: 'tinRod' },
     prerequisites: ['buildLvLatheQuest'],
-    requirements: {
-      resources: [{ id: 'tinRod', amount: 4 }],
-    },
+    requirements: {},
+    objectives: [{
+      type: 'recipeAny',
+      ids: ['lv_lathe_tin_rod', 'lv_lathe_steel_rod'],
+      amount: 2,
+      label: 'Run two Tin or Steel rod batches in the LV Lathe',
+    }],
     rewards: {},
   },
   {
@@ -8482,13 +8637,32 @@ export const quests: Quest[] = [
     chapterId: 'blastPrep',
     chapter: 'Blast Prep',
     title: 'Program gas-assisted blasting',
-    description: 'Select Program 1 for Oxygen Steel or Program 2 for Nitrogen Aluminium. A selected program waits for its gas instead of falling back to Auto, preventing valuable feedstock from taking the slower route.',
+    description: 'Run both gas-assisted routes: Program 1 for Oxygen Steel and Program 2 for Nitrogen Aluminium. A selected program waits for its gas instead of falling back to Auto, preventing valuable feedstock from taking the slower route.',
     kind: 'optional',
     position: { x: 5670, y: 720 },
     icon: { type: 'machine', id: 'arcBlastFurnace' },
     prerequisites: ['separateAirQuest', 'firstAluminiumQuest', 'craftArcFluidHatchesQuest'],
     requirements: { recipes: [{ id: 'arc_blast_oxygen_steel', amount: 1 }, { id: 'arc_blast_nitrogen_aluminium', amount: 1 }] },
     rewards: {},
+  },
+  {
+    id: 'buildLvSuperconductorQuest',
+    chapterId: 'blastPrep',
+    chapter: 'Blast Prep',
+    title: 'Stop paying the cable tax',
+    description: 'Set an LV Assembler to Program 9. Seal three Fine Cupronickel Wires and two Steel Pipe Sections around an LV Pump with 32L Nitrogen. The 20-second batch consumes a full LV amp and returns three lossless 1A cables. Bundle them into 2A, 4A, or 8A trunks; ordinary Tin Cable remains the cheaper choice for short routes.',
+    workshopNote: 'The cable has no loss. Your nitrogen line still has plenty of opportunities.',
+    kind: 'optional',
+    position: { x: 5850, y: 720 },
+    icon: { type: 'resource', id: 'lvSuperconductorCable' },
+    prerequisites: ['runGasArcRecipesQuest', 'buildLvAssemblerForPortsQuest'],
+    requirements: {
+      recipes: [
+        { id: 'lv_assembler_superconductor_cable', amount: 1 },
+        { id: 'craft_lv_superconductor_cable_4a', amount: 1 },
+      ],
+    },
+    rewards: { scrip: 12 },
   },
   {
     id: 'steelTankQuest',
@@ -8702,7 +8876,7 @@ export const quests: Quest[] = [
     position: { x: 420, y: 120 },
     icon: { type: 'resource', id: 'rubberLog' },
     prerequisites: ['formPoweredFarmQuest'],
-    requirements: { resources: [{ id: 'log', amount: 8 }] },
+    requirements: { recipes: [{ id: 'farm_standard_trees', amount: 1 }] },
     rewards: {},
   },
   {
@@ -8751,7 +8925,11 @@ export const quests: Quest[] = [
     position: { x: 1180, y: 120 },
     icon: { type: 'machine', id: 'lvCombustionGenerator' },
     prerequisites: ['distilBenzeneQuest'],
-    requirements: { machines: [{ id: 'lvCombustionGenerator', amount: 1 }] },
+    requirements: {},
+    objectives: [
+      { type: 'placedMachine', id: 'lvCombustionGenerator', amount: 1 },
+      { type: 'milestone', id: 'operation_lv_benzene_generated_eu', amount: 32, label: 'Generate LV power from Benzene' },
+    ],
     rewards: {},
   },
   {
@@ -8763,14 +8941,14 @@ export const quests: Quest[] = [
     position: { x: 1370, y: 120 },
     icon: { type: 'machine', id: 'mvCombustionGenerator' },
     prerequisites: ['burnBenzeneQuest'],
-    requirements: {
-      resources: [{ id: 'aluminiumCable', amount: 4 }],
-      machines: [
-        { id: 'lvToMvTransformer', amount: 1 },
-        { id: 'mvToLvTransformer', amount: 1 },
-        { id: 'mvCombustionGenerator', amount: 1 },
-      ],
-    },
+    requirements: {},
+    objectives: [
+      { type: 'placedMachine', id: 'aluminiumCable', amount: 4 },
+      { type: 'placedMachine', id: 'lvToMvTransformer', amount: 1 },
+      { type: 'placedMachine', id: 'mvToLvTransformer', amount: 1 },
+      { type: 'placedMachine', id: 'mvCombustionGenerator', amount: 1 },
+      { type: 'milestone', id: 'operation_mv_benzene_generated_eu', amount: 128, label: 'Generate MV power from Benzene' },
+    ],
     rewards: {},
   },
   {
@@ -8800,7 +8978,13 @@ export const quests: Quest[] = [
     position: { x: 280, y: 120 },
     icon: { type: 'resource', id: 'galliumArsenideCrystal' },
     prerequisites: ['findMvSemiconductorsQuest'],
-    requirements: { resources: [{ id: 'galliumArsenideDust', amount: 1 }] },
+    requirements: {
+      recipes: [
+        { id: 'lv_mix_gallium_arsenide', amount: 1 },
+        { id: 'arc_gallium_arsenide', amount: 1 },
+        { id: 'lv_macerate_gallium_arsenide', amount: 1 },
+      ],
+    },
     rewards: { scrip: 12 },
   },
   {
@@ -8912,6 +9096,25 @@ export const quests: Quest[] = [
       machines: [{ id: 'mvBatteryBuffer', amount: 1 }],
     },
     rewards: { scrip: 20 },
+  },
+  {
+    id: 'buildMvSuperconductorQuest',
+    chapterId: 'mvEngineering',
+    chapter: 'MV Engineering',
+    title: 'Make distance irrelevant',
+    description: 'Set the MV Assembler to Program 9. Seal three Aluminium Wires and two Steel Pipe Sections around an MV Pump with 64L Nitrogen. The 20-second batch draws a full 128 EU/s and returns three lossless 1A MV cables. Bundle the conductors for 2A, 4A, and 8A routes when long aluminium runs are wasting too much voltage.',
+    workshopNote: 'The expensive cable is cheaper than rebuilding a factory around one missing volt.',
+    kind: 'optional',
+    position: { x: 1680, y: 320 },
+    icon: { type: 'resource', id: 'mvSuperconductorCable' },
+    prerequisites: ['buildMvPowerInfrastructureQuest', 'buildLvSuperconductorQuest'],
+    requirements: {
+      recipes: [
+        { id: 'mv_assembler_superconductor_cable', amount: 1 },
+        { id: 'craft_mv_superconductor_cable_4a', amount: 1 },
+      ],
+    },
+    rewards: { scrip: 16 },
   },
   {
     id: 'completeMvMachineLineQuest',
