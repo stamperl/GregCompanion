@@ -1,0 +1,1518 @@
+{
+  "generatedAt": "2026-07-25T23:29:03.049Z",
+  "installTarget": "public/game-icons",
+  "entries": [
+    {
+      "id": "aluminiumBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumCable",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumCable.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumCable2A",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumCable2A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumCable4A",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumCable4A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumCable8A",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumCable8A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/aluminiumWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "arsenicDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/arsenicDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "basicBoard",
+      "kind": "resources",
+      "candidate": "candidates/resources/basicBoard.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "batteryAlloyWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/batteryAlloyWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeBlend",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeBlend.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzePlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzePlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeRotor",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeRotor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "bronzeWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/bronzeWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "coatedBoardBlank",
+      "kind": "resources",
+      "candidate": "candidates/resources/coatedBoardBlank.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "copperWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/copperWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "cupronickelWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/cupronickelWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "diode",
+      "kind": "resources",
+      "candidate": "candidates/resources/diode.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "emptyMvBatteryHull",
+      "kind": "resources",
+      "candidate": "candidates/resources/emptyMvBatteryHull.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineAluminiumWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineAluminiumWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineBatteryAlloyWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineBatteryAlloyWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineBronzeWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineBronzeWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineCopperWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineCopperWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineCupronickelWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineCupronickelWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineGoldWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineGoldWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineInvarWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineInvarWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineIronWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineIronWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineLeadWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineLeadWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineNickelWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineNickelWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineRedAlloyWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineRedAlloyWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineSteelWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineSteelWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fineTinWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/fineTinWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "galliumArsenideCrystal",
+      "kind": "resources",
+      "candidate": "candidates/resources/galliumArsenideCrystal.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "galliumArsenideDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/galliumArsenideDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "galliumDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/galliumDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "goldWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/goldWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "invarWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/invarWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "ironWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/ironWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "leadWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/leadWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "magneticSteelRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/magneticSteelRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvCircuit",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvCircuit.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvCircuitBoard",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvCircuitBoard.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvConveyor",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvConveyor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvEnergyHatch2A",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvEnergyHatch2A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvLithiumBattery",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvLithiumBattery.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvMachineCasing",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvMachineCasing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvMachineHull",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvMachineHull.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvMotor",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvMotor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvPiston",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvPiston.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvPump",
+      "kind": "resources",
+      "candidate": "candidates/resources/mvPump.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "nickelWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/nickelWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "phenolicBoard",
+      "kind": "resources",
+      "candidate": "candidates/resources/phenolicBoard.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "primitiveCircuit",
+      "kind": "resources",
+      "candidate": "candidates/resources/primitiveCircuit.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "realgarOre",
+      "kind": "resources",
+      "candidate": "candidates/resources/realgarOre.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyCable",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyCable.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "redAlloyWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/redAlloyWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "sphaleriteConcentrate",
+      "kind": "resources",
+      "candidate": "candidates/resources/sphaleriteConcentrate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "sphaleriteOre",
+      "kind": "resources",
+      "candidate": "candidates/resources/sphaleriteOre.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelItemCasing",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelItemCasing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelPipeSection",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelPipeSection.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "steelWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/steelWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinBolt",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinBolt.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinCable",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinCable.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinCable2A",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinCable2A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinCable4A",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinCable4A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinCable8A",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinCable8A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinFoil",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinFoil.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinGear",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinGear.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinIngot",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinIngot.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinPlate",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinPlate.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinRing",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinRing.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinRod",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinRod.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinScrew",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinScrew.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "tinWire",
+      "kind": "resources",
+      "candidate": "candidates/resources/tinWire.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "zincDust",
+      "kind": "resources",
+      "candidate": "candidates/resources/zincDust.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumCable2A",
+      "kind": "machines",
+      "candidate": "candidates/machines/aluminiumCable2A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumCable4A",
+      "kind": "machines",
+      "candidate": "candidates/machines/aluminiumCable4A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "aluminiumCable8A",
+      "kind": "machines",
+      "candidate": "candidates/machines/aluminiumCable8A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "conductorBundle",
+      "kind": "machines",
+      "candidate": "candidates/machines/conductorBundle.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fabricationCable",
+      "kind": "machines",
+      "candidate": "candidates/machines/fabricationCable.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "fluidConductor",
+      "kind": "machines",
+      "candidate": "candidates/machines/fluidConductor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "itemConductor",
+      "kind": "machines",
+      "candidate": "candidates/machines/itemConductor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvAirCollector",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvAirCollector.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvAlloySmelter",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvAlloySmelter.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvAssembler",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvAssembler.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvAutoMiner",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvAutoMiner.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvBatteryBuffer",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvBatteryBuffer.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvBatteryBuffer2A",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvBatteryBuffer2A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvBatteryBuffer4A",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvBatteryBuffer4A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvBatteryBuffer8A",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvBatteryBuffer8A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvBender",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvBender.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvCanner",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvCanner.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvCentrifuge",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvCentrifuge.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvChemicalReactor",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvChemicalReactor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvCompressor",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvCompressor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvDistillery",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvDistillery.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvElectrolyzer",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvElectrolyzer.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvEnergyHatch2A",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvEnergyHatch2A.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvExtractor",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvExtractor.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvFluidInputHatch",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvFluidInputHatch.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvFluidOutputHatch",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvFluidOutputHatch.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvForgeHammer",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvForgeHammer.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvFurnace",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvFurnace.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvInputBus",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvInputBus.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvLathe",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvLathe.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvMacerator",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvMacerator.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvMixer",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvMixer.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvOutputBus",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvOutputBus.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "mvWiremill",
+      "kind": "machines",
+      "candidate": "candidates/machines/mvWiremill.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "terminalExportBus",
+      "kind": "machines",
+      "candidate": "candidates/machines/terminalExportBus.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    },
+    {
+      "id": "terminalImportBus",
+      "kind": "machines",
+      "candidate": "candidates/machines/terminalImportBus.png",
+      "status": "approved",
+      "notes": "Approved in chat on 2026-07-26."
+    }
+  ]
+}

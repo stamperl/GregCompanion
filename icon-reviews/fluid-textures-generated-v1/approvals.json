@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "review": "fluid-textures-generated-v1",
+  "entries": [
+    { "id": "water", "kind": "fluid", "status": "approved" },
+    { "id": "creosote", "kind": "fluid", "status": "approved" },
+    { "id": "liquidRubber", "kind": "fluid", "status": "approved" },
+    { "id": "glue", "kind": "fluid", "status": "approved" },
+    { "id": "air", "kind": "fluid", "status": "approved" },
+    { "id": "oxygen", "kind": "fluid", "status": "approved" },
+    { "id": "nitrogen", "kind": "fluid", "status": "approved" },
+    { "id": "sulfuricAcid", "kind": "fluid", "status": "approved" },
+    { "id": "dilutedSulfuricAcid", "kind": "fluid", "status": "approved" },
+    { "id": "woodTar", "kind": "fluid", "status": "approved" },
+    { "id": "woodGas", "kind": "fluid", "status": "approved" },
+    { "id": "benzene", "kind": "fluid", "status": "approved" },
+    { "id": "heavyTar", "kind": "fluid", "status": "approved" },
+    { "id": "caneJuice", "kind": "fluid", "status": "approved" },
+    { "id": "sugarWash", "kind": "fluid", "status": "approved" },
+    { "id": "fermentedWash", "kind": "fluid", "status": "approved" },
+    { "id": "carbonDioxide", "kind": "fluid", "status": "approved" },
+    { "id": "ethanol", "kind": "fluid", "status": "approved" },
+    { "id": "vinasse", "kind": "fluid", "status": "approved" },
+    { "id": "ethylene", "kind": "fluid", "status": "approved" },
+    { "id": "liquidPolyethylene", "kind": "fluid", "status": "approved" },
+    { "id": "fertilizerLiquor", "kind": "fluid", "status": "approved" },
+    { "id": "steam", "kind": "stored-medium", "status": "approved" }
+  ]
+}

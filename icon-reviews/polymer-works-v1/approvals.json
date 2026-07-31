@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "review": "polymer-works-v1",
+  "entries": [
+    { "id": "bagasse", "kind": "resource", "status": "approved" },
+    { "id": "plateMold", "kind": "resource", "status": "approved" },
+    { "id": "polyethylenePlate", "kind": "resource", "status": "approved" },
+    { "id": "polyethylenePipe", "kind": "resource", "status": "approved" },
+    { "id": "tankCasing1", "kind": "resource", "status": "approved" },
+    { "id": "pulsatingIronIngot", "kind": "resource", "status": "approved" },
+    { "id": "pulsatingIronPlate", "kind": "resource", "status": "approved" },
+    { "id": "lvFluidSolidifier", "kind": "machine", "status": "approved" },
+    { "id": "lvSuperTank", "kind": "machine", "status": "approved" }
+  ]
+}

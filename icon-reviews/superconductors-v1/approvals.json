@@ -1,0 +1,14 @@
+{
+  "review": "superconductors-v1",
+  "status": "approved",
+  "items": {
+    "lvSuperconductorCable": "approved",
+    "lvSuperconductorCable2A": "approved",
+    "lvSuperconductorCable4A": "approved",
+    "lvSuperconductorCable8A": "approved",
+    "mvSuperconductorCable": "approved",
+    "mvSuperconductorCable2A": "approved",
+    "mvSuperconductorCable4A": "approved",
+    "mvSuperconductorCable8A": "approved"
+  }
+}

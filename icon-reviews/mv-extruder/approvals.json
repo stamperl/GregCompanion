@@ -1,0 +1,36 @@
+{
+  "revision": 1,
+  "approvedAt": "2026-07-26",
+  "approvals": [
+    {
+      "id": "mvExtruder",
+      "kind": "machine",
+      "status": "approved"
+    },
+    {
+      "id": "extrusionMoldPlate",
+      "kind": "resource",
+      "status": "approved"
+    },
+    {
+      "id": "extrusionMoldRod",
+      "kind": "resource",
+      "status": "approved"
+    },
+    {
+      "id": "extrusionMoldBolt",
+      "kind": "resource",
+      "status": "approved"
+    },
+    {
+      "id": "extrusionMoldRing",
+      "kind": "resource",
+      "status": "approved"
+    },
+    {
+      "id": "extrusionMoldGear",
+      "kind": "resource",
+      "status": "approved"
+    }
+  ]
+}
