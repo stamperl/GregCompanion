@@ -1,14 +1,14 @@
 {
   "review": "standard-cables-v1",
-  "status": "pending",
+  "status": "approved",
   "items": {
-    "tinCable": "pending",
-    "tinCable2A": "pending",
-    "tinCable4A": "pending",
-    "tinCable8A": "pending",
-    "aluminiumCable": "pending",
-    "aluminiumCable2A": "pending",
-    "aluminiumCable4A": "pending",
-    "aluminiumCable8A": "pending"
+    "tinCable": "approved",
+    "tinCable2A": "approved",
+    "tinCable4A": "approved",
+    "tinCable8A": "approved",
+    "aluminiumCable": "approved",
+    "aluminiumCable2A": "approved",
+    "aluminiumCable4A": "approved",
+    "aluminiumCable8A": "approved"
   }
 }
