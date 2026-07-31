@@ -1,0 +1,14 @@
+{
+  "review": "standard-cables-v1",
+  "status": "approved",
+  "items": {
+    "tinCable": "approved",
+    "tinCable2A": "approved",
+    "tinCable4A": "approved",
+    "tinCable8A": "approved",
+    "aluminiumCable": "approved",
+    "aluminiumCable2A": "approved",
+    "aluminiumCable4A": "approved",
+    "aluminiumCable8A": "approved"
+  }
+}

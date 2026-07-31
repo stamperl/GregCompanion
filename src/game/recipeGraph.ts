@@ -56,14 +56,14 @@ export function processRecipeToCatalogRecipe(recipe: ProcessRecipe, stationType:
     durationMs: recipe.durationMs,
     steamCostLitres: recipe.steamCostLitres,
     euCost: recipe.euCost,
-    inputs: recipe.fluidOnly ? [] : [
+    inputs: [
       recipe.input,
       ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
       ...(recipe.extraInputs ?? []),
       ...(recipe.fuelInput ? [recipe.fuelInput] : []),
-    ],
+    ].filter((input): input is ResourceAmount => Boolean(input && input.amount > 0)),
     fluidInputs: recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : undefined),
-    outputs: recipe.fluidOnly ? [] : [recipe.output, recipe.secondaryOutput].filter((output): output is ResourceAmount => Boolean(output && output.amount > 0)),
+    outputs: [recipe.output, recipe.secondaryOutput].filter((output): output is ResourceAmount => Boolean(output && output.amount > 0)),
     machineOutputs: recipe.machineOutput ? [recipe.machineOutput] : undefined,
     fluidOutputs: recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : undefined),
     requiredMachine: recipe.machineId,
@@ -117,7 +117,7 @@ export function recipesUsingResource(resourceId: ResourceId, candidates: Recipe[
 }
 
 export function processRecipeProducesResource(recipe: ProcessRecipe, resourceId: ResourceId) {
-  return !recipe.fluidOnly && [recipe.output, recipe.secondaryOutput].some((output) => output?.id === resourceId)
+  return [recipe.output, recipe.secondaryOutput].some((output) => output?.id === resourceId)
 }
 
 export function processRecipesProducingResource(resourceId: ResourceId, candidates: ProcessRecipe[]) {

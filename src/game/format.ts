@@ -15,5 +15,9 @@ export function formatSteamLitres(ms: number) {
 }
 
 export function formatLitres(litres: number) {
-  return Math.max(0, Math.floor(litres))
+  const safeLitres = Math.max(0, litres)
+  if (safeLitres > 0 && safeLitres < 1) {
+    return safeLitres.toLocaleString(undefined, { maximumSignificantDigits: 2 })
+  }
+  return Math.floor(safeLitres).toLocaleString()
 }

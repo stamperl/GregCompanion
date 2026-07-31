@@ -8,6 +8,8 @@ import type { Plugin, PreviewServer, ViteDevServer } from 'vite'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 const savesDir = path.join(rootDir, 'server', 'saves')
+const reviewDir = path.join(rootDir, 'server', 'reviews')
+const mvReviewPath = path.join(reviewDir, 'mv-review-decisions.json')
 const githubPagesPath = process.env.GITHUB_PAGES_PATH?.replace(/^\/+|\/+$/g, '')
 const githubPagesRepo = (process.env.GITHUB_PAGES_REPO ?? process.env.GITHUB_REPOSITORY?.split('/').pop() ?? 'click-foundry').replace(/^\/+|\/+$/g, '')
 const githubPagesBase = githubPagesPath ? `/${githubPagesRepo}/${githubPagesPath}/` : `/${githubPagesRepo}/`
@@ -122,10 +124,62 @@ function localSaveApi(): Plugin {
   }
 }
 
+function attachReviewApi(server: ViteDevServer | PreviewServer) {
+  server.middlewares.use(async (req, res, next) => {
+    const url = new URL(req.url ?? '/', 'http://local')
+    if (url.pathname !== '/api/reviews/mv') {
+      next()
+      return
+    }
+
+    try {
+      await mkdir(reviewDir, { recursive: true })
+      if (req.method === 'GET') {
+        try {
+          const review = JSON.parse(await readFile(mvReviewPath, 'utf8')) as unknown
+          sendJson(res, 200, review)
+        } catch (error) {
+          if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+            sendJson(res, 200, { decisions: {}, updatedAt: null })
+            return
+          }
+          throw error
+        }
+        return
+      }
+
+      if (req.method === 'PUT') {
+        const body = JSON.parse(await readBody(req)) as { decisions?: unknown }
+        if (!body.decisions || typeof body.decisions !== 'object' || Array.isArray(body.decisions)) {
+          sendJson(res, 400, { error: 'Review decisions must be an object.' })
+          return
+        }
+        const review = { decisions: body.decisions, updatedAt: new Date().toISOString() }
+        await writeFile(mvReviewPath, JSON.stringify(review, null, 2), 'utf8')
+        sendJson(res, 200, review)
+        return
+      }
+
+      sendJson(res, 405, { error: 'Method not allowed.' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Review server error.'
+      sendJson(res, 500, { error: message })
+    }
+  })
+}
+
+function reviewApi(): Plugin {
+  return {
+    name: 'review-api',
+    configureServer: attachReviewApi,
+    configurePreviewServer: attachReviewApi,
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   base: process.env.GITHUB_PAGES === 'true' ? githubPagesBase : '/',
-  plugins: [react(), localSaveApi()],
+  plugins: [react(), localSaveApi(), reviewApi()],
   build: {
     rollupOptions: {
       output: {

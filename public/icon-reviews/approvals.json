@@ -54,6 +54,19 @@
     { "id": "steamTank", "review": "iron-tank-family-v2", "status": "approved" },
     { "id": "ironPipe", "review": "iron-steel-storage-v1", "status": "approved" },
     { "id": "ironTankPanel", "review": "iron-steel-storage-v1", "status": "approved" },
-    { "id": "steelPipePanel", "review": "iron-steel-storage-v1", "status": "approved" }
+    { "id": "steelPipePanel", "review": "iron-steel-storage-v1", "status": "approved" },
+    { "id": "lvWaterSource", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "poweredFarm", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "poweredFarmPart", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "pyrolysisOven", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "pyrolysisOvenPart", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "lvDistillery", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "lvCombustionGenerator", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "mvCombustionGenerator", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "lvToMvTransformer", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "mvToLvTransformer", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "aluminiumCable", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "rubberLog", "review": "benzene-power-v1", "status": "approved" },
+    { "id": "sugarCane", "review": "benzene-power-v1", "status": "approved" }
   ]
 }

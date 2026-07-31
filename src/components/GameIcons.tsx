@@ -78,19 +78,87 @@ function loosePipeCapPoints(connections?: PipeConnections) {
   ]
 }
 
+function euCableAmperage(id: MachineId) {
+  if (id === 'tinCable8A' || id === 'aluminiumCable8A') return 8
+  if (id === 'tinCable4A' || id === 'aluminiumCable4A') return 4
+  if (id === 'tinCable2A' || id === 'aluminiumCable2A') return 2
+  return 1
+}
+
+function euCableAmpPipPositions(amperage: number) {
+  if (amperage === 8) return [13, 17, 21, 25]
+  if (amperage === 4) return [15, 19, 23]
+  if (amperage === 2) return [17, 21]
+  return [19]
+}
+
 export function MachineGlyph({ id, active = false, pipeConnections, fabricationLane = false }: { id: MachineId; active?: boolean; pipeConnections?: PipeConnections; fabricationLane?: boolean }) {
   const [failed, setFailed] = useState(false)
+  const isCodeNativeBus = id === 'terminalImportBus' || id === 'terminalExportBus'
   const hasFabricationLane = id === 'fabricationCable' || fabricationLane
   const isConductor = isConductorMachine(id) || hasFabricationLane
   const isConnector = isSteamPipeMachine(id) || isEuCableMachine(id) || isConductor
   const className = [
     'machine-glyph',
+    isCodeNativeBus ? 'machine-code-glyph' : '',
     isConnector && (pipeConnections || isConductor) ? 'machine-connector-glyph' : failed ? '' : 'machine-sprite-glyph',
     `machine-${id}`,
     hasFabricationLane ? 'has-fabrication-lane' : '',
     active && !isConnector ? 'active' : '',
     isConnector ? pipeConnectionClass(pipeConnections) : '',
   ].filter(Boolean).join(' ')
+  if (isCodeNativeBus) {
+    const isImport = id === 'terminalImportBus'
+    return (
+      <span className={className} aria-hidden="true">
+        <svg className="fabrication-bus-glyph" viewBox="0 0 40 40" shapeRendering="geometricPrecision" focusable="false">
+          <path className="fabrication-bus-shadow" d="M6 9h28v24H6z" />
+          <path className="fabrication-bus-shell" d="M5 7h28v24H5z" />
+          <path className="fabrication-bus-face" d="M8 10h22v18H8z" />
+          <path className="fabrication-bus-rail" d="M10 12h18v3H10zM10 23h18v3H10z" />
+          <path className="fabrication-bus-port" d={isImport ? 'M24 16h6v7h-6z' : 'M8 16h6v7H8z'} />
+          <path
+            className="fabrication-bus-arrow"
+            d={isImport ? 'M9 18h9v-4l7 6-7 6v-4H9z' : 'M29 18h-9v-4l-7 6 7 6v-4h9z'}
+          />
+          <path className="fabrication-bus-rivet" d="M7 9h2v2H7zM29 9h2v2h-2zM7 27h2v2H7zM29 27h2v2h-2z" />
+        </svg>
+      </span>
+    )
+  }
+  if (isEuCableMachine(id) && pipeConnections) {
+    const path = pipePath(pipeConnections)
+    const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]
+    const cableAmperage = euCableAmperage(id)
+    const ampPipPositions = euCableAmpPipPositions(cableAmperage)
+    return (
+      <span className={className} aria-hidden="true">
+        <svg className="eu-cable-svg" viewBox="0 0 40 40" shapeRendering="crispEdges" focusable="false">
+          <path className="eu-cable-shadow" d={path} />
+          <path className="eu-cable-outline" d={path} />
+          <path className="eu-cable-jacket" d={path} />
+          <path className="eu-cable-band" d={path} />
+          <path className="eu-cable-conductor" d={path} />
+          <rect className="eu-cable-hub-shadow" x="12" y="13" width="17" height="17" />
+          <rect className="eu-cable-hub-frame" x="12" y="12" width="16" height="16" />
+          <rect className="eu-cable-hub-face" x="15" y="15" width="10" height="10" />
+          <rect className="eu-cable-hub-core" x="16" y="16" width="8" height="8" />
+          <text className="eu-cable-amp-mark" x="20" y="23">{cableAmperage}</text>
+          {ampPipPositions.map((x) => <rect className="eu-cable-amp-pip" key={x} x={x} y="29" width="3" height="2" />)}
+          <rect className="eu-cable-rivet" x="13" y="13" width="2" height="2" />
+          <rect className="eu-cable-rivet" x="25" y="13" width="2" height="2" />
+          <rect className="eu-cable-rivet" x="13" y="25" width="2" height="2" />
+          <rect className="eu-cable-rivet" x="25" y="25" width="2" height="2" />
+          {capPoints.map((point) => (
+            <g key={`${point.x}-${point.y}`}>
+              <rect className="eu-cable-cap-frame" x={point.x} y={point.y} width={point.width} height={point.height} />
+              <rect className="eu-cable-cap-core" x={point.x + 2} y={point.y + 2} width={point.width - 4} height={point.height - 4} />
+            </g>
+          ))}
+        </svg>
+      </span>
+    )
+  }
   if ((isConnector && pipeConnections) || isConductor) {
     const path = pipePath(pipeConnections)
     const capPoints = [...pipeCapPoints(pipeConnections), ...loosePipeCapPoints(pipeConnections)]
@@ -143,7 +211,7 @@ export function MachineGlyph({ id, active = false, pipeConnections, fabricationL
   }
   return (
     <span className={className} aria-hidden="true">
-      {!failed && <img src={machineIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" onError={() => setFailed(true)} />}
+      {!failed && !isCodeNativeBus && <img src={machineIconSrc(id)} alt="" draggable={false} decoding="sync" loading="eager" onError={() => setFailed(true)} />}
       <span />
     </span>
   )

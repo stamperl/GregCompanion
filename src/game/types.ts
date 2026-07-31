@@ -1,3 +1,6 @@
+import type { MaterialFamilyId, MaterialFormId, MaterialResourceId } from './materialIds'
+import type { MvMachineId, MvResourceId } from './mvIds'
+
 export type ResourceId =
   | 'log'
   | 'plank'
@@ -103,16 +106,23 @@ export type ResourceId =
   | 'tinCable2A'
   | 'tinCable4A'
   | 'tinCable8A'
+  | 'lvSuperconductorCable'
+  | 'lvSuperconductorCable2A'
+  | 'lvSuperconductorCable4A'
+  | 'lvSuperconductorCable8A'
   | 'copperWire'
   | 'glass'
   | 'glassTube'
   | 'woodPulp'
   | 'woodenBoardBlank'
+  | 'coatedBoardBlank'
   | 'carbonDust'
   | 'redAlloyIngot'
   | 'redAlloyPlate'
   | 'mechanicalPiston'
   | 'redAlloyWire'
+  | 'redAlloyCable'
+  | 'steelItemCasing'
   | 'resistor'
   | 'vacuumTube'
   | 'bronzeBlend'
@@ -166,6 +176,22 @@ export type ResourceId =
   | 'computationProcessor'
   | 'structuralProcessor'
   | 'blankRecipeCard'
+  | 'rubberLog'
+  | 'sugarCane'
+  | 'bagasse'
+  | 'plateMold'
+  | 'polyethylenePlate'
+  | 'polyethylenePipe'
+  | 'tankCasing1'
+  | 'pulsatingIronIngot'
+  | 'pulsatingIronPlate'
+  | 'aluminiumCable'
+  | 'mvSuperconductorCable'
+  | 'mvSuperconductorCable2A'
+  | 'mvSuperconductorCable4A'
+  | 'mvSuperconductorCable8A'
+  | MaterialResourceId
+  | MvResourceId
 
 export type MachineId =
   | 'furnace'
@@ -194,6 +220,10 @@ export type MachineId =
   | 'tinCable2A'
   | 'tinCable4A'
   | 'tinCable8A'
+  | 'lvSuperconductorCable'
+  | 'lvSuperconductorCable2A'
+  | 'lvSuperconductorCable4A'
+  | 'lvSuperconductorCable8A'
   | 'lvBatteryBuffer'
   | 'lvBatteryBuffer2A'
   | 'lvBatteryBuffer4A'
@@ -233,17 +263,39 @@ export type MachineId =
   | 'circuitImprinter'
   | 'recipeEncoder'
   | 'jobInterface'
+  | 'terminalImportBus'
+  | 'terminalExportBus'
   | 'autoFabricator'
   | 'fluidStorageLink'
   | 'planningController'
   | 'memoryModule'
   | 'dispatchModule'
+  | 'lvWaterSource'
+  | 'poweredFarmPart'
+  | 'poweredFarm'
+  | 'pyrolysisOvenPart'
+  | 'pyrolysisOven'
+  | 'lvDistillery'
+  | 'lvFluidSolidifier'
+  | 'lvSuperTank'
+  | 'lvCombustionGenerator'
+  | 'mvCombustionGenerator'
+  | 'aluminiumCable'
+  | 'mvSuperconductorCable'
+  | 'mvSuperconductorCable2A'
+  | 'mvSuperconductorCable4A'
+  | 'mvSuperconductorCable8A'
+  | 'lvToMvTransformer'
+  | 'mvToLvTransformer'
+  | MvMachineId
 
 export type QuestId =
   | 'punchTree'
   | 'craftPlanks'
   | 'craftSticks'
   | 'craftAxe'
+  | 'equipToolTipQuest'
+  | 'recipeBrowserTipQuest'
   | 'chopFaster'
   | 'mineStone'
   | 'craftShovelQuest'
@@ -261,6 +313,7 @@ export type QuestId =
   | 'makeSteam'
   | 'pipeSteam'
   | 'storageAutomationQuest'
+  | 'fluidHandlingTipQuest'
   | 'steamMaceratorQuest'
   | 'steamForgeHammerQuest'
   | 'steamCompressorQuest'
@@ -295,6 +348,7 @@ export type QuestId =
   | 'buildSteamTurbineQuest'
   | 'makeTinCableQuest'
   | 'routeLvPowerQuest'
+  | 'powerNetworkTipQuest'
   | 'makeSteelMechanicsQuest'
   | 'makeLvMotorQuest'
   | 'makeLvMotionPartsQuest'
@@ -310,6 +364,7 @@ export type QuestId =
   | 'creosoteBoilerQuest'
   | 'buildLvWiremillQuest'
   | 'runLvWiremillQuest'
+  | 'machineProgramTipQuest'
   | 'runLvBenderQuest'
   | 'buildLvLatheQuest'
   | 'runLvLatheQuest'
@@ -367,8 +422,57 @@ export type QuestId =
   | 'encodeRecipeCardQuest'
   | 'formPlanningRackQuest'
   | 'runFabricationJobQuest'
+  | 'buildLvWaterSourceQuest'
+  | 'formPoweredFarmQuest'
+  | 'farmWoodQuest'
+  | 'formPyrolysisOvenQuest'
+  | 'makeWoodTarQuest'
+  | 'distilBenzeneQuest'
+  | 'burnBenzeneQuest'
+  | 'buildMvPowerQuest'
+  | 'findMvSemiconductorsQuest'
+  | 'makeGaAsQuest'
+  | 'makeMvCircuitQuest'
+  | 'makeMvCasingQuest'
+  | 'expandMvFactoryQuest'
+  | 'makeMvMotorQuest'
+  | 'buildMvAssemblerQuest'
+  | 'buildMvExtruderQuest'
+  | 'buildMvPowerInfrastructureQuest'
+  | 'buildLvSuperconductorQuest'
+  | 'buildMvSuperconductorQuest'
+  | 'completeMvMachineLineQuest'
+  | 'growSugarCaneQuest'
+  | 'extractCaneJuiceQuest'
+  | 'mixSugarWashQuest'
+  | 'fermentSugarWashQuest'
+  | 'distilEthanolQuest'
+  | 'dehydrateEthanolQuest'
+  | 'recoverAcidQuest'
+  | 'oxygenPolymerTipQuest'
+  | 'makeLiquidPolyethyleneQuest'
+  | 'castPolyethyleneQuest'
+  | 'craftPolyethylenePipeQuest'
+  | 'craftTankCasingQuest'
+  | 'makePulsatingIronQuest'
+  | 'buildSuperTankQuest'
+  | 'reusePolymerByproductsQuest'
 
-export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations'
+export type QuestChapterId = 'gettingStarted' | 'stoneAndFire' | 'steamAge' | 'cokeAndSteel' | 'lvFoundations' | 'blastPrep' | 'lvAge' | 'multiblocks' | 'shatteredReach' | 'mvFoundations' | 'benzenePower' | 'polymerWorks' | 'mvEngineering'
+export type QuestFolderId = 'foundations' | 'steamAndSteel' | 'lvEngineering' | 'appliedIndustry' | 'mvSystems'
+export type QuestLineId =
+  | 'firstTools'
+  | 'stoneAndFire'
+  | 'boilerRoom'
+  | 'cokeAndSteel'
+  | 'circuitsAndPower'
+  | 'heavyPower'
+  | 'factoryAutomation'
+  | 'shatteredReach'
+  | 'renewablePower'
+  | 'polymerWorks'
+  | 'autoCrafting'
+  | 'mvEngineering'
 
 export type Tier = 'manual' | 'bronze' | 'steam' | 'lv' | 'mv'
 
@@ -397,6 +501,8 @@ export type ResourceSpec = {
   tier: Tier
   iconKey?: string
   sortGroup?: string
+  materialFamily?: MaterialFamilyId
+  materialForm?: MaterialFormId
 }
 
 export type MachineProcessKind =
@@ -427,6 +533,10 @@ export type MachineProcessKind =
   | 'fabricationInterface'
   | 'fabricationController'
   | 'fabricationModule'
+  | 'poweredWaterSource'
+  | 'poweredFarm'
+  | 'combustionGenerator'
+  | 'euTransformer'
 
 export type ToolId =
   | 'bareHand'
@@ -466,6 +576,8 @@ export type GatherTargetId =
   | 'goldVein'
   | 'resonantQuartzSeam'
   | 'voidQuartzOutcrop'
+  | 'sphaleriteDeposit'
+  | 'realgarDeposit'
 
 export type FluidId =
   | 'water'
@@ -477,6 +589,19 @@ export type FluidId =
   | 'nitrogen'
   | 'sulfuricAcid'
   | 'dilutedSulfuricAcid'
+  | 'woodTar'
+  | 'woodGas'
+  | 'benzene'
+  | 'heavyTar'
+  | 'caneJuice'
+  | 'sugarWash'
+  | 'fermentedWash'
+  | 'carbonDioxide'
+  | 'ethanol'
+  | 'vinasse'
+  | 'ethylene'
+  | 'liquidPolyethylene'
+  | 'fertilizerLiquor'
 
 export type FluidContainerKind = 'bucket' | 'steelCell'
 
@@ -499,11 +624,22 @@ export type EquipmentSlotId = 'helmet' | 'chestplate' | 'leggings' | 'boots' | '
 
 export type EquipmentState = Record<EquipmentSlotId, ResourceId | null>
 
-export type CraftSlot = {
+export type RecipePatternSlot = ResourceId | {
+  kind: 'machine'
+  id: MachineId
+} | null
+
+export type CraftSlot = ({
+  kind?: 'resource'
   id: ResourceId
   ghost?: boolean
   amount?: number
-} | null
+} | {
+  kind: 'machine'
+  id: MachineId
+  ghost?: boolean
+  amount?: number
+}) | null
 
 export type ResourceAmount = {
   id: ResourceId
@@ -539,11 +675,23 @@ export type RecipeCardInstance = {
   installedInUid?: string
 }
 
+export type FabricationFaceAttachmentKind = 'jobInterface' | 'terminalImportBus' | 'terminalExportBus'
+
+export type FabricationBusFilter =
+  | { kind: 'item'; id: ResourceId }
+  | { kind: 'fluid'; id: FluidId }
+
 export type FabricationInterfaceAttachment = {
   uid: string
+  kind: FabricationFaceAttachmentKind
   direction: PipeDirection
   installedRecipeCardUids: string[]
   priority: number
+  filters: FabricationBusFilter[]
+  transferProgressMs?: number
+  lastTransferKind?: 'item' | 'fluid'
+  lastTransferAmount?: number
+  lastBlockedReason?: string
 }
 
 export type FabricationJobStatus = 'queued' | 'running' | 'blocked' | 'complete' | 'cancelled'
@@ -582,7 +730,7 @@ export type Recipe = {
   tier: Tier
   stationType?: StationType
   recipeType?: RecipeType
-  pattern?: (ResourceId | null)[]
+  pattern?: RecipePatternSlot[]
   durationMs: number
   steamCostLitres?: number
   euCost?: number
@@ -614,7 +762,7 @@ export type ProcessRecipe = {
   steamCostLitres?: number
   euCost?: number
   requiredEuAmps?: number
-  input: ResourceAmount
+  input?: ResourceAmount
   secondaryInput?: ResourceAmount
   fuelInput?: ResourceAmount
   extraInputs?: ResourceAmount[]
@@ -638,7 +786,8 @@ export type Quest = {
   chapter: string
   title: string
   description: string
-  kind?: 'main' | 'optional' | 'gate'
+  kind?: 'main' | 'optional' | 'gate' | 'preparation' | 'tip'
+  workshopNote?: string
   position?: {
     x: number
     y: number
@@ -673,6 +822,21 @@ export type QuestChapter = {
   description: string
 }
 
+export type QuestFolder = {
+  id: QuestFolderId
+  title: string
+  description: string
+  lineIds: QuestLineId[]
+}
+
+export type QuestLine = {
+  id: QuestLineId
+  folderId: QuestFolderId
+  chapterIds: QuestChapterId[]
+  title: string
+  description: string
+}
+
 export type ShopAge = 'gettingStarted' | 'steamAge' | 'lvAge'
 
 export type ShopItem = {
@@ -697,6 +861,7 @@ export type QuestObjective =
   | { type: 'surveyCard'; id: GatherTargetId; amount: number; label?: string }
   | { type: 'recipe'; id: string; amount: number; label?: string }
   | { type: 'recipeAny'; ids: string[]; amount: number; label: string }
+  | { type: 'milestone'; id: string; amount: number; label: string }
   | { type: 'placedMachine'; id: MachineId; amount: number; label?: string }
   | { type: 'installedBattery'; id: MachineId; amount: number; label?: string }
   | { type: 'factoryFoundation'; level: number; label?: string }
@@ -727,6 +892,7 @@ export type MachineSpec = Machine & {
   euCapacity?: number
   euOutputPerSecond?: number
   euAmps?: number
+  euVoltage?: 32 | 128
   euCableLossPerTile?: number
   multiblock?: {
     width: number
@@ -842,6 +1008,7 @@ export type MachineProcessState = {
   storageSlots: ProcessSlot[]
   batterySlots: Array<ResourceId | null>
   activeRecipeId: string | null
+  inputsCommitted?: boolean
   configuredProgramNumber: number
   configuredRecipeId?: string | null
   progressMs: number

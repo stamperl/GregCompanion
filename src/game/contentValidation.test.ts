@@ -13,6 +13,9 @@ import {
   machines,
   processRecipes,
   questChapters,
+  questFolders,
+  questLineIdForQuest,
+  questLines,
   quests,
   recipes,
   resourceBackedMachineIds,
@@ -21,7 +24,7 @@ import {
   tools,
 } from './content'
 import { questKind } from './engine'
-import type { FluidAmount, MachineAmount, MachineId, QuestObjective, Recipe, ResourceAmount, ResourceId } from './types'
+import type { FluidAmount, MachineAmount, MachineId, ProcessRecipe, QuestObjective, Recipe, ResourceAmount, ResourceId } from './types'
 
 const appCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../App.css'), 'utf8')
 const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../public')
@@ -67,8 +70,8 @@ function resourceAmountCounts(amounts: ResourceAmount[]) {
 
 function patternCounts(pattern: Recipe['pattern']) {
   return (pattern ?? []).reduce(
-    (counts, id) => {
-      if (id) counts[id] = (counts[id] ?? 0) + 1
+    (counts, slot) => {
+      if (typeof slot === 'string') counts[slot] = (counts[slot] ?? 0) + 1
       return counts
     },
     {} as Partial<Record<ResourceAmount['id'], number>>,
@@ -113,6 +116,32 @@ function expectQuestObjectiveReferences(objective: QuestObjective, context: stri
     }
     expect(objective.amount, `${context} recipe amount should be positive`).toBeGreaterThan(0)
   }
+}
+
+function processRecipeInputSignature(recipe: ProcessRecipe) {
+  const amountKey = (amount: ResourceAmount | undefined) => amount ? `${amount.id}:${amount.amount}` : '-'
+  const aggregateAmounts = (amounts: ResourceAmount[]) => {
+    const totals = new Map<ResourceId, number>()
+    for (const amount of amounts) totals.set(amount.id, (totals.get(amount.id) ?? 0) + amount.amount)
+    return [...totals.entries()]
+      .sort(([first], [second]) => first.localeCompare(second))
+      .map(([id, amount]) => `${id}:${amount}`)
+  }
+
+  const inputs = recipe.fluidOnly
+    ? ['fluid-only']
+    : recipe.machineId === 'lvAssembler' ||
+        recipe.machineId === 'mvAssembler' ||
+        recipe.machineId === 'lvMixer' ||
+        recipe.machineId === 'mvMixer'
+      ? aggregateAmounts([recipe.input, recipe.secondaryInput, ...(recipe.extraInputs ?? [])].filter((amount): amount is ResourceAmount => Boolean(amount)))
+      : recipe.extraInputs?.length
+        ? [amountKey(recipe.input), amountKey(recipe.secondaryInput), ...recipe.extraInputs.map(amountKey)]
+        : recipe.machineId === 'mvExtruder'
+          ? [amountKey(recipe.input), amountKey(recipe.secondaryInput)]
+          : [amountKey(recipe.input), amountKey(recipe.secondaryInput)].sort()
+
+  return JSON.stringify([recipe.machineId, amountKey(recipe.fuelInput), inputs])
 }
 
 describe('content validation', () => {
@@ -178,14 +207,18 @@ describe('content validation', () => {
     }
   })
 
-  it('uses one Basic Electronic Circuit in each standard LV machine recipe', () => {
+  it('caps Basic Electronic Circuits at three in standard LV machine recipes', () => {
     const standardLvMachineRecipes = recipes.filter((recipe) => (
       recipe.id.startsWith('build_lv_') || recipe.id.startsWith('craft_lv_')
     ) && recipe.machineOutputs?.length)
 
     for (const recipe of standardLvMachineRecipes) {
       const circuitAmount = recipe.inputs.find((input) => input.id === 'primitiveCircuit')?.amount ?? 0
-      expect(circuitAmount, `${recipe.id} should not stack Basic Electronic Circuits in the crafting grid`).toBeLessThanOrEqual(1)
+      if (recipe.id === 'craft_lv_super_tank') {
+        expect(circuitAmount).toBe(4)
+      } else {
+        expect(circuitAmount, `${recipe.id} should fit its Basic Electronic Circuits in the crafting grid`).toBeLessThanOrEqual(3)
+      }
     }
   })
 
@@ -201,6 +234,14 @@ describe('content validation', () => {
       const iconPath = resolve(publicDir, 'game-icons/machines', `${id}.png`)
       expect(existsSync(iconPath), `machine ${id} should have ${iconPath}`).toBe(true)
       expect(statSync(iconPath).size, `machine ${id} icon should not be blank`).toBeGreaterThan(500)
+    }
+  })
+
+  it('ships a generated PNG icon for every fluid', () => {
+    for (const fluidId of [...fluidIds, 'steam']) {
+      const iconPath = resolve(publicDir, 'game-icons/fluids', `${fluidId}.png`)
+      expect(existsSync(iconPath), `fluid ${fluidId} should have a generated icon`).toBe(true)
+      expect(statSync(iconPath).size, `fluid ${fluidId} icon should not be blank`).toBeGreaterThan(500)
     }
   })
 
@@ -235,8 +276,12 @@ describe('content validation', () => {
       if (recipe.unlockedBy) expect(quests.some((quest) => quest.id === recipe.unlockedBy), `${recipe.id} unlockedBy should reference a quest`).toBe(true)
       if (recipe.pattern) {
         expect(recipe.pattern, `${recipe.id} pattern should fit a 3x3 grid`).toHaveLength(9)
-        for (const id of recipe.pattern.filter((item): item is NonNullable<typeof item> => Boolean(item))) {
-          expect(resourceLabels, `${recipe.id} pattern references unknown resource ${id}`).toHaveProperty(id)
+        for (const slot of recipe.pattern.filter((item): item is NonNullable<typeof item> => Boolean(item))) {
+          if (typeof slot === 'string') {
+            expect(resourceLabels, `${recipe.id} pattern references unknown resource ${slot}`).toHaveProperty(slot)
+          } else {
+            expect(machines, `${recipe.id} pattern references unknown machine ${slot.id}`).toHaveProperty(slot.id)
+          }
         }
         const pattern = patternCounts(recipe.pattern)
         const declared = resourceAmountCounts([...recipe.inputs, ...(recipe.catalysts ?? [])])
@@ -268,7 +313,10 @@ describe('content validation', () => {
     expect(overlappingItemIds, 'only explicitly resource-backed placeables may share resource and machine IDs').toEqual([...resourceBackedMachineIds])
 
     for (const cableId of resourceBackedMachineIds) {
-      const producingRecipes = recipes.filter((recipe) => recipe.outputs.some((output) => output.id === cableId))
+      const producingRecipes = [
+        ...recipes.filter((recipe) => recipe.outputs.some((output) => output.id === cableId)),
+        ...processRecipes.filter((recipe) => recipe.output?.id === cableId || recipe.secondaryOutput?.id === cableId),
+      ]
       expect(producingRecipes.length, `${cableId} should have a resource recipe`).toBeGreaterThan(0)
       expect(
         recipes.some((recipe) => recipe.machineOutputs?.some((output) => output.id === cableId)),
@@ -283,7 +331,8 @@ describe('content validation', () => {
       expect(recipe.description.trim(), `${recipe.id} should have a description`).not.toBe('')
       expect(machines, `${recipe.id} machineId should exist`).toHaveProperty(recipe.machineId)
       expect(recipe.durationMs, `${recipe.id} duration should be positive`).toBeGreaterThan(0)
-      expectResourceAmountReferences([recipe.input], `${recipe.id} input`)
+      if (recipe.input) expectResourceAmountReferences([recipe.input], `${recipe.id} input`)
+      if (!recipe.fluidOnly) expect(recipe.input, `${recipe.id} should declare an item input`).toBeDefined()
       if (recipe.secondaryInput) expectResourceAmountReferences([recipe.secondaryInput], `${recipe.id} secondary input`)
       if (recipe.secondaryOutput) expectResourceAmountReferences([recipe.secondaryOutput], `${recipe.id} secondary output`)
       if (recipe.fuelInput) expectResourceAmountReferences([recipe.fuelInput], `${recipe.id} fuel input`)
@@ -301,6 +350,25 @@ describe('content validation', () => {
       if (recipe.fluidOutput) expectFluidAmountReferences([recipe.fluidOutput], `${recipe.id} fluid output`)
       if (recipe.fluidInputs) expectFluidAmountReferences(recipe.fluidInputs, `${recipe.id} fluid inputs`)
       if (recipe.fluidOutputs) expectFluidAmountReferences(recipe.fluidOutputs, `${recipe.id} fluid outputs`)
+      const buffers = machines[recipe.machineId].fluidBuffers ?? []
+      const fluidInputs = recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : [])
+      const fluidOutputs = recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : [])
+      for (const fluid of fluidInputs.filter((amount) => amount.bufferId)) {
+        const buffer = buffers.find((candidate) => candidate.id === fluid.bufferId)
+        expect(buffer, `${recipe.id} input buffer ${fluid.bufferId} should exist`).toBeDefined()
+        expect(['input', 'both'], `${recipe.id} buffer ${fluid.bufferId} should accept input`).toContain(buffer?.access)
+      }
+      for (const fluid of fluidOutputs.filter((amount) => amount.bufferId)) {
+        const buffer = buffers.find((candidate) => candidate.id === fluid.bufferId)
+        expect(buffer, `${recipe.id} output buffer ${fluid.bufferId} should exist`).toBeDefined()
+        expect(['output', 'both'], `${recipe.id} buffer ${fluid.bufferId} should allow output`).toContain(buffer?.access)
+      }
+      if (fluidOutputs.length > 1) {
+        expect(
+          new Set(fluidOutputs.map((output) => output.bufferId)).size,
+          `${recipe.id} should route each fluid output to a distinct buffer`,
+        ).toBe(fluidOutputs.length)
+      }
     }
   })
 
@@ -341,7 +409,7 @@ describe('content validation', () => {
         ...(recipe.secondaryInput ? [recipe.secondaryInput] : []),
         ...(recipe.extraInputs ?? []),
         ...(recipe.fuelInput ? [recipe.fuelInput] : []),
-      ]).map((amount) => amount.id),
+      ].filter((amount): amount is ResourceAmount => Boolean(amount))).map((amount) => amount.id),
     ])
 
     for (const id of ['nickelIngot', 'leadPlate', 'aluminiumRing', 'aluminiumScrew', 'aluminiumGear'] as const) {
@@ -407,6 +475,39 @@ describe('content validation', () => {
         const prerequisite = questById.get(prerequisiteId)!
         expect(questKind(prerequisite), `${quest.id} should not depend on optional ${prerequisiteId}`).not.toBe('optional')
       }
+    }
+  })
+
+  it('keeps machine recipe inputs unambiguous in every selectable program', () => {
+    const selectableSignatures = new Map<string, string[]>()
+    for (const recipe of processRecipes) {
+      const modes = [
+        ...(recipe.autoSelectable !== false ? ['auto'] : []),
+        ...(recipe.programNumber !== undefined ? [`program:${recipe.programNumber}`] : []),
+      ]
+      for (const mode of modes) {
+        const signature = `${mode}:${processRecipeInputSignature(recipe)}`
+        selectableSignatures.set(signature, [...(selectableSignatures.get(signature) ?? []), recipe.id])
+      }
+    }
+
+    const collisions = [...selectableSignatures.entries()]
+      .filter(([, recipeIds]) => recipeIds.length > 1)
+      .map(([signature, recipeIds]) => ({ signature, recipeIds }))
+
+    expect(collisions, 'machine recipes with identical inputs must use different programs or fuel').toEqual([])
+  })
+
+  it('assigns every quest to one ordered folder line', () => {
+    expectUnique(questFolders.map((folder) => folder.id), 'quest folder')
+    expectUnique(questLines.map((line) => line.id), 'quest line')
+    expect(questFolders.flatMap((folder) => folder.lineIds)).toEqual(questLines.map((line) => line.id))
+    for (const line of questLines) {
+      expect(questFolders.find((folder) => folder.id === line.folderId)?.lineIds).toContain(line.id)
+      expect(line.chapterIds.length, `${line.id} should own at least one chapter`).toBeGreaterThan(0)
+    }
+    for (const quest of quests) {
+      expect(questLines.map((line) => line.id), `${quest.id} should resolve to a quest line`).toContain(questLineIdForQuest(quest))
     }
   })
 

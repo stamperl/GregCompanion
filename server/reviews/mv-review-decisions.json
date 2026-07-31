@@ -1,0 +1,624 @@
+{
+  "decisions": {
+    "icon:ironGear": {
+      "status": "approve"
+    },
+    "icon:ironIngot": {
+      "status": "approve"
+    },
+    "icon:ironDust": {
+      "status": "approve"
+    },
+    "icon:ironPlate": {
+      "status": "approve"
+    },
+    "icon:ironRod": {
+      "status": "approve"
+    },
+    "icon:ironBolt": {
+      "status": "approve"
+    },
+    "icon:ironRing": {
+      "status": "approve"
+    },
+    "icon:ironScrew": {
+      "status": "approve"
+    },
+    "icon:ironWire": {
+      "status": "approve"
+    },
+    "icon:fineIronWire": {
+      "status": "approve"
+    },
+    "icon:ironFoil": {
+      "status": "approve"
+    },
+    "icon:copperIngot": {
+      "status": "approve"
+    },
+    "icon:copperDust": {
+      "status": "approve"
+    },
+    "icon:copperPlate": {
+      "status": "approve"
+    },
+    "icon:copperRod": {
+      "status": "approve"
+    },
+    "icon:copperBolt": {
+      "status": "approve"
+    },
+    "icon:copperRing": {
+      "status": "approve"
+    },
+    "icon:copperScrew": {
+      "status": "approve"
+    },
+    "icon:copperGear": {
+      "status": "approve"
+    },
+    "icon:copperWire": {
+      "status": "approve"
+    },
+    "icon:fineCopperWire": {
+      "status": "approve"
+    },
+    "icon:copperFoil": {
+      "status": "approve"
+    },
+    "icon:tinIngot": {
+      "status": "approve"
+    },
+    "icon:tinDust": {
+      "status": "approve"
+    },
+    "icon:tinPlate": {
+      "status": "approve"
+    },
+    "icon:tinRod": {
+      "status": "approve"
+    },
+    "icon:tinBolt": {
+      "status": "approve"
+    },
+    "icon:tinRing": {
+      "status": "approve"
+    },
+    "icon:tinScrew": {
+      "status": "approve"
+    },
+    "icon:tinGear": {
+      "status": "approve"
+    },
+    "icon:tinWire": {
+      "status": "approve"
+    },
+    "icon:fineTinWire": {
+      "status": "approve"
+    },
+    "icon:tinFoil": {
+      "status": "approve"
+    },
+    "icon:bronzeIngot": {
+      "status": "approve"
+    },
+    "icon:bronzeBlend": {
+      "status": "approve"
+    },
+    "icon:bronzePlate": {
+      "status": "approve"
+    },
+    "icon:bronzeRod": {
+      "status": "approve"
+    },
+    "icon:bronzeBolt": {
+      "status": "approve"
+    },
+    "icon:bronzeRing": {
+      "status": "approve"
+    },
+    "icon:bronzeScrew": {
+      "status": "approve"
+    },
+    "icon:bronzeGear": {
+      "status": "approve"
+    },
+    "icon:bronzeWire": {
+      "status": "approve"
+    },
+    "icon:fineBronzeWire": {
+      "status": "approve"
+    },
+    "icon:bronzeFoil": {
+      "status": "approve"
+    },
+    "icon:nickelIngot": {
+      "status": "approve"
+    },
+    "icon:nickelDust": {
+      "status": "approve"
+    },
+    "icon:nickelPlate": {
+      "status": "approve"
+    },
+    "icon:nickelRod": {
+      "status": "approve"
+    },
+    "icon:nickelBolt": {
+      "status": "approve"
+    },
+    "icon:nickelRing": {
+      "status": "approve"
+    },
+    "icon:nickelScrew": {
+      "status": "approve"
+    },
+    "icon:nickelGear": {
+      "status": "approve"
+    },
+    "icon:nickelWire": {
+      "status": "approve"
+    },
+    "icon:fineNickelWire": {
+      "status": "approve"
+    },
+    "icon:nickelFoil": {
+      "status": "approve"
+    },
+    "icon:cupronickelIngot": {
+      "status": "approve"
+    },
+    "icon:cupronickelDust": {
+      "status": "approve"
+    },
+    "icon:cupronickelPlate": {
+      "status": "approve"
+    },
+    "icon:cupronickelRod": {
+      "status": "approve"
+    },
+    "icon:cupronickelBolt": {
+      "status": "approve"
+    },
+    "icon:cupronickelRing": {
+      "status": "approve"
+    },
+    "icon:cupronickelScrew": {
+      "status": "approve"
+    },
+    "icon:cupronickelGear": {
+      "status": "approve"
+    },
+    "icon:cupronickelWire": {
+      "status": "approve"
+    },
+    "icon:fineCupronickelWire": {
+      "status": "approve"
+    },
+    "icon:cupronickelFoil": {
+      "status": "approve"
+    },
+    "icon:invarIngot": {
+      "status": "approve"
+    },
+    "icon:invarDust": {
+      "status": "approve"
+    },
+    "icon:invarPlate": {
+      "status": "approve"
+    },
+    "icon:invarRod": {
+      "status": "approve"
+    },
+    "icon:invarBolt": {
+      "status": "approve"
+    },
+    "icon:invarRing": {
+      "status": "approve"
+    },
+    "icon:invarScrew": {
+      "status": "approve"
+    },
+    "icon:invarGear": {
+      "status": "approve"
+    },
+    "icon:invarWire": {
+      "status": "approve"
+    },
+    "icon:fineInvarWire": {
+      "status": "approve"
+    },
+    "icon:invarFoil": {
+      "status": "approve"
+    },
+    "icon:aluminiumIngot": {
+      "status": "approve"
+    },
+    "icon:aluminiumDust": {
+      "status": "approve"
+    },
+    "icon:aluminiumPlate": {
+      "status": "approve"
+    },
+    "icon:aluminiumRod": {
+      "status": "approve"
+    },
+    "icon:aluminiumBolt": {
+      "status": "approve"
+    },
+    "icon:aluminiumRing": {
+      "status": "approve"
+    },
+    "icon:aluminiumScrew": {
+      "status": "approve"
+    },
+    "icon:aluminiumGear": {
+      "status": "approve"
+    },
+    "icon:aluminiumWire": {
+      "status": "approve"
+    },
+    "icon:fineAluminiumWire": {
+      "status": "approve"
+    },
+    "icon:aluminiumFoil": {
+      "status": "approve"
+    },
+    "icon:goldIngot": {
+      "status": "approve"
+    },
+    "icon:goldDust": {
+      "status": "approve"
+    },
+    "icon:goldPlate": {
+      "status": "approve"
+    },
+    "icon:goldRod": {
+      "status": "approve"
+    },
+    "icon:goldBolt": {
+      "status": "approve"
+    },
+    "icon:goldRing": {
+      "status": "approve"
+    },
+    "icon:goldScrew": {
+      "status": "approve"
+    },
+    "icon:goldGear": {
+      "status": "approve"
+    },
+    "icon:goldWire": {
+      "status": "approve"
+    },
+    "icon:fineGoldWire": {
+      "status": "approve"
+    },
+    "icon:goldFoil": {
+      "status": "approve"
+    },
+    "icon:steelIngot": {
+      "status": "approve"
+    },
+    "icon:steelDust": {
+      "status": "approve"
+    },
+    "icon:steelPlate": {
+      "status": "approve"
+    },
+    "icon:steelRod": {
+      "status": "approve"
+    },
+    "icon:steelBolt": {
+      "status": "approve"
+    },
+    "icon:steelRing": {
+      "status": "approve"
+    },
+    "icon:steelScrew": {
+      "status": "approve"
+    },
+    "icon:steelGear": {
+      "status": "approve"
+    },
+    "icon:steelWire": {
+      "status": "approve"
+    },
+    "icon:fineSteelWire": {
+      "status": "approve"
+    },
+    "icon:steelFoil": {
+      "status": "approve"
+    },
+    "icon:redAlloyIngot": {
+      "status": "approve"
+    },
+    "icon:redAlloyDust": {
+      "status": "approve"
+    },
+    "icon:redAlloyPlate": {
+      "status": "approve"
+    },
+    "icon:redAlloyRod": {
+      "status": "approve"
+    },
+    "icon:redAlloyBolt": {
+      "status": "approve"
+    },
+    "icon:redAlloyRing": {
+      "status": "approve"
+    },
+    "icon:redAlloyScrew": {
+      "status": "approve"
+    },
+    "icon:redAlloyGear": {
+      "status": "approve"
+    },
+    "icon:redAlloyWire": {
+      "status": "approve"
+    },
+    "icon:fineRedAlloyWire": {
+      "status": "approve"
+    },
+    "icon:redAlloyFoil": {
+      "status": "approve"
+    },
+    "icon:leadIngot": {
+      "status": "approve"
+    },
+    "icon:leadDust": {
+      "status": "approve"
+    },
+    "icon:leadPlate": {
+      "status": "approve"
+    },
+    "icon:leadRod": {
+      "status": "approve"
+    },
+    "icon:leadBolt": {
+      "status": "approve"
+    },
+    "icon:leadRing": {
+      "status": "approve"
+    },
+    "icon:leadScrew": {
+      "status": "approve"
+    },
+    "icon:leadGear": {
+      "status": "approve"
+    },
+    "icon:leadWire": {
+      "status": "approve"
+    },
+    "icon:fineLeadWire": {
+      "status": "approve"
+    },
+    "icon:leadFoil": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyIngot": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyDust": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyPlate": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyRod": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyBolt": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyRing": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyScrew": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyGear": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyWire": {
+      "status": "approve"
+    },
+    "icon:fineBatteryAlloyWire": {
+      "status": "approve"
+    },
+    "icon:batteryAlloyFoil": {
+      "status": "approve"
+    },
+    "icon:sphaleriteOre": {
+      "status": "approve"
+    },
+    "icon:realgarOre": {
+      "status": "approve"
+    },
+    "icon:sphaleriteConcentrate": {
+      "status": "approve"
+    },
+    "icon:zincDust": {
+      "status": "approve"
+    },
+    "icon:arsenicDust": {
+      "status": "approve"
+    },
+    "icon:galliumDust": {
+      "status": "approve"
+    },
+    "icon:galliumArsenideCrystal": {
+      "status": "approve"
+    },
+    "icon:galliumArsenideDust": {
+      "status": "approve"
+    },
+    "icon:phenolicBoard": {
+      "status": "approve"
+    },
+    "icon:mvCircuitBoard": {
+      "status": "approve"
+    },
+    "icon:diode": {
+      "status": "approve"
+    },
+    "icon:mvCircuit": {
+      "status": "approve"
+    },
+    "icon:mvMachineCasing": {
+      "status": "approve"
+    },
+    "icon:mvMachineHull": {
+      "status": "approve"
+    },
+    "icon:magneticSteelRod": {
+      "status": "approve"
+    },
+    "icon:bronzeRotor": {
+      "status": "approve"
+    },
+    "icon:steelPipeSection": {
+      "status": "approve"
+    },
+    "icon:mvMotor": {
+      "status": "approve",
+      "note": "Top of the motor is missing "
+    },
+    "icon:mvPiston": {
+      "status": "approve",
+      "note": "Top of the piston is missing "
+    },
+    "icon:mvPump": {
+      "status": "approve",
+      "note": "Left side is missing "
+    },
+    "icon:mvConveyor": {
+      "status": "approve"
+    },
+    "icon:emptyMvBatteryHull": {
+      "status": "approve"
+    },
+    "icon:mvLithiumBattery": {
+      "status": "approve"
+    },
+    "icon:aluminiumCable2A": {
+      "status": "approve"
+    },
+    "icon:aluminiumCable4A": {
+      "status": "approve"
+    },
+    "icon:aluminiumCable8A": {
+      "status": "reject",
+      "note": "It’s not the same colour as the other aluminium cables "
+    },
+    "icon:coatedBoardBlank": {
+      "status": "approve"
+    },
+    "icon:redAlloyCable": {
+      "status": "reject",
+      "note": "This should only be 1 core"
+    },
+    "icon:steelItemCasing": {
+      "status": "approve"
+    },
+    "icon:resistor": {
+      "status": "approve"
+    },
+    "icon:vacuumTube": {
+      "status": "approve"
+    },
+    "icon:basicBoard": {
+      "status": "approve",
+      "note": "Can we re do this image "
+    },
+    "icon:primitiveCircuit": {
+      "status": "approve",
+      "note": "Can we re go this icon"
+    },
+    "icon:mvMacerator": {
+      "status": "approve"
+    },
+    "icon:mvForgeHammer": {
+      "status": "approve"
+    },
+    "icon:mvCompressor": {
+      "status": "approve"
+    },
+    "icon:mvExtractor": {
+      "status": "approve"
+    },
+    "icon:mvAlloySmelter": {
+      "status": "approve"
+    },
+    "icon:mvFurnace": {
+      "status": "approve"
+    },
+    "icon:mvWiremill": {
+      "status": "approve"
+    },
+    "icon:mvBender": {
+      "status": "approve"
+    },
+    "icon:mvLathe": {
+      "status": "approve"
+    },
+    "icon:mvElectrolyzer": {
+      "status": "approve"
+    },
+    "icon:mvAssembler": {
+      "status": "approve"
+    },
+    "icon:mvMixer": {
+      "status": "approve"
+    },
+    "icon:mvCentrifuge": {
+      "status": "approve"
+    },
+    "icon:mvCanner": {
+      "status": "approve",
+      "note": "Top of the machine is missing "
+    },
+    "icon:mvAutoMiner": {
+      "status": "approve",
+      "note": "Top of the machine is missing "
+    },
+    "icon:mvChemicalReactor": {
+      "status": "approve"
+    },
+    "icon:mvAirCollector": {
+      "status": "approve"
+    },
+    "icon:mvDistillery": {
+      "status": "approve"
+    },
+    "icon:mvBatteryBuffer": {
+      "status": "approve"
+    },
+    "icon:mvBatteryBuffer2A": {
+      "status": "approve"
+    },
+    "icon:mvBatteryBuffer4A": {
+      "status": "approve",
+      "note": "Looks like the back of the machine is missing "
+    },
+    "icon:mvBatteryBuffer8A": {
+      "status": "approve"
+    },
+    "icon:mvEnergyHatch2A": {
+      "status": "approve"
+    },
+    "icon:mvInputBus": {
+      "status": "approve"
+    },
+    "icon:mvOutputBus": {
+      "status": "approve"
+    },
+    "icon:mvFluidInputHatch": {
+      "status": "approve"
+    },
+    "icon:mvFluidOutputHatch": {
+      "status": "approve"
+    }
+  },
+  "updatedAt": "2026-07-25T23:08:38.711Z"
+}

@@ -10,7 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+tmp/
+__pycache__/
 *.local
+.codex-screenshots/
 server/saves/
 ClickFoundry-WhatsApp-group-logo*.png
 *.jks

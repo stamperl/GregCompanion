@@ -56,6 +56,21 @@
   box-sizing: border-box;
 }
 
+#root,
+#root * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#root input,
+#root textarea,
+#root [contenteditable="true"] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 html,
 body,
 #root {
