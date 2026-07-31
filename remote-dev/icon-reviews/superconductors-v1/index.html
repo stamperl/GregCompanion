@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Click Foundry - Superconductor Review</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #121817; color: #f4edcc; font: 16px/1.4 system-ui, sans-serif; }
+      main { width: min(100%, 900px); margin: 0 auto; padding: 20px 14px 40px; }
+      h1 { margin: 0 0 6px; font-size: clamp(24px, 6vw, 38px); }
+      p { margin: 0 0 20px; color: #b9c9c3; }
+      section { margin: 24px 0; }
+      h2 { padding-bottom: 8px; border-bottom: 1px solid #45615c; color: #72dbd0; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      article { padding: 12px; border: 1px solid #56716b; background: #1a2321; }
+      .icon { display: grid; place-items: center; min-height: 148px; background-color: #202a28; background-image: linear-gradient(45deg, #283431 25%, transparent 25%), linear-gradient(-45deg, #283431 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #283431 75%), linear-gradient(-45deg, transparent 75%, #283431 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0; }
+      img { width: 128px; height: 128px; image-rendering: auto; }
+      strong, small { display: block; }
+      strong { margin-top: 9px; }
+      small { color: #92aaa4; }
+      @media (min-width: 640px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Lossless Cable Candidates</h1>
+      <p>Original Click Foundry art. The conductor count identifies 1A, 2A, 4A, and 8A at inventory size.</p>
+      <section>
+        <h2>LV Family</h2>
+        <div class="grid">
+          <article><div class="icon"><img src="./candidates/lvSuperconductorCable.png" alt="1A LV cable" /></div><strong>1A LV</strong><small>Black steel, cyan core</small></article>
+          <article><div class="icon"><img src="./candidates/lvSuperconductorCable2A.png" alt="2A LV cable" /></div><strong>2A LV</strong><small>Two visible cores</small></article>
+          <article><div class="icon"><img src="./candidates/lvSuperconductorCable4A.png" alt="4A LV cable" /></div><strong>4A LV</strong><small>Four visible cores</small></article>
+          <article><div class="icon"><img src="./candidates/lvSuperconductorCable8A.png" alt="8A LV cable" /></div><strong>8A LV</strong><small>Eight visible cores</small></article>
+        </div>
+      </section>
+      <section>
+        <h2>MV Family</h2>
+        <div class="grid">
+          <article><div class="icon"><img src="./candidates/mvSuperconductorCable.png" alt="1A MV cable" /></div><strong>1A MV</strong><small>Blue ceramic, violet core</small></article>
+          <article><div class="icon"><img src="./candidates/mvSuperconductorCable2A.png" alt="2A MV cable" /></div><strong>2A MV</strong><small>Two visible cores</small></article>
+          <article><div class="icon"><img src="./candidates/mvSuperconductorCable4A.png" alt="4A MV cable" /></div><strong>4A MV</strong><small>Four visible cores</small></article>
+          <article><div class="icon"><img src="./candidates/mvSuperconductorCable8A.png" alt="8A MV cable" /></div><strong>8A MV</strong><small>Eight visible cores</small></article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
