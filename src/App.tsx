@@ -282,6 +282,7 @@ import { deploymentInfo, githubBugReportUrl, hasNewerDeployment, isCreativeTestB
 import { localTimeProvider, networkTimeProvider } from './game/time'
 import {
   collectRecipeGroupsByItemType,
+  expandRecipeGroupCollections,
   groupRecipesByOutput,
   recipeGroupKeyForOutput,
   type RecipeGroup,
@@ -4093,22 +4094,22 @@ function App() {
   )
   const displayedRecipeGroups = useMemo(() => {
     if (terminalMode === 'machines') return listedRecipeGroups
-    if (expandedRecipeCollectionKey) {
-      return recipeGroupCollections.find((collection) => collection.key === expandedRecipeCollectionKey)?.groups
-        ?? recipeGroupCollections.map((collection) => collection.groups[0])
-    }
-    return recipeGroupCollections.map((collection) => collection.groups[0])
+    return expandRecipeGroupCollections(recipeGroupCollections, expandedRecipeCollectionKey)
   }, [expandedRecipeCollectionKey, listedRecipeGroups, recipeGroupCollections, terminalMode])
   const collapsedRecipeCollectionsByGroupKey = useMemo(
     () => new Map(
-      terminalMode === 'recipes' && !expandedRecipeCollectionKey
+      terminalMode === 'recipes'
         ? recipeGroupCollections
-            .filter((collection) => collection.grouped)
+            .filter((collection) => collection.grouped && collection.key !== expandedRecipeCollectionKey)
             .map((collection) => [collection.groups[0].key, collection] as const)
         : [],
     ),
     [expandedRecipeCollectionKey, recipeGroupCollections, terminalMode],
   )
+  const expandedRecipeCollection = terminalMode === 'recipes' && expandedRecipeCollectionKey
+    ? recipeGroupCollections.find((collection) => collection.key === expandedRecipeCollectionKey && collection.grouped)
+    : undefined
+  const expandedRecipeCollectionAnchorKey = expandedRecipeCollection?.groups[0]?.key
   const selectedRecipeGroup = listedRecipeGroups.find((group) => group.key === selectedRecipeGroupKey) ?? listedRecipeGroups[0]
   const clampedSelectedRecipeIndex = selectedRecipeGroup
     ? Math.min(selectedRecipeIndex, Math.max(0, selectedRecipeGroup.recipes.length - 1))
@@ -7581,34 +7582,16 @@ function App() {
 
                 <div className="recipe-modal-body">
                   <div className="recipe-results-pane">
-                  {terminalMode === 'recipes' && (
-                    <label className="recipe-type-picker">
-                      <span>Item type</span>
-                      <select
-                        value={expandedRecipeCollectionKey ?? ''}
-                        onChange={(event) => {
-                          const collectionKey = event.target.value || null
-                          setExpandedRecipeCollectionKey(collectionKey)
-                          const firstGroup = collectionKey
-                            ? recipeGroupCollections.find((collection) => collection.key === collectionKey)?.groups[0]
-                            : null
-                          if (firstGroup) handleSelectRecipeGroup(firstGroup.key, true)
-                        }}
-                      >
-                        <option value="">Grouped items</option>
-                        {recipeGroupCollections
-                          .filter((collection) => collection.grouped)
-                          .map((collection) => (
-                            <option value={collection.key} key={collection.key}>
-                              {collection.label} ({collection.groups.length})
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  )}
                   <div className="recipe-icon-grid" aria-label="Recipe results">
                   {displayedRecipeGroups.map((group) => {
                     const collapsedCollection = collapsedRecipeCollectionsByGroupKey.get(group.key)
+                    const isExpandedCollectionAnchor = group.key === expandedRecipeCollectionAnchorKey
+                    const isExpandedCollectionOption = Boolean(
+                      expandedRecipeCollection
+                      && expandedRecipeCollection.groups.some((candidate) => candidate.key === group.key),
+                    )
+                    const collectionItemCount = collapsedCollection?.groups.length
+                      ?? (isExpandedCollectionAnchor ? expandedRecipeCollection?.groups.length : undefined)
                     const output = terminalMode === 'machines' && group.output.kind === 'machine'
                       ? { ...group.output, label: machines[group.output.id].name }
                       : recipeGroupDisplayOutput(group)
@@ -7622,13 +7605,17 @@ function App() {
                         type="button"
                         className={[
                           'recipe-icon-button',
-                          collapsedCollection ? 'recipe-collection-button' : '',
+                          collapsedCollection || isExpandedCollectionAnchor ? 'recipe-collection-button' : '',
+                          isExpandedCollectionAnchor ? 'expanded' : '',
+                          isExpandedCollectionOption ? 'recipe-collection-option' : '',
                           group.key === selectedRecipeGroup?.key ? 'selected' : '',
                           networkCraftable ? 'network-craftable' : '',
                           isMachineResult ? machineIsOnFloor ? 'machine-on-floor' : 'machine-off-floor' : locked ? 'locked' : missing ? 'missing' : 'ready',
                         ].join(' ')}
                         aria-label={collapsedCollection
                           ? `${collapsedCollection.label}, ${collapsedCollection.groups.length} items`
+                          : isExpandedCollectionAnchor
+                            ? `Collapse ${expandedRecipeCollection?.label ?? 'item group'}`
                           : isMachineResult ? `${output.label}, ${machineIsOnFloor ? 'on factory floor' : 'not on factory floor'}` : output.label}
                         title={isMachineResult ? `${output.label} · ${machineIsOnFloor ? 'On factory floor' : 'Not on factory floor'}` : recipeGroupDisplayOutput(group).label}
                         onClick={() => {
@@ -7637,16 +7624,20 @@ function App() {
                             handleSelectRecipeGroup(collapsedCollection.groups[0].key, true)
                             return
                           }
+                          if (isExpandedCollectionAnchor) {
+                            setExpandedRecipeCollectionKey(null)
+                            return
+                          }
                           handleSelectRecipeGroup(group.key, true)
                         }}
                         key={group.key}
                       >
                         <RecipeDisplayIcon output={output} />
                         <span className="item-count">{recipeDisplayAmount(output)}</span>
-                        {(collapsedCollection || terminalMode === 'machines' || group.recipes.length > 1) && (
-                          <span className="recipe-count-badge">{collapsedCollection?.groups.length ?? group.recipes.length}</span>
+                        {(collectionItemCount || terminalMode === 'machines' || group.recipes.length > 1) && (
+                          <span className="recipe-count-badge">{collectionItemCount ?? group.recipes.length}</span>
                         )}
-                        {collapsedCollection && <ChevronDown className="recipe-collection-chevron" size={11} aria-hidden="true" />}
+                        {(collapsedCollection || isExpandedCollectionAnchor) && <ChevronDown className="recipe-collection-chevron" size={11} aria-hidden="true" />}
                         {networkCraftable && <span className="network-craftable-badge" title="Craftable by fabrication network"><Factory size={9} /></span>}
                       </button>
                     )

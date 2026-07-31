@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resourceRegistry } from './content'
-import { collectRecipeGroupsByItemType, groupRecipesByOutput } from './recipeGroups'
+import { collectRecipeGroupsByItemType, expandRecipeGroupCollections, groupRecipesByOutput } from './recipeGroups'
 import type { Recipe, ResourceId } from './types'
 
 const recipeFor = (id: string, outputId: ResourceId): Recipe => ({
@@ -35,5 +35,27 @@ describe('recipe browser item-type collections', () => {
     expect(ingots?.groups.map((group) => group.output.id)).toEqual(['ironIngot', 'copperIngot'])
     expect(plates?.grouped).toBe(false)
     expect(woodenAxe?.groups).toHaveLength(1)
+  })
+
+  it('expands a selected item stack inline without hiding the normal grid', () => {
+    const groups = groupRecipesByOutput([
+      recipeFor('iron-ingot', 'ironIngot'),
+      recipeFor('copper-ingot', 'copperIngot'),
+      recipeFor('iron-plate', 'ironPlate'),
+      recipeFor('wooden-axe', 'woodenAxe'),
+    ])
+    const collections = collectRecipeGroupsByItemType(groups, resourceRegistry)
+
+    expect(expandRecipeGroupCollections(collections, null).map((group) => group.output.id)).toEqual([
+      'ironIngot',
+      'ironPlate',
+      'woodenAxe',
+    ])
+    expect(expandRecipeGroupCollections(collections, 'material-form:ingot').map((group) => group.output.id)).toEqual([
+      'ironIngot',
+      'copperIngot',
+      'ironPlate',
+      'woodenAxe',
+    ])
   })
 })

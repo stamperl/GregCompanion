@@ -119,3 +119,14 @@ export function collectRecipeGroupsByItemType(
 
   return [...collections.values()]
 }
+
+export function expandRecipeGroupCollections(
+  collections: RecipeGroupCollection[],
+  expandedCollectionKey: string | null,
+): RecipeGroup[] {
+  return collections.flatMap((collection) => (
+    collection.grouped && collection.key === expandedCollectionKey
+      ? collection.groups
+      : collection.groups.slice(0, 1)
+  ))
+}
