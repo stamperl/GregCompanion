@@ -53,15 +53,15 @@ describe('recipe browser item-type collections', () => {
     const collections = collectRecipeGroupsByItemType(groups, resourceRegistry)
 
     expect(expandRecipeGroupCollections(collections, null).map((group) => group.output.id)).toEqual([
+      'woodenAxe',
       'ironIngot',
       'ironPlate',
-      'woodenAxe',
     ])
     expect(expandRecipeGroupCollections(collections, 'material-form:ingot').map((group) => group.output.id)).toEqual([
+      'woodenAxe',
       'ironIngot',
       'copperIngot',
       'ironPlate',
-      'woodenAxe',
     ])
   })
   it('groups tool families, tank tiers, and tiered machine variants', () => {
@@ -79,5 +79,27 @@ describe('recipe browser item-type collections', () => {
     expect(collections.find((collection) => collection.key === 'tool-family:pickaxe')?.groups).toHaveLength(2)
     expect(collections.find((collection) => collection.key === 'machine-family:tank')?.groups).toHaveLength(2)
     expect(collections.find((collection) => collection.key === 'machine-family:Macerator')?.groups).toHaveLength(2)
+  })
+
+  it('orders catalogue families consistently and variants by progression tier', () => {
+    const groups = groupRecipesByOutput([
+      machineRecipeFor('mv-macerator', 'mvMacerator'),
+      recipeFor('iron-pickaxe', 'ironPickaxe'),
+      recipeFor('copper-ingot', 'copperIngot'),
+      recipeFor('wooden-pickaxe', 'woodenPickaxe'),
+      machineRecipeFor('lv-macerator', 'lvMacerator'),
+      recipeFor('iron-ingot', 'ironIngot'),
+    ])
+
+    const collections = collectRecipeGroupsByItemType(groups, resourceRegistry, machineRegistry)
+
+    expect(collections.map((collection) => collection.key)).toEqual([
+      'tool-family:pickaxe',
+      'material-form:ingot',
+      'machine-family:Macerator',
+    ])
+    expect(collections[0].groups.map((group) => group.output.id)).toEqual(['woodenPickaxe', 'ironPickaxe'])
+    expect(collections[1].groups.map((group) => group.output.id)).toEqual(['ironIngot', 'copperIngot'])
+    expect(collections[2].groups.map((group) => group.output.id)).toEqual(['lvMacerator', 'mvMacerator'])
   })
 })

@@ -1,5 +1,5 @@
 import type { MaterialFormId } from './materialIds'
-import type { FluidId, MachineId, MachineSpec, Recipe, ResourceId, ResourceSpec } from './types'
+import type { FluidId, MachineId, MachineSpec, Recipe, ResourceCategory, ResourceId, ResourceSpec, Tier } from './types'
 
 export type RecipeGroupOutput =
   | {
@@ -60,6 +60,35 @@ const toolFamilies = [
 
 const tankMachineIds = new Set<MachineId>(['steamTank', 'steelTank', 'lvSuperTank'])
 
+const tierOrder: Record<Tier, number> = { manual: 0, bronze: 1, steam: 2, lv: 3, mv: 4 }
+const materialFormOrder: Record<MaterialFormId, number> = {
+  dust: 0,
+  ingot: 1,
+  plate: 2,
+  rod: 3,
+  wire: 4,
+  fineWire: 5,
+  foil: 6,
+  bolt: 7,
+  ring: 8,
+  screw: 9,
+  gear: 10,
+}
+const resourceCategoryOrder: Record<ResourceCategory, number> = {
+  raw: 0,
+  fuel: 1,
+  tool: 2,
+  fluid: 3,
+  dust: 4,
+  ingot: 5,
+  plate: 6,
+  rod: 7,
+  wire: 8,
+  component: 9,
+  circuit: 10,
+  machinePart: 11,
+}
+
 function resourceCollection(group: RecipeGroup, resourceSpecs: Partial<Record<ResourceId, ResourceSpec>>) {
   if (group.output.kind !== 'resource') return undefined
   const resourceSpec = resourceSpecs[group.output.id]
@@ -89,6 +118,42 @@ function machineCollection(group: RecipeGroup, machineSpecs: Partial<Record<Mach
 
   const familyLabel = machine.name.replace(/^(?:Steam|LV|MV)\s+/, '').replace(/\s+(?:2A|4A|8A)\b/, '')
   return { key: `machine-family:${familyId}`, label: familyLabel }
+}
+
+function groupTier(
+  group: RecipeGroup,
+  resourceSpecs: Partial<Record<ResourceId, ResourceSpec>>,
+  machineSpecs: Partial<Record<MachineId, MachineSpec>>,
+) {
+  if (group.output.kind === 'resource') return tierOrder[resourceSpecs[group.output.id]?.tier ?? 'mv']
+  if (group.output.kind === 'machine') return tierOrder[machineSpecs[group.output.id]?.tier ?? 'mv']
+  return tierOrder.mv + 1
+}
+
+function groupLabel(
+  group: RecipeGroup,
+  resourceSpecs: Partial<Record<ResourceId, ResourceSpec>>,
+  machineSpecs: Partial<Record<MachineId, MachineSpec>>,
+) {
+  if (group.output.kind === 'resource') return resourceSpecs[group.output.id]?.label ?? group.output.id
+  if (group.output.kind === 'machine') return machineSpecs[group.output.id]?.name ?? group.output.id
+  return group.output.id
+}
+
+function collectionOrder(
+  collection: RecipeGroupCollection,
+  resourceSpecs: Partial<Record<ResourceId, ResourceSpec>>,
+) {
+  const output = collection.groups[0]?.output
+  if (collection.key.startsWith('material-form:')) {
+    const form = collection.key.slice('material-form:'.length) as MaterialFormId
+    return 30 + materialFormOrder[form]
+  }
+  if (collection.key.startsWith('tool-family:')) return 20
+  if (output?.kind === 'resource') return resourceCategoryOrder[resourceSpecs[output.id]?.category ?? 'component'] * 10
+  if (output?.kind === 'machine') return 200
+  if (output?.kind === 'fluid') return 210
+  return 220
 }
 
 export function recipeGroupOutputs(recipe: Recipe): RecipeGroupOutput[] {
@@ -165,6 +230,17 @@ export function collectRecipeGroupsByItemType(
   }
 
   return [...collections.values()]
+    .map((collection) => ({
+      ...collection,
+      groups: [...collection.groups].sort((left, right) => (
+        groupTier(left, resourceSpecs, machineSpecs) - groupTier(right, resourceSpecs, machineSpecs)
+        || groupLabel(left, resourceSpecs, machineSpecs).localeCompare(groupLabel(right, resourceSpecs, machineSpecs))
+      )),
+    }))
+    .sort((left, right) => (
+      collectionOrder(left, resourceSpecs) - collectionOrder(right, resourceSpecs)
+      || left.label.localeCompare(right.label)
+    ))
 }
 
 export function expandRecipeGroupCollections(
