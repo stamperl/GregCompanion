@@ -11219,6 +11219,31 @@ button.craft-output:disabled {
   text-align: center;
 }
 
+.recipe-favorite-button {
+  align-items: center;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  color: #5f5742;
+  cursor: pointer;
+  display: grid;
+  height: 30px;
+  justify-items: center;
+  padding: 0;
+  width: 30px;
+}
+
+.recipe-favorite-button.active {
+  background: #d0b96b;
+  color: #3f2e08;
+}
+
+.recipe-favorite-button svg {
+  stroke-width: 3;
+}
+
 .recipe-meta-row {
   align-items: center;
   background: var(--bevel-deep);
@@ -11681,6 +11706,161 @@ button.craft-output:disabled {
   border-bottom-color: #6c3325;
   border-right-color: #6c3325;
   color: #5b2118;
+}
+
+.recursive-recipe-plan {
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 5px;
+}
+
+.recipe-slot-heading small {
+  color: #5f5742;
+  font: 850 0.56rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.recursive-plan-list {
+  display: grid;
+  gap: 3px;
+  max-height: 236px;
+  overflow: auto;
+}
+
+.recursive-plan-row {
+  align-items: center;
+  background: var(--bevel-well);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: 30px minmax(0, 1fr) minmax(58px, auto);
+  min-height: 42px;
+  padding: 3px 5px 3px calc(5px + (var(--recipe-depth, 0) * 10px));
+  text-align: left;
+}
+
+.recursive-plan-row.missing {
+  background: #d8ad94;
+  border-color: #f5d5ba;
+  border-bottom-color: #6c3325;
+  border-right-color: #6c3325;
+}
+
+.recursive-plan-row.crafted:not(.missing) {
+  background: #c4b68c;
+}
+
+.recursive-plan-icon {
+  align-items: center;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-inset);
+  border-bottom-color: #4f4f4f;
+  border-right-color: #4f4f4f;
+  display: grid;
+  height: 30px;
+  justify-items: center;
+  width: 30px;
+}
+
+.recursive-plan-icon .pixel-icon,
+.recursive-plan-icon .machine-glyph,
+.recursive-plan-icon .fluid-icon {
+  height: 22px;
+  width: 22px;
+}
+
+.recursive-plan-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recursive-plan-copy strong {
+  font: 900 0.62rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.recursive-plan-copy small {
+  color: #554b38;
+  font: 850 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.recursive-plan-amounts {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  line-height: 1;
+  min-width: 0;
+}
+
+.recursive-plan-amounts strong {
+  font: 950 0.6rem "Courier New", ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.recursive-plan-amounts em {
+  background: #8b3f2f;
+  border: 1px solid #3e1c16;
+  color: #fff2df;
+  font: 950 0.5rem "Courier New", ui-monospace, monospace;
+  font-style: normal;
+  line-height: 1;
+  padding: 2px 3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.recursive-plan-row.ready .recursive-plan-amounts em {
+  background: #56785f;
+  border-color: #27402d;
+  color: #ecffe8;
+}
+
+.recursive-plan-summary {
+  display: grid;
+  gap: 4px;
+}
+
+.recursive-plan-summary > span {
+  color: #4d4d4d;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.recursive-plan-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.recipe-plan-truncated {
+  align-items: center;
+  background: #3f3f3f;
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-right-color: var(--bevel-dark);
+  color: #fff;
+  display: inline-flex;
+  font: 950 0.56rem "Courier New", ui-monospace, monospace;
+  line-height: 1;
+  min-height: 26px;
+  padding: 3px 6px;
+  text-transform: uppercase;
 }
 
 .recipe-process-summary {

@@ -19,6 +19,7 @@ import {
   Save,
   Search,
   Sparkles,
+  Star,
   Toolbox,
   Trash2,
   Undo2,
@@ -284,6 +285,7 @@ import {
   collectRecipeGroupsByItemType,
   expandRecipeGroupCollections,
   groupRecipesByOutput,
+  recipeGroupOutput,
   recipeGroupKeyForOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
@@ -303,6 +305,7 @@ import type {
   FabricationInterfaceAttachment,
   GatherTargetId,
   GameState,
+  MachineAmount,
   MachineId,
   MachineInstance,
   MachineProcessState,
@@ -449,6 +452,206 @@ type RecipeDisplayOutput =
   | { kind: 'resource'; id: ResourceId; amount: number; label: string }
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
   | { kind: 'fluid'; id: FluidId; amount: number; label: string }
+
+type RecipeFavoriteMap = Record<string, string>
+type RecursivePlanIngredient =
+  | { kind: 'resource'; id: ResourceId; amount: number }
+  | { kind: 'machine'; id: MachineId; amount: number }
+  | { kind: 'fluid'; id: FluidId; amount: number }
+type RecursivePlanLine = RecursivePlanIngredient & {
+  depth: number
+  available: number
+  missing: number
+  sourceRecipe?: Recipe
+  sourceChoice?: 'favorite' | 'default'
+  sourceOutputAmount?: number
+  sourceBatches?: number
+  variantCount: number
+  cycle: boolean
+  depthLimit: boolean
+}
+type RecursiveRecipePlan = {
+  lines: RecursivePlanLine[]
+  leafResources: ResourceAmount[]
+  leafMachines: MachineAmount[]
+  leafFluids: FluidAmount[]
+  truncated: boolean
+}
+
+const recipeFavoriteStorageKey = 'click-foundry.recipe-favorites.v1'
+const maxRecursivePlanDepth = 6
+const maxRecursivePlanRows = 42
+
+function loadRecipeFavoriteMap(): RecipeFavoriteMap {
+  try {
+    const stored = window.localStorage.getItem(recipeFavoriteStorageKey)
+    if (!stored) return {}
+    const parsed = JSON.parse(stored) as Record<string, unknown>
+    const favorites: RecipeFavoriteMap = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (key && typeof value === 'string' && value.length > 0) favorites[key] = value
+    }
+    return favorites
+  } catch {
+    return {}
+  }
+}
+
+function saveRecipeFavoriteMap(favorites: RecipeFavoriteMap) {
+  try {
+    window.localStorage.setItem(recipeFavoriteStorageKey, JSON.stringify(favorites))
+  } catch {
+    // Recipe preferences only affect browser planning; the session copy still works.
+  }
+}
+
+function recipeOutputKeys(recipe: Recipe) {
+  return [
+    ...recipe.outputs.map((amount) => recipeGroupKeyForOutput({ kind: 'resource' as const, ...amount })),
+    ...(recipe.machineOutputs ?? []).map((amount) => recipeGroupKeyForOutput({ kind: 'machine' as const, ...amount })),
+    ...(recipe.fluidOutputs ?? []).map((amount) => recipeGroupKeyForOutput({ kind: 'fluid' as const, ...amount })),
+  ]
+}
+
+function recursiveRecipeIngredients(recipe: Recipe): RecursivePlanIngredient[] {
+  return [
+    ...recipe.inputs.filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'resource' as const, ...amount })),
+    ...(recipe.catalysts ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'resource' as const, ...amount })),
+    ...(recipe.machineInputs ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'machine' as const, ...amount })),
+    ...(recipe.fluidInputs ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'fluid' as const, ...amount })),
+  ]
+}
+
+function recursiveIngredientKey(ingredient: RecursivePlanIngredient) {
+  if (ingredient.kind === 'resource') return recipeGroupKeyForOutput({ kind: 'resource', id: ingredient.id, amount: 1 })
+  if (ingredient.kind === 'machine') return recipeGroupKeyForOutput({ kind: 'machine', id: ingredient.id, amount: 1 })
+  return recipeGroupKeyForOutput({ kind: 'fluid', id: ingredient.id, amount: 1 })
+}
+
+function recipeOutputAmountForIngredient(recipe: Recipe, ingredient: RecursivePlanIngredient) {
+  if (ingredient.kind === 'resource') return recipe.outputs.find((amount) => amount.id === ingredient.id)?.amount ?? 0
+  if (ingredient.kind === 'machine') return recipe.machineOutputs?.find((amount) => amount.id === ingredient.id)?.amount ?? 0
+  return recipe.fluidOutputs?.find((amount) => amount.id === ingredient.id)?.amount ?? 0
+}
+
+function recipePlanSourceRecipe(group: RecipeGroup | undefined, favorites: RecipeFavoriteMap) {
+  if (!group) return undefined
+  const favoriteRecipeId = favorites[group.key]
+  return group.recipes.find((recipe) => recipe.id === favoriteRecipeId) ?? group.recipes[0]
+}
+
+function addPlanAmount<T extends string>(amounts: Map<T, number>, id: T, amount: number) {
+  amounts.set(id, (amounts.get(id) ?? 0) + amount)
+}
+
+function buildRecursiveRecipePlan(
+  rootRecipe: Recipe,
+  groupsByOutputKey: Map<string, RecipeGroup>,
+  favorites: RecipeFavoriteMap,
+  state: GameState,
+): RecursiveRecipePlan {
+  const resourceStock = new Map<ResourceId, number>()
+  const machineStock = new Map<MachineId, number>()
+  const leafResources = new Map<ResourceId, number>()
+  const leafMachines = new Map<MachineId, number>()
+  const leafFluids = new Map<FluidId, number>()
+  const lines: RecursivePlanLine[] = []
+  let truncated = false
+
+  const reserveStock = (ingredient: RecursivePlanIngredient, amount: number) => {
+    if (ingredient.kind === 'fluid') return { available: 0, missing: amount }
+    if (ingredient.kind === 'resource') {
+      const initialAmount = resourceStock.get(ingredient.id) ?? state.resources[ingredient.id]
+      const reserved = Math.min(initialAmount, amount)
+      resourceStock.set(ingredient.id, initialAmount - reserved)
+      return { available: initialAmount, missing: amount - reserved }
+    }
+    const initialAmount = machineStock.get(ingredient.id) ?? state.machines[ingredient.id]
+    const reserved = Math.min(initialAmount, amount)
+    machineStock.set(ingredient.id, initialAmount - reserved)
+    return { available: initialAmount, missing: amount - reserved }
+  }
+
+  const addOverproduction = (ingredient: RecursivePlanIngredient, amount: number) => {
+    if (amount <= 0 || ingredient.kind === 'fluid') return
+    if (ingredient.kind === 'resource') {
+      resourceStock.set(ingredient.id, (resourceStock.get(ingredient.id) ?? 0) + amount)
+      return
+    }
+    machineStock.set(ingredient.id, (machineStock.get(ingredient.id) ?? 0) + amount)
+  }
+
+  const addLeaf = (ingredient: RecursivePlanIngredient, amount: number) => {
+    if (amount <= 0) return
+    if (ingredient.kind === 'resource') addPlanAmount(leafResources, ingredient.id, amount)
+    else if (ingredient.kind === 'machine') addPlanAmount(leafMachines, ingredient.id, amount)
+    else addPlanAmount(leafFluids, ingredient.id, amount)
+  }
+
+  const addIngredient = (ingredient: RecursivePlanIngredient, amount: number, depth: number, path: Set<string>) => {
+    if (lines.length >= maxRecursivePlanRows) {
+      truncated = true
+      return
+    }
+
+    const key = recursiveIngredientKey(ingredient)
+    const group = groupsByOutputKey.get(key)
+    const sourceRecipe = recipePlanSourceRecipe(group, favorites)
+    const sourceOutputAmount = sourceRecipe ? recipeOutputAmountForIngredient(sourceRecipe, ingredient) : 0
+    const cycle = path.has(key)
+    const depthLimit = depth >= maxRecursivePlanDepth
+    const { available, missing } = reserveStock(ingredient, amount)
+    const sourceBatches = missing > 0 && sourceRecipe && sourceOutputAmount > 0 && !cycle && !depthLimit
+      ? Math.ceil(missing / sourceOutputAmount)
+      : undefined
+
+    lines.push({
+      ...ingredient,
+      amount,
+      depth,
+      available,
+      missing,
+      sourceRecipe,
+      sourceChoice: sourceRecipe && favorites[key] === sourceRecipe.id ? 'favorite' : sourceRecipe ? 'default' : undefined,
+      sourceOutputAmount: sourceRecipe ? sourceOutputAmount : undefined,
+      sourceBatches,
+      variantCount: group?.recipes.length ?? 0,
+      cycle,
+      depthLimit,
+    })
+
+    if (missing <= 0) return
+    if (!sourceRecipe || !sourceBatches || sourceOutputAmount <= 0 || cycle || depthLimit) {
+      addLeaf(ingredient, missing)
+      return
+    }
+
+    const nextPath = new Set(path)
+    nextPath.add(key)
+    for (const child of recursiveRecipeIngredients(sourceRecipe)) {
+      addIngredient(child, child.amount * sourceBatches, depth + 1, nextPath)
+    }
+    addOverproduction(ingredient, sourceBatches * sourceOutputAmount - missing)
+  }
+
+  const rootPath = new Set(recipeOutputKeys(rootRecipe))
+  for (const ingredient of recursiveRecipeIngredients(rootRecipe)) {
+    addIngredient(ingredient, ingredient.amount, 0, rootPath)
+  }
+
+  const sortAmounts = <T extends string>(amounts: Map<T, number>, labelFor: (id: T) => string) =>
+    [...amounts.entries()]
+      .map(([id, amount]) => ({ id, amount }))
+      .sort((left, right) => labelFor(left.id).localeCompare(labelFor(right.id)))
+
+  return {
+    lines,
+    leafResources: sortAmounts(leafResources, (id) => resourceLabels[id as ResourceId]) as ResourceAmount[],
+    leafMachines: sortAmounts(leafMachines, (id) => machines[id as MachineId].name) as MachineAmount[],
+    leafFluids: sortAmounts(leafFluids, (id) => fluidLabel(id as FluidId)) as FluidAmount[],
+    truncated,
+  }
+}
 
 type MachineHmiConfig = {
   kind: string
@@ -3555,6 +3758,7 @@ function App() {
   const [terminalSearch, setTerminalSearch] = useState('')
   const [machineInventorySearch, setMachineInventorySearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
+  const [recipeFavorites, setRecipeFavorites] = useState<RecipeFavoriteMap>(() => loadRecipeFavoriteMap())
   const [encoderRecipeKind, setEncoderRecipeKind] = useState<'crafting' | 'processing'>('crafting')
   const [patternBlankInserted, setPatternBlankInserted] = useState(false)
   const [patternCraftingGrid, setPatternCraftingGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
@@ -3955,6 +4159,10 @@ function App() {
   )
 
   useEffect(() => {
+    saveRecipeFavoriteMap(recipeFavorites)
+  }, [recipeFavorites])
+
+  useEffect(() => {
     if (page !== 'gather' || !highlightedGatherTarget) return
     const frame = window.requestAnimationFrame(() => {
       document.querySelector<HTMLElement>(`[data-gather-target="${highlightedGatherTarget}"]`)?.scrollIntoView({
@@ -3994,6 +4202,10 @@ function App() {
     [],
   )
   const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
+  const recipeGroupsByOutputKey = useMemo(
+    () => new Map(groupRecipesByOutput(recipeCatalog).map((group) => [group.key, group] as const)),
+    [recipeCatalog],
+  )
   const unplacedMachineCounts = Object.fromEntries(machineOrder.map((id) => [id, availableUnplacedMachineCount(state, id)])) as Record<MachineId, number>
   const reservedGridMachineCounts = terminalGrid.reduce((counts, slot) => {
     if (slot?.kind === 'machine' && !slot.ghost) counts[slot.id] = (counts[slot.id] ?? 0) + Math.max(1, slot.amount ?? 1)
@@ -6342,6 +6554,23 @@ function App() {
       ? recipeGroupDisplayOutput(selectedRecipeGroup)
       : recipePrimaryOutput(selectedRecipe)
     : undefined
+  const selectedRecipePreferenceGroupKey = selectedRecipe && selectedRecipeGroup && recipeGroupsByOutputKey.get(selectedRecipeGroup.key)?.recipes.some((recipe) => recipe.id === selectedRecipe.id)
+    ? selectedRecipeGroup.key
+    : selectedRecipe
+      ? recipeGroupOutput(selectedRecipe)
+        ? recipeGroupKeyForOutput(recipeGroupOutput(selectedRecipe)!)
+        : null
+      : null
+  const selectedRecipePreferenceGroup = selectedRecipePreferenceGroupKey ? recipeGroupsByOutputKey.get(selectedRecipePreferenceGroupKey) : undefined
+  const selectedRecipeIsFavorite = Boolean(
+    selectedRecipe && selectedRecipePreferenceGroupKey && recipeFavorites[selectedRecipePreferenceGroupKey] === selectedRecipe.id,
+  )
+  const selectedRecursiveRecipePlan = useMemo(
+    () => selectedRecipe
+      ? buildRecursiveRecipePlan(selectedRecipe, recipeGroupsByOutputKey, recipeFavorites, state)
+      : null,
+    [recipeFavorites, recipeGroupsByOutputKey, selectedRecipe, state],
+  )
   const missingResourceAmount = (id: ResourceId) => showSelectedRecipeAvailability
     ? selectedRecipeMissing?.missingResources.find((amount) => amount.id === id)?.amount ?? 0
     : 0
@@ -6360,6 +6589,22 @@ function App() {
               : '',
       }
     : null
+  const handleToggleFavoriteRecipeVariant = () => {
+    if (!selectedRecipe || !selectedRecipePreferenceGroupKey || !selectedRecipePreferenceGroup || selectedRecipePreferenceGroup.recipes.length < 2) return
+    setRecipeFavorites((current) => {
+      if (current[selectedRecipePreferenceGroupKey] === selectedRecipe.id) {
+        const next = { ...current }
+        delete next[selectedRecipePreferenceGroupKey]
+        return next
+      }
+      return { ...current, [selectedRecipePreferenceGroupKey]: selectedRecipe.id }
+    })
+    setTerminalNotice(
+      selectedRecipeIsFavorite
+        ? `${recipeDisplayName(selectedRecipe)} will use the default recipe.`
+        : `${recipeDisplayName(selectedRecipe)} set as recursive favorite.`,
+    )
+  }
   const renderEquipmentSlot = (slotId: EquipmentSlotId) => {
     const equipped = state.equipment[slotId]
     const selectedFits = Boolean(selectedResource && equipmentSlotAccepts(slotId, selectedResource))
@@ -7671,6 +7916,17 @@ function App() {
                               </button>
                             </div>
                           )}
+                          {selectedRecipePreferenceGroup && selectedRecipePreferenceGroup.recipes.length > 1 && (
+                            <button
+                              type="button"
+                              className={selectedRecipeIsFavorite ? 'recipe-favorite-button active' : 'recipe-favorite-button'}
+                              aria-label={selectedRecipeIsFavorite ? 'Use default recipe in recursive plans' : 'Set recipe as recursive favorite'}
+                              title={selectedRecipeIsFavorite ? 'Use default recipe' : 'Set recursive favorite'}
+                              onClick={handleToggleFavoriteRecipeVariant}
+                            >
+                              <Star size={15} fill={selectedRecipeIsFavorite ? 'currentColor' : 'none'} />
+                            </button>
+                          )}
                           <span className={selectedRecipeLockedLine || selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
                             <RecipeDisplayIcon output={selectedRecipeOutput} />
                             <span className="item-count">{recipeDisplayAmount(selectedRecipeOutput)}</span>
@@ -8066,6 +8322,97 @@ function App() {
                             ))}
                           </div>
                         </div>
+                      )}
+
+                      {selectedRecursiveRecipePlan && selectedRecursiveRecipePlan.lines.length > 0 && (
+                        <section className="recursive-recipe-plan" aria-label="Recursive recipe requirements">
+                          <div className="recipe-slot-heading">
+                            <span>Recursive needs</span>
+                            <small>{selectedRecursiveRecipePlan.lines.length} steps</small>
+                          </div>
+                          <div className="recursive-plan-list">
+                            {selectedRecursiveRecipePlan.lines.map((line, index) => {
+                              const label = line.kind === 'resource'
+                                ? resourceLabels[line.id]
+                                : line.kind === 'machine'
+                                  ? machines[line.id].name
+                                  : fluidLabel(line.id)
+                              const amountLabel = line.kind === 'fluid' ? `${formatLitres(line.amount)}L` : `x${formatAmount(line.amount)}`
+                              const missingLabel = line.kind === 'fluid' ? `${formatLitres(line.missing)}L` : `x${formatAmount(line.missing)}`
+                              const craftedAmount = line.sourceBatches && line.sourceOutputAmount
+                                ? line.sourceBatches * line.sourceOutputAmount
+                                : 0
+                              const craftedLabel = line.kind === 'fluid' ? `${formatLitres(craftedAmount)}L` : `x${formatAmount(craftedAmount)}`
+                              return (
+                                <button
+                                  type="button"
+                                  className={[
+                                    'recursive-plan-row',
+                                    line.missing > 0 ? 'missing' : 'ready',
+                                    line.sourceBatches ? 'crafted' : '',
+                                  ].join(' ')}
+                                  style={{ '--recipe-depth': line.depth } as CSSProperties}
+                                  onClick={() => {
+                                    if (line.kind === 'resource') handleJumpToResourceRecipe(line.id)
+                                    else if (line.kind === 'machine') handleJumpToMachineRecipe(line.id)
+                                    else handleJumpToFluidRecipe(line.id)
+                                  }}
+                                  key={`${line.kind}:${line.id}:${line.depth}:${index}`}
+                                >
+                                  <span className="recursive-plan-icon">
+                                    {line.kind === 'resource'
+                                      ? <PixelIcon id={line.id} />
+                                      : line.kind === 'machine'
+                                        ? <MachineGlyph id={line.id} />
+                                        : <FluidIcon id={line.id} />}
+                                  </span>
+                                  <span className="recursive-plan-copy">
+                                    <strong>{label}</strong>
+                                    <small>
+                                      {line.sourceBatches && line.sourceRecipe
+                                        ? `${line.sourceChoice === 'favorite' ? 'Favorite' : 'Default'}: ${recipeDisplayName(line.sourceRecipe)} ${craftedLabel}`
+                                        : line.missing > 0 && line.sourceRecipe && (line.cycle || line.depthLimit)
+                                          ? `${line.cycle ? 'Cycle' : 'Depth limit'}: ${recipeDisplayName(line.sourceRecipe)}`
+                                          : line.variantCount > 1 && line.sourceRecipe
+                                            ? `${line.sourceChoice === 'favorite' ? 'Favorite' : 'Default'}: ${recipeDisplayName(line.sourceRecipe)}`
+                                            : 'Base requirement'}
+                                    </small>
+                                  </span>
+                                  <span className="recursive-plan-amounts">
+                                    <strong>{amountLabel}</strong>
+                                    {line.missing > 0 ? <em>Short {missingLabel}</em> : <em>Ready</em>}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {(selectedRecursiveRecipePlan.leafResources.length > 0 || selectedRecursiveRecipePlan.leafMachines.length > 0 || selectedRecursiveRecipePlan.leafFluids.length > 0 || selectedRecursiveRecipePlan.truncated) && (
+                            <div className="recursive-plan-summary">
+                              <span>Still missing</span>
+                              <div>
+                                {selectedRecursiveRecipePlan.leafResources.map((amount) => (
+                                  <button type="button" className="recipe-name-chip missing" onClick={() => handleJumpToResourceRecipe(amount.id)} key={amount.id}>
+                                    <span>{resourceLabels[amount.id]}</span>
+                                    <strong>x{formatAmount(amount.amount)}</strong>
+                                  </button>
+                                ))}
+                                {selectedRecursiveRecipePlan.leafMachines.map((amount) => (
+                                  <button type="button" className="recipe-name-chip missing" onClick={() => handleJumpToMachineRecipe(amount.id)} key={amount.id}>
+                                    <span>{machines[amount.id].name}</span>
+                                    <strong>x{formatAmount(amount.amount)}</strong>
+                                  </button>
+                                ))}
+                                {selectedRecursiveRecipePlan.leafFluids.map((amount) => (
+                                  <button type="button" className="recipe-name-chip missing" onClick={() => handleJumpToFluidRecipe(amount.id)} key={amount.id}>
+                                    <span>{fluidLabel(amount.id)}</span>
+                                    <strong>{formatLitres(amount.amount)}L</strong>
+                                  </button>
+                                ))}
+                                {selectedRecursiveRecipePlan.truncated && <span className="recipe-plan-truncated">More steps</span>}
+                              </div>
+                            </div>
+                          )}
+                        </section>
                       )}
 
                       {selectedRecipeProcessStats && (
