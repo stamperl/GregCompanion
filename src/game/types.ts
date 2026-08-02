@@ -735,6 +735,7 @@ export type Recipe = {
   steamCostLitres?: number
   euCost?: number
   inputs: ResourceAmount[]
+  fuelInputs?: ResourceAmount[]
   outputs: ResourceAmount[]
   catalysts?: ResourceAmount[]
   durabilityCosts?: ResourceAmount[]

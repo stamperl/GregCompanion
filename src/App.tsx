@@ -2,6 +2,7 @@ import {
   Axe,
   BookOpen,
   Bug,
+  Calculator,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -289,7 +290,7 @@ import {
   recipeGroupKeyForOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
-import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './game/recipeGraph'
+import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe, recipeNonFuelInputs } from './game/recipeGraph'
 import { machineTerminalProfile } from './game/machineTerminalProfiles'
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
@@ -481,6 +482,7 @@ type RecursiveRecipePlan = {
 const recipeFavoriteStorageKey = 'click-foundry.recipe-favorites.v1'
 const maxRecursivePlanDepth = 6
 const maxRecursivePlanRows = 42
+const maxRecipePlanTarget = 999_999
 
 function loadRecipeFavoriteMap(): RecipeFavoriteMap {
   try {
@@ -515,8 +517,7 @@ function recipeOutputKeys(recipe: Recipe) {
 
 function recursiveRecipeIngredients(recipe: Recipe): RecursivePlanIngredient[] {
   return [
-    ...recipe.inputs.filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'resource' as const, ...amount })),
-    ...(recipe.catalysts ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'resource' as const, ...amount })),
+    ...recipeNonFuelInputs(recipe).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'resource' as const, ...amount })),
     ...(recipe.machineInputs ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'machine' as const, ...amount })),
     ...(recipe.fluidInputs ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'fluid' as const, ...amount })),
   ]
@@ -549,6 +550,7 @@ function buildRecursiveRecipePlan(
   groupsByOutputKey: Map<string, RecipeGroup>,
   favorites: RecipeFavoriteMap,
   state: GameState,
+  rootBatches = 1,
 ): RecursiveRecipePlan {
   const resourceStock = new Map<ResourceId, number>()
   const machineStock = new Map<MachineId, number>()
@@ -636,7 +638,7 @@ function buildRecursiveRecipePlan(
 
   const rootPath = new Set(recipeOutputKeys(rootRecipe))
   for (const ingredient of recursiveRecipeIngredients(rootRecipe)) {
-    addIngredient(ingredient, ingredient.amount, 0, rootPath)
+    addIngredient(ingredient, ingredient.amount * Math.max(1, Math.floor(rootBatches)), 0, rootPath)
   }
 
   const sortAmounts = <T extends string>(amounts: Map<T, number>, labelFor: (id: T) => string) =>
@@ -3812,6 +3814,7 @@ function App() {
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
   const [expandedRecipeCollectionKey, setExpandedRecipeCollectionKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
+  const [recipePlanTargetAmount, setRecipePlanTargetAmount] = useState(1)
   const [batchQuantity, setBatchQuantity] = useState(1)
   const [pendingProcessInsert, setPendingProcessInsert] = useState<PendingProcessInsert | null>(null)
   const [missingBatch, setMissingBatch] = useState<{
@@ -5919,14 +5922,22 @@ function App() {
     handleCraftBatch(quantity)
   }
 
-  const handleLoadRecipe = (recipe: Recipe) => {
+  const handleLoadRecipe = (recipe: Recipe, quantity = 1, targetAmount?: number) => {
     if (!recipeFitsTerminalGrid(recipe)) {
       setTerminalNotice('This recipe needs a later station.')
       return
     }
 
+    const requestedBatches = Math.max(1, Math.floor(quantity))
     setTerminalGrid(makeGridForRecipe(recipe, state))
-    setTerminalNotice(missingLine(state, recipe) ? `Missing ${missingLine(state, recipe)}` : `${recipeDisplayName(recipe)} loaded.`)
+    setBatchQuantity(requestedBatches)
+    setTerminalNotice(
+      targetAmount !== undefined
+        ? `${recipeDisplayName(recipe)} loaded for ${formatAmount(targetAmount)} output (${formatAmount(requestedBatches)} batches).`
+        : missingLine(state, recipe)
+          ? `Missing ${missingLine(state, recipe)}`
+          : `${recipeDisplayName(recipe)} loaded.`,
+    )
     setIsRecipeModalOpen(false)
     setPage('terminal')
   }
@@ -6545,6 +6556,9 @@ function App() {
 
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
   const terminalOutput = terminalMatch ? recipePrimaryOutput(terminalMatch) : undefined
+  const terminalBatchOutputLabel = terminalOutput
+    ? recipeDisplayAmount({ ...terminalOutput, amount: terminalOutput.amount * batchQuantity })
+    : '0'
   const selectedRecipeMissing = selectedRecipe ? missingForRecipe(state, selectedRecipe) : undefined
   const showSelectedRecipeAvailability = terminalMode !== 'machines'
   const selectedRecipeMissingLine = selectedRecipe && showSelectedRecipeAvailability ? missingLine(state, selectedRecipe) : ''
@@ -6554,6 +6568,19 @@ function App() {
       ? recipeGroupDisplayOutput(selectedRecipeGroup)
       : recipePrimaryOutput(selectedRecipe)
     : undefined
+  const selectedRecipeUnitOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
+  const selectedRecipeOutputPerBatch = Math.max(1, Math.floor(selectedRecipeUnitOutput?.amount ?? 1))
+  const selectedRecipePlanBatches = Math.max(1, Math.ceil(recipePlanTargetAmount / selectedRecipeOutputPerBatch))
+  const selectedRecipePlannedOutputAmount = selectedRecipePlanBatches * selectedRecipeOutputPerBatch
+  const selectedRecipePlanTargetLabel = selectedRecipeUnitOutput?.kind === 'fluid'
+    ? `${formatLitres(recipePlanTargetAmount)}L`
+    : formatAmount(recipePlanTargetAmount)
+  const selectedRecipePlannedOutputLabel = selectedRecipeUnitOutput?.kind === 'fluid'
+    ? `${formatLitres(selectedRecipePlannedOutputAmount)}L`
+    : formatAmount(selectedRecipePlannedOutputAmount)
+  useEffect(() => {
+    setRecipePlanTargetAmount(selectedRecipeOutputPerBatch)
+  }, [selectedRecipe?.id, selectedRecipeOutputPerBatch])
   const selectedRecipePreferenceGroupKey = selectedRecipe && selectedRecipeGroup && recipeGroupsByOutputKey.get(selectedRecipeGroup.key)?.recipes.some((recipe) => recipe.id === selectedRecipe.id)
     ? selectedRecipeGroup.key
     : selectedRecipe
@@ -6567,9 +6594,9 @@ function App() {
   )
   const selectedRecursiveRecipePlan = useMemo(
     () => selectedRecipe
-      ? buildRecursiveRecipePlan(selectedRecipe, recipeGroupsByOutputKey, recipeFavorites, state)
+      ? buildRecursiveRecipePlan(selectedRecipe, recipeGroupsByOutputKey, recipeFavorites, state, selectedRecipePlanBatches)
       : null,
-    [recipeFavorites, recipeGroupsByOutputKey, selectedRecipe, state],
+    [recipeFavorites, recipeGroupsByOutputKey, selectedRecipe, selectedRecipePlanBatches, state],
   )
   const missingResourceAmount = (id: ResourceId) => showSelectedRecipeAvailability
     ? selectedRecipeMissing?.missingResources.find((amount) => amount.id === id)?.amount ?? 0
@@ -6604,6 +6631,13 @@ function App() {
         ? `${recipeDisplayName(selectedRecipe)} will use the default recipe.`
         : `${recipeDisplayName(selectedRecipe)} set as recursive favorite.`,
     )
+  }
+  const handleAdjustRecipePlanTarget = (amount: number) => {
+    setRecipePlanTargetAmount(Math.max(1, Math.min(maxRecipePlanTarget, Math.floor(amount))))
+  }
+  const handleLoadRecipePlan = () => {
+    if (!selectedRecipe || !recipeFitsTerminalGrid(selectedRecipe)) return
+    handleLoadRecipe(selectedRecipe, selectedRecipePlanBatches, selectedRecipePlannedOutputAmount)
   }
   const renderEquipmentSlot = (slotId: EquipmentSlotId) => {
     const equipped = state.equipment[slotId]
@@ -7515,9 +7549,9 @@ function App() {
                 ))}
               </div>
               <div className="batch-quantity" aria-live="polite">
-                <span>Qty</span>
+                <span>Batches</span>
                 <strong>{formatAmount(batchQuantity)}</strong>
-                <small>Max {formatAmount(maxBatchQuantity)}</small>
+                <small>Makes {terminalBatchOutputLabel} / Max {formatAmount(maxBatchQuantity)} batches</small>
               </div>
               <div className="batch-step-row" aria-label="Decrease quantity">
                 {[-1, -10, -100].map((amount) => (
@@ -8327,8 +8361,57 @@ function App() {
                       {selectedRecursiveRecipePlan && selectedRecursiveRecipePlan.lines.length > 0 && (
                         <section className="recursive-recipe-plan" aria-label="Recursive recipe requirements">
                           <div className="recipe-slot-heading">
-                            <span>Recursive needs</span>
-                            <small>{selectedRecursiveRecipePlan.lines.length} steps</small>
+                            <span>Material plan</span>
+                            <small>{selectedRecipePlanTargetLabel} target</small>
+                          </div>
+                          <div className="recursive-plan-target">
+                            <div className="recursive-plan-target-main">
+                              <span>Output amount</span>
+                              <div>
+                                <button
+                                  type="button"
+                                  aria-label="Decrease planned output"
+                                  disabled={recipePlanTargetAmount <= 1}
+                                  onClick={() => handleAdjustRecipePlanTarget(recipePlanTargetAmount - 1)}
+                                >
+                                  <ChevronLeft size={15} />
+                                </button>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="1"
+                                  max={maxRecipePlanTarget}
+                                  aria-label="Planned output amount"
+                                  value={recipePlanTargetAmount}
+                                  onChange={(event) => handleAdjustRecipePlanTarget(Number(event.currentTarget.value) || 1)}
+                                />
+                                <button
+                                  type="button"
+                                  aria-label="Increase planned output"
+                                  disabled={recipePlanTargetAmount >= maxRecipePlanTarget}
+                                  onClick={() => handleAdjustRecipePlanTarget(recipePlanTargetAmount + 1)}
+                                >
+                                  <ChevronRight size={15} />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="recursive-plan-target-quick" aria-label="Planned output presets">
+                              {[...new Set([selectedRecipeOutputPerBatch, 10, 64])].map((amount) => (
+                                <button type="button" onClick={() => handleAdjustRecipePlanTarget(amount)} key={amount}>
+                                  x{formatAmount(amount)}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="recursive-plan-target-result">
+                              <span>{formatAmount(selectedRecipePlanBatches)} batches</span>
+                              <strong>Makes {selectedRecipePlannedOutputLabel}</strong>
+                            </div>
+                            {!isPatternRecipeBookOpen && selectedRecipe && recipeFitsTerminalGrid(selectedRecipe) && (
+                              <button type="button" className="recursive-plan-bulk-action" onClick={handleLoadRecipePlan}>
+                                <Calculator size={15} />
+                                Load bulk craft
+                              </button>
+                            )}
                           </div>
                           <div className="recursive-plan-list">
                             {selectedRecursiveRecipePlan.lines.map((line, index) => {
@@ -11127,9 +11210,9 @@ function App() {
                         )}
                         {(selectedMachinePopupRecipe.fluidInputs ?? (selectedMachinePopupRecipe.fluidInput ? [selectedMachinePopupRecipe.fluidInput] : [])).map((amount) => (
                           <div className={`machine-recipe-popup-fluid fluid-${amount.id}`} key={amount.id}>
-                            <Droplet size={15} />
+                            <FluidIcon id={amount.id} />
                             <strong>{fluidLabels[amount.id]}</strong>
-                            <span>{formatLitres(amount.amount)}L</span>
+                            <span className="machine-recipe-popup-fluid-amount">{formatLitres(amount.amount)}L</span>
                           </div>
                         ))}
                       </div>
@@ -11159,9 +11242,9 @@ function App() {
                         )}
                         {(selectedMachinePopupRecipe.fluidOutputs ?? (selectedMachinePopupRecipe.fluidOutput ? [selectedMachinePopupRecipe.fluidOutput] : [])).map((amount) => (
                           <div className={`machine-recipe-popup-fluid fluid-${amount.id}`} key={amount.id}>
-                            <Droplet size={15} />
+                            <FluidIcon id={amount.id} />
                             <strong>{fluidLabels[amount.id]}</strong>
-                            <span>{formatLitres(amount.amount)}L</span>
+                            <span className="machine-recipe-popup-fluid-amount">{formatLitres(amount.amount)}L</span>
                           </div>
                         ))}
                       </div>

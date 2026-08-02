@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { machines, processRecipes } from './content'
-import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './recipeGraph'
+import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe, recipeNonFuelInputs } from './recipeGraph'
 
 describe('machine recipe catalog', () => {
   it('lists every recipe assigned to a machine', () => {
@@ -67,5 +67,30 @@ describe('machine recipe catalog', () => {
       outputs: [],
       fluidOutputs: [{ id: 'liquidRubber', amount: 8 }],
     })
+  })
+
+  it('keeps process fuel identifiable and out of material-only requirements', () => {
+    const blastRecipe = processRecipes.find((recipe) => recipe.id === 'steel_from_coal')!
+    const catalogRecipe = processRecipeToCatalogRecipe(blastRecipe, 'steam')
+
+    expect(catalogRecipe.inputs).toEqual([
+      { id: 'ironIngot', amount: 1 },
+      { id: 'coal', amount: 1 },
+    ])
+    expect(catalogRecipe.fuelInputs).toEqual([{ id: 'coal', amount: 1 }])
+    expect(recipeNonFuelInputs(catalogRecipe)).toEqual([{ id: 'ironIngot', amount: 1 }])
+  })
+
+  it('subtracts only the marked fuel quantity when a resource is also a material', () => {
+    expect(recipeNonFuelInputs({
+      id: 'same-resource-input-and-fuel',
+      name: 'Same Resource Input And Fuel',
+      description: '',
+      tier: 'steam',
+      durationMs: 1000,
+      inputs: [{ id: 'coal', amount: 3 }],
+      fuelInputs: [{ id: 'coal', amount: 1 }],
+      outputs: [{ id: 'carbonDust', amount: 1 }],
+    })).toEqual([{ id: 'coal', amount: 2 }])
   })
 })

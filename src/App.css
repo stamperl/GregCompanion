@@ -11725,6 +11725,131 @@ button.craft-output:disabled {
   text-transform: uppercase;
 }
 
+.recursive-plan-target {
+  align-items: end;
+  background: #a89b74;
+  border: 2px solid var(--bevel-inset);
+  border-bottom-color: var(--bevel-light);
+  border-right-color: var(--bevel-light);
+  display: grid;
+  gap: 5px;
+  grid-template-columns: minmax(128px, 1fr) auto;
+  min-width: 0;
+  padding: 5px;
+}
+
+.recursive-plan-target-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.recursive-plan-target-main > span {
+  color: #4d4636;
+  font: 900 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.recursive-plan-target-main > div {
+  display: grid;
+  grid-template-columns: 28px minmax(54px, 1fr) 28px;
+  min-width: 0;
+}
+
+.recursive-plan-target-main button,
+.recursive-plan-target-quick button {
+  align-items: center;
+  background: var(--bevel-deep);
+  border: 2px solid var(--bevel-light);
+  border-bottom-color: var(--bevel-dark);
+  border-radius: 0;
+  border-right-color: var(--bevel-dark);
+  color: var(--ink-strong);
+  display: flex;
+  font: 950 0.58rem "Courier New", ui-monospace, monospace;
+  justify-content: center;
+  min-height: 28px;
+  padding: 2px 4px;
+}
+
+.recursive-plan-target-main button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.recursive-plan-target-main input {
+  appearance: textfield;
+  background: #e1d8b9;
+  border: 2px solid var(--bevel-dark);
+  border-bottom-color: var(--bevel-light);
+  border-radius: 0;
+  border-right-color: var(--bevel-light);
+  box-sizing: border-box;
+  color: #282519;
+  font: 950 0.72rem "Courier New", ui-monospace, monospace;
+  height: 28px;
+  min-width: 0;
+  padding: 2px 4px;
+  text-align: center;
+  width: 100%;
+}
+
+.recursive-plan-target-main input::-webkit-inner-spin-button,
+.recursive-plan-target-main input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.recursive-plan-target-quick {
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(3, minmax(30px, 1fr));
+}
+
+.recursive-plan-target-result {
+  align-content: center;
+  display: grid;
+  gap: 2px;
+  min-height: 31px;
+  min-width: 0;
+}
+
+.recursive-plan-target-result span {
+  color: #514a38;
+  font: 850 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
+.recursive-plan-target-result strong {
+  color: #242116;
+  font: 950 0.66rem "Courier New", ui-monospace, monospace;
+  overflow-wrap: anywhere;
+}
+
+.recursive-plan-bulk-action {
+  align-items: center;
+  align-self: stretch;
+  background: #d0b34f;
+  border: 2px solid #f4dd7a;
+  border-bottom-color: #705717;
+  border-radius: 0;
+  border-right-color: #705717;
+  color: #302709;
+  display: inline-flex;
+  font: 950 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  gap: 4px;
+  justify-content: center;
+  min-height: 31px;
+  padding: 4px 7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.recursive-plan-bulk-action svg {
+  flex: 0 0 auto;
+  stroke-width: 3;
+}
+
 .recursive-plan-list {
   display: grid;
   gap: 3px;
@@ -14088,14 +14213,38 @@ button.button-primary:disabled,
   background: #193239;
   border: 1px solid #4e7b83;
   color: #bceaf2;
-  display: flex;
+  display: grid;
   font-size: 0.62rem;
   gap: 5px;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   padding: 5px 6px;
+  width: 100%;
 }
 
-.machine-recipe-popup-fluid span {
-  margin-left: auto;
+.machine-recipe-popup-fluid .fluid-icon {
+  height: 22px;
+  width: 22px;
+}
+
+.machine-recipe-popup-fluid strong {
+  line-height: 1.05;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.machine-recipe-popup-fluid-amount {
+  font-family: "Courier New", ui-monospace, monospace;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.machine-recipe-popup-step.output .machine-recipe-popup-fluid {
+  grid-template-columns: 22px minmax(0, 1fr);
+  text-align: left;
+}
+
+.machine-recipe-popup-step.output .machine-recipe-popup-fluid-amount {
+  grid-column: 2;
 }
 
 .machine-recipe-popup-fluid.fluid-liquidRubber {
@@ -14103,11 +14252,6 @@ button.button-primary:disabled,
   border-color: #020303;
   color: #f1f4f2;
   box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.12), inset -2px -2px 0 rgba(0, 0, 0, 0.62);
-}
-
-.machine-recipe-popup-fluid.fluid-liquidRubber svg {
-  color: #818a87;
-  fill: #050606;
 }
 
 .machine-recipe-popup-arrow {
