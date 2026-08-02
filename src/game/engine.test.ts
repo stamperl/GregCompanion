@@ -5509,6 +5509,20 @@ describe('game engine', () => {
     expect(boiler.process.fluids.creosote).toBe(20 - 5 * liquidSteamBoilerCreosoteUseLitresPerSecond)
   })
 
+  it('does not burn creosote faster than the best coke oven recipe can produce it', () => {
+    const fastestCokeOvenRate = Math.max(...processRecipes
+      .filter((recipe) => recipe.machineId === 'cokeOven')
+      .flatMap((recipe) => {
+        const creosote = recipe.fluidOutput?.id === 'creosote'
+          ? recipe.fluidOutput
+          : recipe.fluidOutputs?.find((output) => output.id === 'creosote')
+        return creosote ? [creosote.amount / (recipe.durationMs / 1000)] : []
+      }))
+
+    expect(fastestCokeOvenRate).toBe(0.4)
+    expect(liquidSteamBoilerCreosoteUseLitresPerSecond).toBeLessThanOrEqual(fastestCokeOvenRate)
+  })
+
   it('consumes machine components used to craft upgraded machines', () => {
     let state = createFactoryState(1000)
     state.machines.furnace = 2
@@ -6909,9 +6923,9 @@ describe('game engine', () => {
 
     state = tickGame(state, 1000).state
 
-    expect(state.machineInstances[0].process.steamStoredMs).toBe(8000)
-    expect(state.machineInstances[0].process.fluids.water).toBe(10)
-    expect(state.machineInstances[0].process.fluids.creosote).toBe(0)
+    expect(state.machineInstances[0].process.steamStoredMs).toBe(24000)
+    expect(state.machineInstances[0].process.fluids.water).toBe(6)
+    expect(state.machineInstances[0].process.fluids.creosote).toBeCloseTo(0.6)
   })
 
   it('routes generic recipe fluids through pipes into a compatible machine buffer', () => {
