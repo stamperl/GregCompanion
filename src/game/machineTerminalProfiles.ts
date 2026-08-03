@@ -24,6 +24,7 @@ const processFamily: Record<MachineProcessKind, MachineTerminalFamily> = {
   steamStorage: 'storage',
   itemStorage: 'storage',
   itemHopper: 'storage',
+  fluidSink: 'storage',
   steamPipe: 'transport',
   steamProcess: 'processor',
   steamToEu: 'producer',

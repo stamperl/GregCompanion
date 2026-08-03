@@ -70,6 +70,7 @@ import {
   isItemBusMachine,
   isConductorMachine,
   isFluidConductorMachine,
+  isFluidSinkMachine,
   isItemConductorMachine,
   isItemHopperMachine,
   isItemStorageMachine,
@@ -144,6 +145,9 @@ import {
   fluidContainerCapacities,
   fluidContainerGroups,
   fluidPipeBufferCapacityLitres,
+  wasteOutletCapacityLitres,
+  wasteOutletDisposalLitresPerSecond,
+  wasteOutletLiveRates,
   getBestToolForTarget,
   hasFactoryFloor,
   hitGatherTarget,
@@ -699,6 +703,7 @@ const machineOrder: MachineId[] = [
   'steelTank',
   'standardChest',
   'hopper',
+  'wasteOutlet',
   'copperPipe',
   'bronzePipe',
   'ironPipe',
@@ -844,6 +849,7 @@ const isDistilleryUiMachine = (machineId: MachineId) => machineId === 'lvDistill
 const isExtractorUiMachine = (machineId: MachineId) => machineId === 'lvExtractor' || machineId === 'mvExtractor'
 
 const fluidFirstTerminalMachineIds = new Set<MachineId>([
+  'wasteOutlet',
   'lvWaterSource',
   'lvDistillery',
   'mvDistillery',
@@ -2447,6 +2453,10 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     if (storedItemCount < 1) return 'Empty hopper'
     const outputLabel = outputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')
     return process.activeRecipeId ? `Feeding ${outputLabel}` : `Ready ${outputLabel}`
+  }
+  if (isFluidSinkMachine(instance.machineId)) {
+    const rates = wasteOutletLiveRates(instance)
+    return rates.totalLitresPerSecond > 0 ? `Disposing ${formatAmount(rates.totalLitresPerSecond)}L/s` : 'Ready'
   }
   if (isTankStorageMachine(instance.machineId)) {
     const storedFluid = storedFluids(process)[0]
@@ -4832,6 +4842,7 @@ function App() {
     isTankStorageMachine(selectedMachine.machineId) ||
     selectedMachine.machineId === 'planningController' ||
     isItemAutomationMachine(selectedMachine.machineId) ||
+    isFluidSinkMachine(selectedMachine.machineId) ||
     isSteamPipeMachine(selectedMachine.machineId) ||
     isEuCableMachine(selectedMachine.machineId) ||
     isEuTransformerMachine(selectedMachine.machineId) ||
@@ -9947,6 +9958,34 @@ function App() {
                     </div>
                     <div className="boiler-load-rail"><span style={{ width: `${selectedMachine.process.fuelDurationMs > 0 ? metricFill(selectedMachine.process.fuelRemainingMs, selectedMachine.process.fuelDurationMs) : 0}%` }} /><strong>Load</strong><em>{selectedMachine.process.activeRecipeId ? 'Making steam' : machineStatus(state, selectedMachine)}</em></div>
                   </div>
+                ) : isFluidSinkMachine(selectedMachine.machineId) ? (
+                  (() => {
+                    const fluid = selectedMachineStoredFluids[0]
+                    const storedSteamLitres = formatSteamLitres(selectedMachine.process.steamStoredMs)
+                    const storedLitres = fluid?.amount ?? storedSteamLitres
+                    const contents = fluid ? fluidLabel(fluid.id) : storedSteamLitres > 0 ? 'Steam' : 'Empty'
+                    const liveRates = wasteOutletLiveRates(selectedMachine)
+                    const activeMedium = liveRates.fluidId ? fluidLabel(liveRates.fluidId) : liveRates.steamLitresPerSecond > 0 ? 'Steam' : 'None'
+                    return <div className={`waste-outlet-interface utility-hmi ${liveRates.totalLitresPerSecond > 0 ? 'is-disposing' : 'is-idle'}`}>
+                      <button
+                        type="button"
+                        className={`utility-vessel waste-outlet-vessel native-fluid-control ${nativeFluidControlReady('waste', 'input') ? 'ready' : ''}`}
+                        disabled={!nativeFluidControlReady('waste', 'input')}
+                        onClick={() => handleNativeFluidControl('waste', 'input')}
+                        aria-label={`Waste intake ${formatLitres(storedLitres)} of ${formatLitres(wasteOutletCapacityLitres)} litres`}
+                      >
+                        <MachineGlyph id="wasteOutlet" active={liveRates.totalLitresPerSecond > 0} />
+                        <span className="waste-outlet-drain" aria-hidden="true"><Droplet /><Trash2 /></span>
+                        {(fluid || storedSteamLitres > 0) && <FluidIcon id={fluid?.id ?? 'steam'} className="waste-outlet-fluid-icon" />}
+                      </button>
+                      <div className="utility-readout-grid">
+                        <span><small>Status</small><strong>{liveRates.totalLitresPerSecond > 0 ? 'Disposing' : 'Ready'}</strong><em>{activeMedium}</em></span>
+                        <span><small>Intake</small><strong>{contents}</strong><em>{formatLitres(storedLitres)}L buffered</em></span>
+                        <span><small>Disposal</small><strong>{formatAmount(liveRates.totalLitresPerSecond)}L/s</strong><em>{formatAmount(wasteOutletDisposalLitresPerSecond)}L/s max</em></span>
+                        <span><small>Buffer</small><strong>{formatLitres(storedLitres)}L</strong><em>{formatLitres(wasteOutletCapacityLitres)}L max</em></span>
+                      </div>
+                    </div>
+                  })()
                 ) : isTankStorageMachine(selectedMachine.machineId) ? (
                   <div className="well-interface tank-terminal-interface utility-hmi iron-tank-hmi">
                     {(() => {

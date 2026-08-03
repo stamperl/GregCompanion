@@ -1618,6 +1618,7 @@ button.craft-output:disabled {
 .pixel-bronzePlate span,
 .pixel-redAlloyPlate span,
 .pixel-mechanicalPiston span,
+.pixel-mechanicalPump span,
 .pixel-ironRod span,
 .pixel-copperRod span,
 .pixel-tinRod span,
@@ -2436,6 +2437,22 @@ button.craft-output:disabled {
   left: 2px;
   top: 7px;
   width: 9px;
+}
+
+.pixel-mechanicalPump {
+  background:
+    radial-gradient(circle at 54% 52%, #252a2b 0 17%, #d7b85d 18% 28%, #79542a 29% 42%, #252a2b 43% 54%, transparent 55%),
+    linear-gradient(90deg, #b68042 0 18%, #303638 18% 78%, #b68042 78% 100%);
+  box-shadow: inset 0 0 0 3px #202425, inset -4px -4px 0 rgba(0, 0, 0, 0.3);
+}
+
+.pixel-mechanicalPump::before {
+  background: #b83a30;
+  box-shadow: 10px 0 0 #e0be69;
+  height: 5px;
+  left: 4px;
+  top: 4px;
+  width: 8px;
 }
 
 .pixel-steelPlate {
@@ -9857,6 +9874,103 @@ button.craft-output:disabled {
 .machine-standardChest,
 .machine-hopper {
   background: transparent;
+}
+
+/* Steam-age fluid disposal terminal. */
+.furnace-modal.machine-terminal .waste-outlet-interface {
+  align-items: stretch;
+  grid-template-columns: minmax(150px, 1fr) minmax(112px, 0.62fr);
+}
+
+.furnace-modal.machine-terminal .waste-outlet-vessel.utility-vessel {
+  background:
+    repeating-linear-gradient(135deg, rgba(185, 57, 47, 0.2) 0 8px, transparent 8px 16px),
+    linear-gradient(180deg, #111819, #060909);
+  height: 286px;
+  min-height: 286px;
+}
+
+.machine-terminal .waste-outlet-vessel > .machine-glyph {
+  background: transparent;
+  bottom: auto;
+  height: 112px;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: 112px;
+}
+
+.machine-terminal .waste-outlet-vessel > .waste-outlet-drain {
+  align-items: center;
+  background: #2a1010;
+  border: 1px solid #b83a30;
+  bottom: 12px;
+  color: #e8c85e;
+  display: flex;
+  gap: 6px;
+  height: 30px;
+  justify-content: center;
+  left: 12px;
+  position: absolute;
+  transition: none;
+  width: calc(100% - 24px);
+  z-index: 3;
+}
+
+.machine-terminal .waste-outlet-vessel > .waste-outlet-drain svg {
+  height: 15px;
+  width: 15px;
+}
+
+.machine-terminal .waste-outlet-vessel > .waste-outlet-fluid-icon {
+  background: #071012;
+  border: 1px solid #5cb3c5;
+  bottom: auto;
+  height: 34px;
+  left: 12px;
+  position: absolute;
+  top: 12px;
+  transition: none;
+  width: 34px;
+  z-index: 3;
+}
+
+.machine-terminal .waste-outlet-vessel > .waste-outlet-fluid-icon .fluid-icon-image {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.machine-terminal .waste-outlet-interface.is-disposing .machine-glyph {
+  filter: drop-shadow(0 0 7px rgba(232, 200, 94, 0.45));
+}
+
+@media (max-width: 430px) {
+  .furnace-modal.machine-terminal .waste-outlet-interface {
+    grid-template-columns: minmax(0, 1fr) minmax(102px, 0.46fr);
+  }
+
+  .furnace-modal.machine-terminal .waste-outlet-vessel.utility-vessel {
+    height: clamp(230px, 32svh, 270px);
+    min-height: 230px;
+  }
+}
+
+.machine-wasteOutlet {
+  background:
+    radial-gradient(circle at 50% 28%, #15191a 0 16%, #b68a46 17% 25%, transparent 26%),
+    linear-gradient(90deg, transparent 0 12%, #b68a46 12% 22%, transparent 22% 78%, #6f4b27 78% 88%, transparent 88%),
+    linear-gradient(180deg, #313739 0 18%, #171b1c 18% 78%, #8f2f29 78% 88%, #24292a 88%);
+  box-shadow: inset 0 0 0 4px #171b1c, inset 0 0 0 7px #8a6638;
+}
+
+.machine-wasteOutlet span {
+  background: repeating-linear-gradient(90deg, #171b1c 0 3px, #8d7040 3px 5px);
+  border: 2px solid #c09a58;
+  bottom: 12%;
+  height: 22%;
+  left: 24%;
+  width: 52%;
 }
 
 .machine-copperPipe,
