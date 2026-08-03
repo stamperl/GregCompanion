@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { machineRegistry, resourceRegistry } from './content'
-import { collectRecipeGroupsByItemType, expandRecipeGroupCollections, groupRecipesByOutput } from './recipeGroups'
+import { collectRecipeGroupsByItemType, expandRecipeGroupCollections, groupRecipesByOutput, partitionRecipeGroupsByBookmarks } from './recipeGroups'
 import type { MachineId, Recipe, ResourceId } from './types'
 
 const recipeFor = (id: string, outputId: ResourceId): Recipe => ({
@@ -101,5 +101,18 @@ describe('recipe browser item-type collections', () => {
     expect(collections[0].groups.map((group) => group.output.id)).toEqual(['woodenPickaxe', 'ironPickaxe'])
     expect(collections[1].groups.map((group) => group.output.id)).toEqual(['ironIngot', 'copperIngot'])
     expect(collections[2].groups.map((group) => group.output.id)).toEqual(['lvMacerator', 'mvMacerator'])
+  })
+
+  it('pulls bookmarked outputs out of normal collections without changing their order', () => {
+    const groups = groupRecipesByOutput([
+      recipeFor('iron-ingot', 'ironIngot'),
+      recipeFor('copper-ingot', 'copperIngot'),
+      recipeFor('iron-plate', 'ironPlate'),
+    ])
+
+    const { bookmarkedGroups, remainingGroups } = partitionRecipeGroupsByBookmarks(groups, ['resource:copperIngot'])
+
+    expect(bookmarkedGroups.map((group) => group.output.id)).toEqual(['copperIngot'])
+    expect(remainingGroups.map((group) => group.output.id)).toEqual(['ironIngot', 'ironPlate'])
   })
 })

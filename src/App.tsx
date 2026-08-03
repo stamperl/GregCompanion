@@ -1,5 +1,6 @@
 import {
   Axe,
+  Bookmark,
   BookOpen,
   Bug,
   Calculator,
@@ -207,6 +208,7 @@ import {
   steamTankCapacityMs,
   steamTankCapacityMsForInstance,
   steamTankFluidCapacityLitresForInstance,
+  steamTankLiveSteamRates,
   steamTankStructureForInstance,
   steamNetworkMetrics,
   lvBatteryBufferEuCapacity,
@@ -286,6 +288,7 @@ import {
   collectRecipeGroupsByItemType,
   expandRecipeGroupCollections,
   groupRecipesByOutput,
+  partitionRecipeGroupsByBookmarks,
   recipeGroupOutput,
   recipeGroupKeyForOutput,
   type RecipeGroup,
@@ -455,6 +458,7 @@ type RecipeDisplayOutput =
   | { kind: 'fluid'; id: FluidId; amount: number; label: string }
 
 type RecipeFavoriteMap = Record<string, string>
+type RecipeBookmarkMap = Record<string, true>
 type RecursivePlanIngredient =
   | { kind: 'resource'; id: ResourceId; amount: number }
   | { kind: 'machine'; id: MachineId; amount: number }
@@ -480,6 +484,7 @@ type RecursiveRecipePlan = {
 }
 
 const recipeFavoriteStorageKey = 'click-foundry.recipe-favorites.v1'
+const recipeBookmarkStorageKey = 'click-foundry.recipe-bookmarks.v1'
 const maxRecursivePlanDepth = 6
 const maxRecursivePlanRows = 42
 const maxRecipePlanTarget = 999_999
@@ -504,6 +509,29 @@ function saveRecipeFavoriteMap(favorites: RecipeFavoriteMap) {
     window.localStorage.setItem(recipeFavoriteStorageKey, JSON.stringify(favorites))
   } catch {
     // Recipe preferences only affect browser planning; the session copy still works.
+  }
+}
+
+function loadRecipeBookmarkMap(): RecipeBookmarkMap {
+  try {
+    const stored = window.localStorage.getItem(recipeBookmarkStorageKey)
+    if (!stored) return {}
+    const parsed = JSON.parse(stored) as Record<string, unknown>
+    const bookmarks: RecipeBookmarkMap = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (key && value === true) bookmarks[key] = true
+    }
+    return bookmarks
+  } catch {
+    return {}
+  }
+}
+
+function saveRecipeBookmarkMap(bookmarks: RecipeBookmarkMap) {
+  try {
+    window.localStorage.setItem(recipeBookmarkStorageKey, JSON.stringify(bookmarks))
+  } catch {
+    // Recipe bookmarks remain available for this session when storage is unavailable.
   }
 }
 
@@ -3761,6 +3789,7 @@ function App() {
   const [machineInventorySearch, setMachineInventorySearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
   const [recipeFavorites, setRecipeFavorites] = useState<RecipeFavoriteMap>(() => loadRecipeFavoriteMap())
+  const [recipeBookmarks, setRecipeBookmarks] = useState<RecipeBookmarkMap>(() => loadRecipeBookmarkMap())
   const [encoderRecipeKind, setEncoderRecipeKind] = useState<'crafting' | 'processing'>('crafting')
   const [patternBlankInserted, setPatternBlankInserted] = useState(false)
   const [patternCraftingGrid, setPatternCraftingGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
@@ -4166,6 +4195,10 @@ function App() {
   }, [recipeFavorites])
 
   useEffect(() => {
+    saveRecipeBookmarkMap(recipeBookmarks)
+  }, [recipeBookmarks])
+
+  useEffect(() => {
     if (page !== 'gather' || !highlightedGatherTarget) return
     const frame = window.requestAnimationFrame(() => {
       document.querySelector<HTMLElement>(`[data-gather-target="${highlightedGatherTarget}"]`)?.scrollIntoView({
@@ -4296,13 +4329,17 @@ function App() {
     () => terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : machineRecipeGroups,
     [machineRecipeGroups, recipeCandidates, terminalMode],
   )
+  const { bookmarkedGroups: bookmarkedRecipeGroups, remainingGroups: unbookmarkedRecipeGroups } = useMemo(
+    () => partitionRecipeGroupsByBookmarks(listedRecipeGroups, Object.keys(recipeBookmarks)),
+    [listedRecipeGroups, recipeBookmarks],
+  )
   const recipeGroupCollections = useMemo(
-    () => collectRecipeGroupsByItemType(listedRecipeGroups, resourceRegistry, machines),
-    [listedRecipeGroups],
+    () => collectRecipeGroupsByItemType(unbookmarkedRecipeGroups, resourceRegistry, machines),
+    [unbookmarkedRecipeGroups],
   )
   const displayedRecipeGroups = useMemo(
-    () => expandRecipeGroupCollections(recipeGroupCollections, expandedRecipeCollectionKey),
-    [expandedRecipeCollectionKey, recipeGroupCollections],
+    () => [...bookmarkedRecipeGroups, ...expandRecipeGroupCollections(recipeGroupCollections, expandedRecipeCollectionKey)],
+    [bookmarkedRecipeGroups, expandedRecipeCollectionKey, recipeGroupCollections],
   )
   const collapsedRecipeCollectionsByGroupKey = useMemo(
     () => new Map(
@@ -4416,6 +4453,9 @@ function App() {
       : ironTankFluidCapacityLitres
   const selectedSteamNetworkMetrics = selectedMachine && isSteamNetworkMachine(selectedMachine.machineId)
     ? steamNetworkMetrics(state, selectedMachine)
+    : null
+  const selectedSteamTankLiveRates = selectedMachine && isTankStorageMachine(selectedMachine.machineId)
+    ? steamTankLiveSteamRates(state, selectedMachine)
     : null
   const selectedPipeConfig = state.machineInstances.find((instance) => instance.uid === selectedPipeConfigUid) ?? null
   const selectedConductorFace = selectedPipeConfig && selectedConductorLane !== 'fabrication' && isConductorMachine(selectedPipeConfig.machineId)
@@ -6632,6 +6672,19 @@ function App() {
         : `${recipeDisplayName(selectedRecipe)} set as recursive favorite.`,
     )
   }
+  const handleToggleRecipeBookmark = () => {
+    if (!selectedRecipeGroup) return
+    const isBookmarked = Boolean(recipeBookmarks[selectedRecipeGroup.key])
+    setRecipeBookmarks((current) => {
+      if (current[selectedRecipeGroup.key]) {
+        const next = { ...current }
+        delete next[selectedRecipeGroup.key]
+        return next
+      }
+      return { ...current, [selectedRecipeGroup.key]: true }
+    })
+    setTerminalNotice(`${selectedRecipeOutput?.label ?? 'Recipe'} ${isBookmarked ? 'removed from bookmarks.' : 'bookmarked and pinned first.'}`)
+  }
   const handleAdjustRecipePlanTarget = (amount: number) => {
     setRecipePlanTargetAmount(Math.max(1, Math.min(maxRecipePlanTarget, Math.floor(amount))))
   }
@@ -7854,6 +7907,7 @@ function App() {
                   <div className="recipe-results-pane">
                   <div className="recipe-icon-grid" aria-label="Recipe results">
                   {displayedRecipeGroups.map((group) => {
+                    const isBookmarked = Boolean(recipeBookmarks[group.key])
                     const collapsedCollection = collapsedRecipeCollectionsByGroupKey.get(group.key)
                     const isExpandedCollectionAnchor = group.key === expandedRecipeCollectionAnchorKey
                     const isExpandedCollectionOption = Boolean(
@@ -7878,6 +7932,7 @@ function App() {
                           collapsedCollection || isExpandedCollectionAnchor ? 'recipe-collection-button' : '',
                           isExpandedCollectionAnchor ? 'expanded' : '',
                           isExpandedCollectionOption ? 'recipe-collection-option' : '',
+                          isBookmarked ? 'bookmarked' : '',
                           group.key === selectedRecipeGroup?.key ? 'selected' : '',
                           networkCraftable ? 'network-craftable' : '',
                           isMachineResult ? machineIsOnFloor ? 'machine-on-floor' : 'machine-off-floor' : locked ? 'locked' : missing ? 'missing' : 'ready',
@@ -7912,6 +7967,7 @@ function App() {
                           <span className="recipe-count-badge">{collectionItemCount ?? group.recipes.length}</span>
                         )}
                         {(collapsedCollection || isExpandedCollectionAnchor) && <ChevronDown className="recipe-collection-chevron" size={11} aria-hidden="true" />}
+                        {isBookmarked && <Bookmark className="recipe-bookmark-badge" size={12} fill="currentColor" aria-hidden="true" />}
                         {networkCraftable && <span className="network-craftable-badge" title="Craftable by fabrication network"><Factory size={9} /></span>}
                       </button>
                     )
@@ -7961,6 +8017,15 @@ function App() {
                               <Star size={15} fill={selectedRecipeIsFavorite ? 'currentColor' : 'none'} />
                             </button>
                           )}
+                          <button
+                            type="button"
+                            className={recipeBookmarks[selectedRecipeGroup.key] ? 'recipe-favorite-button active' : 'recipe-favorite-button'}
+                            aria-label={recipeBookmarks[selectedRecipeGroup.key] ? 'Remove recipe bookmark' : 'Bookmark recipe'}
+                            title={recipeBookmarks[selectedRecipeGroup.key] ? 'Remove bookmark' : 'Bookmark and pin first'}
+                            onClick={handleToggleRecipeBookmark}
+                          >
+                            <Bookmark size={15} fill={recipeBookmarks[selectedRecipeGroup.key] ? 'currentColor' : 'none'} />
+                          </button>
                           <span className={selectedRecipeLockedLine || selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
                             <RecipeDisplayIcon output={selectedRecipeOutput} />
                             <span className="item-count">{recipeDisplayAmount(selectedRecipeOutput)}</span>
@@ -9922,7 +9987,7 @@ function App() {
                             <strong>
                               {isSteam
                                 ? selectedSteamNetworkMetrics && selectedSteamNetworkMetrics.networkSize > 1
-                                  ? `${formatAmount(selectedSteamNetworkMetrics.generationLitresPerSecond)} in / ${formatAmount(selectedSteamNetworkMetrics.demandLitresPerSecond)} out`
+                                  ? `${formatAmount(selectedSteamTankLiveRates?.inputLitresPerSecond ?? 0)} in / ${formatAmount(selectedSteamTankLiveRates?.outputLitresPerSecond ?? 0)} out`
                                   : 'Isolated'
                                 : outputFaces.join(', ') || 'Closed'}
                             </strong>
@@ -9930,7 +9995,9 @@ function App() {
                           </span>
                           <span>
                             <small>{isSteam ? 'Pressure' : 'Flow'}</small>
-                            <strong>{isSteam && selectedSteamNetworkMetrics ? `${selectedSteamNetworkMetrics.netLitresPerSecond >= 0 ? '+' : ''}${formatAmount(selectedSteamNetworkMetrics.netLitresPerSecond)}L/s` : `${formatAmount(fluidOutflow)}L/s`}</strong>
+                            <strong>{isSteam && selectedSteamTankLiveRates
+                              ? `${selectedSteamTankLiveRates.inputLitresPerSecond - selectedSteamTankLiveRates.outputLitresPerSecond >= 0 ? '+' : ''}${formatAmount(selectedSteamTankLiveRates.inputLitresPerSecond - selectedSteamTankLiveRates.outputLitresPerSecond)}L/s`
+                              : `${formatAmount(fluidOutflow)}L/s`}</strong>
                             <em>
                               {isSteam
                                 ? selectedSteamNetworkMetrics?.networkSize === 1

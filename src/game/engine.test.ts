@@ -141,6 +141,7 @@ import {
   steamTankCapacityMs,
   steamTankCapacityMsForInstance,
   steamTankFluidCapacityLitresForInstance,
+  steamTankLiveSteamRates,
   steamTankStructureForInstance,
   steelTankCapacityMs,
   steelTankFluidCapacityLitres,
@@ -3202,6 +3203,14 @@ describe('game engine', () => {
 
     expect(state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!.process.steamStoredMs).toBe(32 * steamMsPerLitre)
     expect(state.machineInstances.find((instance) => instance.uid === targetMachine.uid)!.process.steamStoredMs).toBe(64 * steamMsPerLitre)
+    expect(steamTankLiveSteamRates(state, state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!)).toEqual({
+      inputLitresPerSecond: 0,
+      outputLitresPerSecond: 64,
+    })
+    expect(steamTankLiveSteamRates(state, state.machineInstances.find((instance) => instance.uid === targetMachine.uid)!)).toEqual({
+      inputLitresPerSecond: 64,
+      outputLitresPerSecond: 0,
+    })
 
     const blockedSource = state.machineInstances.find((instance) => instance.uid === sourceTank.uid)!
     const blockedTarget = state.machineInstances.find((instance) => instance.uid === targetMachine.uid)!
@@ -3210,6 +3219,10 @@ describe('game engine', () => {
     state = tickGame(state, 1000).state
     expect(state.machineInstances.find((instance) => instance.uid === blockedSource.uid)!.process.steamStoredMs).toBe(32 * steamMsPerLitre)
     expect(state.machineInstances.find((instance) => instance.uid === blockedTarget.uid)!.process.steamStoredMs).toBe(0)
+    expect(steamTankLiveSteamRates(state, state.machineInstances.find((instance) => instance.uid === blockedSource.uid)!)).toEqual({
+      inputLitresPerSecond: 0,
+      outputLitresPerSecond: 0,
+    })
   })
 
   it('feeds Steam Turbines through fluid conductors and exposes the connected demand', () => {

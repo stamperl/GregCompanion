@@ -1020,6 +1020,8 @@ export type MachineProcessState = {
   steamStoredMs: number
   steamCapacityMs: number
   steamFlowLitresPerSecond?: number
+  steamInputLitresPerSecond?: number
+  steamOutputLitresPerSecond?: number
   euStored: number
   euCapacity: number
   euFlowPerSecond?: number

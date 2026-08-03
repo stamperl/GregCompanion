@@ -11071,6 +11071,20 @@ button.craft-output:disabled {
   background: color-mix(in srgb, var(--bevel-well) 86%, var(--accent));
 }
 
+.recipe-icon-button.bookmarked {
+  background: color-mix(in srgb, var(--bevel-well) 82%, #d0b96b);
+}
+
+.recipe-bookmark-badge {
+  color: #fff0a8;
+  filter: drop-shadow(0 1px 0 #322500);
+  left: 3px;
+  pointer-events: none;
+  position: absolute;
+  top: 3px;
+  z-index: 3;
+}
+
 .recipe-collection-button::before {
   border-left: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
   border-top: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);

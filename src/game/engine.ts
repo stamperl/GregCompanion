@@ -212,6 +212,8 @@ let activeSteamTransferBudgets: Map<string, number> | null = null
 let activeEuTransferBudgets: Map<string, number> | null = null
 let activeFluidTransferBudgets: Map<string, number> | null = null
 let activeSteamSegmentFlows: Map<string, number> | null = null
+let activeSteamInputFlows: Map<string, number> | null = null
+let activeSteamOutputFlows: Map<string, number> | null = null
 let activeEuSegmentFlows: Map<string, number> | null = null
 let activeEuTransformerFlows: Map<string, number> | null = null
 let activeEuInputFlows: Map<string, number> | null = null
@@ -416,6 +418,8 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     steamStoredMs: process.steamStoredMs,
     steamCapacityMs: process.steamCapacityMs,
     steamFlowLitresPerSecond: process.steamFlowLitresPerSecond,
+    steamInputLitresPerSecond: process.steamInputLitresPerSecond,
+    steamOutputLitresPerSecond: process.steamOutputLitresPerSecond,
     euStored: process.euStored,
     euCapacity: process.euCapacity,
     euFlowPerSecond: process.euFlowPerSecond,
@@ -631,6 +635,8 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     steamStoredMs: Math.max(0, Math.floor(process.steamStoredMs ?? 0)),
     steamCapacityMs: Math.max(0, Math.floor(process.steamCapacityMs ?? 0)),
     steamFlowLitresPerSecond: typeof process.steamFlowLitresPerSecond === 'number' ? Math.max(0, process.steamFlowLitresPerSecond) : undefined,
+    steamInputLitresPerSecond: typeof process.steamInputLitresPerSecond === 'number' ? Math.max(0, process.steamInputLitresPerSecond) : undefined,
+    steamOutputLitresPerSecond: typeof process.steamOutputLitresPerSecond === 'number' ? Math.max(0, process.steamOutputLitresPerSecond) : undefined,
     euStored: Math.max(0, process.euStored ?? 0),
     euCapacity: Math.max(0, Math.floor(process.euCapacity ?? 0)),
     euFlowPerSecond: typeof process.euFlowPerSecond === 'number' ? Math.max(0, process.euFlowPerSecond) : undefined,
@@ -5106,6 +5112,25 @@ function recordEuTransfer(source: MachineInstance, target: MachineInstance, sour
   }
 }
 
+function recordSteamTransfer(source: MachineInstance, target: MachineInstance, amountMs: number) {
+  if (amountMs <= 0) return
+  if (activeSteamOutputFlows && isTankStorageMachine(source.machineId)) {
+    activeSteamOutputFlows.set(source.uid, (activeSteamOutputFlows.get(source.uid) ?? 0) + amountMs)
+  }
+  if (activeSteamInputFlows && isTankStorageMachine(target.machineId)) {
+    activeSteamInputFlows.set(target.uid, (activeSteamInputFlows.get(target.uid) ?? 0) + amountMs)
+  }
+}
+
+export function steamTankLiveSteamRates(state: GameState, instance: MachineInstance) {
+  if (!isTankStorageMachine(instance.machineId)) return { inputLitresPerSecond: 0, outputLitresPerSecond: 0 }
+  const storage = steamTankStorageForInstance(state, instance)
+  return {
+    inputLitresPerSecond: Math.max(0, storage.process.steamInputLitresPerSecond ?? 0),
+    outputLitresPerSecond: Math.max(0, storage.process.steamOutputLitresPerSecond ?? 0),
+  }
+}
+
 export function batteryBufferLiveEuRates(instance: MachineInstance) {
   if (!isEuStorageMachine(instance.machineId)) return { inputEuPerSecond: 0, outputEuPerSecond: 0 }
   return {
@@ -5445,6 +5470,10 @@ function tickPipeDisplayBuffers(state: GameState) {
       instance.process.euInputPerSecond = (activeEuInputFlows?.get(instance.uid) ?? 0) / elapsedSeconds
       instance.process.euOutputPerSecond = (activeEuOutputFlows?.get(instance.uid) ?? 0) / elapsedSeconds
     }
+    if (isTankStorageMachine(instance.machineId)) {
+      instance.process.steamInputLitresPerSecond = ((activeSteamInputFlows?.get(instance.uid) ?? 0) / steamMsPerLitre) / elapsedSeconds
+      instance.process.steamOutputLitresPerSecond = ((activeSteamOutputFlows?.get(instance.uid) ?? 0) / steamMsPerLitre) / elapsedSeconds
+    }
   }
 }
 
@@ -5502,6 +5531,7 @@ function consumeConnectedSteam(state: GameState, instance: MachineInstance, amou
     storage.process.steamStoredMs -= spend
     spendTickBudget(activeSteamTransferBudgets, sourceBudgetKey, spend)
     spendSteamRoute(route, spend)
+    recordSteamTransfer(storage, instance, spend)
     remaining -= spend
   }
   return amount - remaining
@@ -7920,6 +7950,7 @@ function tickFluidConductorNetwork(state: GameState, network: MachineInstance[],
       steamSource.process.steamStoredMs -= transferMs
       steam.target.process.steamStoredMs += transferMs
       steam.target.process.steamCapacityMs = steam.capacityMs
+      recordSteamTransfer(steamSource, steam.target, transferMs)
       remaining = normalizeLitres(remaining - transferLitres)
       cursor += 1
       if (source.settings.roundRobin) break
@@ -8259,6 +8290,8 @@ function tickMachineInstancesInPlace(next: GameState, elapsedMs: number, now = D
     activeEuTransferBudgets = new Map()
     activeFluidTransferBudgets = new Map()
     activeSteamSegmentFlows = new Map()
+    activeSteamInputFlows = new Map()
+    activeSteamOutputFlows = new Map()
     activeEuSegmentFlows = new Map()
     activeEuTransformerFlows = new Map()
     activeEuInputFlows = new Map()
@@ -8388,6 +8421,8 @@ function tickMachineInstancesInPlace(next: GameState, elapsedMs: number, now = D
     activeEuTransferBudgets = null
     activeFluidTransferBudgets = null
     activeSteamSegmentFlows = null
+    activeSteamInputFlows = null
+    activeSteamOutputFlows = null
     activeEuSegmentFlows = null
     activeEuTransformerFlows = null
     activeEuInputFlows = null
