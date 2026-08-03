@@ -9906,30 +9906,34 @@ function App() {
                     )}
                   </div>
                 ) : selectedMachine.machineId === 'well' ? (
-                  <div className="well-interface water-source-interface utility-hmi">
-                    <button type="button" className={`utility-vessel water-vessel native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
-                      <MachineGlyph id="well" active />
-                    </button>
-                    <div className="utility-readout-grid well-instrument-stack">
-                      <div className="well-buffer-instrument" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
-                        <div className="well-buffer-gauge">
-                          <StoredMediumFill
-                            id="water"
-                            fillPercent={metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128)}
-                          />
+                  (() => {
+                    const waterFlow = selectedMachine.process.fluidFlowLitresPerSecond ?? 0
+                    const waterLineLimit = currentWellWaterFlowLitresPerSecond(state, selectedMachine)
+                    return <div className="well-interface water-source-interface utility-hmi">
+                      <button type="button" className={`utility-vessel water-vessel native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
+                        <MachineGlyph id="well" active />
+                      </button>
+                      <div className="utility-readout-grid well-instrument-stack">
+                        <div className="well-buffer-instrument" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
+                          <div className="well-buffer-gauge">
+                            <StoredMediumFill
+                              id="water"
+                              fillPercent={metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128)}
+                            />
+                          </div>
+                          <span><small>Water buffer</small><strong>{formatLitres(selectedMachine.process.fluids.water ?? 0)}L</strong><em>{formatLitres(selectedMachine.process.fluidCapacityLitres || 128)}L max</em></span>
                         </div>
-                        <span><small>Water buffer</small><strong>{formatLitres(selectedMachine.process.fluids.water ?? 0)}L</strong><em>{formatLitres(selectedMachine.process.fluidCapacityLitres || 128)}L max</em></span>
+                        <span><small>Recovery</small><strong>{formatAmount(wellWaterProductionLitresPerSecond)}L/s</strong><em>Ground water</em></span>
+                        <span><small>Flow</small><strong>{formatAmount(waterFlow)}L/s</strong><em>{waterLineLimit > 0 ? `${formatAmount(waterLineLimit)}L/s line limit` : 'No demand'}</em></span>
                       </div>
-                      <span><small>Recovery</small><strong>{formatAmount(wellWaterProductionLitresPerSecond)}L/s</strong><em>Ground water</em></span>
-                      <span><small>Output</small><strong>{formatAmount(currentWellWaterFlowLitresPerSecond(state, selectedMachine))}L/s</strong><em>{currentWellWaterFlowLitresPerSecond(state, selectedMachine) > 0 ? 'Supplying network' : 'No demand'}</em></span>
                     </div>
-                  </div>
+                  })()
                 ) : selectedMachine.machineId === 'steamBoiler' ? (
                   <div className="boiler-hmi steam-boiler-hmi">
                     <div className="boiler-system-strip">
                       <span><small>Water feed</small><strong>{boilerHasWater(state, selectedMachine) ? 'Connected' : 'No water'}</strong></span>
-                      <span><small>Steam out</small><strong>{formatAmount(boilerSteamProductionLitresPerSecond)}L/s</strong></span>
-                      <span><small>Pressure</small><strong>{Math.floor(metricFill(selectedMachine.process.steamStoredMs, boilerSteamCapacityMs))}%</strong></span>
+                      <span><small>Steam rate</small><strong>{formatAmount(selectedMachine.process.activeRecipeId === 'make_steam' ? boilerSteamProductionLitresPerSecond : 0)}L/s</strong></span>
+                      <span><small>Boiler buffer</small><strong>{formatSteamLitres(selectedMachine.process.steamStoredMs)}L</strong></span>
                     </div>
                     <div className="boiler-stage">
                       <div className={selectedMachine.process.activeRecipeId ? 'boiler-firebox active' : 'boiler-firebox'}>
