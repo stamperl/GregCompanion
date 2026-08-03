@@ -1045,6 +1045,24 @@ describe('game engine', () => {
     expect('activeCrafts' in state).toBe(false)
   })
 
+  it('repairs duplicated machine UIDs from saved factories', () => {
+    let saved = createFactoryState()
+    saved.machines.lvAssembler = 2
+    saved = placeMachineInstance(saved, 'lvAssembler', 0, 0)
+    saved = placeMachineInstance(saved, 'lvAssembler', 1, 0)
+    saved.machineInstances[1].uid = saved.machineInstances[0].uid
+
+    const restored = loadGame(JSON.stringify(saved), 2000)
+    const [first, second] = restored.machineInstances
+    expect(new Set(restored.machineInstances.map((instance) => instance.uid)).size).toBe(2)
+    expect(first.uid).toBe(saved.machineInstances[0].uid)
+    expect(second.uid).not.toBe(first.uid)
+
+    const reconfigured = setConfiguredProcessProgram(restored, second.uid, 1)
+    expect(reconfigured.machineInstances.find((instance) => instance.uid === first.uid)!.process.configuredProgramNumber).toBe(0)
+    expect(reconfigured.machineInstances.find((instance) => instance.uid === second.uid)!.process.configuredProgramNumber).toBe(1)
+  })
+
   it('keeps restored firebrick state during save migration', () => {
     const state = loadGame(
       JSON.stringify({

@@ -856,6 +856,28 @@ function normalizeMachineInstances(
   return normalized
 }
 
+function ensureUniqueMachineInstanceUids(instances: MachineInstance[]) {
+  const reservedUids = new Set(instances.map((instance) => instance.uid))
+  const usedUids = new Set<string>()
+
+  return instances.map((instance, index) => {
+    if (!usedUids.has(instance.uid)) {
+      usedUids.add(instance.uid)
+      return instance
+    }
+
+    let suffix = index + 1
+    let uid = `${instance.machineId}-${suffix}`
+    while (reservedUids.has(uid) || usedUids.has(uid)) {
+      suffix += 1
+      uid = `${instance.machineId}-${suffix}`
+    }
+    reservedUids.add(uid)
+    usedUids.add(uid)
+    return { ...instance, uid }
+  })
+}
+
 export function cloneState(state: GameState): GameState {
   return {
     ...state,
@@ -9160,7 +9182,7 @@ function migrateMachineInstances(
       machinesState.brickedBlastFurnace -= unplacedLegacyBlastFurnaces
       machinesState.brickedBlastFurnacePart += unplacedLegacyBlastFurnaces * 4
     }
-    return migratedInstances
+    return ensureUniqueMachineInstanceUids(migratedInstances)
   }
 
   const migrated = [...migratedInstances]
@@ -9179,7 +9201,7 @@ function migrateMachineInstances(
       process: emptyProcessState(),
     })
   }
-  return migrated.filter((instance) => isInsideGridSize(grid, instance.x, instance.y))
+  return ensureUniqueMachineInstanceUids(migrated.filter((instance) => isInsideGridSize(grid, instance.x, instance.y)))
 }
 
 function coalesceConductorInstances(instances: Partial<MachineInstance>[]) {
