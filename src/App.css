@@ -11850,6 +11850,8 @@ button.craft-output:disabled {
 }
 
 .bulk-calculator-modal {
+  grid-template-rows: max-content minmax(0, 1fr);
+  height: min(760px, 92svh);
   overflow: hidden;
 }
 
@@ -11865,9 +11867,18 @@ button.craft-output:disabled {
 }
 
 .bulk-calculator {
+  align-content: start;
+  -webkit-overflow-scrolling: touch;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 2px;
+  touch-action: pan-y;
+}
+
+.bulk-calculator-results {
+  align-content: start;
 }
 
 .bulk-calculator-section,
@@ -11963,6 +11974,22 @@ button.craft-output:disabled {
   line-height: 1.1;
   overflow-wrap: anywhere;
   text-transform: uppercase;
+}
+
+.bulk-route-copy small {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+}
+
+.bulk-route-copy small > span {
+  align-items: center;
+  display: inline-flex;
+}
+
+.bulk-route-copy small em {
+  font: 950 0.58rem "Courier New", ui-monospace, monospace;
+  font-style: normal;
 }
 
 .bulk-bookmark-row > em {
@@ -12176,7 +12203,6 @@ button.craft-output:disabled {
 }
 
 .bulk-result-metrics small,
-.bulk-requirement-counts small,
 .bulk-fluid-required small {
   color: #5a513d;
   font: 900 0.48rem Inter, ui-sans-serif, system-ui, sans-serif;
@@ -12214,10 +12240,19 @@ button.craft-output:disabled {
 
 .bulk-requirement-counts > span,
 .bulk-fluid-required {
-  display: grid;
+  align-items: center;
+  display: flex;
   gap: 2px;
+  justify-content: flex-end;
   min-width: 0;
-  text-align: right;
+}
+
+.bulk-requirement-counts > span {
+  color: #514a38;
+}
+
+.bulk-requirement-counts > span:last-child {
+  color: #7a271f;
 }
 
 .bulk-requirement-counts em,
@@ -12229,19 +12264,21 @@ button.craft-output:disabled {
 
 .bulk-fluid-required small:last-child {
   color: #67553b;
+  margin-left: 3px;
   white-space: normal;
 }
 
 .bulk-setup-row {
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  min-height: 34px;
+  grid-template-columns: 36px minmax(0, 1fr) 24px 24px;
+  min-height: 44px;
 }
 
-.bulk-setup-row > span,
-.bulk-setup-row > em {
-  font: 950 0.5rem Inter, ui-sans-serif, system-ui, sans-serif;
+.bulk-setup-row > em,
+.bulk-setup-kind {
+  align-items: center;
+  display: flex;
   font-style: normal;
-  text-transform: uppercase;
+  justify-content: center;
 }
 
 .bulk-setup-row > strong {
@@ -12289,13 +12326,36 @@ button.craft-output:disabled {
 }
 
 .bulk-plan-warnings > span {
-  display: flex;
+  align-items: center;
+  display: grid;
   font: 850 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
   gap: 5px;
+  grid-template-columns: 30px minmax(0, 1fr);
 }
 
-.bulk-plan-warnings strong {
+.bulk-plan-warnings > span > span:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.bulk-plan-warnings small {
+  font-size: 0.5rem;
   text-transform: uppercase;
+}
+
+.bulk-warning-icon {
+  align-items: center;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.bulk-warning-icon .pixel-icon,
+.bulk-warning-icon .machine-glyph,
+.bulk-warning-icon .fluid-icon {
+  height: 25px;
+  width: 25px;
 }
 
 .bulk-bookmark-action.active {

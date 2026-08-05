@@ -1,9 +1,11 @@
 import {
   Axe,
+  Boxes,
   Bookmark,
   BookOpen,
   Bug,
   Calculator,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -22,6 +24,7 @@ import {
   Search,
   Sparkles,
   Star,
+  TriangleAlert,
   Toolbox,
   Trash2,
   Undo2,
@@ -7987,12 +7990,16 @@ function App() {
                                       </span>
                                       <strong>{label}</strong>
                                       {requirement.kind === 'fluid' ? (
-                                        <span className="bulk-fluid-required"><small>Required</small><em>{formatLitres(requirement.required)}L</em><small>Stored fluids not checked</small></span>
+                                        <span className="bulk-fluid-required" aria-label={`${formatLitres(requirement.required)} litres required. Stored fluids not checked.`}>
+                                          <Droplet size={13} aria-hidden="true" />
+                                          <em>{formatLitres(requirement.required)}L</em>
+                                          <small>No stock check</small>
+                                        </span>
                                       ) : (
                                         <span className="bulk-requirement-counts">
-                                          <span><small>Required</small><em>x{formatAmount(requirement.required)}</em></span>
-                                          <span><small>Owned</small><em>x{formatAmount(requirement.owned ?? 0)}</em></span>
-                                          <span><small>Short</small><em>x{formatAmount(requirement.short ?? 0)}</em></span>
+                                          <span aria-label={`${formatAmount(requirement.required)} required`} title="Required"><Calculator size={12} aria-hidden="true" /><em>x{formatAmount(requirement.required)}</em></span>
+                                          <span aria-label={`${formatAmount(requirement.owned ?? 0)} owned`} title="Owned"><Boxes size={12} aria-hidden="true" /><em>x{formatAmount(requirement.owned ?? 0)}</em></span>
+                                          <span aria-label={`${formatAmount(requirement.short ?? 0)} short`} title="Short"><TriangleAlert size={12} aria-hidden="true" /><em>x{formatAmount(requirement.short ?? 0)}</em></span>
                                         </span>
                                       )}
                                     </div>
@@ -8012,9 +8019,20 @@ function App() {
                                   const label = requirement.kind === 'resource' ? resourceLabels[requirement.id] : machines[requirement.id].name
                                   return (
                                     <div className={requirement.short > 0 ? 'bulk-setup-row short' : 'bulk-setup-row ready'} key={`${requirement.reason}:${requirement.id}`}>
-                                      <span>{requirement.reason === 'catalyst' ? 'Tool' : 'Station'}</span>
+                                      <span className="bulk-calculator-icon">
+                                        {requirement.kind === 'resource' ? <PixelIcon id={requirement.id} /> : <MachineGlyph id={requirement.id} />}
+                                      </span>
                                       <strong>{label}</strong>
-                                      <em>{requirement.short > 0 ? 'Missing' : 'Ready'}</em>
+                                      <span
+                                        className="bulk-setup-kind"
+                                        aria-label={requirement.reason === 'catalyst' ? 'Tool' : 'Station'}
+                                        title={requirement.reason === 'catalyst' ? 'Tool' : 'Station'}
+                                      >
+                                        {requirement.reason === 'catalyst' ? <Toolbox size={14} aria-hidden="true" /> : <Factory size={14} aria-hidden="true" />}
+                                      </span>
+                                      <em aria-label={requirement.short > 0 ? 'Missing' : 'Ready'} title={requirement.short > 0 ? 'Missing' : 'Ready'}>
+                                        {requirement.short > 0 ? <TriangleAlert size={15} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
+                                      </em>
                                     </div>
                                   )
                                 })}
@@ -8032,7 +8050,15 @@ function App() {
                                     <span className="bulk-calculator-icon">
                                       {step.kind === 'resource' ? <PixelIcon id={step.id} /> : step.kind === 'machine' ? <MachineGlyph id={step.id} /> : <FluidIcon id={step.id} />}
                                     </span>
-                                    <span className="bulk-route-copy"><strong>{label}</strong><small>{step.sourceChoice === 'favorite' ? 'Favorite' : 'Default'} · {recipeDisplayName(step.recipe)} · {formatAmount(step.batches)} batches</small></span>
+                                    <span className="bulk-route-copy">
+                                      <strong>{label}</strong>
+                                      <small>
+                                        <span aria-label={step.sourceChoice === 'favorite' ? 'Favorite recipe' : 'Default recipe'} title={step.sourceChoice === 'favorite' ? 'Favorite recipe' : 'Default recipe'}>
+                                          {step.sourceChoice === 'favorite' ? <Star size={11} fill="currentColor" aria-hidden="true" /> : <Route size={11} aria-hidden="true" />}
+                                        </span>
+                                        <em>{formatAmount(step.batches)}x</em>
+                                      </small>
+                                    </span>
                                     {step.variantCount > 1 && (
                                       <span className="bulk-route-actions">
                                         <button type="button" aria-label={`Previous recipe for ${label}`} onClick={() => handleCycleBulkRecipe(step, -1)}><ChevronLeft size={14} /></button>
@@ -8052,7 +8078,13 @@ function App() {
                                 const group = recipeGroupsByOutputKey.get(warning.key)
                                 const label = group ? recipeGroupDisplayOutput(group).label : warning.key
                                 const reason = warning.kind === 'cycle' ? 'Recipe cycle' : warning.kind === 'depth-limit' ? 'Planning depth reached' : warning.kind === 'row-limit' ? 'Plan size reached' : 'Recipe unavailable'
-                                return <span key={`${warning.kind}:${warning.key}`}><strong>{reason}</strong>{label}</span>
+                                const output = group ? recipeGroupDisplayOutput(group) : null
+                                return (
+                                  <span key={`${warning.kind}:${warning.key}`}>
+                                    <span className="bulk-warning-icon">{output ? <RecipeDisplayIcon output={output} /> : <TriangleAlert size={18} />}</span>
+                                    <span><strong>{label}</strong><small>{reason}</small></span>
+                                  </span>
+                                )
                               })}
                             </div>
                           )}
