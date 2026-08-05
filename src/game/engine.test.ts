@@ -4656,6 +4656,20 @@ describe('game engine', () => {
     expect(state.machineInstances.find((instance) => instance.uid === tank.uid)!.process.fluids.creosote).toBe(1)
   })
 
+  it('fills an empty bucket from a well water buffer', () => {
+    let state = createFactoryState()
+    state.machines.well = 1
+    state.resources.bucket = 1
+    state = placeMachineInstance(state, 'well', 0, 0)
+    const well = state.machineInstances.find((instance) => instance.machineId === 'well')!
+    well.process.fluids.water = 12
+
+    state = fillPortableFluidContainer(state, well.uid, 'bucket', { fluidId: 'water', bufferId: 'water' })
+
+    expect(state.machineInstances.find((instance) => instance.uid === well.uid)!.process.fluids.water).toBe(11)
+    expect(state.fluidContainers).toContainEqual(expect.objectContaining({ kind: 'bucket', fluidId: 'water', amountLitres: 1 }))
+  })
+
   it('does not empty a bucket into a tank holding another liquid', () => {
     let state = createFactoryState(1000)
     state.machines.cokeOven = 1

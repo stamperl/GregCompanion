@@ -9910,11 +9910,11 @@ function App() {
                     const waterFlow = selectedMachine.process.fluidFlowLitresPerSecond ?? 0
                     const waterLineLimit = currentWellWaterFlowLitresPerSecond(state, selectedMachine)
                     return <div className="well-interface water-source-interface utility-hmi">
-                      <button type="button" className={`utility-vessel water-vessel native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
+                      <div className="utility-vessel water-vessel" aria-hidden="true">
                         <MachineGlyph id="well" active />
-                      </button>
+                      </div>
                       <div className="utility-readout-grid well-instrument-stack">
-                        <div className="well-buffer-instrument" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
+                        <button type="button" className={`well-buffer-instrument native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Fill selected container from water buffer: ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
                           <div className="well-buffer-gauge">
                             <StoredMediumFill
                               id="water"
@@ -9922,7 +9922,7 @@ function App() {
                             />
                           </div>
                           <span><small>Water buffer</small><strong>{formatLitres(selectedMachine.process.fluids.water ?? 0)}L</strong><em>{formatLitres(selectedMachine.process.fluidCapacityLitres || 128)}L max</em></span>
-                        </div>
+                        </button>
                         <span><small>Recovery</small><strong>{formatAmount(wellWaterProductionLitresPerSecond)}L/s</strong><em>Ground water</em></span>
                         <span><small>Flow</small><strong>{formatAmount(waterFlow)}L/s</strong><em>{waterLineLimit > 0 ? `${formatAmount(waterLineLimit)}L/s line limit` : 'No demand'}</em></span>
                       </div>

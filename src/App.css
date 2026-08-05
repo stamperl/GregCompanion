@@ -22467,6 +22467,10 @@ button.button-primary:disabled,
   min-height: 150px;
 }
 
+.machine-terminal .water-source-interface .well-buffer-instrument.ready {
+  box-shadow: 0 0 0 2px #e2cb67, 0 0 12px rgba(226, 203, 103, 0.3);
+}
+
 .machine-terminal .fluid-hatch-interface {
   grid-template-areas:
     "status status"
