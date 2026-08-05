@@ -298,6 +298,7 @@ export type QuestId =
   | 'craftAxe'
   | 'equipToolTipQuest'
   | 'recipeBrowserTipQuest'
+  | 'bulkCalculatorTipQuest'
   | 'chopFaster'
   | 'mineStone'
   | 'craftShovelQuest'

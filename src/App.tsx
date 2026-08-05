@@ -297,7 +297,14 @@ import {
   recipeGroupKeyForOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
-import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe, recipeNonFuelInputs } from './game/recipeGraph'
+import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './game/recipeGraph'
+import {
+  buildBulkCraftPlan,
+  parseRecipePlanBookmarks,
+  type BulkCraftRecipeStep,
+  type RecipeFavoriteMap,
+  type RecipePlanBookmarkMap,
+} from './game/bulkCraftPlanner'
 import { machineTerminalProfile } from './game/machineTerminalProfiles'
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
@@ -313,7 +320,6 @@ import type {
   FabricationInterfaceAttachment,
   GatherTargetId,
   GameState,
-  MachineAmount,
   MachineId,
   MachineInstance,
   MachineProcessState,
@@ -361,6 +367,8 @@ function recipeOpensProcessView(recipe: Recipe) {
 
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'machines'
+type RecipeModalView = 'browser' | 'calculator'
+type BulkCalculatorStep = 'setup' | 'results'
 type TerminalWorkspaceMode = 'crafting' | 'patterns' | 'jobs'
 type TerminalInventoryFilter = 'all' | 'craftable' | 'items' | 'fluids'
 type TerminalInventorySort = 'az' | 'quantity-desc' | 'quantity-asc'
@@ -461,36 +469,9 @@ type RecipeDisplayOutput =
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
   | { kind: 'fluid'; id: FluidId; amount: number; label: string }
 
-type RecipeFavoriteMap = Record<string, string>
-type RecipeBookmarkMap = Record<string, true>
-type RecursivePlanIngredient =
-  | { kind: 'resource'; id: ResourceId; amount: number }
-  | { kind: 'machine'; id: MachineId; amount: number }
-  | { kind: 'fluid'; id: FluidId; amount: number }
-type RecursivePlanLine = RecursivePlanIngredient & {
-  depth: number
-  available: number
-  missing: number
-  sourceRecipe?: Recipe
-  sourceChoice?: 'favorite' | 'default'
-  sourceOutputAmount?: number
-  sourceBatches?: number
-  variantCount: number
-  cycle: boolean
-  depthLimit: boolean
-}
-type RecursiveRecipePlan = {
-  lines: RecursivePlanLine[]
-  leafResources: ResourceAmount[]
-  leafMachines: MachineAmount[]
-  leafFluids: FluidAmount[]
-  truncated: boolean
-}
-
 const recipeFavoriteStorageKey = 'click-foundry.recipe-favorites.v1'
-const recipeBookmarkStorageKey = 'click-foundry.recipe-bookmarks.v1'
-const maxRecursivePlanDepth = 6
-const maxRecursivePlanRows = 42
+const recipeBookmarkStorageKey = 'click-foundry.recipe-bookmarks.v2'
+const legacyRecipeBookmarkStorageKey = 'click-foundry.recipe-bookmarks.v1'
 const maxRecipePlanTarget = 999_999
 
 function loadRecipeFavoriteMap(): RecipeFavoriteMap {
@@ -516,174 +497,22 @@ function saveRecipeFavoriteMap(favorites: RecipeFavoriteMap) {
   }
 }
 
-function loadRecipeBookmarkMap(): RecipeBookmarkMap {
+function loadRecipeBookmarkMap(): RecipePlanBookmarkMap {
   try {
-    const stored = window.localStorage.getItem(recipeBookmarkStorageKey)
-    if (!stored) return {}
-    const parsed = JSON.parse(stored) as Record<string, unknown>
-    const bookmarks: RecipeBookmarkMap = {}
-    for (const [key, value] of Object.entries(parsed)) {
-      if (key && value === true) bookmarks[key] = true
-    }
-    return bookmarks
+    return parseRecipePlanBookmarks(
+      window.localStorage.getItem(recipeBookmarkStorageKey),
+      window.localStorage.getItem(legacyRecipeBookmarkStorageKey),
+    )
   } catch {
     return {}
   }
 }
 
-function saveRecipeBookmarkMap(bookmarks: RecipeBookmarkMap) {
+function saveRecipeBookmarkMap(bookmarks: RecipePlanBookmarkMap) {
   try {
     window.localStorage.setItem(recipeBookmarkStorageKey, JSON.stringify(bookmarks))
   } catch {
     // Recipe bookmarks remain available for this session when storage is unavailable.
-  }
-}
-
-function recipeOutputKeys(recipe: Recipe) {
-  return [
-    ...recipe.outputs.map((amount) => recipeGroupKeyForOutput({ kind: 'resource' as const, ...amount })),
-    ...(recipe.machineOutputs ?? []).map((amount) => recipeGroupKeyForOutput({ kind: 'machine' as const, ...amount })),
-    ...(recipe.fluidOutputs ?? []).map((amount) => recipeGroupKeyForOutput({ kind: 'fluid' as const, ...amount })),
-  ]
-}
-
-function recursiveRecipeIngredients(recipe: Recipe): RecursivePlanIngredient[] {
-  return [
-    ...recipeNonFuelInputs(recipe).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'resource' as const, ...amount })),
-    ...(recipe.machineInputs ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'machine' as const, ...amount })),
-    ...(recipe.fluidInputs ?? []).filter((amount) => amount.amount > 0).map((amount) => ({ kind: 'fluid' as const, ...amount })),
-  ]
-}
-
-function recursiveIngredientKey(ingredient: RecursivePlanIngredient) {
-  if (ingredient.kind === 'resource') return recipeGroupKeyForOutput({ kind: 'resource', id: ingredient.id, amount: 1 })
-  if (ingredient.kind === 'machine') return recipeGroupKeyForOutput({ kind: 'machine', id: ingredient.id, amount: 1 })
-  return recipeGroupKeyForOutput({ kind: 'fluid', id: ingredient.id, amount: 1 })
-}
-
-function recipeOutputAmountForIngredient(recipe: Recipe, ingredient: RecursivePlanIngredient) {
-  if (ingredient.kind === 'resource') return recipe.outputs.find((amount) => amount.id === ingredient.id)?.amount ?? 0
-  if (ingredient.kind === 'machine') return recipe.machineOutputs?.find((amount) => amount.id === ingredient.id)?.amount ?? 0
-  return recipe.fluidOutputs?.find((amount) => amount.id === ingredient.id)?.amount ?? 0
-}
-
-function recipePlanSourceRecipe(group: RecipeGroup | undefined, favorites: RecipeFavoriteMap) {
-  if (!group) return undefined
-  const favoriteRecipeId = favorites[group.key]
-  return group.recipes.find((recipe) => recipe.id === favoriteRecipeId) ?? group.recipes[0]
-}
-
-function addPlanAmount<T extends string>(amounts: Map<T, number>, id: T, amount: number) {
-  amounts.set(id, (amounts.get(id) ?? 0) + amount)
-}
-
-function buildRecursiveRecipePlan(
-  rootRecipe: Recipe,
-  groupsByOutputKey: Map<string, RecipeGroup>,
-  favorites: RecipeFavoriteMap,
-  state: GameState,
-  rootBatches = 1,
-): RecursiveRecipePlan {
-  const resourceStock = new Map<ResourceId, number>()
-  const machineStock = new Map<MachineId, number>()
-  const leafResources = new Map<ResourceId, number>()
-  const leafMachines = new Map<MachineId, number>()
-  const leafFluids = new Map<FluidId, number>()
-  const lines: RecursivePlanLine[] = []
-  let truncated = false
-
-  const reserveStock = (ingredient: RecursivePlanIngredient, amount: number) => {
-    if (ingredient.kind === 'fluid') return { available: 0, missing: amount }
-    if (ingredient.kind === 'resource') {
-      const initialAmount = resourceStock.get(ingredient.id) ?? state.resources[ingredient.id]
-      const reserved = Math.min(initialAmount, amount)
-      resourceStock.set(ingredient.id, initialAmount - reserved)
-      return { available: initialAmount, missing: amount - reserved }
-    }
-    const initialAmount = machineStock.get(ingredient.id) ?? state.machines[ingredient.id]
-    const reserved = Math.min(initialAmount, amount)
-    machineStock.set(ingredient.id, initialAmount - reserved)
-    return { available: initialAmount, missing: amount - reserved }
-  }
-
-  const addOverproduction = (ingredient: RecursivePlanIngredient, amount: number) => {
-    if (amount <= 0 || ingredient.kind === 'fluid') return
-    if (ingredient.kind === 'resource') {
-      resourceStock.set(ingredient.id, (resourceStock.get(ingredient.id) ?? 0) + amount)
-      return
-    }
-    machineStock.set(ingredient.id, (machineStock.get(ingredient.id) ?? 0) + amount)
-  }
-
-  const addLeaf = (ingredient: RecursivePlanIngredient, amount: number) => {
-    if (amount <= 0) return
-    if (ingredient.kind === 'resource') addPlanAmount(leafResources, ingredient.id, amount)
-    else if (ingredient.kind === 'machine') addPlanAmount(leafMachines, ingredient.id, amount)
-    else addPlanAmount(leafFluids, ingredient.id, amount)
-  }
-
-  const addIngredient = (ingredient: RecursivePlanIngredient, amount: number, depth: number, path: Set<string>) => {
-    if (lines.length >= maxRecursivePlanRows) {
-      truncated = true
-      return
-    }
-
-    const key = recursiveIngredientKey(ingredient)
-    const group = groupsByOutputKey.get(key)
-    const sourceRecipe = recipePlanSourceRecipe(group, favorites)
-    const sourceOutputAmount = sourceRecipe ? recipeOutputAmountForIngredient(sourceRecipe, ingredient) : 0
-    const cycle = path.has(key)
-    const depthLimit = depth >= maxRecursivePlanDepth
-    const { available, missing } = reserveStock(ingredient, amount)
-    const sourceBatches = missing > 0 && sourceRecipe && sourceOutputAmount > 0 && !cycle && !depthLimit
-      ? Math.ceil(missing / sourceOutputAmount)
-      : undefined
-
-    lines.push({
-      ...ingredient,
-      amount,
-      depth,
-      available,
-      missing,
-      sourceRecipe,
-      sourceChoice: sourceRecipe && favorites[key] === sourceRecipe.id ? 'favorite' : sourceRecipe ? 'default' : undefined,
-      sourceOutputAmount: sourceRecipe ? sourceOutputAmount : undefined,
-      sourceBatches,
-      variantCount: group?.recipes.length ?? 0,
-      cycle,
-      depthLimit,
-    })
-
-    if (missing <= 0) return
-    if (!sourceRecipe || !sourceBatches || sourceOutputAmount <= 0 || cycle || depthLimit) {
-      addLeaf(ingredient, missing)
-      return
-    }
-
-    const nextPath = new Set(path)
-    nextPath.add(key)
-    for (const child of recursiveRecipeIngredients(sourceRecipe)) {
-      addIngredient(child, child.amount * sourceBatches, depth + 1, nextPath)
-    }
-    addOverproduction(ingredient, sourceBatches * sourceOutputAmount - missing)
-  }
-
-  const rootPath = new Set(recipeOutputKeys(rootRecipe))
-  for (const ingredient of recursiveRecipeIngredients(rootRecipe)) {
-    addIngredient(ingredient, ingredient.amount * Math.max(1, Math.floor(rootBatches)), 0, rootPath)
-  }
-
-  const sortAmounts = <T extends string>(amounts: Map<T, number>, labelFor: (id: T) => string) =>
-    [...amounts.entries()]
-      .map(([id, amount]) => ({ id, amount }))
-      .sort((left, right) => labelFor(left.id).localeCompare(labelFor(right.id)))
-
-  return {
-    lines,
-    leafResources: sortAmounts(leafResources, (id) => resourceLabels[id as ResourceId]) as ResourceAmount[],
-    leafMachines: sortAmounts(leafMachines, (id) => machines[id as MachineId].name) as MachineAmount[],
-    leafFluids: sortAmounts(leafFluids, (id) => fluidLabel(id as FluidId)) as FluidAmount[],
-    truncated,
   }
 }
 
@@ -1105,6 +934,7 @@ const questAutoLayoutOffsets: Partial<Record<QuestId, { x?: number; y?: number }
 const questSidePlacements: Partial<Record<QuestId, QuestMapSide>> = {
   equipToolTipQuest: 'left',
   recipeBrowserTipQuest: 'right',
+  bulkCalculatorTipQuest: 'right',
   chopFaster: 'left',
   transferWaterBucketQuest: 'left',
   fluidHandlingTipQuest: 'right',
@@ -3799,7 +3629,7 @@ function App() {
   const [machineInventorySearch, setMachineInventorySearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
   const [recipeFavorites, setRecipeFavorites] = useState<RecipeFavoriteMap>(() => loadRecipeFavoriteMap())
-  const [recipeBookmarks, setRecipeBookmarks] = useState<RecipeBookmarkMap>(() => loadRecipeBookmarkMap())
+  const [recipeBookmarks, setRecipeBookmarks] = useState<RecipePlanBookmarkMap>(() => loadRecipeBookmarkMap())
   const [encoderRecipeKind, setEncoderRecipeKind] = useState<'crafting' | 'processing'>('crafting')
   const [patternBlankInserted, setPatternBlankInserted] = useState(false)
   const [patternCraftingGrid, setPatternCraftingGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
@@ -3833,6 +3663,11 @@ function App() {
   const [offlinePrompt, setOfflinePrompt] = useState('')
   const [migrationPrompt, setMigrationPrompt] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
+  const [recipeModalView, setRecipeModalView] = useState<RecipeModalView>('browser')
+  const [bulkCalculatorStep, setBulkCalculatorStep] = useState<BulkCalculatorStep>('setup')
+  const [bulkCalculatorSearch, setBulkCalculatorSearch] = useState('')
+  const [bulkCalculatorTargetKey, setBulkCalculatorTargetKey] = useState<string | null>(null)
+  const [bulkCalculatorTargetAmount, setBulkCalculatorTargetAmount] = useState(1)
   const [isMachineRecipePopupOpen, setIsMachineRecipePopupOpen] = useState(false)
   const [selectedMachinePopupRecipeIndex, setSelectedMachinePopupRecipeIndex] = useState(0)
   const [machineRecipeLoadNotice, setMachineRecipeLoadNotice] = useState('')
@@ -3853,7 +3688,6 @@ function App() {
   const [selectedRecipeGroupKey, setSelectedRecipeGroupKey] = useState<string | null>(null)
   const [expandedRecipeCollectionKey, setExpandedRecipeCollectionKey] = useState<string | null>(null)
   const [selectedRecipeIndex, setSelectedRecipeIndex] = useState(0)
-  const [recipePlanTargetAmount, setRecipePlanTargetAmount] = useState(1)
   const [batchQuantity, setBatchQuantity] = useState(1)
   const [pendingProcessInsert, setPendingProcessInsert] = useState<PendingProcessInsert | null>(null)
   const [missingBatch, setMissingBatch] = useState<{
@@ -4248,9 +4082,10 @@ function App() {
     [],
   )
   const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
+  const allRecipeGroups = useMemo(() => groupRecipesByOutput(recipeCatalog), [recipeCatalog])
   const recipeGroupsByOutputKey = useMemo(
-    () => new Map(groupRecipesByOutput(recipeCatalog).map((group) => [group.key, group] as const)),
-    [recipeCatalog],
+    () => new Map(allRecipeGroups.map((group) => [group.key, group] as const)),
+    [allRecipeGroups],
   )
   const unplacedMachineCounts = Object.fromEntries(machineOrder.map((id) => [id, availableUnplacedMachineCount(state, id)])) as Record<MachineId, number>
   const reservedGridMachineCounts = terminalGrid.reduce((counts, slot) => {
@@ -4261,6 +4096,50 @@ function App() {
     id,
     Math.max(0, unplacedMachineCounts[id] - (reservedGridMachineCounts[id] ?? 0)),
   ])) as Record<MachineId, number>
+  const bulkCalculatorTargetGroups = useMemo(
+    () => allRecipeGroups.filter((group) => group.output.kind === 'resource' || group.output.kind === 'machine'),
+    [allRecipeGroups],
+  )
+  const filteredBulkCalculatorTargetGroups = useMemo(() => {
+    const query = bulkCalculatorSearch.trim().toLowerCase()
+    if (!query) return bulkCalculatorTargetGroups
+    return bulkCalculatorTargetGroups.filter((group) => {
+      const output = recipeGroupDisplayOutput(group)
+      return group.key.toLowerCase().includes(query) || output.label.toLowerCase().includes(query)
+    })
+  }, [bulkCalculatorSearch, bulkCalculatorTargetGroups])
+  const bulkCalculatorTargetGroup = bulkCalculatorTargetKey
+    ? recipeGroupsByOutputKey.get(bulkCalculatorTargetKey)
+    : undefined
+  const bulkCalculatorBookmarkedTargets = Object.entries(recipeBookmarks)
+    .map(([key, bookmark]) => ({ group: recipeGroupsByOutputKey.get(key), bookmark }))
+    .filter((entry): entry is { group: RecipeGroup; bookmark: { targetAmount: number } } => Boolean(
+      entry.group && (entry.group.output.kind === 'resource' || entry.group.output.kind === 'machine'),
+    ))
+  const bulkCraftPlan = useMemo(() => (
+    bulkCalculatorStep === 'results' && bulkCalculatorTargetGroup
+      ? buildBulkCraftPlan({
+          targetGroup: bulkCalculatorTargetGroup,
+          targetAmount: bulkCalculatorTargetAmount,
+          groupsByOutputKey: recipeGroupsByOutputKey,
+          favorites: recipeFavorites,
+          inventory: {
+            resources: state.resources,
+            machines: unplacedMachineCounts,
+            placedMachines: state.machineInstances.map((instance) => instance.machineId),
+          },
+        })
+      : null
+  ), [
+    bulkCalculatorStep,
+    bulkCalculatorTargetAmount,
+    bulkCalculatorTargetGroup,
+    recipeFavorites,
+    recipeGroupsByOutputKey,
+    state.machineInstances,
+    state.resources,
+    unplacedMachineCounts,
+  ])
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
   const networkCraftableResourceIds = [...new Set(
     state.recipeCards
@@ -6039,6 +5918,7 @@ function App() {
     setTerminalMode('machines')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setSelectedMachineUid(null)
     setPendingProcessInsert(null)
@@ -6053,6 +5933,15 @@ function App() {
     setRecipeSearch('')
     setSelectedRecipeGroupKey(null)
     setSelectedRecipeIndex(0)
+    setRecipeModalView('browser')
+    setIsRecipeModalOpen(true)
+  }
+
+  const handleOpenBulkCalculator = () => {
+    setIsPatternRecipeBookOpen(false)
+    setRecipeModalView('calculator')
+    setBulkCalculatorStep('setup')
+    setBulkCalculatorSearch('')
     setIsRecipeModalOpen(true)
   }
 
@@ -6271,6 +6160,7 @@ function App() {
     setTerminalMode('recipes')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setIsFactoryExpandModalOpen(false)
     setMissingBatch(null)
@@ -6293,6 +6183,7 @@ function App() {
     setTerminalMode('recipes')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setIsFactoryExpandModalOpen(false)
     setMissingBatch(null)
@@ -6315,6 +6206,7 @@ function App() {
     setTerminalMode('recipes')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setIsFactoryExpandModalOpen(false)
     setMissingBatch(null)
@@ -6621,17 +6513,6 @@ function App() {
     : undefined
   const selectedRecipeUnitOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
   const selectedRecipeOutputPerBatch = Math.max(1, Math.floor(selectedRecipeUnitOutput?.amount ?? 1))
-  const selectedRecipePlanBatches = Math.max(1, Math.ceil(recipePlanTargetAmount / selectedRecipeOutputPerBatch))
-  const selectedRecipePlannedOutputAmount = selectedRecipePlanBatches * selectedRecipeOutputPerBatch
-  const selectedRecipePlanTargetLabel = selectedRecipeUnitOutput?.kind === 'fluid'
-    ? `${formatLitres(recipePlanTargetAmount)}L`
-    : formatAmount(recipePlanTargetAmount)
-  const selectedRecipePlannedOutputLabel = selectedRecipeUnitOutput?.kind === 'fluid'
-    ? `${formatLitres(selectedRecipePlannedOutputAmount)}L`
-    : formatAmount(selectedRecipePlannedOutputAmount)
-  useEffect(() => {
-    setRecipePlanTargetAmount(selectedRecipeOutputPerBatch)
-  }, [selectedRecipe?.id, selectedRecipeOutputPerBatch])
   const selectedRecipePreferenceGroupKey = selectedRecipe && selectedRecipeGroup && recipeGroupsByOutputKey.get(selectedRecipeGroup.key)?.recipes.some((recipe) => recipe.id === selectedRecipe.id)
     ? selectedRecipeGroup.key
     : selectedRecipe
@@ -6642,12 +6523,6 @@ function App() {
   const selectedRecipePreferenceGroup = selectedRecipePreferenceGroupKey ? recipeGroupsByOutputKey.get(selectedRecipePreferenceGroupKey) : undefined
   const selectedRecipeIsFavorite = Boolean(
     selectedRecipe && selectedRecipePreferenceGroupKey && recipeFavorites[selectedRecipePreferenceGroupKey] === selectedRecipe.id,
-  )
-  const selectedRecursiveRecipePlan = useMemo(
-    () => selectedRecipe
-      ? buildRecursiveRecipePlan(selectedRecipe, recipeGroupsByOutputKey, recipeFavorites, state, selectedRecipePlanBatches)
-      : null,
-    [recipeFavorites, recipeGroupsByOutputKey, selectedRecipe, selectedRecipePlanBatches, state],
   )
   const missingResourceAmount = (id: ResourceId) => showSelectedRecipeAvailability
     ? selectedRecipeMissing?.missingResources.find((amount) => amount.id === id)?.amount ?? 0
@@ -6692,16 +6567,57 @@ function App() {
         delete next[selectedRecipeGroup.key]
         return next
       }
-      return { ...current, [selectedRecipeGroup.key]: true }
+      return { ...current, [selectedRecipeGroup.key]: { targetAmount: selectedRecipeOutputPerBatch } }
     })
     setTerminalNotice(`${selectedRecipeOutput?.label ?? 'Recipe'} ${isBookmarked ? 'removed from bookmarks.' : 'bookmarked and pinned first.'}`)
   }
-  const handleAdjustRecipePlanTarget = (amount: number) => {
-    setRecipePlanTargetAmount(Math.max(1, Math.min(maxRecipePlanTarget, Math.floor(amount))))
+  const handleAdjustBulkCalculatorTarget = (amount: number) => {
+    setBulkCalculatorTargetAmount(Math.max(1, Math.min(maxRecipePlanTarget, Math.floor(amount))))
   }
-  const handleLoadRecipePlan = () => {
-    if (!selectedRecipe || !recipeFitsTerminalGrid(selectedRecipe)) return
-    handleLoadRecipe(selectedRecipe, selectedRecipePlanBatches, selectedRecipePlannedOutputAmount)
+  const handleSelectBulkCalculatorTarget = (group: RecipeGroup, targetAmount?: number) => {
+    setBulkCalculatorTargetKey(group.key)
+    handleAdjustBulkCalculatorTarget(targetAmount ?? Math.max(1, Math.floor(group.output.amount)))
+    setBulkCalculatorStep('setup')
+  }
+  const handleToggleBulkCalculatorBookmark = () => {
+    if (!bulkCalculatorTargetGroup) return
+    const existing = recipeBookmarks[bulkCalculatorTargetGroup.key]
+    const isCurrentBookmark = existing?.targetAmount === bulkCalculatorTargetAmount
+    setRecipeBookmarks((current) => {
+      if (isCurrentBookmark) {
+        const next = { ...current }
+        delete next[bulkCalculatorTargetGroup.key]
+        return next
+      }
+      return {
+        ...current,
+        [bulkCalculatorTargetGroup.key]: { targetAmount: bulkCalculatorTargetAmount },
+      }
+    })
+  }
+  const handleOpenBulkCalculatorBookmark = (group: RecipeGroup, targetAmount: number) => {
+    setBulkCalculatorTargetKey(group.key)
+    handleAdjustBulkCalculatorTarget(targetAmount)
+    setBulkCalculatorStep('results')
+  }
+  const handleCycleBulkRecipe = (step: BulkCraftRecipeStep, direction: -1 | 1) => {
+    const group = recipeGroupsByOutputKey.get(step.key)
+    if (!group || group.recipes.length < 2) return
+    const currentIndex = Math.max(0, group.recipes.findIndex((recipe) => recipe.id === step.recipe.id))
+    const nextIndex = direction < 0
+      ? currentIndex <= 0 ? group.recipes.length - 1 : currentIndex - 1
+      : (currentIndex + 1) % group.recipes.length
+    setRecipeFavorites((current) => ({ ...current, [step.key]: group.recipes[nextIndex].id }))
+  }
+  const handleToggleBulkRecipeFavorite = (step: BulkCraftRecipeStep) => {
+    setRecipeFavorites((current) => {
+      if (current[step.key] === step.recipe.id) {
+        const next = { ...current }
+        delete next[step.key]
+        return next
+      }
+      return { ...current, [step.key]: step.recipe.id }
+    })
   }
   const renderEquipmentSlot = (slotId: EquipmentSlotId) => {
     const equipped = state.equipment[slotId]
@@ -6802,6 +6718,14 @@ function App() {
       return
     }
     if (isRecipeModalOpen) {
+      if (recipeModalView === 'calculator') {
+        if (bulkCalculatorStep === 'results') {
+          setBulkCalculatorStep('setup')
+          return
+        }
+        setRecipeModalView('browser')
+        return
+      }
       setIsRecipeModalOpen(false)
       return
     }
@@ -7661,6 +7585,7 @@ function App() {
                   setRecipeSearch('')
                   setSelectedRecipeGroupKey(null)
                   setSelectedRecipeIndex(0)
+                  setRecipeModalView('browser')
                   setIsRecipeModalOpen(true)
                 }}
               >
@@ -7881,22 +7806,269 @@ function App() {
           {isRecipeModalOpen && (
             <div className="modal-backdrop recipe-backdrop" role="presentation" onClick={() => setIsRecipeModalOpen(false)}>
               <section
-                className="recipe-modal"
+                className={recipeModalView === 'calculator' ? 'recipe-modal bulk-calculator-modal' : 'recipe-modal'}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Recipe browser"
+                aria-label={recipeModalView === 'calculator' ? 'Bulk crafting calculator' : 'Recipe browser'}
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="modal-head">
-                  <div>
-                    <p className="eyebrow">Recipe browser</p>
-                    <h2>{terminalMode === 'recipes' ? 'Recipes' : 'Machines'}</h2>
+                  <div className="recipe-modal-title">
+                    {recipeModalView === 'calculator' && (
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={bulkCalculatorStep === 'results' ? 'Back to calculator setup' : 'Back to recipes'}
+                        onClick={() => {
+                          if (bulkCalculatorStep === 'results') setBulkCalculatorStep('setup')
+                          else setRecipeModalView('browser')
+                        }}
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                    )}
+                    <div>
+                      <p className="eyebrow">{recipeModalView === 'calculator' ? 'Production planner' : 'Recipe browser'}</p>
+                      <h2>{recipeModalView === 'calculator' ? 'Bulk Calculator' : terminalMode === 'recipes' ? 'Recipes' : 'Machines'}</h2>
+                    </div>
                   </div>
-                  <button type="button" className="icon-button" aria-label="Close recipes" onClick={() => setIsRecipeModalOpen(false)}>
-                    <X size={18} />
-                  </button>
+                  <div className="recipe-modal-head-actions">
+                    {recipeModalView === 'browser' && !isPatternRecipeBookOpen && (
+                      <button type="button" className="icon-button" aria-label="Open bulk calculator" title="Bulk calculator" onClick={handleOpenBulkCalculator}>
+                        <Calculator size={18} />
+                      </button>
+                    )}
+                    <button type="button" className="icon-button" aria-label="Close recipes" onClick={() => setIsRecipeModalOpen(false)}>
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
 
+                {recipeModalView === 'calculator' ? (
+                  <div className="bulk-calculator">
+                    {bulkCalculatorStep === 'setup' ? (
+                      <>
+                        {bulkCalculatorBookmarkedTargets.length > 0 && (
+                          <section className="bulk-calculator-section" aria-label="Saved bulk plans">
+                            <div className="bulk-calculator-section-head">
+                              <span>Saved plans</span>
+                              <small>{bulkCalculatorBookmarkedTargets.length}</small>
+                            </div>
+                            <div className="bulk-bookmark-list">
+                              {bulkCalculatorBookmarkedTargets.map(({ group, bookmark }) => {
+                                const output = recipeGroupDisplayOutput(group)
+                                return (
+                                  <button
+                                    type="button"
+                                    className="bulk-bookmark-row"
+                                    onClick={() => handleOpenBulkCalculatorBookmark(group, bookmark.targetAmount)}
+                                    key={group.key}
+                                  >
+                                    <span className="bulk-calculator-icon"><RecipeDisplayIcon output={output} /></span>
+                                    <span><strong>{output.label}</strong><small>Saved target</small></span>
+                                    <em>{output.kind === 'fluid' ? `${formatLitres(bookmark.targetAmount)}L` : `x${formatAmount(bookmark.targetAmount)}`}</em>
+                                    <ChevronRight size={16} aria-hidden="true" />
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </section>
+                        )}
+
+                        <section className="bulk-calculator-section bulk-target-picker" aria-label="Bulk craft target">
+                          <div className="bulk-calculator-section-head">
+                            <span>Choose target</span>
+                            <small>{filteredBulkCalculatorTargetGroups.length}</small>
+                          </div>
+                          <label className="bulk-calculator-search">
+                            <Search size={15} aria-hidden="true" />
+                            <input
+                              type="search"
+                              placeholder="Search items or machines"
+                              value={bulkCalculatorSearch}
+                              onChange={(event) => setBulkCalculatorSearch(event.currentTarget.value)}
+                            />
+                          </label>
+                          <div className="bulk-target-grid">
+                            {filteredBulkCalculatorTargetGroups.map((group) => {
+                              const output = recipeGroupDisplayOutput(group)
+                              const selected = group.key === bulkCalculatorTargetGroup?.key
+                              return (
+                                <button
+                                  type="button"
+                                  className={selected ? 'bulk-target-button selected' : 'bulk-target-button'}
+                                  aria-label={`Select ${output.label}`}
+                                  title={output.label}
+                                  onClick={() => handleSelectBulkCalculatorTarget(group)}
+                                  key={group.key}
+                                >
+                                  <RecipeDisplayIcon output={output} />
+                                  {recipeBookmarks[group.key] && <Bookmark className="bulk-target-bookmark" size={11} fill="currentColor" aria-hidden="true" />}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </section>
+
+                        {bulkCalculatorTargetGroup && (() => {
+                          const output = recipeGroupDisplayOutput(bulkCalculatorTargetGroup)
+                          return (
+                            <section className="bulk-calculator-section bulk-target-config" aria-label="Target quantity">
+                              <div className="bulk-selected-target">
+                                <span className="bulk-calculator-icon"><RecipeDisplayIcon output={output} /></span>
+                                <span><small>Target</small><strong>{output.label}</strong></span>
+                              </div>
+                              <div className="bulk-quantity-control">
+                                <button type="button" aria-label="Decrease target quantity" disabled={bulkCalculatorTargetAmount <= 1} onClick={() => handleAdjustBulkCalculatorTarget(bulkCalculatorTargetAmount - 1)}>
+                                  <ChevronLeft size={17} />
+                                </button>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="1"
+                                  max={maxRecipePlanTarget}
+                                  aria-label="Bulk target quantity"
+                                  value={bulkCalculatorTargetAmount}
+                                  onChange={(event) => handleAdjustBulkCalculatorTarget(Number(event.currentTarget.value) || 1)}
+                                />
+                                <button type="button" aria-label="Increase target quantity" disabled={bulkCalculatorTargetAmount >= maxRecipePlanTarget} onClick={() => handleAdjustBulkCalculatorTarget(bulkCalculatorTargetAmount + 1)}>
+                                  <ChevronRight size={17} />
+                                </button>
+                              </div>
+                              <div className="bulk-quantity-presets" aria-label="Target quantity presets">
+                                {[...new Set([Math.max(1, Math.floor(output.amount)), 10, 64])].map((amount) => (
+                                  <button type="button" onClick={() => handleAdjustBulkCalculatorTarget(amount)} key={amount}>x{formatAmount(amount)}</button>
+                                ))}
+                              </div>
+                              <button type="button" className="bulk-calculate-button" onClick={() => setBulkCalculatorStep('results')}>
+                                <Calculator size={17} />
+                                Calculate
+                              </button>
+                            </section>
+                          )
+                        })()}
+                      </>
+                    ) : bulkCraftPlan && bulkCalculatorTargetGroup ? (() => {
+                      const targetOutput = recipeGroupDisplayOutput(bulkCalculatorTargetGroup)
+                      const existingBookmark = recipeBookmarks[bulkCalculatorTargetGroup.key]
+                      const currentBookmark = existingBookmark?.targetAmount === bulkCalculatorTargetAmount
+                      return (
+                        <div className="bulk-calculator-results">
+                          <section className="bulk-result-target">
+                            <span className="bulk-calculator-icon large"><RecipeDisplayIcon output={targetOutput} /></span>
+                            <span><small>Production target</small><strong>{targetOutput.label}</strong></span>
+                            <button type="button" className="bulk-edit-target" onClick={() => setBulkCalculatorStep('setup')}>Edit</button>
+                          </section>
+
+                          <div className="bulk-result-metrics" aria-label="Bulk calculation summary">
+                            <span><small>Requested</small><strong>x{formatAmount(bulkCraftPlan.requestedAmount)}</strong></span>
+                            <span><small>Owned</small><strong>x{formatAmount(bulkCraftPlan.targetOwned)}</strong></span>
+                            <span><small>Batches</small><strong>{formatAmount(bulkCraftPlan.rootBatches)}</strong></span>
+                            <span><small>Makes</small><strong>x{formatAmount(bulkCraftPlan.craftedOutputAmount)}</strong></span>
+                          </div>
+
+                          <section className="bulk-calculator-section" aria-label="Base material requirements">
+                            <div className="bulk-calculator-section-head">
+                              <span>Base materials</span>
+                              <small>{bulkCraftPlan.requirements.length}</small>
+                            </div>
+                            {bulkCraftPlan.requirements.length > 0 ? (
+                              <div className="bulk-requirement-list">
+                                {bulkCraftPlan.requirements.map((requirement) => {
+                                  const label = requirement.kind === 'resource'
+                                    ? resourceLabels[requirement.id]
+                                    : requirement.kind === 'machine'
+                                      ? machines[requirement.id].name
+                                      : fluidLabel(requirement.id)
+                                  return (
+                                    <div className={requirement.kind === 'fluid' ? 'bulk-requirement-row fluid' : requirement.short ? 'bulk-requirement-row short' : 'bulk-requirement-row ready'} key={`${requirement.kind}:${requirement.id}`}>
+                                      <span className="bulk-calculator-icon">
+                                        {requirement.kind === 'resource' ? <PixelIcon id={requirement.id} /> : requirement.kind === 'machine' ? <MachineGlyph id={requirement.id} /> : <FluidIcon id={requirement.id} />}
+                                      </span>
+                                      <strong>{label}</strong>
+                                      {requirement.kind === 'fluid' ? (
+                                        <span className="bulk-fluid-required"><small>Required</small><em>{formatLitres(requirement.required)}L</em><small>Stored fluids not checked</small></span>
+                                      ) : (
+                                        <span className="bulk-requirement-counts">
+                                          <span><small>Required</small><em>x{formatAmount(requirement.required)}</em></span>
+                                          <span><small>Owned</small><em>x{formatAmount(requirement.owned ?? 0)}</em></span>
+                                          <span><small>Short</small><em>x{formatAmount(requirement.short ?? 0)}</em></span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <p className="bulk-empty-state">Inventory already covers this target.</p>
+                            )}
+                          </section>
+
+                          {bulkCraftPlan.setup.length > 0 && (
+                            <section className="bulk-calculator-section" aria-label="Required setup">
+                              <div className="bulk-calculator-section-head"><span>Required setup</span><small>{bulkCraftPlan.setup.length}</small></div>
+                              <div className="bulk-setup-list">
+                                {bulkCraftPlan.setup.map((requirement) => {
+                                  const label = requirement.kind === 'resource' ? resourceLabels[requirement.id] : machines[requirement.id].name
+                                  return (
+                                    <div className={requirement.short > 0 ? 'bulk-setup-row short' : 'bulk-setup-row ready'} key={`${requirement.reason}:${requirement.id}`}>
+                                      <span>{requirement.reason === 'catalyst' ? 'Tool' : 'Station'}</span>
+                                      <strong>{label}</strong>
+                                      <em>{requirement.short > 0 ? 'Missing' : 'Ready'}</em>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </section>
+                          )}
+
+                          <section className="bulk-calculator-section" aria-label="Recipe route">
+                            <div className="bulk-calculator-section-head"><span>Recipe route</span><small>{bulkCraftPlan.recipeSteps.length}</small></div>
+                            <div className="bulk-route-list">
+                              {bulkCraftPlan.recipeSteps.map((step) => {
+                                const label = step.kind === 'resource' ? resourceLabels[step.id] : step.kind === 'machine' ? machines[step.id].name : fluidLabel(step.id)
+                                return (
+                                  <div className="bulk-route-row" style={{ '--recipe-depth': step.depth } as CSSProperties} key={step.key}>
+                                    <span className="bulk-calculator-icon">
+                                      {step.kind === 'resource' ? <PixelIcon id={step.id} /> : step.kind === 'machine' ? <MachineGlyph id={step.id} /> : <FluidIcon id={step.id} />}
+                                    </span>
+                                    <span className="bulk-route-copy"><strong>{label}</strong><small>{step.sourceChoice === 'favorite' ? 'Favorite' : 'Default'} · {recipeDisplayName(step.recipe)} · {formatAmount(step.batches)} batches</small></span>
+                                    {step.variantCount > 1 && (
+                                      <span className="bulk-route-actions">
+                                        <button type="button" aria-label={`Previous recipe for ${label}`} onClick={() => handleCycleBulkRecipe(step, -1)}><ChevronLeft size={14} /></button>
+                                        <button type="button" className={step.sourceChoice === 'favorite' ? 'active' : ''} aria-label={step.sourceChoice === 'favorite' ? `Clear favorite for ${label}` : `Favorite recipe for ${label}`} onClick={() => handleToggleBulkRecipeFavorite(step)}><Star size={14} fill={step.sourceChoice === 'favorite' ? 'currentColor' : 'none'} /></button>
+                                        <button type="button" aria-label={`Next recipe for ${label}`} onClick={() => handleCycleBulkRecipe(step, 1)}><ChevronRight size={14} /></button>
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </section>
+
+                          {bulkCraftPlan.warnings.length > 0 && (
+                            <div className="bulk-plan-warnings" role="status">
+                              {bulkCraftPlan.warnings.map((warning) => {
+                                const group = recipeGroupsByOutputKey.get(warning.key)
+                                const label = group ? recipeGroupDisplayOutput(group).label : warning.key
+                                const reason = warning.kind === 'cycle' ? 'Recipe cycle' : warning.kind === 'depth-limit' ? 'Planning depth reached' : warning.kind === 'row-limit' ? 'Plan size reached' : 'Recipe unavailable'
+                                return <span key={`${warning.kind}:${warning.key}`}><strong>{reason}</strong>{label}</span>
+                              })}
+                            </div>
+                          )}
+
+                          <button type="button" className={currentBookmark ? 'bulk-bookmark-action active' : 'bulk-bookmark-action'} onClick={handleToggleBulkCalculatorBookmark}>
+                            <Bookmark size={17} fill={currentBookmark ? 'currentColor' : 'none'} />
+                            {currentBookmark ? 'Remove bookmark' : existingBookmark ? 'Update bookmark' : 'Bookmark plan'}
+                          </button>
+                        </div>
+                      )
+                    })() : (
+                      <p className="bulk-empty-state">Choose a target to calculate.</p>
+                    )}
+                  </div>
+                ) : (
+                  <>
                 <input
                   className="recipe-search"
                   type="search"
@@ -8434,145 +8606,6 @@ function App() {
                         </div>
                       )}
 
-                      {selectedRecursiveRecipePlan && selectedRecursiveRecipePlan.lines.length > 0 && (
-                        <section className="recursive-recipe-plan" aria-label="Recursive recipe requirements">
-                          <div className="recipe-slot-heading">
-                            <span>Material plan</span>
-                            <small>{selectedRecipePlanTargetLabel} target</small>
-                          </div>
-                          <div className="recursive-plan-target">
-                            <div className="recursive-plan-target-main">
-                              <span>Output amount</span>
-                              <div>
-                                <button
-                                  type="button"
-                                  aria-label="Decrease planned output"
-                                  disabled={recipePlanTargetAmount <= 1}
-                                  onClick={() => handleAdjustRecipePlanTarget(recipePlanTargetAmount - 1)}
-                                >
-                                  <ChevronLeft size={15} />
-                                </button>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min="1"
-                                  max={maxRecipePlanTarget}
-                                  aria-label="Planned output amount"
-                                  value={recipePlanTargetAmount}
-                                  onChange={(event) => handleAdjustRecipePlanTarget(Number(event.currentTarget.value) || 1)}
-                                />
-                                <button
-                                  type="button"
-                                  aria-label="Increase planned output"
-                                  disabled={recipePlanTargetAmount >= maxRecipePlanTarget}
-                                  onClick={() => handleAdjustRecipePlanTarget(recipePlanTargetAmount + 1)}
-                                >
-                                  <ChevronRight size={15} />
-                                </button>
-                              </div>
-                            </div>
-                            <div className="recursive-plan-target-quick" aria-label="Planned output presets">
-                              {[...new Set([selectedRecipeOutputPerBatch, 10, 64])].map((amount) => (
-                                <button type="button" onClick={() => handleAdjustRecipePlanTarget(amount)} key={amount}>
-                                  x{formatAmount(amount)}
-                                </button>
-                              ))}
-                            </div>
-                            <div className="recursive-plan-target-result">
-                              <span>{formatAmount(selectedRecipePlanBatches)} batches</span>
-                              <strong>Makes {selectedRecipePlannedOutputLabel}</strong>
-                            </div>
-                            {!isPatternRecipeBookOpen && selectedRecipe && recipeFitsTerminalGrid(selectedRecipe) && (
-                              <button type="button" className="recursive-plan-bulk-action" onClick={handleLoadRecipePlan}>
-                                <Calculator size={15} />
-                                Load bulk craft
-                              </button>
-                            )}
-                          </div>
-                          <div className="recursive-plan-list">
-                            {selectedRecursiveRecipePlan.lines.map((line, index) => {
-                              const label = line.kind === 'resource'
-                                ? resourceLabels[line.id]
-                                : line.kind === 'machine'
-                                  ? machines[line.id].name
-                                  : fluidLabel(line.id)
-                              const amountLabel = line.kind === 'fluid' ? `${formatLitres(line.amount)}L` : `x${formatAmount(line.amount)}`
-                              const missingLabel = line.kind === 'fluid' ? `${formatLitres(line.missing)}L` : `x${formatAmount(line.missing)}`
-                              const craftedAmount = line.sourceBatches && line.sourceOutputAmount
-                                ? line.sourceBatches * line.sourceOutputAmount
-                                : 0
-                              const craftedLabel = line.kind === 'fluid' ? `${formatLitres(craftedAmount)}L` : `x${formatAmount(craftedAmount)}`
-                              return (
-                                <button
-                                  type="button"
-                                  className={[
-                                    'recursive-plan-row',
-                                    line.missing > 0 ? 'missing' : 'ready',
-                                    line.sourceBatches ? 'crafted' : '',
-                                  ].join(' ')}
-                                  style={{ '--recipe-depth': line.depth } as CSSProperties}
-                                  onClick={() => {
-                                    if (line.kind === 'resource') handleJumpToResourceRecipe(line.id)
-                                    else if (line.kind === 'machine') handleJumpToMachineRecipe(line.id)
-                                    else handleJumpToFluidRecipe(line.id)
-                                  }}
-                                  key={`${line.kind}:${line.id}:${line.depth}:${index}`}
-                                >
-                                  <span className="recursive-plan-icon">
-                                    {line.kind === 'resource'
-                                      ? <PixelIcon id={line.id} />
-                                      : line.kind === 'machine'
-                                        ? <MachineGlyph id={line.id} />
-                                        : <FluidIcon id={line.id} />}
-                                  </span>
-                                  <span className="recursive-plan-copy">
-                                    <strong>{label}</strong>
-                                    <small>
-                                      {line.sourceBatches && line.sourceRecipe
-                                        ? `${line.sourceChoice === 'favorite' ? 'Favorite' : 'Default'}: ${recipeDisplayName(line.sourceRecipe)} ${craftedLabel}`
-                                        : line.missing > 0 && line.sourceRecipe && (line.cycle || line.depthLimit)
-                                          ? `${line.cycle ? 'Cycle' : 'Depth limit'}: ${recipeDisplayName(line.sourceRecipe)}`
-                                          : line.variantCount > 1 && line.sourceRecipe
-                                            ? `${line.sourceChoice === 'favorite' ? 'Favorite' : 'Default'}: ${recipeDisplayName(line.sourceRecipe)}`
-                                            : 'Base requirement'}
-                                    </small>
-                                  </span>
-                                  <span className="recursive-plan-amounts">
-                                    <strong>{amountLabel}</strong>
-                                    {line.missing > 0 ? <em>Short {missingLabel}</em> : <em>Ready</em>}
-                                  </span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                          {(selectedRecursiveRecipePlan.leafResources.length > 0 || selectedRecursiveRecipePlan.leafMachines.length > 0 || selectedRecursiveRecipePlan.leafFluids.length > 0 || selectedRecursiveRecipePlan.truncated) && (
-                            <div className="recursive-plan-summary">
-                              <span>Still missing</span>
-                              <div>
-                                {selectedRecursiveRecipePlan.leafResources.map((amount) => (
-                                  <button type="button" className="recipe-name-chip missing" onClick={() => handleJumpToResourceRecipe(amount.id)} key={amount.id}>
-                                    <span>{resourceLabels[amount.id]}</span>
-                                    <strong>x{formatAmount(amount.amount)}</strong>
-                                  </button>
-                                ))}
-                                {selectedRecursiveRecipePlan.leafMachines.map((amount) => (
-                                  <button type="button" className="recipe-name-chip missing" onClick={() => handleJumpToMachineRecipe(amount.id)} key={amount.id}>
-                                    <span>{machines[amount.id].name}</span>
-                                    <strong>x{formatAmount(amount.amount)}</strong>
-                                  </button>
-                                ))}
-                                {selectedRecursiveRecipePlan.leafFluids.map((amount) => (
-                                  <button type="button" className="recipe-name-chip missing" onClick={() => handleJumpToFluidRecipe(amount.id)} key={amount.id}>
-                                    <span>{fluidLabel(amount.id)}</span>
-                                    <strong>{formatLitres(amount.amount)}L</strong>
-                                  </button>
-                                ))}
-                                {selectedRecursiveRecipePlan.truncated && <span className="recipe-plan-truncated">More steps</span>}
-                              </div>
-                            </div>
-                          )}
-                        </section>
-                      )}
 
                       {selectedRecipeProcessStats && (
                         <div className="recipe-process-summary" aria-label="Recipe process stats">
@@ -8599,6 +8632,8 @@ function App() {
                     </aside>
                   )}
                 </div>
+                  </>
+                )}
               </section>
             </div>
           )}
