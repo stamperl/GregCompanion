@@ -11992,6 +11992,46 @@ button.craft-output:disabled {
   font-style: normal;
 }
 
+.bulk-route-method {
+  align-items: center;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.bulk-route-method-icon {
+  align-items: center;
+  display: flex;
+  height: 15px;
+  justify-content: center;
+  width: 15px;
+}
+
+.bulk-route-method-icon .machine-glyph {
+  height: 14px;
+  width: 14px;
+}
+
+.bulk-route-method > em {
+  color: #373329;
+  font: 850 0.52rem Inter, ui-sans-serif, system-ui, sans-serif;
+  font-style: normal;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulk-route-method > b {
+  background: #595548;
+  color: #fff;
+  font: 950 0.48rem "Courier New", ui-monospace, monospace;
+  padding: 1px 3px;
+  white-space: nowrap;
+}
+
 .bulk-bookmark-row > em {
   font: 950 0.66rem "Courier New", ui-monospace, monospace;
   font-style: normal;
@@ -12312,7 +12352,7 @@ button.craft-output:disabled {
 
 .bulk-route-row {
   grid-template-columns: 38px minmax(0, 1fr) auto;
-  min-height: 48px;
+  min-height: 58px;
   padding-left: calc(5px + min(var(--recipe-depth, 0), 3) * 8px);
 }
 

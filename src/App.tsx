@@ -8085,6 +8085,11 @@ function App() {
                             <div className="bulk-route-list">
                               {bulkCraftPlan.recipeSteps.map((step) => {
                                 const label = step.kind === 'resource' ? resourceLabels[step.id] : step.kind === 'machine' ? machines[step.id].name : fluidLabel(step.id)
+                                const group = recipeGroupsByOutputKey.get(step.key)
+                                const variantIndex = Math.max(0, group?.recipes.findIndex((recipe) => recipe.id === step.recipe.id) ?? 0)
+                                const previousRecipe = group?.recipes[(variantIndex - 1 + step.variantCount) % step.variantCount]
+                                const nextRecipe = group?.recipes[(variantIndex + 1) % step.variantCount]
+                                const stationLabel = step.recipe.requiredMachine ? machines[step.recipe.requiredMachine].name : 'Crafting grid'
                                 return (
                                   <div className="bulk-route-row" style={{ '--recipe-depth': step.depth } as CSSProperties} key={step.key}>
                                     <button
@@ -8098,6 +8103,13 @@ function App() {
                                     </button>
                                     <span className="bulk-route-copy">
                                       <strong>{label}</strong>
+                                      <span className="bulk-route-method" title={`${step.recipe.name} at ${stationLabel}`}>
+                                        <span className="bulk-route-method-icon" aria-hidden="true">
+                                          {step.recipe.requiredMachine ? <MachineGlyph id={step.recipe.requiredMachine} /> : <LayoutGrid size={13} />}
+                                        </span>
+                                        <em>{step.recipe.name}</em>
+                                        <b>{variantIndex + 1}/{step.variantCount}</b>
+                                      </span>
                                       <small>
                                         <span aria-label={step.sourceChoice === 'favorite' ? 'Favorite recipe' : 'Default recipe'} title={step.sourceChoice === 'favorite' ? 'Favorite recipe' : 'Default recipe'}>
                                           {step.sourceChoice === 'favorite' ? <Star size={11} fill="currentColor" aria-hidden="true" /> : <Route size={11} aria-hidden="true" />}
@@ -8107,9 +8119,9 @@ function App() {
                                     </span>
                                     {step.variantCount > 1 && (
                                       <span className="bulk-route-actions">
-                                        <button type="button" aria-label={`Previous recipe for ${label}`} onClick={() => handleCycleBulkRecipe(step, -1)}><ChevronLeft size={14} /></button>
+                                        <button type="button" aria-label={`Use ${previousRecipe?.name ?? 'previous recipe'} for ${label}`} title={previousRecipe?.name} onClick={() => handleCycleBulkRecipe(step, -1)}><ChevronLeft size={14} /></button>
                                         <button type="button" className={step.sourceChoice === 'favorite' ? 'active' : ''} aria-label={step.sourceChoice === 'favorite' ? `Clear favorite for ${label}` : `Favorite recipe for ${label}`} onClick={() => handleToggleBulkRecipeFavorite(step)}><Star size={14} fill={step.sourceChoice === 'favorite' ? 'currentColor' : 'none'} /></button>
-                                        <button type="button" aria-label={`Next recipe for ${label}`} onClick={() => handleCycleBulkRecipe(step, 1)}><ChevronRight size={14} /></button>
+                                        <button type="button" aria-label={`Use ${nextRecipe?.name ?? 'next recipe'} for ${label}`} title={nextRecipe?.name} onClick={() => handleCycleBulkRecipe(step, 1)}><ChevronRight size={14} /></button>
                                       </span>
                                     )}
                                   </div>
