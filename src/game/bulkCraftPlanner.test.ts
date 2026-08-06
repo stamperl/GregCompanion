@@ -45,6 +45,29 @@ describe('bulk craft planner', () => {
     expect(plan.requirements).toContainEqual({ kind: 'resource', id: 'log', required: 1, owned: 1, short: 0 })
   })
 
+  it('shows fully owned craftable inputs instead of hiding them from the plan', () => {
+    const recipes = [
+      recipe('steel-rods', 'steelRod', 2, [{ id: 'steelIngot', amount: 1 }]),
+      recipe('diamond-shovel', 'diamondShovel', 1, [
+        { id: 'diamond', amount: 1 },
+        { id: 'steelRod', amount: 2 },
+      ]),
+    ]
+    const plan = planFor(recipes, 'diamondShovel', 1, { diamond: 1, steelRod: 2 })
+
+    expect(plan.requirements).toContainEqual({ kind: 'resource', id: 'diamond', required: 1, owned: 1, short: 0 })
+    expect(plan.requirements).toContainEqual({ kind: 'resource', id: 'steelRod', required: 2, owned: 2, short: 0 })
+    expect(plan.recipeSteps.map((step) => step.key)).toEqual(['resource:diamondShovel'])
+  })
+
+  it('does not list a fully owned target as its own material requirement', () => {
+    const recipes = [recipe('diamond-shovel', 'diamondShovel', 1, [{ id: 'diamond', amount: 1 }])]
+    const plan = planFor(recipes, 'diamondShovel', 1, { diamondShovel: 1 })
+
+    expect(plan.rootBatches).toBe(0)
+    expect(plan.requirements).toEqual([])
+  })
+
   it('uses favorites for root and subcrafts and falls back to the first recipe', () => {
     const recipes = [
       recipe('planks-default', 'plank', 4, [{ id: 'log', amount: 1 }]),

@@ -227,7 +227,9 @@ export function buildBulkCraftPlan({
     const key = ingredientKey(ingredient)
     const availability = reserve(ingredient, amount)
     if (availability.short <= 0) {
-      if (!groupsByOutputKey.get(key)) addRequirement(ingredient, amount, availability.owned, 0)
+      // Owned subcrafts are still direct requirements for the requested plan.
+      // Keep a fully owned root target out of the material list.
+      if (depth > 0 || !groupsByOutputKey.get(key)) addRequirement(ingredient, amount, availability.owned, 0)
       return { batches: 0, crafted: 0, owned: availability.owned ?? 0, short: 0 }
     }
     if (visitedRows > maxRows) {
