@@ -108,6 +108,45 @@ describe('bulk craft planner', () => {
     expect(plan.requirements).toContainEqual({ kind: 'fluid', id: 'water', required: 8 })
   })
 
+  it('keeps unfavourited subcraft fluids as base requirements instead of using by-product routes', () => {
+    const wetPlank: Recipe = {
+      ...recipe('wet-plank', 'plank', 1, [{ id: 'log', amount: 1 }]),
+      fluidInputs: [{ id: 'water', amount: 5 }],
+    }
+    const acidRecovery: Recipe = {
+      ...recipe('recover-acid', 'stick', 1, []),
+      outputs: [],
+      fluidInputs: [{ id: 'dilutedSulfuricAcid', amount: 8 }],
+      fluidOutputs: [{ id: 'water', amount: 5 }],
+    }
+
+    const plan = planFor([wetPlank, acidRecovery], 'plank', 1)
+
+    expect(plan.requirements).toContainEqual({ kind: 'fluid', id: 'water', required: 5 })
+    expect(plan.requirements.some((requirement) => requirement.id === 'dilutedSulfuricAcid')).toBe(false)
+    expect(plan.recipeSteps.some((step) => step.recipe.id === 'recover-acid')).toBe(false)
+  })
+
+  it('expands a subcraft fluid when its production route is favourited', () => {
+    const wetPlank: Recipe = {
+      ...recipe('wet-plank', 'plank', 1, [{ id: 'log', amount: 1 }]),
+      fluidInputs: [{ id: 'water', amount: 5 }],
+    }
+    const acidRecovery: Recipe = {
+      ...recipe('recover-acid', 'stick', 1, []),
+      outputs: [],
+      fluidInputs: [{ id: 'dilutedSulfuricAcid', amount: 8 }],
+      fluidOutputs: [{ id: 'water', amount: 5 }],
+    }
+
+    const plan = planFor([wetPlank, acidRecovery], 'plank', 1, {}, {
+      'fluid:water': 'recover-acid',
+    })
+
+    expect(plan.requirements).toContainEqual({ kind: 'fluid', id: 'dilutedSulfuricAcid', required: 8 })
+    expect(plan.recipeSteps.some((step) => step.recipe.id === 'recover-acid')).toBe(true)
+  })
+
   it('reports cycles and depth limits instead of recursing forever', () => {
     const cyclic = [
       recipe('plank-from-stick', 'plank', 1, [{ id: 'stick', amount: 1 }]),
@@ -125,6 +164,22 @@ describe('bulk craft planner', () => {
 
     expect(cyclePlan.warnings).toContainEqual({ kind: 'cycle', key: 'resource:plank' })
     expect(depthPlan.warnings).toContainEqual({ kind: 'depth-limit', key: 'resource:stick' })
+  })
+
+  it('expands long production chains without falling back to intermediate materials', () => {
+    const ids = ['plank', 'stick', 'woodenGear', 'stoneGear', 'ironGear', 'steelGear', 'bronzeGear', 'tinGear'] as ResourceId[]
+    const recipes = ids.map((output, index) => recipe(
+      `step-${index}`,
+      output,
+      1,
+      [{ id: index === 0 ? 'log' : ids[index - 1], amount: 1 }],
+    ))
+
+    const plan = planFor(recipes, 'tinGear', 1)
+
+    expect(plan.requirements).toEqual([{ kind: 'resource', id: 'log', required: 1, owned: 0, short: 1 }])
+    expect(plan.recipeSteps).toHaveLength(ids.length)
+    expect(plan.warnings).toEqual([])
   })
 })
 

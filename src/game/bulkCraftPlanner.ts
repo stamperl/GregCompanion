@@ -65,8 +65,8 @@ export type BuildBulkCraftPlanOptions = {
   maxRows?: number
 }
 
-const defaultMaxDepth = 6
-const defaultMaxRows = 42
+const defaultMaxDepth = 16
+const defaultMaxRows = 512
 
 function ingredientKey(ingredient: BulkCraftIngredient) {
   return `${ingredient.kind}:${ingredient.id}`
@@ -236,6 +236,14 @@ export function buildBulkCraftPlan({
       addRequirement(ingredient, amount, availability.owned, availability.short)
       addWarning('row-limit', key)
       return { batches: 0, crafted: 0, owned: availability.owned ?? 0, short: availability.short }
+    }
+
+    // Fluids commonly appear as secondary or recovery outputs. Without an
+    // explicit preference, treating those recipes as supply routes can turn a
+    // simple water requirement into a backwards chemical chain.
+    if (ingredient.kind === 'fluid' && depth > 0 && !favorites[key]) {
+      addRequirement(ingredient, amount, undefined, undefined)
+      return { batches: 0, crafted: 0, owned: 0, short: amount }
     }
 
     const group = groupsByOutputKey.get(key)
