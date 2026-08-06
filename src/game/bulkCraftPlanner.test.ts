@@ -147,6 +147,27 @@ describe('bulk craft planner', () => {
     expect(plan.recipeSteps.some((step) => step.recipe.id === 'recover-acid')).toBe(true)
   })
 
+  it('keeps gathered subcraft resources as base requirements', () => {
+    const recipes = [
+      recipe('grow-rubber-trees', 'rubberSap', 1, [{ id: 'log', amount: 1 }]),
+      recipe('smelt-rubber', 'rubber', 1, [{ id: 'rubberSap', amount: 1 }]),
+    ]
+    const groups = groupRecipesByOutput(recipes)
+    const groupsByOutputKey = new Map(groups.map((group) => [group.key, group]))
+    const plan = buildBulkCraftPlan({
+      targetGroup: groupsByOutputKey.get('resource:rubber')!,
+      targetAmount: 3,
+      groupsByOutputKey,
+      favorites: {},
+      baseResourceIds: new Set<ResourceId>(['rubberSap']),
+      inventory: { resources: {}, machines: {} },
+    })
+
+    expect(plan.requirements).toContainEqual({ kind: 'resource', id: 'rubberSap', required: 3, owned: 0, short: 3 })
+    expect(plan.requirements.some((requirement) => requirement.id === 'log')).toBe(false)
+    expect(plan.recipeSteps.map((step) => step.key)).toEqual(['resource:rubber'])
+  })
+
   it('reports cycles and depth limits instead of recursing forever', () => {
     const cyclic = [
       recipe('plank-from-stick', 'plank', 1, [{ id: 'stick', amount: 1 }]),

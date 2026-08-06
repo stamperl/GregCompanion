@@ -61,6 +61,7 @@ export type BuildBulkCraftPlanOptions = {
   groupsByOutputKey: Map<string, RecipeGroup>
   favorites: RecipeFavoriteMap
   inventory: BulkCraftInventory
+  baseResourceIds?: ReadonlySet<ResourceId>
   maxDepth?: number
   maxRows?: number
 }
@@ -130,6 +131,7 @@ export function buildBulkCraftPlan({
   groupsByOutputKey,
   favorites,
   inventory,
+  baseResourceIds = new Set<ResourceId>(),
   maxDepth = defaultMaxDepth,
   maxRows = defaultMaxRows,
 }: BuildBulkCraftPlanOptions): BulkCraftPlan {
@@ -235,6 +237,13 @@ export function buildBulkCraftPlan({
     if (visitedRows > maxRows) {
       addRequirement(ingredient, amount, availability.owned, availability.short)
       addWarning('row-limit', key)
+      return { batches: 0, crafted: 0, owned: availability.owned ?? 0, short: availability.short }
+    }
+
+    // Gathered resources are terminal inputs when they appear inside a plan.
+    // They can still use a production route when selected as the root target.
+    if (ingredient.kind === 'resource' && depth > 0 && baseResourceIds.has(ingredient.id)) {
+      addRequirement(ingredient, amount, availability.owned, availability.short)
       return { batches: 0, crafted: 0, owned: availability.owned ?? 0, short: availability.short }
     }
 

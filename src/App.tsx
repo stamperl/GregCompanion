@@ -767,6 +767,9 @@ function PipeFlowArrows({ direction, mode }: { direction: PipeDirection; mode: P
 }
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
+const bulkPlanBaseResourceIds = new Set<ResourceId>(
+  Object.values(gatherTargets).flatMap((target) => target.drops.map((drop) => drop.id)),
+)
 
 type GatherAreaId = 'forest' | 'lake' | 'mine' | 'shatteredReach'
 
@@ -4127,6 +4130,7 @@ function App() {
           targetAmount: bulkCalculatorTargetAmount,
           groupsByOutputKey: recipeGroupsByOutputKey,
           favorites: recipeFavorites,
+          baseResourceIds: bulkPlanBaseResourceIds,
           inventory: {
             resources: state.resources,
             machines: unplacedMachineCounts,
