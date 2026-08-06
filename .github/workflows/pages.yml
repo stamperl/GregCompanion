@@ -32,15 +32,20 @@ jobs:
 
       - name: Set deployment metadata
         run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
           echo "VITE_DEPLOYED_AT=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
           if [ "${GITHUB_REF_NAME}" = "remote-dev" ]; then
+            dev_revision=$(node -p "require('./src/dev-manifest.json').revision")
             echo "GITHUB_PAGES_PATH=remote-dev" >> "$GITHUB_ENV"
             echo "VITE_RELEASE_CHANNEL=remote-dev" >> "$GITHUB_ENV"
             echo "VITE_RELEASE_REVISION=dev-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
             echo "VITE_RELEASE_TITLE=Remote test build" >> "$GITHUB_ENV"
             echo "VITE_RELEASE_NOTES=Remote GitHub Pages test lane|Not the public player release" >> "$GITHUB_ENV"
+            echo "PAGES_DEPLOY_URL=https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/remote-dev/" >> "$GITHUB_ENV"
+            echo "PAGES_EXPECTED_DEV_REVISION=${dev_revision}" >> "$GITHUB_ENV"
           else
             echo "VITE_RELEASE_CHANNEL=release" >> "$GITHUB_ENV"
+            echo "PAGES_DEPLOY_URL=https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/" >> "$GITHUB_ENV"
           fi
 
       - name: Build
@@ -80,3 +85,6 @@ jobs:
           fi
           git commit -m "Deploy ${GITHUB_REF_NAME} ${GITHUB_SHA}"
           git push origin HEAD:gh-pages --force
+
+      - name: Verify published site
+        run: node scripts/verify-pages-deployment.mjs
