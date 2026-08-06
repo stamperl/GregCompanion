@@ -12010,6 +12010,22 @@ button.craft-output:disabled {
   width: 36px;
 }
 
+.bulk-navigation-icon {
+  color: inherit;
+  cursor: pointer;
+  min-height: 0;
+  padding: 0;
+}
+
+.bulk-navigation-icon:hover {
+  filter: brightness(1.12);
+}
+
+.bulk-navigation-icon:focus-visible {
+  outline: 2px solid #fff8aa;
+  outline-offset: 1px;
+}
+
 .bulk-calculator-icon.large {
   height: 44px;
   width: 44px;
@@ -12349,6 +12365,11 @@ button.craft-output:disabled {
   height: 28px;
   justify-content: center;
   width: 28px;
+}
+
+.bulk-warning-icon.bulk-navigation-icon {
+  background: transparent;
+  border: 0;
 }
 
 .bulk-warning-icon .pixel-icon,

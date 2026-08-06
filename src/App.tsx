@@ -304,6 +304,7 @@ import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipe
 import {
   buildBulkCraftPlan,
   parseRecipePlanBookmarks,
+  type BulkCraftIngredient,
   type BulkCraftRecipeStep,
   type RecipeFavoriteMap,
   type RecipePlanBookmarkMap,
@@ -6622,6 +6623,17 @@ function App() {
       return { ...current, [step.key]: step.recipe.id }
     })
   }
+  const handleJumpFromBulkCalculator = (ingredient: BulkCraftIngredient) => {
+    if (ingredient.kind === 'resource') {
+      handleJumpToResourceRecipe(ingredient.id)
+      return
+    }
+    if (ingredient.kind === 'machine') {
+      handleJumpToMachineRecipe(ingredient.id)
+      return
+    }
+    handleJumpToFluidRecipe(ingredient.id)
+  }
   const renderEquipmentSlot = (slotId: EquipmentSlotId) => {
     const equipped = state.equipment[slotId]
     const selectedFits = Boolean(selectedResource && equipmentSlotAccepts(slotId, selectedResource))
@@ -7918,7 +7930,15 @@ function App() {
                           return (
                             <section className="bulk-calculator-section bulk-target-config" aria-label="Target quantity">
                               <div className="bulk-selected-target">
-                                <span className="bulk-calculator-icon"><RecipeDisplayIcon output={output} /></span>
+                                <button
+                                  type="button"
+                                  className="bulk-calculator-icon bulk-navigation-icon"
+                                  aria-label={`Open ${output.label}`}
+                                  title={`Open ${output.label}`}
+                                  onClick={() => handleJumpFromBulkCalculator(output)}
+                                >
+                                  <RecipeDisplayIcon output={output} />
+                                </button>
                                 <span><small>Target</small><strong>{output.label}</strong></span>
                               </div>
                               <div className="bulk-quantity-control">
@@ -7958,7 +7978,15 @@ function App() {
                       return (
                         <div className="bulk-calculator-results">
                           <section className="bulk-result-target">
-                            <span className="bulk-calculator-icon large"><RecipeDisplayIcon output={targetOutput} /></span>
+                            <button
+                              type="button"
+                              className="bulk-calculator-icon bulk-navigation-icon large"
+                              aria-label={`Open ${targetOutput.label}`}
+                              title={`Open ${targetOutput.label}`}
+                              onClick={() => handleJumpFromBulkCalculator(targetOutput)}
+                            >
+                              <RecipeDisplayIcon output={targetOutput} />
+                            </button>
                             <span><small>Production target</small><strong>{targetOutput.label}</strong></span>
                             <button type="button" className="bulk-edit-target" onClick={() => setBulkCalculatorStep('setup')}>Edit</button>
                           </section>
@@ -7981,13 +8009,19 @@ function App() {
                                   const label = requirement.kind === 'resource'
                                     ? resourceLabels[requirement.id]
                                     : requirement.kind === 'machine'
-                                      ? machines[requirement.id].name
+                                    ? machines[requirement.id].name
                                       : fluidLabel(requirement.id)
                                   return (
                                     <div className={requirement.kind === 'fluid' ? 'bulk-requirement-row fluid' : requirement.short ? 'bulk-requirement-row short' : 'bulk-requirement-row ready'} key={`${requirement.kind}:${requirement.id}`}>
-                                      <span className="bulk-calculator-icon">
+                                      <button
+                                        type="button"
+                                        className="bulk-calculator-icon bulk-navigation-icon"
+                                        aria-label={`Open ${label}`}
+                                        title={`Open ${label}`}
+                                        onClick={() => handleJumpFromBulkCalculator(requirement)}
+                                      >
                                         {requirement.kind === 'resource' ? <PixelIcon id={requirement.id} /> : requirement.kind === 'machine' ? <MachineGlyph id={requirement.id} /> : <FluidIcon id={requirement.id} />}
-                                      </span>
+                                      </button>
                                       <strong>{label}</strong>
                                       {requirement.kind === 'fluid' ? (
                                         <span className="bulk-fluid-required" aria-label={`${formatLitres(requirement.required)} litres required. Stored fluids not checked.`}>
@@ -8019,9 +8053,15 @@ function App() {
                                   const label = requirement.kind === 'resource' ? resourceLabels[requirement.id] : machines[requirement.id].name
                                   return (
                                     <div className={requirement.short > 0 ? 'bulk-setup-row short' : 'bulk-setup-row ready'} key={`${requirement.reason}:${requirement.id}`}>
-                                      <span className="bulk-calculator-icon">
+                                      <button
+                                        type="button"
+                                        className="bulk-calculator-icon bulk-navigation-icon"
+                                        aria-label={`Open ${label}`}
+                                        title={`Open ${label}`}
+                                        onClick={() => handleJumpFromBulkCalculator(requirement)}
+                                      >
                                         {requirement.kind === 'resource' ? <PixelIcon id={requirement.id} /> : <MachineGlyph id={requirement.id} />}
-                                      </span>
+                                      </button>
                                       <strong>{label}</strong>
                                       <span
                                         className="bulk-setup-kind"
@@ -8047,9 +8087,15 @@ function App() {
                                 const label = step.kind === 'resource' ? resourceLabels[step.id] : step.kind === 'machine' ? machines[step.id].name : fluidLabel(step.id)
                                 return (
                                   <div className="bulk-route-row" style={{ '--recipe-depth': step.depth } as CSSProperties} key={step.key}>
-                                    <span className="bulk-calculator-icon">
+                                    <button
+                                      type="button"
+                                      className="bulk-calculator-icon bulk-navigation-icon"
+                                      aria-label={`Open ${label}`}
+                                      title={`Open ${label}`}
+                                      onClick={() => handleJumpFromBulkCalculator(step)}
+                                    >
                                       {step.kind === 'resource' ? <PixelIcon id={step.id} /> : step.kind === 'machine' ? <MachineGlyph id={step.id} /> : <FluidIcon id={step.id} />}
-                                    </span>
+                                    </button>
                                     <span className="bulk-route-copy">
                                       <strong>{label}</strong>
                                       <small>
@@ -8081,7 +8127,17 @@ function App() {
                                 const output = group ? recipeGroupDisplayOutput(group) : null
                                 return (
                                   <span key={`${warning.kind}:${warning.key}`}>
-                                    <span className="bulk-warning-icon">{output ? <RecipeDisplayIcon output={output} /> : <TriangleAlert size={18} />}</span>
+                                    {output ? (
+                                      <button
+                                        type="button"
+                                        className="bulk-warning-icon bulk-navigation-icon"
+                                        aria-label={`Open ${label}`}
+                                        title={`Open ${label}`}
+                                        onClick={() => handleJumpFromBulkCalculator(output)}
+                                      >
+                                        <RecipeDisplayIcon output={output} />
+                                      </button>
+                                    ) : <span className="bulk-warning-icon"><TriangleAlert size={18} /></span>}
                                     <span><strong>{label}</strong><small>{reason}</small></span>
                                   </span>
                                 )
