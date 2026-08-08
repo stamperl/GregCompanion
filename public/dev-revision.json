@@ -1,5 +1,5 @@
 {
-  "revision": 240,
-  "updatedAt": "2026-08-08T14:00:27.319Z",
-  "summary": "Steam Turbines now fill and display their 32 L Steam buffer before generating EU."
+  "revision": 241,
+  "updatedAt": "2026-08-08T17:29:03.342Z",
+  "summary": "Bulk Calculator now confirms when favourite recipes change base materials or use the same material route."
 }

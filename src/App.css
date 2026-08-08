@@ -11932,6 +11932,45 @@ button.craft-output:disabled {
   text-align: center;
 }
 
+.bulk-plan-update {
+  align-items: center;
+  background: #a8b99a;
+  border: 2px solid #dce8d2;
+  border-bottom-color: #56684d;
+  border-right-color: #56684d;
+  color: #263222;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  padding: 4px 6px;
+}
+
+.bulk-plan-update.unchanged {
+  background: #b9b091;
+  border-color: #e8dfc0;
+  border-bottom-color: #6b6247;
+  border-right-color: #6b6247;
+  color: #38301d;
+}
+
+.bulk-plan-update > span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bulk-plan-update strong,
+.bulk-plan-update small {
+  font: 900 0.54rem Inter, ui-sans-serif, system-ui, sans-serif;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.bulk-plan-update small {
+  font-size: 0.48rem;
+  opacity: 0.78;
+}
+
 .bulk-bookmark-row,
 .bulk-requirement-row,
 .bulk-setup-row,

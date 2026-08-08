@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBulkCraftPlan, parseRecipePlanBookmarks } from './bulkCraftPlanner'
+import { buildBulkCraftPlan, bulkCraftRequirementsChanged, parseRecipePlanBookmarks } from './bulkCraftPlanner'
 import { groupRecipesByOutput } from './recipeGroups'
 import type { Recipe, ResourceId } from './types'
 
@@ -85,6 +85,20 @@ describe('bulk craft planner', () => {
       ['resource:plank', 'planks-favorite', 'favorite'],
     ])
     expect(plan.requirements).toContainEqual({ kind: 'resource', id: 'stick', required: 3, owned: 0, short: 3 })
+  })
+
+  it('detects whether a favorite changes the base material plan', () => {
+    const recipes = [
+      recipe('plate-hand', 'ironPlate', 1, [{ id: 'ironIngot', amount: 2 }]),
+      recipe('plate-machine', 'ironPlate', 1, [{ id: 'ironIngot', amount: 1 }]),
+      recipe('plate-same-materials', 'ironPlate', 1, [{ id: 'ironIngot', amount: 2 }]),
+    ]
+    const defaultPlan = planFor(recipes, 'ironPlate', 4)
+    const changedPlan = planFor(recipes, 'ironPlate', 4, {}, { 'resource:ironPlate': 'plate-machine' })
+    const unchangedPlan = planFor(recipes, 'ironPlate', 4, {}, { 'resource:ironPlate': 'plate-same-materials' })
+
+    expect(bulkCraftRequirementsChanged(defaultPlan, changedPlan)).toBe(true)
+    expect(bulkCraftRequirementsChanged(defaultPlan, unchangedPlan)).toBe(false)
   })
 
   it('reuses batch overproduction across shared branches', () => {

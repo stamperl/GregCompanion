@@ -303,7 +303,9 @@ import {
 import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './game/recipeGraph'
 import {
   buildBulkCraftPlan,
+  bulkCraftRequirementsChanged,
   parseRecipePlanBookmarks,
+  type BulkCraftPlan,
   type BulkCraftIngredient,
   type BulkCraftRecipeStep,
   type RecipeFavoriteMap,
@@ -3675,6 +3677,9 @@ function App() {
   const [bulkCalculatorSearch, setBulkCalculatorSearch] = useState('')
   const [bulkCalculatorTargetKey, setBulkCalculatorTargetKey] = useState<string | null>(null)
   const [bulkCalculatorTargetAmount, setBulkCalculatorTargetAmount] = useState(1)
+  const [bulkCalculatorPendingRecipe, setBulkCalculatorPendingRecipe] = useState<string | null>(null)
+  const [bulkCalculatorUpdateNotice, setBulkCalculatorUpdateNotice] = useState<{ changed: boolean; label: string } | null>(null)
+  const previousBulkCraftPlanRef = useRef<BulkCraftPlan | null>(null)
   const [isMachineRecipePopupOpen, setIsMachineRecipePopupOpen] = useState(false)
   const [selectedMachinePopupRecipeIndex, setSelectedMachinePopupRecipeIndex] = useState(0)
   const [machineRecipeLoadNotice, setMachineRecipeLoadNotice] = useState('')
@@ -4148,6 +4153,22 @@ function App() {
     state.resources,
     unplacedMachineCounts,
   ])
+  useEffect(() => {
+    if (!bulkCraftPlan) {
+      previousBulkCraftPlanRef.current = null
+      setBulkCalculatorUpdateNotice(null)
+      return
+    }
+    const previousPlan = previousBulkCraftPlanRef.current
+    if (bulkCalculatorPendingRecipe && previousPlan) {
+      setBulkCalculatorUpdateNotice({
+        changed: bulkCraftRequirementsChanged(previousPlan, bulkCraftPlan),
+        label: bulkCalculatorPendingRecipe,
+      })
+      setBulkCalculatorPendingRecipe(null)
+    }
+    previousBulkCraftPlanRef.current = bulkCraftPlan
+  }, [bulkCalculatorPendingRecipe, bulkCraftPlan])
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
   const networkCraftableResourceIds = [...new Set(
     state.recipeCards
@@ -6591,6 +6612,7 @@ function App() {
     setBulkCalculatorTargetKey(group.key)
     handleAdjustBulkCalculatorTarget(targetAmount ?? Math.max(1, Math.floor(group.output.amount)))
     setBulkCalculatorStep('setup')
+    setBulkCalculatorUpdateNotice(null)
   }
   const handleToggleBulkCalculatorBookmark = () => {
     if (!bulkCalculatorTargetGroup) return
@@ -6612,6 +6634,7 @@ function App() {
     setBulkCalculatorTargetKey(group.key)
     handleAdjustBulkCalculatorTarget(targetAmount)
     setBulkCalculatorStep('results')
+    setBulkCalculatorUpdateNotice(null)
   }
   const handleCycleBulkRecipe = (step: BulkCraftRecipeStep, direction: -1 | 1) => {
     const group = recipeGroupsByOutputKey.get(step.key)
@@ -6620,9 +6643,13 @@ function App() {
     const nextIndex = direction < 0
       ? currentIndex <= 0 ? group.recipes.length - 1 : currentIndex - 1
       : (currentIndex + 1) % group.recipes.length
+    setBulkCalculatorPendingRecipe(group.recipes[nextIndex].name)
     setRecipeFavorites((current) => ({ ...current, [step.key]: group.recipes[nextIndex].id }))
   }
   const handleToggleBulkRecipeFavorite = (step: BulkCraftRecipeStep) => {
+    const group = recipeGroupsByOutputKey.get(step.key)
+    const clearingFavorite = recipeFavorites[step.key] === step.recipe.id
+    setBulkCalculatorPendingRecipe(clearingFavorite ? group?.recipes[0]?.name ?? step.recipe.name : step.recipe.name)
     setRecipeFavorites((current) => {
       if (current[step.key] === step.recipe.id) {
         const next = { ...current }
@@ -8020,6 +8047,15 @@ function App() {
                               <span>Base materials</span>
                               <small>{bulkCraftPlan.requirements.length}</small>
                             </div>
+                            {bulkCalculatorUpdateNotice && (
+                              <div className={bulkCalculatorUpdateNotice.changed ? 'bulk-plan-update changed' : 'bulk-plan-update unchanged'} role="status">
+                                <Check size={13} aria-hidden="true" />
+                                <span>
+                                  <strong>{bulkCalculatorUpdateNotice.changed ? 'Materials updated' : 'Materials unchanged'}</strong>
+                                  <small>{bulkCalculatorUpdateNotice.label}</small>
+                                </span>
+                              </div>
+                            )}
                             {bulkCraftPlan.requirements.length > 0 ? (
                               <div className="bulk-requirement-list">
                                 {bulkCraftPlan.requirements.map((requirement) => {

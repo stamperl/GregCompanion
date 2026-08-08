@@ -55,6 +55,14 @@ export type BulkCraftPlan = {
   warnings: BulkCraftPlanWarning[]
 }
 
+export function bulkCraftRequirementsChanged(previous: BulkCraftPlan, next: BulkCraftPlan) {
+  const signature = (plan: BulkCraftPlan) => plan.requirements
+    .map((requirement) => `${requirement.kind}:${requirement.id}:${requirement.required}`)
+    .sort()
+    .join('|')
+  return signature(previous) !== signature(next)
+}
+
 export type BuildBulkCraftPlanOptions = {
   targetGroup: RecipeGroup
   targetAmount: number
