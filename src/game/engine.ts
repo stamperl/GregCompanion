@@ -3938,6 +3938,33 @@ function machinesCanFlow(from: MachineInstance, to: MachineInstance) {
   return connectorAllowsFlowOut(from, direction) && connectorAllowsFlowIn(to, oppositePipeDirection[direction])
 }
 
+function tankBoundaryFace(
+  state: GameState,
+  instance: MachineInstance,
+  neighbour: MachineInstance,
+) {
+  const structure = isTankStorageMachine(instance.machineId) ? steamTankStructureForInstance(state, instance) : null
+  if (!structure || structure.positions.some((position) => position.x === neighbour.x && position.y === neighbour.y)) return null
+  const direction = directionBetween(instance, neighbour)
+  return direction ? { controller: structure.controller, direction } : null
+}
+
+function machinesCanConnectInState(state: GameState, from: MachineInstance, to: MachineInstance) {
+  if (!machinesCanConnect(from, to)) return false
+  const fromFace = tankBoundaryFace(state, from, to)
+  if (fromFace && pipeSideMode(fromFace.controller, fromFace.direction) === 'blocked') return false
+  const toFace = tankBoundaryFace(state, to, from)
+  return !toFace || pipeSideMode(toFace.controller, toFace.direction) !== 'blocked'
+}
+
+function machinesCanFlowInState(state: GameState, from: MachineInstance, to: MachineInstance) {
+  if (!machinesCanFlow(from, to)) return false
+  const fromFace = tankBoundaryFace(state, from, to)
+  if (fromFace && !connectorAllowsFlowOut(fromFace.controller, fromFace.direction)) return false
+  const toFace = tankBoundaryFace(state, to, from)
+  return !toFace || connectorAllowsFlowIn(toFace.controller, toFace.direction)
+}
+
 function multiblockControllerSpecs() {
   return (Object.keys(machines) as MachineId[])
     .map((machineId) => machines[machineId].multiblock)
@@ -4458,7 +4485,7 @@ function connectedFluidNetwork(state: GameState, start: MachineInstance, flowOnl
       const next = machineAt(state, position.x, position.y)
       if (
         next &&
-        (flowOnly ? machinesCanFlow(instance, next) : machinesCanConnect(instance, next)) &&
+        (flowOnly ? machinesCanFlowInState(state, instance, next) : machinesCanConnectInState(state, instance, next)) &&
         (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well' || Boolean(fluidMultiblockControllerForInstance(state, next))) &&
         !visited.has(next.uid)
       ) {
@@ -4493,7 +4520,7 @@ function connectedSteamNetwork(state: GameState, start: MachineInstance, flowOnl
 
     for (const position of adjacentPositions(state, instance.x, instance.y)) {
       const next = machineAt(state, position.x, position.y)
-      if (next && (flowOnly ? machinesCanFlow(instance, next) : machinesCanConnect(instance, next)) && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
+      if (next && (flowOnly ? machinesCanFlowInState(state, instance, next) : machinesCanConnectInState(state, instance, next)) && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
     }
   }
   context?.cache.steamNetworks.set(cacheKey, network.map((instance) => instance.uid))
@@ -4615,6 +4642,10 @@ function connectedFluidNetworkForInstance(state: GameState, start: MachineInstan
   return network
 }
 
+function connectedSteamNetworkForInstance(state: GameState, start: MachineInstance, flowOnly = false) {
+  return uniqueMachineInstances(flowCellsForInstance(state, start).flatMap((cell) => connectedSteamNetwork(state, cell, flowOnly)))
+}
+
 function canSteamFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
   const targetUids = new Set(flowCellsForInstance(state, target).map((cell) => cell.uid))
   return flowCellsForInstance(state, source).some((sourceCell) => connectedSteamNetwork(state, sourceCell, true).some((instance) => targetUids.has(instance.uid)))
@@ -4673,7 +4704,7 @@ function fluidRouteBetween(state: GameState, source: MachineInstance, target: Ma
       if (allowedStartDirections && !allowedStartDirections.has(direction)) continue
       const offset = pipeDirectionOffsets[direction]
       const next = machineAt(state, current.x + offset.dx, current.y + offset.dy)
-      if (!next || previous.has(next.uid) || !machinesCanFlow(current, next)) continue
+      if (!next || previous.has(next.uid) || !machinesCanFlowInState(state, current, next)) continue
       if (!isSteamPipeMachine(next.machineId) && !targetUids.has(next.uid)) continue
       previous.set(next.uid, current.uid)
       queue.push(next)
@@ -4928,7 +4959,7 @@ function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance)
       const adjacent = machineAt(state, position.x, position.y)
       return Boolean(
         adjacent &&
-          machinesCanConnect(cell, adjacent) &&
+          machinesCanConnectInState(state, cell, adjacent) &&
           (adjacent.machineId === 'steamBoiler' || isLiquidSteamBoilerMachine(adjacent.machineId) || isSteamPipeMachine(adjacent.machineId)),
       )
     })
@@ -4938,7 +4969,7 @@ function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance)
 function connectedSteamStorage(state: GameState, start: MachineInstance) {
   const startStorage = isTankStorageMachine(start.machineId) ? steamTankStorageForInstance(state, start) : start
   return uniqueMachineInstances(
-    connectedSteamNetwork(state, start)
+    connectedSteamNetworkForInstance(state, start)
       .filter((instance) => instance.uid !== start.uid && isSteamStorageMachine(instance.machineId))
       .map((instance) => (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
       .filter((instance) => instance.uid !== startStorage.uid && canSteamFlowBetween(state, instance, startStorage)),
@@ -4946,7 +4977,7 @@ function connectedSteamStorage(state: GameState, start: MachineInstance) {
 }
 
 function connectedSteamTransferRateMs(state: GameState, start: MachineInstance) {
-  const pipeRates = connectedSteamNetwork(state, start)
+  const pipeRates = connectedSteamNetworkForInstance(state, start)
     .map((instance) => steamPipeTransferLitresPerSecond[instance.machineId])
     .filter((rate): rate is number => typeof rate === 'number')
   const litresPerSecond = pipeRates.length > 0 ? Math.min(...pipeRates) : 24
@@ -4969,7 +5000,7 @@ export type SteamNetworkMetrics = {
 
 export function steamNetworkMetrics(state: GameState, instance: MachineInstance): SteamNetworkMetrics {
   const network = uniqueMachineInstances([
-    ...connectedSteamNetwork(state, instance),
+    ...connectedSteamNetworkForInstance(state, instance),
     ...connectedSteamConductorMachines(state, instance),
   ])
   const storage = uniqueMachineInstances(
@@ -6153,7 +6184,10 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   }
 
   const next = cloneState(state)
-  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  const tankControllerUid = isTankStorageMachine(instance.machineId)
+    ? steamTankStructureForInstance(state, instance)?.controller.uid
+    : undefined
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === (tankControllerUid ?? uid))
   if (!nextInstance) return state
   const modes = { ...nextInstance.pipeSideModes }
   const disabledSides = { ...nextInstance.pipeDisabledSides }
@@ -6177,9 +6211,13 @@ export function setFluidOutputDirection(state: GameState, uid: string, direction
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || (!isFluidOutletConfigurableMachine(instance.machineId) && !isTankStorageMachine(instance.machineId))) return state
 
-  const nextMode: PipeSideMode = pipeSideMode(instance, direction) === 'output' ? 'blocked' : 'output'
+  const routedInstance = isTankStorageMachine(instance.machineId)
+    ? steamTankStructureForInstance(state, instance)?.controller ?? instance
+    : instance
+
+  const nextMode: PipeSideMode = pipeSideMode(routedInstance, direction) === 'output' ? 'blocked' : 'output'
   const next = cloneState(state)
-  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === routedInstance.uid)
   if (!nextInstance) return state
 
   setConnectorSideModeInPlace(nextInstance, direction, nextMode)

@@ -4704,6 +4704,7 @@ function App() {
   const selectedMachineCanConfigureRouting = Boolean(
     selectedMachine &&
       (isSteamPipeMachine(selectedMachine.machineId) ||
+        isTankStorageMachine(selectedMachine.machineId) ||
         isConductorMachine(selectedMachine.machineId) ||
         hasFabricationCable(selectedMachine) ||
         isEuCableMachine(selectedMachine.machineId) ||
@@ -5475,7 +5476,11 @@ function App() {
     }
     setPendingProcessInsert(null)
     setIsMachineAutomationOpen(false)
-    setSelectedPipeConfigUid(selectedMachine.uid)
+    setSelectedPipeConfigUid(
+      isTankStorageMachine(selectedMachine.machineId)
+        ? steamTankStructureForInstance(state, selectedMachine)?.controller.uid ?? selectedMachine.uid
+        : selectedMachine.uid,
+    )
     setSelectedMachineUid(null)
   }
 
@@ -9143,7 +9148,7 @@ function App() {
             </div>
           )}
 
-          {selectedPipeConfig && (isConductorMachine(selectedPipeConfig.machineId) || hasFabricationCable(selectedPipeConfig) || isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
+          {selectedPipeConfig && (isConductorMachine(selectedPipeConfig.machineId) || hasFabricationCable(selectedPipeConfig) || isSteamPipeMachine(selectedPipeConfig.machineId) || isTankStorageMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"
@@ -9161,6 +9166,8 @@ function App() {
                         ? 'Hopper Routing'
                         : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
                           ? 'Fluid Output'
+                          : isTankStorageMachine(selectedPipeConfig.machineId)
+                            ? 'Tank Routing'
                           : isEuCableMachine(selectedPipeConfig.machineId)
                             ? 'Cable Connections'
                             : 'Pipe Routing'}
@@ -9172,6 +9179,8 @@ function App() {
                     className="icon-button"
                     aria-label={isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
                       ? 'Close output routing'
+                      : isTankStorageMachine(selectedPipeConfig.machineId)
+                        ? 'Close tank routing'
                       : isEuCableMachine(selectedPipeConfig.machineId)
                         ? 'Close cable connections'
                         : 'Close pipe routing'}
@@ -9403,6 +9412,63 @@ function App() {
                     ) : null}
                     <button type="button" className="conductor-remove-lane" onClick={() => handleRemoveConductorLane(selectedConductorLane)}><Trash2 size={14} /> Remove {selectedConductorLane} lane</button>
                   </div>
+                ) : isTankStorageMachine(selectedPipeConfig.machineId) ? (
+                  (() => {
+                    const structure = steamTankStructureForInstance(state, selectedPipeConfig)
+                    const controller = structure?.controller ?? selectedPipeConfig
+                    const positions = structure?.positions ?? [{ x: controller.x, y: controller.y }]
+                    const positionKeys = new Set(positions.map((position) => `${position.x},${position.y}`))
+                    const faceHasNeighbour = (direction: PipeDirection) => positions.some((position) => {
+                      const onFace = direction === 'north'
+                        ? position.y === Math.min(...positions.map((candidate) => candidate.y))
+                        : direction === 'east'
+                          ? position.x === Math.max(...positions.map((candidate) => candidate.x))
+                          : direction === 'south'
+                            ? position.y === Math.max(...positions.map((candidate) => candidate.y))
+                            : position.x === Math.min(...positions.map((candidate) => candidate.x))
+                      if (!onFace) return false
+                      const offset = pipeDirectionOffsets[direction]
+                      const neighbour = machineAtFactoryCell(position.x + offset.dx, position.y + offset.dy)
+                      return Boolean(neighbour && !positionKeys.has(`${neighbour.x},${neighbour.y}`) && machinesCanConnect(
+                        state.machineInstances.find((candidate) => candidate.x === position.x && candidate.y === position.y)!,
+                        neighbour,
+                      ))
+                    })
+                    return (
+                      <div className="pipe-config-grid tank-routing-grid" aria-label="Tank routing directions">
+                        {[-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => {
+                          const direction = pipeDirections.find((candidate) => {
+                            const offset = pipeDirectionOffsets[candidate]
+                            return offset.dx === dx && offset.dy === dy
+                          })
+                          if (dx === 0 && dy === 0) {
+                            return (
+                              <span className="pipe-config-cell center tank-routing-core" key="tank-core">
+                                <MachineGlyph id={controller.machineId} active />
+                                <strong>{structure?.area ?? 1} block{(structure?.area ?? 1) === 1 ? '' : 's'}</strong>
+                              </span>
+                            )
+                          }
+                          if (!direction) return <span className="pipe-config-cell" aria-hidden="true" key={`${dx},${dy}`} />
+                          const mode = pipeSideMode(controller, direction)
+                          const connected = mode !== 'blocked' && faceHasNeighbour(direction)
+                          return (
+                            <button
+                              type="button"
+                              className={`pipe-config-cell toggle mode-${mode} ${mode === 'blocked' ? 'disabled-side' : ''} ${connected ? 'connected-side' : ''}`}
+                              aria-label={`${pipeDirectionOffsets[direction].label} tank face ${pipeSideModeLabels[mode]}. Tap to cycle mode.`}
+                              onClick={() => handleTogglePipeSide(controller.uid, direction)}
+                              key={direction}
+                            >
+                              <PipeFlowArrows direction={direction} mode={mode} />
+                              <strong>{pipeDirectionOffsets[direction].label}</strong>
+                              <span className="pipe-side-mode">{mode === 'blocked' ? 'Off' : mode === 'input' ? 'In' : mode === 'output' ? 'Out' : 'I/O'}</span>
+                            </button>
+                          )
+                        }))}
+                      </div>
+                    )
+                  })()
                 ) : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? (
                   (() => {
                     const faces = fluidOutputFacesForInstance(selectedPipeConfig)
@@ -10137,7 +10203,9 @@ function App() {
                       const contents = isSteam ? 'Steam' : fluid ? fluidLabel(fluid.id) : 'Empty'
                       const amount = isSteam ? formatSteamLitres(selectedMachine.process.steamStoredMs) : fluid?.amount ?? 0
                       const capacity = isSteam ? formatSteamLitres(selectedSteamTankCapacityMs) : selectedSteamTankFluidCapacityLitres
-                      const outputFaces = pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output').map((direction) => pipeDirectionOffsets[direction].label)
+                      const routeFaces = pipeDirections
+                        .filter((direction) => pipeSideMode(selectedMachine, direction) !== 'blocked')
+                        .map((direction) => `${pipeDirectionOffsets[direction].label} ${pipeSideModeLabels[pipeSideMode(selectedMachine, direction)]}`)
                       const fluidOutflow = currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0)
                       return <>
                         <button type="button" className={`utility-vessel storage-buffer-vessel native-fluid-control ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
@@ -10171,9 +10239,9 @@ function App() {
                                 ? selectedSteamNetworkMetrics && selectedSteamNetworkMetrics.networkSize > 1
                                   ? `${formatAmount(selectedSteamTankLiveRates?.inputLitresPerSecond ?? 0)} in / ${formatAmount(selectedSteamTankLiveRates?.outputLitresPerSecond ?? 0)} out`
                                   : 'Isolated'
-                                : outputFaces.join(', ') || 'Closed'}
+                                : routeFaces.join(', ') || 'Closed'}
                             </strong>
-                            <em>{selectedMachine.level > 1 ? `${selectedMachine.level} block structure` : 'Single tank'} | {outputFaces.join(', ') || 'closed'} faces</em>
+                            <em>{selectedMachine.level > 1 ? `${selectedMachine.level} block structure` : 'Single tank'} | {routeFaces.join(', ') || 'closed'} faces</em>
                           </span>
                           <span>
                             <small>{isSteam ? 'Pressure' : 'Flow'}</small>

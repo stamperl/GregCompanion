@@ -4315,6 +4315,7 @@ describe('game engine', () => {
     const controller = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)!
     const macerator = state.machineInstances.find((instance) => instance.machineId === 'steamMacerator')!
     controller.process.steamStoredMs = steamTankCapacityMs * 4
+    state = setPipeSideMode(state, controller.uid, 'east', 'output')
 
     expect(availableConnectedSteam(state, macerator)).toBe(steamTankCapacityMs * 4)
 
@@ -4322,6 +4323,57 @@ describe('game engine', () => {
 
     expect(state.machineInstances.find((instance) => instance.uid === macerator.uid)!.process.steamStoredMs).toBe(24000)
     expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.steamStoredMs).toBe(steamTankCapacityMs * 4 - 24000)
+  })
+
+  it('fills an iron steam tank structure through a child cell', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 4
+    state.machines.steamBoiler = 1
+    state.machines.copperPipe = 1
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, 'steamTank', x, y)
+    }
+    state = placeMachineInstance(state, 'copperPipe', 2, 1)
+    state = placeMachineInstance(state, 'steamBoiler', 3, 1)
+    const controller = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    state = setPipeSideMode(state, controller.uid, 'east', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'west', 'output')
+    state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs = 80000
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.steamStoredMs).toBe(24000)
+    expect(state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs).toBe(56000)
+  })
+
+  it('applies tank controller routing modes across the whole multiblock face', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 4
+    state.machines.steamBoiler = 1
+    state.machines.copperPipe = 1
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, 'steamTank', x, y)
+    }
+    state = placeMachineInstance(state, 'copperPipe', 2, 1)
+    state = placeMachineInstance(state, 'steamBoiler', 3, 1)
+    const controller = state.machineInstances.find((instance) => instance.x === 0 && instance.y === 0)!
+    const child = state.machineInstances.find((instance) => instance.x === 1 && instance.y === 1)!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const boiler = state.machineInstances.find((instance) => instance.machineId === 'steamBoiler')!
+    state = setPipeSideMode(state, child.uid, 'east', 'blocked')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'west', 'output')
+    state.machineInstances.find((instance) => instance.uid === boiler.uid)!.process.steamStoredMs = 80000
+
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.steamStoredMs).toBe(0)
+
+    state = setPipeSideMode(state, controller.uid, 'east', 'input')
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.steamStoredMs).toBe(24000)
   })
 
   it('does not fill an iron steam tank through a steam macerator', () => {
