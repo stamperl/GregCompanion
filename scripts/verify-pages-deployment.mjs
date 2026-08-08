@@ -35,6 +35,12 @@ async function verifyDeployment() {
     if (String(manifest.revision) !== String(expectedDevRevision)) {
       throw new Error(`Expected dev revision ${expectedDevRevision}, received ${manifest.revision ?? 'missing'}.`)
     }
+    if (!String(manifest.summary ?? '').trim()) {
+      throw new Error('The deployed dev manifest has no release summary.')
+    }
+    if (!manifest.updatedAt || Number.isNaN(Date.parse(manifest.updatedAt))) {
+      throw new Error('The deployed dev manifest has no valid publish timestamp.')
+    }
   }
 
   console.log(`Verified ${baseUrl} with ${assets.length} loadable assets${expectedDevRevision ? ` at dev.${expectedDevRevision}` : ''}.`)

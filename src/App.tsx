@@ -6801,7 +6801,14 @@ function App() {
     : selectedSaveSlot?.exists
       ? `${selectedSaveLabel} ready - ${selectedSaveSlot.updatedAt ? new Date(selectedSaveSlot.updatedAt).toLocaleString() : 'saved'}`
       : `${selectedSaveLabel} is empty`
-  const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
   const buildLabel = deploymentInfo.version === 'local' ? 'Local build' : `Build ${deploymentInfo.version}`
   const releaseChannelLabel = deploymentInfo.channel === 'release'
     ? 'Full release'
@@ -7028,7 +7035,7 @@ function App() {
               <p className="eyebrow">Block-tech idle</p>
               <h1><span>Click</span><span>Foundry</span></h1>
               <p className="home-save-status">{saveStatus}</p>
-              <p className="home-deploy-version">{releaseChannelLabel} | {releaseRevisionLabel} | {buildLabel} | {deployedAtLabel}</p>
+              <p className="home-deploy-version">{releaseChannelLabel} | {releaseRevisionLabel} | {buildLabel} | Published {deployedAtLabel}</p>
             </div>
           </div>
           <section className="home-release-card" aria-label="Release notes">
@@ -7036,6 +7043,7 @@ function App() {
               <span>{releaseChannelLabel}</span>
               <strong>{releaseRevisionLabel}</strong>
             </div>
+            <time dateTime={deploymentInfo.deployedAt}>Published {deployedAtLabel}</time>
             <p>{deploymentInfo.title}</p>
             {releaseNotes.length > 0 && (
               <ul>

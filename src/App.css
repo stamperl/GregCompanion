@@ -7808,6 +7808,12 @@ button.craft-output:disabled {
   margin: 0;
 }
 
+.home-release-card time {
+  color: #4b4538;
+  font: 850 0.58rem Inter, ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+}
+
 .home-release-card p {
   font: 950 0.74rem Inter, ui-sans-serif, system-ui, sans-serif;
   text-transform: uppercase;

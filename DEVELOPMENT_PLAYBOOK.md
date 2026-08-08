@@ -405,7 +405,7 @@ Current guidance:
 Use for local phone testing:
 
 ```bash
-npm run dev:bump
+npm run dev:bump -- --note "Short player-facing summary"
 npm run release:home-dev
 ```
 
@@ -414,7 +414,7 @@ npm run release:home-dev
 Use after approval and a committed worktree:
 
 ```bash
-npm run dev:bump
+npm run dev:bump -- --note "Short player-facing summary"
 npm run check
 npm run release:remote-dev
 ```

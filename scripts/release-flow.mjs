@@ -109,6 +109,20 @@ function readDevManifest() {
   return JSON.parse(readFileSync(devManifestPath, 'utf8'))
 }
 
+function assertValidDevManifest() {
+  const manifest = readDevManifest()
+  if (!Number.isInteger(manifest.revision) || manifest.revision < 1) {
+    throw new Error('The dev manifest needs a positive integer revision. Run npm run dev:bump -- --note "Short player-facing summary".')
+  }
+  if (!String(manifest.summary ?? '').trim()) {
+    throw new Error('The dev manifest needs a release note. Run npm run dev:bump -- --note "Short player-facing summary".')
+  }
+  if (!manifest.updatedAt || Number.isNaN(Date.parse(manifest.updatedAt))) {
+    throw new Error('The dev manifest needs a valid timestamp. Run npm run dev:bump -- --note "Short player-facing summary".')
+  }
+  return manifest
+}
+
 function releaseCommitIfNeeded(manifest) {
   const releasePaths = ['src/release-manifest.json', 'docs/releases', 'public/release-notes']
   const status = capture('git', ['status', '--porcelain', ...releasePaths])
@@ -193,14 +207,12 @@ async function main() {
 
   if (lane === 'home-dev') {
     const port = '4173'
-    const devManifest = readDevManifest()
+    const devManifest = assertValidDevManifest()
     runNpm(['run', 'build'], {
       env: {
         ...process.env,
         VITE_RELEASE_CHANNEL: 'home-dev',
         VITE_RELEASE_REVISION: `dev.${devManifest.revision}`,
-        VITE_RELEASE_TITLE: 'Home test build',
-        VITE_RELEASE_NOTES: 'Local production preview|Only devices on this network can reach it',
       },
     })
     console.log('')
@@ -213,6 +225,7 @@ async function main() {
 
   if (lane === 'remote-dev') {
     assertCleanTree()
+    assertValidDevManifest()
     runNpm(['run', 'check'])
     assertCleanTree()
     pushAndWatch('remote-dev', 'HEAD:remote-dev')
