@@ -5173,6 +5173,30 @@ describe('game engine', () => {
     expect(turbine.process.euCapacity).toBe(steamTurbineEuCapacity)
   })
 
+  it('fills the steam turbine buffer before and after generation stops', () => {
+    let state = createFactoryState(1000)
+    state.machines.steamTank = 1
+    state.machines.steamTurbine = 1
+    state = placeMachineInstance(state, 'steamTank', 0, 0)
+    state = placeMachineInstance(state, 'steamTurbine', 1, 0)
+    const tank = state.machineInstances.find((instance) => instance.machineId === 'steamTank')!
+    const turbine = state.machineInstances.find((instance) => instance.machineId === 'steamTurbine')!
+    tank.process.steamStoredMs = 256 * steamMsPerLitre
+    turbine.process.euStored = 0
+    turbine.process.steamStoredMs = 0
+
+    state = tickGame(state, 1000).state
+    const runningTurbine = state.machineInstances.find((instance) => instance.uid === turbine.uid)!
+    expect(runningTurbine.process.euStored).toBe(32)
+    expect(runningTurbine.process.steamStoredMs).toBe(8 * steamMsPerLitre)
+
+    runningTurbine.process.euStored = steamTurbineEuCapacity
+    state = tickGame(state, 2000).state
+    const fullTurbine = state.machineInstances.find((instance) => instance.uid === turbine.uid)!
+    expect(fullTurbine.process.steamStoredMs).toBe(32 * steamMsPerLitre)
+    expect(fullTurbine.process.activeRecipeId).toBeNull()
+  })
+
   it('continues steam turbine EU generation during offline progress', () => {
     let state = createFactoryState(1000)
     state.machines.steamBoiler = 1

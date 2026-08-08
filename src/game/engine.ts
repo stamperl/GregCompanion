@@ -5658,7 +5658,7 @@ function steamTransferAllowanceMs(state: GameState, instance: MachineInstance, e
 }
 
 function fillInternalSteamFromConnectedStorage(state: GameState, instance: MachineInstance, transferLimitMs: number) {
-  const capacity = isSteamPoweredMachine(instance.machineId) ? machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre : 0
+  const capacity = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
   if (capacity < 1) return 0
   instance.process.steamCapacityMs = capacity
   instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
@@ -6770,31 +6770,33 @@ function tickSteamTurbine(state: GameState, instance: MachineInstance, elapsedMs
   const process = instance.process
   process.euCapacity = steamTurbineEuCapacity
   process.euStored = Math.min(process.euStored, steamTurbineEuCapacity)
-  process.steamCapacityMs = steamMachineInternalCapacityMs
-  process.steamStoredMs = Math.min(process.steamStoredMs, steamMachineInternalCapacityMs)
+  const steamCapacityMs = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
+  process.steamCapacityMs = steamCapacityMs
+  process.steamStoredMs = Math.min(process.steamStoredMs, steamCapacityMs)
   const freeEu = steamTurbineEuCapacity - process.euStored
+  const steamByRateMs = steamTurbineSteamUseLitresPerSecond * steamMsPerLitre * (elapsedMs / 1000)
+  const steamByEuCapacityMs = (freeEu / euPerSteamLitre) * steamMsPerLitre
+  const maximumConsumptionMs = Math.min(steamByRateMs, steamByEuCapacityMs)
+  const intakeLimitMs = steamCapacityMs - process.steamStoredMs + maximumConsumptionMs
+  const transferredSteam = consumeConnectedSteam(
+    state,
+    instance,
+    Math.min(steamTransferAllowanceMs(state, instance, elapsedMs), intakeLimitMs),
+  )
+  process.steamStoredMs += transferredSteam
+
   if (freeEu <= 0) {
     process.activeRecipeId = null
     return
   }
 
-  const steamByRateMs = steamTurbineSteamUseLitresPerSecond * steamMsPerLitre * (elapsedMs / 1000)
-  const steamByEuCapacityMs = (freeEu / euPerSteamLitre) * steamMsPerLitre
-  const steamByPipeMs = steamTransferAllowanceMs(state, instance, elapsedMs)
-  const requestedSteam = Math.min(steamByRateMs, steamByEuCapacityMs, process.steamStoredMs + steamByPipeMs)
-  if (requestedSteam <= 0) {
-    process.activeRecipeId = null
-    return
-  }
-
-  const consumedInternalSteam = Math.min(process.steamStoredMs, requestedSteam)
-  process.steamStoredMs -= consumedInternalSteam
-  const consumedSteam = consumedInternalSteam + consumeConnectedSteam(state, instance, requestedSteam - consumedInternalSteam)
+  const consumedSteam = Math.min(maximumConsumptionMs, process.steamStoredMs)
   if (consumedSteam <= 0) {
     process.activeRecipeId = null
     return
   }
 
+  process.steamStoredMs -= consumedSteam
   process.euStored = Math.min(steamTurbineEuCapacity, process.euStored + (consumedSteam / steamMsPerLitre) * euPerSteamLitre)
   process.activeRecipeId = 'generate_lv_eu'
   process.progressMs = 0

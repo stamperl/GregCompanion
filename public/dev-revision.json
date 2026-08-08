@@ -1,5 +1,5 @@
 {
-  "revision": 239,
-  "updatedAt": "2026-08-08T13:50:02.871Z",
-  "summary": "Remote dev now shows its dev number, publish time, and a short summary of what changed."
+  "revision": 240,
+  "updatedAt": "2026-08-08T14:00:27.319Z",
+  "summary": "Steam Turbines now fill and display their 32 L Steam buffer before generating EU."
 }

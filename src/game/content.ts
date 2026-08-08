@@ -821,6 +821,7 @@ const authoredMachineRegistry = {
     tier: 'lv',
     placeable: true,
     processKind: 'steamToEu',
+    steamCapacityLitres: 32,
     euCapacity: 256,
     euOutputPerSecond: 32,
     euAmps: 1,
