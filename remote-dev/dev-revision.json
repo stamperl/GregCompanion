@@ -1,4 +1,5 @@
 {
-  "revision": 238,
-  "updatedAt": "2026-08-08"
+  "revision": 239,
+  "updatedAt": "2026-08-08T13:53:46Z",
+  "summary": "Remote dev now shows its dev number, publish time, and a short summary of what changed."
 }
