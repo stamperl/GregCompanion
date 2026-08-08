@@ -1,4 +1,5 @@
 {
-  "revision": 219,
-  "updatedAt": "2026-07-31"
+  "revision": 241,
+  "updatedAt": "2026-08-08T17:29:03.342Z",
+  "summary": "Bulk Calculator now confirms when favourite recipes change base materials or use the same material route."
 }

@@ -7,14 +7,19 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: click-foundry-pages
+  cancel-in-progress: true
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -32,16 +37,23 @@ jobs:
 
       - name: Set deployment metadata
         run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
           echo "VITE_DEPLOYED_AT=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
           if [ "${GITHUB_REF_NAME}" = "remote-dev" ]; then
+            dev_revision=$(node -p "require('./src/dev-manifest.json').revision")
             echo "GITHUB_PAGES_PATH=remote-dev" >> "$GITHUB_ENV"
             echo "VITE_RELEASE_CHANNEL=remote-dev" >> "$GITHUB_ENV"
-            echo "VITE_RELEASE_REVISION=dev-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-            echo "VITE_RELEASE_TITLE=Remote test build" >> "$GITHUB_ENV"
-            echo "VITE_RELEASE_NOTES=Remote GitHub Pages test lane|Not the public player release" >> "$GITHUB_ENV"
+            echo "VITE_RELEASE_REVISION=dev.${dev_revision}" >> "$GITHUB_ENV"
+            echo "PAGES_DEPLOY_URL=https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/remote-dev/" >> "$GITHUB_ENV"
+            echo "PAGES_EXPECTED_DEV_REVISION=${dev_revision}" >> "$GITHUB_ENV"
           else
             echo "VITE_RELEASE_CHANNEL=release" >> "$GITHUB_ENV"
+            echo "PAGES_DEPLOY_URL=https://${GITHUB_REPOSITORY_OWNER}.github.io/${repo_name}/" >> "$GITHUB_ENV"
           fi
+
+      - name: Stamp remote dev publish time
+        if: github.ref_name == 'remote-dev'
+        run: node scripts/stamp-public-dev-manifest.mjs
 
       - name: Build
         run: npm run build
@@ -80,3 +92,19 @@ jobs:
           fi
           git commit -m "Deploy ${GITHUB_REF_NAME} ${GITHUB_SHA}"
           git push origin HEAD:gh-pages --force
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ../gh-pages-dist
+          include-hidden-files: true
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: Verify published site
+        run: node scripts/verify-pages-deployment.mjs

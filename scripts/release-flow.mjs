@@ -109,6 +109,20 @@ function readDevManifest() {
   return JSON.parse(readFileSync(devManifestPath, 'utf8'))
 }
 
+function assertValidDevManifest() {
+  const manifest = readDevManifest()
+  if (!Number.isInteger(manifest.revision) || manifest.revision < 1) {
+    throw new Error('The dev manifest needs a positive integer revision. Run npm run dev:bump -- --note "Short player-facing summary".')
+  }
+  if (!String(manifest.summary ?? '').trim()) {
+    throw new Error('The dev manifest needs a release note. Run npm run dev:bump -- --note "Short player-facing summary".')
+  }
+  if (!manifest.updatedAt || Number.isNaN(Date.parse(manifest.updatedAt))) {
+    throw new Error('The dev manifest needs a valid timestamp. Run npm run dev:bump -- --note "Short player-facing summary".')
+  }
+  return manifest
+}
+
 function releaseCommitIfNeeded(manifest) {
   const releasePaths = ['src/release-manifest.json', 'docs/releases', 'public/release-notes']
   const status = capture('git', ['status', '--porcelain', ...releasePaths])
@@ -128,15 +142,23 @@ function generateReleaseArtifacts(options) {
 
 function pushAndWatch(branch, refspec = branch) {
   const headSha = capture('git', ['rev-parse', 'HEAD'])
+  const ghVersion = spawnSync('gh', ['--version'], { stdio: 'ignore' })
+  const existingRunIds = new Set()
+  if (!ghVersion.error && ghVersion.status === 0) {
+    const existingRuns = JSON.parse(capture('gh', [
+      'run', 'list', '--workflow', 'pages.yml', '--branch', branch, '--limit', '10', '--json', 'databaseId',
+    ]))
+    for (const existingRun of existingRuns) existingRunIds.add(existingRun.databaseId)
+  }
+
   run('git', ['push', 'origin', refspec])
 
-  const ghVersion = spawnSync('gh', ['--version'], { stdio: 'ignore' })
   if (ghVersion.error || ghVersion.status !== 0) {
     console.log('GitHub CLI is not available, so the Pages workflow was not watched locally.')
     return
   }
 
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  const findNewRun = () => {
     const output = capture('gh', [
       'run',
       'list',
@@ -150,15 +172,30 @@ function pushAndWatch(branch, refspec = branch) {
       'databaseId,headSha,url',
     ])
     const runs = JSON.parse(output)
-    const runInfo = runs.find((candidate) => candidate.headSha === headSha)
+    return runs.find((candidate) => candidate.headSha === headSha && !existingRunIds.has(candidate.databaseId))
+  }
+
+  let runInfo
+  for (let attempt = 0; attempt < 12 && !runInfo; attempt += 1) {
+    runInfo = findNewRun()
     if (runInfo) {
-      console.log(`Watching Pages deployment: ${runInfo.url}`)
-      run('gh', ['run', 'watch', String(runInfo.databaseId), '--exit-status'])
-      return
+      break
     }
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000)
   }
-  console.log('Could not find the new Pages workflow run yet. Check GitHub Actions in a moment.')
+
+  if (!runInfo) {
+    console.log('The push did not enqueue Pages. Dispatching the workflow directly.')
+    run('gh', ['workflow', 'run', 'pages.yml', '--ref', branch])
+    for (let attempt = 0; attempt < 12 && !runInfo; attempt += 1) {
+      runInfo = findNewRun()
+      if (!runInfo) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000)
+    }
+  }
+
+  if (!runInfo) throw new Error('Could not find the Pages workflow after push and direct dispatch.')
+  console.log(`Watching Pages deployment: ${runInfo.url}`)
+  run('gh', ['run', 'watch', String(runInfo.databaseId), '--exit-status'])
 }
 
 async function main() {
@@ -170,14 +207,12 @@ async function main() {
 
   if (lane === 'home-dev') {
     const port = '4173'
-    const devManifest = readDevManifest()
+    const devManifest = assertValidDevManifest()
     runNpm(['run', 'build'], {
       env: {
         ...process.env,
         VITE_RELEASE_CHANNEL: 'home-dev',
         VITE_RELEASE_REVISION: `dev.${devManifest.revision}`,
-        VITE_RELEASE_TITLE: 'Home test build',
-        VITE_RELEASE_NOTES: 'Local production preview|Only devices on this network can reach it',
       },
     })
     console.log('')
@@ -190,6 +225,7 @@ async function main() {
 
   if (lane === 'remote-dev') {
     assertCleanTree()
+    assertValidDevManifest()
     runNpm(['run', 'check'])
     assertCleanTree()
     pushAndWatch('remote-dev', 'HEAD:remote-dev')

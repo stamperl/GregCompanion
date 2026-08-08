@@ -1,7 +1,9 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-20",
+  "updatedAt": "2026-08-03",
   "approvals": [
+    { "id": "mechanicalPump", "review": "steam-waste-outlet-v1", "status": "approved" },
+    { "id": "wasteOutlet", "review": "steam-waste-outlet-v1", "status": "approved" },
     { "id": "rubberPulp", "review": "lv-chemistry-v1", "status": "approved" },
     { "id": "lvAirCollector", "review": "lv-chemistry-v1", "status": "approved" },
     { "id": "steelIngot", "review": "dark-steel-v1", "status": "approved" },

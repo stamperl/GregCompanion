@@ -1,7 +1,11 @@
 import {
   Axe,
+  Boxes,
+  Bookmark,
   BookOpen,
   Bug,
+  Calculator,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -19,6 +23,8 @@ import {
   Save,
   Search,
   Sparkles,
+  Star,
+  TriangleAlert,
   Toolbox,
   Trash2,
   Undo2,
@@ -67,6 +73,7 @@ import {
   isItemBusMachine,
   isConductorMachine,
   isFluidConductorMachine,
+  isFluidSinkMachine,
   isItemConductorMachine,
   isItemHopperMachine,
   isItemStorageMachine,
@@ -141,6 +148,9 @@ import {
   fluidContainerCapacities,
   fluidContainerGroups,
   fluidPipeBufferCapacityLitres,
+  wasteOutletCapacityLitres,
+  wasteOutletDisposalLitresPerSecond,
+  wasteOutletLiveRates,
   getBestToolForTarget,
   hasFactoryFloor,
   hitGatherTarget,
@@ -205,6 +215,7 @@ import {
   steamTankCapacityMs,
   steamTankCapacityMsForInstance,
   steamTankFluidCapacityLitresForInstance,
+  steamTankLiveSteamRates,
   steamTankStructureForInstance,
   steamNetworkMetrics,
   lvBatteryBufferEuCapacity,
@@ -284,10 +295,22 @@ import {
   collectRecipeGroupsByItemType,
   expandRecipeGroupCollections,
   groupRecipesByOutput,
+  partitionRecipeGroupsByBookmarks,
+  recipeGroupOutput,
   recipeGroupKeyForOutput,
   type RecipeGroup,
 } from './game/recipeGroups'
 import { minimumMachineForProcessRecipe, processRecipesForMachine, processRecipesInMachineTierOrder, processRecipeToCatalogRecipe } from './game/recipeGraph'
+import {
+  buildBulkCraftPlan,
+  bulkCraftRequirementsChanged,
+  parseRecipePlanBookmarks,
+  type BulkCraftPlan,
+  type BulkCraftIngredient,
+  type BulkCraftRecipeStep,
+  type RecipeFavoriteMap,
+  type RecipePlanBookmarkMap,
+} from './game/bulkCraftPlanner'
 import { machineTerminalProfile } from './game/machineTerminalProfiles'
 import { formatAmount, formatDuration, formatLitres, formatSteamLitres } from './game/format'
 import { GatherTapArt, MachineGlyph, PixelIcon, type PipeConnections } from './components/GameIcons'
@@ -350,6 +373,8 @@ function recipeOpensProcessView(recipe: Recipe) {
 
 type Page = 'home' | 'gather' | 'terminal' | 'processing' | 'guide' | 'shop'
 type TerminalMode = 'recipes' | 'machines'
+type RecipeModalView = 'browser' | 'calculator'
+type BulkCalculatorStep = 'setup' | 'results'
 type TerminalWorkspaceMode = 'crafting' | 'patterns' | 'jobs'
 type TerminalInventoryFilter = 'all' | 'craftable' | 'items' | 'fluids'
 type TerminalInventorySort = 'az' | 'quantity-desc' | 'quantity-asc'
@@ -450,6 +475,53 @@ type RecipeDisplayOutput =
   | { kind: 'machine'; id: MachineId; amount: number; label: string }
   | { kind: 'fluid'; id: FluidId; amount: number; label: string }
 
+const recipeFavoriteStorageKey = 'click-foundry.recipe-favorites.v1'
+const recipeBookmarkStorageKey = 'click-foundry.recipe-bookmarks.v2'
+const legacyRecipeBookmarkStorageKey = 'click-foundry.recipe-bookmarks.v1'
+const maxRecipePlanTarget = 999_999
+
+function loadRecipeFavoriteMap(): RecipeFavoriteMap {
+  try {
+    const stored = window.localStorage.getItem(recipeFavoriteStorageKey)
+    if (!stored) return {}
+    const parsed = JSON.parse(stored) as Record<string, unknown>
+    const favorites: RecipeFavoriteMap = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (key && typeof value === 'string' && value.length > 0) favorites[key] = value
+    }
+    return favorites
+  } catch {
+    return {}
+  }
+}
+
+function saveRecipeFavoriteMap(favorites: RecipeFavoriteMap) {
+  try {
+    window.localStorage.setItem(recipeFavoriteStorageKey, JSON.stringify(favorites))
+  } catch {
+    // Recipe preferences only affect browser planning; the session copy still works.
+  }
+}
+
+function loadRecipeBookmarkMap(): RecipePlanBookmarkMap {
+  try {
+    return parseRecipePlanBookmarks(
+      window.localStorage.getItem(recipeBookmarkStorageKey),
+      window.localStorage.getItem(legacyRecipeBookmarkStorageKey),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function saveRecipeBookmarkMap(bookmarks: RecipePlanBookmarkMap) {
+  try {
+    window.localStorage.setItem(recipeBookmarkStorageKey, JSON.stringify(bookmarks))
+  } catch {
+    // Recipe bookmarks remain available for this session when storage is unavailable.
+  }
+}
+
 type MachineHmiConfig = {
   kind: string
   runningLabel: string
@@ -466,6 +538,7 @@ const machineOrder: MachineId[] = [
   'steelTank',
   'standardChest',
   'hopper',
+  'wasteOutlet',
   'copperPipe',
   'bronzePipe',
   'ironPipe',
@@ -611,6 +684,7 @@ const isDistilleryUiMachine = (machineId: MachineId) => machineId === 'lvDistill
 const isExtractorUiMachine = (machineId: MachineId) => machineId === 'lvExtractor' || machineId === 'mvExtractor'
 
 const fluidFirstTerminalMachineIds = new Set<MachineId>([
+  'wasteOutlet',
   'lvWaterSource',
   'lvDistillery',
   'mvDistillery',
@@ -695,6 +769,9 @@ function PipeFlowArrows({ direction, mode }: { direction: PipeDirection; mode: P
 }
 
 const resourceOrder = Object.keys(resourceLabels) as ResourceId[]
+const bulkPlanBaseResourceIds = new Set<ResourceId>(
+  Object.values(gatherTargets).flatMap((target) => target.drops.map((drop) => drop.id)),
+)
 
 type GatherAreaId = 'forest' | 'lake' | 'mine' | 'shatteredReach'
 
@@ -866,6 +943,7 @@ const questAutoLayoutOffsets: Partial<Record<QuestId, { x?: number; y?: number }
 const questSidePlacements: Partial<Record<QuestId, QuestMapSide>> = {
   equipToolTipQuest: 'left',
   recipeBrowserTipQuest: 'right',
+  bulkCalculatorTipQuest: 'right',
   chopFaster: 'left',
   transferWaterBucketQuest: 'left',
   fluidHandlingTipQuest: 'right',
@@ -2215,6 +2293,10 @@ function machineStatus(state: GameState, instance: MachineInstance) {
     const outputLabel = outputDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ')
     return process.activeRecipeId ? `Feeding ${outputLabel}` : `Ready ${outputLabel}`
   }
+  if (isFluidSinkMachine(instance.machineId)) {
+    const rates = wasteOutletLiveRates(instance)
+    return rates.totalLitresPerSecond > 0 ? `Disposing ${formatAmount(rates.totalLitresPerSecond)}L/s` : 'Ready'
+  }
   if (isTankStorageMachine(instance.machineId)) {
     const storedFluid = storedFluids(process)[0]
     if (storedFluid) return `Holding ${fluidLabel(storedFluid.id).toLowerCase()}`
@@ -3555,6 +3637,8 @@ function App() {
   const [terminalSearch, setTerminalSearch] = useState('')
   const [machineInventorySearch, setMachineInventorySearch] = useState('')
   const [recipeSearch, setRecipeSearch] = useState('')
+  const [recipeFavorites, setRecipeFavorites] = useState<RecipeFavoriteMap>(() => loadRecipeFavoriteMap())
+  const [recipeBookmarks, setRecipeBookmarks] = useState<RecipePlanBookmarkMap>(() => loadRecipeBookmarkMap())
   const [encoderRecipeKind, setEncoderRecipeKind] = useState<'crafting' | 'processing'>('crafting')
   const [patternBlankInserted, setPatternBlankInserted] = useState(false)
   const [patternCraftingGrid, setPatternCraftingGrid] = useState<CraftSlot[]>(() => Array.from({ length: 9 }, () => null))
@@ -3588,6 +3672,14 @@ function App() {
   const [offlinePrompt, setOfflinePrompt] = useState('')
   const [migrationPrompt, setMigrationPrompt] = useState('')
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false)
+  const [recipeModalView, setRecipeModalView] = useState<RecipeModalView>('browser')
+  const [bulkCalculatorStep, setBulkCalculatorStep] = useState<BulkCalculatorStep>('setup')
+  const [bulkCalculatorSearch, setBulkCalculatorSearch] = useState('')
+  const [bulkCalculatorTargetKey, setBulkCalculatorTargetKey] = useState<string | null>(null)
+  const [bulkCalculatorTargetAmount, setBulkCalculatorTargetAmount] = useState(1)
+  const [bulkCalculatorPendingRecipe, setBulkCalculatorPendingRecipe] = useState<string | null>(null)
+  const [bulkCalculatorUpdateNotice, setBulkCalculatorUpdateNotice] = useState<{ changed: boolean; label: string } | null>(null)
+  const previousBulkCraftPlanRef = useRef<BulkCraftPlan | null>(null)
   const [isMachineRecipePopupOpen, setIsMachineRecipePopupOpen] = useState(false)
   const [selectedMachinePopupRecipeIndex, setSelectedMachinePopupRecipeIndex] = useState(0)
   const [machineRecipeLoadNotice, setMachineRecipeLoadNotice] = useState('')
@@ -3955,6 +4047,14 @@ function App() {
   )
 
   useEffect(() => {
+    saveRecipeFavoriteMap(recipeFavorites)
+  }, [recipeFavorites])
+
+  useEffect(() => {
+    saveRecipeBookmarkMap(recipeBookmarks)
+  }, [recipeBookmarks])
+
+  useEffect(() => {
     if (page !== 'gather' || !highlightedGatherTarget) return
     const frame = window.requestAnimationFrame(() => {
       document.querySelector<HTMLElement>(`[data-gather-target="${highlightedGatherTarget}"]`)?.scrollIntoView({
@@ -3994,6 +4094,11 @@ function App() {
     [],
   )
   const recipeCatalog = useMemo(() => [...recipes, ...processRecipeCards], [processRecipeCards])
+  const allRecipeGroups = useMemo(() => groupRecipesByOutput(recipeCatalog), [recipeCatalog])
+  const recipeGroupsByOutputKey = useMemo(
+    () => new Map(allRecipeGroups.map((group) => [group.key, group] as const)),
+    [allRecipeGroups],
+  )
   const unplacedMachineCounts = Object.fromEntries(machineOrder.map((id) => [id, availableUnplacedMachineCount(state, id)])) as Record<MachineId, number>
   const reservedGridMachineCounts = terminalGrid.reduce((counts, slot) => {
     if (slot?.kind === 'machine' && !slot.ghost) counts[slot.id] = (counts[slot.id] ?? 0) + Math.max(1, slot.amount ?? 1)
@@ -4003,6 +4108,67 @@ function App() {
     id,
     Math.max(0, unplacedMachineCounts[id] - (reservedGridMachineCounts[id] ?? 0)),
   ])) as Record<MachineId, number>
+  const bulkCalculatorTargetGroups = useMemo(
+    () => allRecipeGroups.filter((group) => group.output.kind === 'resource' || group.output.kind === 'machine'),
+    [allRecipeGroups],
+  )
+  const filteredBulkCalculatorTargetGroups = useMemo(() => {
+    const query = bulkCalculatorSearch.trim().toLowerCase()
+    if (!query) return bulkCalculatorTargetGroups
+    return bulkCalculatorTargetGroups.filter((group) => {
+      const output = recipeGroupDisplayOutput(group)
+      return group.key.toLowerCase().includes(query) || output.label.toLowerCase().includes(query)
+    })
+  }, [bulkCalculatorSearch, bulkCalculatorTargetGroups])
+  const bulkCalculatorTargetGroup = bulkCalculatorTargetKey
+    ? recipeGroupsByOutputKey.get(bulkCalculatorTargetKey)
+    : undefined
+  const bulkCalculatorBookmarkedTargets = Object.entries(recipeBookmarks)
+    .map(([key, bookmark]) => ({ group: recipeGroupsByOutputKey.get(key), bookmark }))
+    .filter((entry): entry is { group: RecipeGroup; bookmark: { targetAmount: number } } => Boolean(
+      entry.group && (entry.group.output.kind === 'resource' || entry.group.output.kind === 'machine'),
+    ))
+  const bulkCraftPlan = useMemo(() => (
+    bulkCalculatorStep === 'results' && bulkCalculatorTargetGroup
+      ? buildBulkCraftPlan({
+          targetGroup: bulkCalculatorTargetGroup,
+          targetAmount: bulkCalculatorTargetAmount,
+          groupsByOutputKey: recipeGroupsByOutputKey,
+          favorites: recipeFavorites,
+          baseResourceIds: bulkPlanBaseResourceIds,
+          inventory: {
+            resources: state.resources,
+            machines: unplacedMachineCounts,
+            placedMachines: state.machineInstances.map((instance) => instance.machineId),
+          },
+        })
+      : null
+  ), [
+    bulkCalculatorStep,
+    bulkCalculatorTargetAmount,
+    bulkCalculatorTargetGroup,
+    recipeFavorites,
+    recipeGroupsByOutputKey,
+    state.machineInstances,
+    state.resources,
+    unplacedMachineCounts,
+  ])
+  useEffect(() => {
+    if (!bulkCraftPlan) {
+      previousBulkCraftPlanRef.current = null
+      setBulkCalculatorUpdateNotice(null)
+      return
+    }
+    const previousPlan = previousBulkCraftPlanRef.current
+    if (bulkCalculatorPendingRecipe && previousPlan) {
+      setBulkCalculatorUpdateNotice({
+        changed: bulkCraftRequirementsChanged(previousPlan, bulkCraftPlan),
+        label: bulkCalculatorPendingRecipe,
+      })
+      setBulkCalculatorPendingRecipe(null)
+    }
+    previousBulkCraftPlanRef.current = bulkCraftPlan
+  }, [bulkCalculatorPendingRecipe, bulkCraftPlan])
   const inventoryResources = resourceOrder.filter((id) => terminalAvailableAmount(state, terminalGrid, id) > 0)
   const networkCraftableResourceIds = [...new Set(
     state.recipeCards
@@ -4081,13 +4247,17 @@ function App() {
     () => terminalMode === 'recipes' ? groupRecipesByOutput(recipeCandidates) : machineRecipeGroups,
     [machineRecipeGroups, recipeCandidates, terminalMode],
   )
+  const { bookmarkedGroups: bookmarkedRecipeGroups, remainingGroups: unbookmarkedRecipeGroups } = useMemo(
+    () => partitionRecipeGroupsByBookmarks(listedRecipeGroups, Object.keys(recipeBookmarks)),
+    [listedRecipeGroups, recipeBookmarks],
+  )
   const recipeGroupCollections = useMemo(
-    () => collectRecipeGroupsByItemType(listedRecipeGroups, resourceRegistry, machines),
-    [listedRecipeGroups],
+    () => collectRecipeGroupsByItemType(unbookmarkedRecipeGroups, resourceRegistry, machines),
+    [unbookmarkedRecipeGroups],
   )
   const displayedRecipeGroups = useMemo(
-    () => expandRecipeGroupCollections(recipeGroupCollections, expandedRecipeCollectionKey),
-    [expandedRecipeCollectionKey, recipeGroupCollections],
+    () => [...bookmarkedRecipeGroups, ...expandRecipeGroupCollections(recipeGroupCollections, expandedRecipeCollectionKey)],
+    [bookmarkedRecipeGroups, expandedRecipeCollectionKey, recipeGroupCollections],
   )
   const collapsedRecipeCollectionsByGroupKey = useMemo(
     () => new Map(
@@ -4201,6 +4371,9 @@ function App() {
       : ironTankFluidCapacityLitres
   const selectedSteamNetworkMetrics = selectedMachine && isSteamNetworkMachine(selectedMachine.machineId)
     ? steamNetworkMetrics(state, selectedMachine)
+    : null
+  const selectedSteamTankLiveRates = selectedMachine && isTankStorageMachine(selectedMachine.machineId)
+    ? steamTankLiveSteamRates(state, selectedMachine)
     : null
   const selectedPipeConfig = state.machineInstances.find((instance) => instance.uid === selectedPipeConfigUid) ?? null
   const selectedConductorFace = selectedPipeConfig && selectedConductorLane !== 'fabrication' && isConductorMachine(selectedPipeConfig.machineId)
@@ -4552,6 +4725,7 @@ function App() {
   const selectedMachineCanConfigureRouting = Boolean(
     selectedMachine &&
       (isSteamPipeMachine(selectedMachine.machineId) ||
+        isTankStorageMachine(selectedMachine.machineId) ||
         isConductorMachine(selectedMachine.machineId) ||
         hasFabricationCable(selectedMachine) ||
         isEuCableMachine(selectedMachine.machineId) ||
@@ -4577,6 +4751,7 @@ function App() {
     isTankStorageMachine(selectedMachine.machineId) ||
     selectedMachine.machineId === 'planningController' ||
     isItemAutomationMachine(selectedMachine.machineId) ||
+    isFluidSinkMachine(selectedMachine.machineId) ||
     isSteamPipeMachine(selectedMachine.machineId) ||
     isEuCableMachine(selectedMachine.machineId) ||
     isEuTransformerMachine(selectedMachine.machineId) ||
@@ -5322,7 +5497,11 @@ function App() {
     }
     setPendingProcessInsert(null)
     setIsMachineAutomationOpen(false)
-    setSelectedPipeConfigUid(selectedMachine.uid)
+    setSelectedPipeConfigUid(
+      isTankStorageMachine(selectedMachine.machineId)
+        ? steamTankStructureForInstance(state, selectedMachine)?.controller.uid ?? selectedMachine.uid
+        : selectedMachine.uid,
+    )
     setSelectedMachineUid(null)
   }
 
@@ -5707,14 +5886,22 @@ function App() {
     handleCraftBatch(quantity)
   }
 
-  const handleLoadRecipe = (recipe: Recipe) => {
+  const handleLoadRecipe = (recipe: Recipe, quantity = 1, targetAmount?: number) => {
     if (!recipeFitsTerminalGrid(recipe)) {
       setTerminalNotice('This recipe needs a later station.')
       return
     }
 
+    const requestedBatches = Math.max(1, Math.floor(quantity))
     setTerminalGrid(makeGridForRecipe(recipe, state))
-    setTerminalNotice(missingLine(state, recipe) ? `Missing ${missingLine(state, recipe)}` : `${recipeDisplayName(recipe)} loaded.`)
+    setBatchQuantity(requestedBatches)
+    setTerminalNotice(
+      targetAmount !== undefined
+        ? `${recipeDisplayName(recipe)} loaded for ${formatAmount(targetAmount)} output (${formatAmount(requestedBatches)} batches).`
+        : missingLine(state, recipe)
+          ? `Missing ${missingLine(state, recipe)}`
+          : `${recipeDisplayName(recipe)} loaded.`,
+    )
     setIsRecipeModalOpen(false)
     setPage('terminal')
   }
@@ -5765,6 +5952,7 @@ function App() {
     setTerminalMode('machines')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setSelectedMachineUid(null)
     setPendingProcessInsert(null)
@@ -5779,6 +5967,15 @@ function App() {
     setRecipeSearch('')
     setSelectedRecipeGroupKey(null)
     setSelectedRecipeIndex(0)
+    setRecipeModalView('browser')
+    setIsRecipeModalOpen(true)
+  }
+
+  const handleOpenBulkCalculator = () => {
+    setIsPatternRecipeBookOpen(false)
+    setRecipeModalView('calculator')
+    setBulkCalculatorStep('setup')
+    setBulkCalculatorSearch('')
     setIsRecipeModalOpen(true)
   }
 
@@ -5997,6 +6194,7 @@ function App() {
     setTerminalMode('recipes')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setIsFactoryExpandModalOpen(false)
     setMissingBatch(null)
@@ -6019,6 +6217,7 @@ function App() {
     setTerminalMode('recipes')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setIsFactoryExpandModalOpen(false)
     setMissingBatch(null)
@@ -6041,6 +6240,7 @@ function App() {
     setTerminalMode('recipes')
     setRecipeSearch('')
     setPage('terminal')
+    setRecipeModalView('browser')
     setIsRecipeModalOpen(true)
     setIsFactoryExpandModalOpen(false)
     setMissingBatch(null)
@@ -6333,6 +6533,9 @@ function App() {
 
   const selectedAvailable = selectedResource ? terminalAvailableAmount(state, terminalGrid, selectedResource) : 0
   const terminalOutput = terminalMatch ? recipePrimaryOutput(terminalMatch) : undefined
+  const terminalBatchOutputLabel = terminalOutput
+    ? recipeDisplayAmount({ ...terminalOutput, amount: terminalOutput.amount * batchQuantity })
+    : '0'
   const selectedRecipeMissing = selectedRecipe ? missingForRecipe(state, selectedRecipe) : undefined
   const showSelectedRecipeAvailability = terminalMode !== 'machines'
   const selectedRecipeMissingLine = selectedRecipe && showSelectedRecipeAvailability ? missingLine(state, selectedRecipe) : ''
@@ -6342,6 +6545,19 @@ function App() {
       ? recipeGroupDisplayOutput(selectedRecipeGroup)
       : recipePrimaryOutput(selectedRecipe)
     : undefined
+  const selectedRecipeUnitOutput = selectedRecipe ? recipePrimaryOutput(selectedRecipe) : undefined
+  const selectedRecipeOutputPerBatch = Math.max(1, Math.floor(selectedRecipeUnitOutput?.amount ?? 1))
+  const selectedRecipePreferenceGroupKey = selectedRecipe && selectedRecipeGroup && recipeGroupsByOutputKey.get(selectedRecipeGroup.key)?.recipes.some((recipe) => recipe.id === selectedRecipe.id)
+    ? selectedRecipeGroup.key
+    : selectedRecipe
+      ? recipeGroupOutput(selectedRecipe)
+        ? recipeGroupKeyForOutput(recipeGroupOutput(selectedRecipe)!)
+        : null
+      : null
+  const selectedRecipePreferenceGroup = selectedRecipePreferenceGroupKey ? recipeGroupsByOutputKey.get(selectedRecipePreferenceGroupKey) : undefined
+  const selectedRecipeIsFavorite = Boolean(
+    selectedRecipe && selectedRecipePreferenceGroupKey && recipeFavorites[selectedRecipePreferenceGroupKey] === selectedRecipe.id,
+  )
   const missingResourceAmount = (id: ResourceId) => showSelectedRecipeAvailability
     ? selectedRecipeMissing?.missingResources.find((amount) => amount.id === id)?.amount ?? 0
     : 0
@@ -6360,6 +6576,100 @@ function App() {
               : '',
       }
     : null
+  const handleToggleFavoriteRecipeVariant = () => {
+    if (!selectedRecipe || !selectedRecipePreferenceGroupKey || !selectedRecipePreferenceGroup || selectedRecipePreferenceGroup.recipes.length < 2) return
+    setRecipeFavorites((current) => {
+      if (current[selectedRecipePreferenceGroupKey] === selectedRecipe.id) {
+        const next = { ...current }
+        delete next[selectedRecipePreferenceGroupKey]
+        return next
+      }
+      return { ...current, [selectedRecipePreferenceGroupKey]: selectedRecipe.id }
+    })
+    setTerminalNotice(
+      selectedRecipeIsFavorite
+        ? `${recipeDisplayName(selectedRecipe)} will use the default recipe.`
+        : `${recipeDisplayName(selectedRecipe)} set as recursive favorite.`,
+    )
+  }
+  const handleToggleRecipeBookmark = () => {
+    if (!selectedRecipeGroup) return
+    const isBookmarked = Boolean(recipeBookmarks[selectedRecipeGroup.key])
+    setRecipeBookmarks((current) => {
+      if (current[selectedRecipeGroup.key]) {
+        const next = { ...current }
+        delete next[selectedRecipeGroup.key]
+        return next
+      }
+      return { ...current, [selectedRecipeGroup.key]: { targetAmount: selectedRecipeOutputPerBatch } }
+    })
+    setTerminalNotice(`${selectedRecipeOutput?.label ?? 'Recipe'} ${isBookmarked ? 'removed from bookmarks.' : 'bookmarked and pinned first.'}`)
+  }
+  const handleAdjustBulkCalculatorTarget = (amount: number) => {
+    setBulkCalculatorTargetAmount(Math.max(1, Math.min(maxRecipePlanTarget, Math.floor(amount))))
+  }
+  const handleSelectBulkCalculatorTarget = (group: RecipeGroup, targetAmount?: number) => {
+    setBulkCalculatorTargetKey(group.key)
+    handleAdjustBulkCalculatorTarget(targetAmount ?? Math.max(1, Math.floor(group.output.amount)))
+    setBulkCalculatorStep('setup')
+    setBulkCalculatorUpdateNotice(null)
+  }
+  const handleToggleBulkCalculatorBookmark = () => {
+    if (!bulkCalculatorTargetGroup) return
+    const existing = recipeBookmarks[bulkCalculatorTargetGroup.key]
+    const isCurrentBookmark = existing?.targetAmount === bulkCalculatorTargetAmount
+    setRecipeBookmarks((current) => {
+      if (isCurrentBookmark) {
+        const next = { ...current }
+        delete next[bulkCalculatorTargetGroup.key]
+        return next
+      }
+      return {
+        ...current,
+        [bulkCalculatorTargetGroup.key]: { targetAmount: bulkCalculatorTargetAmount },
+      }
+    })
+  }
+  const handleOpenBulkCalculatorBookmark = (group: RecipeGroup, targetAmount: number) => {
+    setBulkCalculatorTargetKey(group.key)
+    handleAdjustBulkCalculatorTarget(targetAmount)
+    setBulkCalculatorStep('results')
+    setBulkCalculatorUpdateNotice(null)
+  }
+  const handleCycleBulkRecipe = (step: BulkCraftRecipeStep, direction: -1 | 1) => {
+    const group = recipeGroupsByOutputKey.get(step.key)
+    if (!group || group.recipes.length < 2) return
+    const currentIndex = Math.max(0, group.recipes.findIndex((recipe) => recipe.id === step.recipe.id))
+    const nextIndex = direction < 0
+      ? currentIndex <= 0 ? group.recipes.length - 1 : currentIndex - 1
+      : (currentIndex + 1) % group.recipes.length
+    setBulkCalculatorPendingRecipe(group.recipes[nextIndex].name)
+    setRecipeFavorites((current) => ({ ...current, [step.key]: group.recipes[nextIndex].id }))
+  }
+  const handleToggleBulkRecipeFavorite = (step: BulkCraftRecipeStep) => {
+    const group = recipeGroupsByOutputKey.get(step.key)
+    const clearingFavorite = recipeFavorites[step.key] === step.recipe.id
+    setBulkCalculatorPendingRecipe(clearingFavorite ? group?.recipes[0]?.name ?? step.recipe.name : step.recipe.name)
+    setRecipeFavorites((current) => {
+      if (current[step.key] === step.recipe.id) {
+        const next = { ...current }
+        delete next[step.key]
+        return next
+      }
+      return { ...current, [step.key]: step.recipe.id }
+    })
+  }
+  const handleJumpFromBulkCalculator = (ingredient: BulkCraftIngredient) => {
+    if (ingredient.kind === 'resource') {
+      handleJumpToResourceRecipe(ingredient.id)
+      return
+    }
+    if (ingredient.kind === 'machine') {
+      handleJumpToMachineRecipe(ingredient.id)
+      return
+    }
+    handleJumpToFluidRecipe(ingredient.id)
+  }
   const renderEquipmentSlot = (slotId: EquipmentSlotId) => {
     const equipped = state.equipment[slotId]
     const selectedFits = Boolean(selectedResource && equipmentSlotAccepts(slotId, selectedResource))
@@ -6459,6 +6769,14 @@ function App() {
       return
     }
     if (isRecipeModalOpen) {
+      if (recipeModalView === 'calculator') {
+        if (bulkCalculatorStep === 'results') {
+          setBulkCalculatorStep('setup')
+          return
+        }
+        setRecipeModalView('browser')
+        return
+      }
       setIsRecipeModalOpen(false)
       return
     }
@@ -6510,7 +6828,14 @@ function App() {
     : selectedSaveSlot?.exists
       ? `${selectedSaveLabel} ready - ${selectedSaveSlot.updatedAt ? new Date(selectedSaveSlot.updatedAt).toLocaleString() : 'saved'}`
       : `${selectedSaveLabel} is empty`
-  const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  const deployedAtLabel = new Date(deploymentInfo.deployedAt).toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
   const buildLabel = deploymentInfo.version === 'local' ? 'Local build' : `Build ${deploymentInfo.version}`
   const releaseChannelLabel = deploymentInfo.channel === 'release'
     ? 'Full release'
@@ -6737,7 +7062,7 @@ function App() {
               <p className="eyebrow">Block-tech idle</p>
               <h1><span>Click</span><span>Foundry</span></h1>
               <p className="home-save-status">{saveStatus}</p>
-              <p className="home-deploy-version">{releaseChannelLabel} | {releaseRevisionLabel} | {buildLabel} | {deployedAtLabel}</p>
+              <p className="home-deploy-version">{releaseChannelLabel} | {releaseRevisionLabel} | {buildLabel} | Published {deployedAtLabel}</p>
             </div>
           </div>
           <section className="home-release-card" aria-label="Release notes">
@@ -6745,6 +7070,7 @@ function App() {
               <span>{releaseChannelLabel}</span>
               <strong>{releaseRevisionLabel}</strong>
             </div>
+            <time dateTime={deploymentInfo.deployedAt}>Published {deployedAtLabel}</time>
             <p>{deploymentInfo.title}</p>
             {releaseNotes.length > 0 && (
               <ul>
@@ -7270,9 +7596,9 @@ function App() {
                 ))}
               </div>
               <div className="batch-quantity" aria-live="polite">
-                <span>Qty</span>
+                <span>Batches</span>
                 <strong>{formatAmount(batchQuantity)}</strong>
-                <small>Max {formatAmount(maxBatchQuantity)}</small>
+                <small>Makes {terminalBatchOutputLabel} / Max {formatAmount(maxBatchQuantity)} batches</small>
               </div>
               <div className="batch-step-row" aria-label="Decrease quantity">
                 {[-1, -10, -100].map((amount) => (
@@ -7318,6 +7644,7 @@ function App() {
                   setRecipeSearch('')
                   setSelectedRecipeGroupKey(null)
                   setSelectedRecipeIndex(0)
+                  setRecipeModalView('browser')
                   setIsRecipeModalOpen(true)
                 }}
               >
@@ -7538,22 +7865,363 @@ function App() {
           {isRecipeModalOpen && (
             <div className="modal-backdrop recipe-backdrop" role="presentation" onClick={() => setIsRecipeModalOpen(false)}>
               <section
-                className="recipe-modal"
+                className={recipeModalView === 'calculator' ? 'recipe-modal bulk-calculator-modal' : 'recipe-modal'}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Recipe browser"
+                aria-label={recipeModalView === 'calculator' ? 'Bulk crafting calculator' : 'Recipe browser'}
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="modal-head">
-                  <div>
-                    <p className="eyebrow">Recipe browser</p>
-                    <h2>{terminalMode === 'recipes' ? 'Recipes' : 'Machines'}</h2>
+                  <div className="recipe-modal-title">
+                    {recipeModalView === 'calculator' && (
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={bulkCalculatorStep === 'results' ? 'Back to calculator setup' : 'Back to recipes'}
+                        onClick={() => {
+                          if (bulkCalculatorStep === 'results') setBulkCalculatorStep('setup')
+                          else setRecipeModalView('browser')
+                        }}
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                    )}
+                    <div>
+                      <p className="eyebrow">{recipeModalView === 'calculator' ? 'Production planner' : 'Recipe browser'}</p>
+                      <h2>{recipeModalView === 'calculator' ? 'Bulk Calculator' : terminalMode === 'recipes' ? 'Recipes' : 'Machines'}</h2>
+                    </div>
                   </div>
-                  <button type="button" className="icon-button" aria-label="Close recipes" onClick={() => setIsRecipeModalOpen(false)}>
-                    <X size={18} />
-                  </button>
+                  <div className="recipe-modal-head-actions">
+                    {recipeModalView === 'browser' && !isPatternRecipeBookOpen && (
+                      <button type="button" className="icon-button" aria-label="Open bulk calculator" title="Bulk calculator" onClick={handleOpenBulkCalculator}>
+                        <Calculator size={18} />
+                      </button>
+                    )}
+                    <button type="button" className="icon-button" aria-label="Close recipes" onClick={() => setIsRecipeModalOpen(false)}>
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
 
+                {recipeModalView === 'calculator' ? (
+                  <div className="bulk-calculator">
+                    {bulkCalculatorStep === 'setup' ? (
+                      <>
+                        {bulkCalculatorBookmarkedTargets.length > 0 && (
+                          <section className="bulk-calculator-section" aria-label="Saved bulk plans">
+                            <div className="bulk-calculator-section-head">
+                              <span>Saved plans</span>
+                              <small>{bulkCalculatorBookmarkedTargets.length}</small>
+                            </div>
+                            <div className="bulk-bookmark-list">
+                              {bulkCalculatorBookmarkedTargets.map(({ group, bookmark }) => {
+                                const output = recipeGroupDisplayOutput(group)
+                                return (
+                                  <button
+                                    type="button"
+                                    className="bulk-bookmark-row"
+                                    onClick={() => handleOpenBulkCalculatorBookmark(group, bookmark.targetAmount)}
+                                    key={group.key}
+                                  >
+                                    <span className="bulk-calculator-icon"><RecipeDisplayIcon output={output} /></span>
+                                    <span><strong>{output.label}</strong><small>Saved target</small></span>
+                                    <em>{output.kind === 'fluid' ? `${formatLitres(bookmark.targetAmount)}L` : `x${formatAmount(bookmark.targetAmount)}`}</em>
+                                    <ChevronRight size={16} aria-hidden="true" />
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </section>
+                        )}
+
+                        <section className="bulk-calculator-section bulk-target-picker" aria-label="Bulk craft target">
+                          <div className="bulk-calculator-section-head">
+                            <span>Choose target</span>
+                            <small>{filteredBulkCalculatorTargetGroups.length}</small>
+                          </div>
+                          <label className="bulk-calculator-search">
+                            <Search size={15} aria-hidden="true" />
+                            <input
+                              type="search"
+                              placeholder="Search items or machines"
+                              value={bulkCalculatorSearch}
+                              onChange={(event) => setBulkCalculatorSearch(event.currentTarget.value)}
+                            />
+                          </label>
+                          <div className="bulk-target-grid">
+                            {filteredBulkCalculatorTargetGroups.map((group) => {
+                              const output = recipeGroupDisplayOutput(group)
+                              const selected = group.key === bulkCalculatorTargetGroup?.key
+                              return (
+                                <button
+                                  type="button"
+                                  className={selected ? 'bulk-target-button selected' : 'bulk-target-button'}
+                                  aria-label={`Select ${output.label}`}
+                                  title={output.label}
+                                  onClick={() => handleSelectBulkCalculatorTarget(group)}
+                                  key={group.key}
+                                >
+                                  <RecipeDisplayIcon output={output} />
+                                  {recipeBookmarks[group.key] && <Bookmark className="bulk-target-bookmark" size={11} fill="currentColor" aria-hidden="true" />}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </section>
+
+                        {bulkCalculatorTargetGroup && (() => {
+                          const output = recipeGroupDisplayOutput(bulkCalculatorTargetGroup)
+                          return (
+                            <section className="bulk-calculator-section bulk-target-config" aria-label="Target quantity">
+                              <div className="bulk-selected-target">
+                                <button
+                                  type="button"
+                                  className="bulk-calculator-icon bulk-navigation-icon"
+                                  aria-label={`Open ${output.label}`}
+                                  title={`Open ${output.label}`}
+                                  onClick={() => handleJumpFromBulkCalculator(output)}
+                                >
+                                  <RecipeDisplayIcon output={output} />
+                                </button>
+                                <span><small>Target</small><strong>{output.label}</strong></span>
+                              </div>
+                              <div className="bulk-quantity-control">
+                                <button type="button" aria-label="Decrease target quantity" disabled={bulkCalculatorTargetAmount <= 1} onClick={() => handleAdjustBulkCalculatorTarget(bulkCalculatorTargetAmount - 1)}>
+                                  <ChevronLeft size={17} />
+                                </button>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="1"
+                                  max={maxRecipePlanTarget}
+                                  aria-label="Bulk target quantity"
+                                  value={bulkCalculatorTargetAmount}
+                                  onChange={(event) => handleAdjustBulkCalculatorTarget(Number(event.currentTarget.value) || 1)}
+                                />
+                                <button type="button" aria-label="Increase target quantity" disabled={bulkCalculatorTargetAmount >= maxRecipePlanTarget} onClick={() => handleAdjustBulkCalculatorTarget(bulkCalculatorTargetAmount + 1)}>
+                                  <ChevronRight size={17} />
+                                </button>
+                              </div>
+                              <div className="bulk-quantity-presets" aria-label="Target quantity presets">
+                                {[...new Set([Math.max(1, Math.floor(output.amount)), 10, 64])].map((amount) => (
+                                  <button type="button" onClick={() => handleAdjustBulkCalculatorTarget(amount)} key={amount}>x{formatAmount(amount)}</button>
+                                ))}
+                              </div>
+                              <button type="button" className="bulk-calculate-button" onClick={() => setBulkCalculatorStep('results')}>
+                                <Calculator size={17} />
+                                Calculate
+                              </button>
+                            </section>
+                          )
+                        })()}
+                      </>
+                    ) : bulkCraftPlan && bulkCalculatorTargetGroup ? (() => {
+                      const targetOutput = recipeGroupDisplayOutput(bulkCalculatorTargetGroup)
+                      const existingBookmark = recipeBookmarks[bulkCalculatorTargetGroup.key]
+                      const currentBookmark = existingBookmark?.targetAmount === bulkCalculatorTargetAmount
+                      return (
+                        <div className="bulk-calculator-results">
+                          <section className="bulk-result-target">
+                            <button
+                              type="button"
+                              className="bulk-calculator-icon bulk-navigation-icon large"
+                              aria-label={`Open ${targetOutput.label}`}
+                              title={`Open ${targetOutput.label}`}
+                              onClick={() => handleJumpFromBulkCalculator(targetOutput)}
+                            >
+                              <RecipeDisplayIcon output={targetOutput} />
+                            </button>
+                            <span><small>Production target</small><strong>{targetOutput.label}</strong></span>
+                            <button type="button" className="bulk-edit-target" onClick={() => setBulkCalculatorStep('setup')}>Edit</button>
+                          </section>
+
+                          <div className="bulk-result-metrics" aria-label="Bulk calculation summary">
+                            <span><small>Requested</small><strong>x{formatAmount(bulkCraftPlan.requestedAmount)}</strong></span>
+                            <span><small>Owned</small><strong>x{formatAmount(bulkCraftPlan.targetOwned)}</strong></span>
+                            <span><small>Batches</small><strong>{formatAmount(bulkCraftPlan.rootBatches)}</strong></span>
+                            <span><small>Makes</small><strong>x{formatAmount(bulkCraftPlan.craftedOutputAmount)}</strong></span>
+                          </div>
+
+                          <section className="bulk-calculator-section" aria-label="Base material requirements">
+                            <div className="bulk-calculator-section-head">
+                              <span>Base materials</span>
+                              <small>{bulkCraftPlan.requirements.length}</small>
+                            </div>
+                            {bulkCalculatorUpdateNotice && (
+                              <div className={bulkCalculatorUpdateNotice.changed ? 'bulk-plan-update changed' : 'bulk-plan-update unchanged'} role="status">
+                                <Check size={13} aria-hidden="true" />
+                                <span>
+                                  <strong>{bulkCalculatorUpdateNotice.changed ? 'Materials updated' : 'Materials unchanged'}</strong>
+                                  <small>{bulkCalculatorUpdateNotice.label}</small>
+                                </span>
+                              </div>
+                            )}
+                            {bulkCraftPlan.requirements.length > 0 ? (
+                              <div className="bulk-requirement-list">
+                                {bulkCraftPlan.requirements.map((requirement) => {
+                                  const label = requirement.kind === 'resource'
+                                    ? resourceLabels[requirement.id]
+                                    : requirement.kind === 'machine'
+                                    ? machines[requirement.id].name
+                                      : fluidLabel(requirement.id)
+                                  return (
+                                    <div className={requirement.kind === 'fluid' ? 'bulk-requirement-row fluid' : requirement.short ? 'bulk-requirement-row short' : 'bulk-requirement-row ready'} key={`${requirement.kind}:${requirement.id}`}>
+                                      <button
+                                        type="button"
+                                        className="bulk-calculator-icon bulk-navigation-icon"
+                                        aria-label={`Open ${label}`}
+                                        title={`Open ${label}`}
+                                        onClick={() => handleJumpFromBulkCalculator(requirement)}
+                                      >
+                                        {requirement.kind === 'resource' ? <PixelIcon id={requirement.id} /> : requirement.kind === 'machine' ? <MachineGlyph id={requirement.id} /> : <FluidIcon id={requirement.id} />}
+                                      </button>
+                                      <strong>{label}</strong>
+                                      {requirement.kind === 'fluid' ? (
+                                        <span className="bulk-fluid-required" aria-label={`${formatLitres(requirement.required)} litres required. Stored fluids not checked.`}>
+                                          <Droplet size={13} aria-hidden="true" />
+                                          <em>{formatLitres(requirement.required)}L</em>
+                                          <small>No stock check</small>
+                                        </span>
+                                      ) : (
+                                        <span className="bulk-requirement-counts">
+                                          <span aria-label={`${formatAmount(requirement.required)} required`} title="Required"><Calculator size={12} aria-hidden="true" /><em>x{formatAmount(requirement.required)}</em></span>
+                                          <span aria-label={`${formatAmount(requirement.owned ?? 0)} owned`} title="Owned"><Boxes size={12} aria-hidden="true" /><em>x{formatAmount(requirement.owned ?? 0)}</em></span>
+                                          <span aria-label={`${formatAmount(requirement.short ?? 0)} short`} title="Short"><TriangleAlert size={12} aria-hidden="true" /><em>x{formatAmount(requirement.short ?? 0)}</em></span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <p className="bulk-empty-state">Inventory already covers this target.</p>
+                            )}
+                          </section>
+
+                          {bulkCraftPlan.setup.length > 0 && (
+                            <section className="bulk-calculator-section" aria-label="Required setup">
+                              <div className="bulk-calculator-section-head"><span>Required setup</span><small>{bulkCraftPlan.setup.length}</small></div>
+                              <div className="bulk-setup-list">
+                                {bulkCraftPlan.setup.map((requirement) => {
+                                  const label = requirement.kind === 'resource' ? resourceLabels[requirement.id] : machines[requirement.id].name
+                                  return (
+                                    <div className={requirement.short > 0 ? 'bulk-setup-row short' : 'bulk-setup-row ready'} key={`${requirement.reason}:${requirement.id}`}>
+                                      <button
+                                        type="button"
+                                        className="bulk-calculator-icon bulk-navigation-icon"
+                                        aria-label={`Open ${label}`}
+                                        title={`Open ${label}`}
+                                        onClick={() => handleJumpFromBulkCalculator(requirement)}
+                                      >
+                                        {requirement.kind === 'resource' ? <PixelIcon id={requirement.id} /> : <MachineGlyph id={requirement.id} />}
+                                      </button>
+                                      <strong>{label}</strong>
+                                      <span
+                                        className="bulk-setup-kind"
+                                        aria-label={requirement.reason === 'catalyst' ? 'Tool' : 'Station'}
+                                        title={requirement.reason === 'catalyst' ? 'Tool' : 'Station'}
+                                      >
+                                        {requirement.reason === 'catalyst' ? <Toolbox size={14} aria-hidden="true" /> : <Factory size={14} aria-hidden="true" />}
+                                      </span>
+                                      <em aria-label={requirement.short > 0 ? 'Missing' : 'Ready'} title={requirement.short > 0 ? 'Missing' : 'Ready'}>
+                                        {requirement.short > 0 ? <TriangleAlert size={15} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
+                                      </em>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </section>
+                          )}
+
+                          <section className="bulk-calculator-section" aria-label="Recipe route">
+                            <div className="bulk-calculator-section-head"><span>Recipe route</span><small>{bulkCraftPlan.recipeSteps.length}</small></div>
+                            <div className="bulk-route-list">
+                              {bulkCraftPlan.recipeSteps.map((step) => {
+                                const label = step.kind === 'resource' ? resourceLabels[step.id] : step.kind === 'machine' ? machines[step.id].name : fluidLabel(step.id)
+                                const group = recipeGroupsByOutputKey.get(step.key)
+                                const variantIndex = Math.max(0, group?.recipes.findIndex((recipe) => recipe.id === step.recipe.id) ?? 0)
+                                const previousRecipe = group?.recipes[(variantIndex - 1 + step.variantCount) % step.variantCount]
+                                const nextRecipe = group?.recipes[(variantIndex + 1) % step.variantCount]
+                                const stationLabel = step.recipe.requiredMachine ? machines[step.recipe.requiredMachine].name : 'Crafting grid'
+                                return (
+                                  <div className="bulk-route-row" style={{ '--recipe-depth': step.depth } as CSSProperties} key={step.key}>
+                                    <button
+                                      type="button"
+                                      className="bulk-calculator-icon bulk-navigation-icon"
+                                      aria-label={`Open ${label}`}
+                                      title={`Open ${label}`}
+                                      onClick={() => handleJumpFromBulkCalculator(step)}
+                                    >
+                                      {step.kind === 'resource' ? <PixelIcon id={step.id} /> : step.kind === 'machine' ? <MachineGlyph id={step.id} /> : <FluidIcon id={step.id} />}
+                                    </button>
+                                    <span className="bulk-route-copy">
+                                      <strong>{label}</strong>
+                                      <span className="bulk-route-method" title={`${step.recipe.name} at ${stationLabel}`}>
+                                        <span className="bulk-route-method-icon" aria-hidden="true">
+                                          {step.recipe.requiredMachine ? <MachineGlyph id={step.recipe.requiredMachine} /> : <LayoutGrid size={13} />}
+                                        </span>
+                                        <em>{step.recipe.name}</em>
+                                        <b>{variantIndex + 1}/{step.variantCount}</b>
+                                      </span>
+                                      <small>
+                                        <span aria-label={step.sourceChoice === 'favorite' ? 'Favorite recipe' : 'Default recipe'} title={step.sourceChoice === 'favorite' ? 'Favorite recipe' : 'Default recipe'}>
+                                          {step.sourceChoice === 'favorite' ? <Star size={11} fill="currentColor" aria-hidden="true" /> : <Route size={11} aria-hidden="true" />}
+                                        </span>
+                                        <em>{formatAmount(step.batches)}x</em>
+                                      </small>
+                                    </span>
+                                    {step.variantCount > 1 && (
+                                      <span className="bulk-route-actions">
+                                        <button type="button" aria-label={`Use ${previousRecipe?.name ?? 'previous recipe'} for ${label}`} title={previousRecipe?.name} onClick={() => handleCycleBulkRecipe(step, -1)}><ChevronLeft size={14} /></button>
+                                        <button type="button" className={step.sourceChoice === 'favorite' ? 'active' : ''} aria-label={step.sourceChoice === 'favorite' ? `Clear favorite for ${label}` : `Favorite recipe for ${label}`} onClick={() => handleToggleBulkRecipeFavorite(step)}><Star size={14} fill={step.sourceChoice === 'favorite' ? 'currentColor' : 'none'} /></button>
+                                        <button type="button" aria-label={`Use ${nextRecipe?.name ?? 'next recipe'} for ${label}`} title={nextRecipe?.name} onClick={() => handleCycleBulkRecipe(step, 1)}><ChevronRight size={14} /></button>
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </section>
+
+                          {bulkCraftPlan.warnings.length > 0 && (
+                            <div className="bulk-plan-warnings" role="status">
+                              {bulkCraftPlan.warnings.map((warning) => {
+                                const group = recipeGroupsByOutputKey.get(warning.key)
+                                const label = group ? recipeGroupDisplayOutput(group).label : warning.key
+                                const reason = warning.kind === 'cycle' ? 'Recipe cycle' : warning.kind === 'depth-limit' ? 'Planning depth reached' : warning.kind === 'row-limit' ? 'Plan size reached' : 'Recipe unavailable'
+                                const output = group ? recipeGroupDisplayOutput(group) : null
+                                return (
+                                  <span key={`${warning.kind}:${warning.key}`}>
+                                    {output ? (
+                                      <button
+                                        type="button"
+                                        className="bulk-warning-icon bulk-navigation-icon"
+                                        aria-label={`Open ${label}`}
+                                        title={`Open ${label}`}
+                                        onClick={() => handleJumpFromBulkCalculator(output)}
+                                      >
+                                        <RecipeDisplayIcon output={output} />
+                                      </button>
+                                    ) : <span className="bulk-warning-icon"><TriangleAlert size={18} /></span>}
+                                    <span><strong>{label}</strong><small>{reason}</small></span>
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                          <button type="button" className={currentBookmark ? 'bulk-bookmark-action active' : 'bulk-bookmark-action'} onClick={handleToggleBulkCalculatorBookmark}>
+                            <Bookmark size={17} fill={currentBookmark ? 'currentColor' : 'none'} />
+                            {currentBookmark ? 'Remove bookmark' : existingBookmark ? 'Update bookmark' : 'Bookmark plan'}
+                          </button>
+                        </div>
+                      )
+                    })() : (
+                      <p className="bulk-empty-state">Choose a target to calculate.</p>
+                    )}
+                  </div>
+                ) : (
+                  <>
                 <input
                   className="recipe-search"
                   type="search"
@@ -7575,6 +8243,7 @@ function App() {
                   <div className="recipe-results-pane">
                   <div className="recipe-icon-grid" aria-label="Recipe results">
                   {displayedRecipeGroups.map((group) => {
+                    const isBookmarked = Boolean(recipeBookmarks[group.key])
                     const collapsedCollection = collapsedRecipeCollectionsByGroupKey.get(group.key)
                     const isExpandedCollectionAnchor = group.key === expandedRecipeCollectionAnchorKey
                     const isExpandedCollectionOption = Boolean(
@@ -7599,6 +8268,7 @@ function App() {
                           collapsedCollection || isExpandedCollectionAnchor ? 'recipe-collection-button' : '',
                           isExpandedCollectionAnchor ? 'expanded' : '',
                           isExpandedCollectionOption ? 'recipe-collection-option' : '',
+                          isBookmarked ? 'bookmarked' : '',
                           group.key === selectedRecipeGroup?.key ? 'selected' : '',
                           networkCraftable ? 'network-craftable' : '',
                           isMachineResult ? machineIsOnFloor ? 'machine-on-floor' : 'machine-off-floor' : locked ? 'locked' : missing ? 'missing' : 'ready',
@@ -7633,6 +8303,7 @@ function App() {
                           <span className="recipe-count-badge">{collectionItemCount ?? group.recipes.length}</span>
                         )}
                         {(collapsedCollection || isExpandedCollectionAnchor) && <ChevronDown className="recipe-collection-chevron" size={11} aria-hidden="true" />}
+                        {isBookmarked && <Bookmark className="recipe-bookmark-badge" size={12} fill="currentColor" aria-hidden="true" />}
                         {networkCraftable && <span className="network-craftable-badge" title="Craftable by fabrication network"><Factory size={9} /></span>}
                       </button>
                     )
@@ -7671,6 +8342,26 @@ function App() {
                               </button>
                             </div>
                           )}
+                          {selectedRecipePreferenceGroup && selectedRecipePreferenceGroup.recipes.length > 1 && (
+                            <button
+                              type="button"
+                              className={selectedRecipeIsFavorite ? 'recipe-favorite-button active' : 'recipe-favorite-button'}
+                              aria-label={selectedRecipeIsFavorite ? 'Use default recipe in recursive plans' : 'Set recipe as recursive favorite'}
+                              title={selectedRecipeIsFavorite ? 'Use default recipe' : 'Set recursive favorite'}
+                              onClick={handleToggleFavoriteRecipeVariant}
+                            >
+                              <Star size={15} fill={selectedRecipeIsFavorite ? 'currentColor' : 'none'} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={recipeBookmarks[selectedRecipeGroup.key] ? 'recipe-favorite-button active' : 'recipe-favorite-button'}
+                            aria-label={recipeBookmarks[selectedRecipeGroup.key] ? 'Remove recipe bookmark' : 'Bookmark recipe'}
+                            title={recipeBookmarks[selectedRecipeGroup.key] ? 'Remove bookmark' : 'Bookmark and pin first'}
+                            onClick={handleToggleRecipeBookmark}
+                          >
+                            <Bookmark size={15} fill={recipeBookmarks[selectedRecipeGroup.key] ? 'currentColor' : 'none'} />
+                          </button>
                           <span className={selectedRecipeLockedLine || selectedRecipeMissingLine ? 'mini-slot muted' : 'mini-slot'}>
                             <RecipeDisplayIcon output={selectedRecipeOutput} />
                             <span className="item-count">{recipeDisplayAmount(selectedRecipeOutput)}</span>
@@ -8068,6 +8759,7 @@ function App() {
                         </div>
                       )}
 
+
                       {selectedRecipeProcessStats && (
                         <div className="recipe-process-summary" aria-label="Recipe process stats">
                           <span>Process</span>
@@ -8093,6 +8785,8 @@ function App() {
                     </aside>
                   )}
                 </div>
+                  </>
+                )}
               </section>
             </div>
           )}
@@ -8498,7 +9192,7 @@ function App() {
             </div>
           )}
 
-          {selectedPipeConfig && (isConductorMachine(selectedPipeConfig.machineId) || hasFabricationCable(selectedPipeConfig) || isSteamPipeMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
+          {selectedPipeConfig && (isConductorMachine(selectedPipeConfig.machineId) || hasFabricationCable(selectedPipeConfig) || isSteamPipeMachine(selectedPipeConfig.machineId) || isTankStorageMachine(selectedPipeConfig.machineId) || isEuCableMachine(selectedPipeConfig.machineId) || isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)) && (
             <div className="modal-backdrop compact-backdrop" role="presentation" onClick={() => setSelectedPipeConfigUid(null)}>
               <section
                 className="missing-modal pipe-config-modal"
@@ -8516,6 +9210,8 @@ function App() {
                         ? 'Hopper Routing'
                         : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
                           ? 'Fluid Output'
+                          : isTankStorageMachine(selectedPipeConfig.machineId)
+                            ? 'Tank Routing'
                           : isEuCableMachine(selectedPipeConfig.machineId)
                             ? 'Cable Connections'
                             : 'Pipe Routing'}
@@ -8527,6 +9223,8 @@ function App() {
                     className="icon-button"
                     aria-label={isItemHopperMachine(selectedPipeConfig.machineId) || isFluidOutletConfigurableMachine(selectedPipeConfig.machineId)
                       ? 'Close output routing'
+                      : isTankStorageMachine(selectedPipeConfig.machineId)
+                        ? 'Close tank routing'
                       : isEuCableMachine(selectedPipeConfig.machineId)
                         ? 'Close cable connections'
                         : 'Close pipe routing'}
@@ -8758,6 +9456,63 @@ function App() {
                     ) : null}
                     <button type="button" className="conductor-remove-lane" onClick={() => handleRemoveConductorLane(selectedConductorLane)}><Trash2 size={14} /> Remove {selectedConductorLane} lane</button>
                   </div>
+                ) : isTankStorageMachine(selectedPipeConfig.machineId) ? (
+                  (() => {
+                    const structure = steamTankStructureForInstance(state, selectedPipeConfig)
+                    const controller = structure?.controller ?? selectedPipeConfig
+                    const positions = structure?.positions ?? [{ x: controller.x, y: controller.y }]
+                    const positionKeys = new Set(positions.map((position) => `${position.x},${position.y}`))
+                    const faceHasNeighbour = (direction: PipeDirection) => positions.some((position) => {
+                      const onFace = direction === 'north'
+                        ? position.y === Math.min(...positions.map((candidate) => candidate.y))
+                        : direction === 'east'
+                          ? position.x === Math.max(...positions.map((candidate) => candidate.x))
+                          : direction === 'south'
+                            ? position.y === Math.max(...positions.map((candidate) => candidate.y))
+                            : position.x === Math.min(...positions.map((candidate) => candidate.x))
+                      if (!onFace) return false
+                      const offset = pipeDirectionOffsets[direction]
+                      const neighbour = machineAtFactoryCell(position.x + offset.dx, position.y + offset.dy)
+                      return Boolean(neighbour && !positionKeys.has(`${neighbour.x},${neighbour.y}`) && machinesCanConnect(
+                        state.machineInstances.find((candidate) => candidate.x === position.x && candidate.y === position.y)!,
+                        neighbour,
+                      ))
+                    })
+                    return (
+                      <div className="pipe-config-grid tank-routing-grid" aria-label="Tank routing directions">
+                        {[-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => {
+                          const direction = pipeDirections.find((candidate) => {
+                            const offset = pipeDirectionOffsets[candidate]
+                            return offset.dx === dx && offset.dy === dy
+                          })
+                          if (dx === 0 && dy === 0) {
+                            return (
+                              <span className="pipe-config-cell center tank-routing-core" key="tank-core">
+                                <MachineGlyph id={controller.machineId} active />
+                                <strong>{structure?.area ?? 1} block{(structure?.area ?? 1) === 1 ? '' : 's'}</strong>
+                              </span>
+                            )
+                          }
+                          if (!direction) return <span className="pipe-config-cell" aria-hidden="true" key={`${dx},${dy}`} />
+                          const mode = pipeSideMode(controller, direction)
+                          const connected = mode !== 'blocked' && faceHasNeighbour(direction)
+                          return (
+                            <button
+                              type="button"
+                              className={`pipe-config-cell toggle mode-${mode} ${mode === 'blocked' ? 'disabled-side' : ''} ${connected ? 'connected-side' : ''}`}
+                              aria-label={`${pipeDirectionOffsets[direction].label} tank face ${pipeSideModeLabels[mode]}. Tap to cycle mode.`}
+                              onClick={() => handleTogglePipeSide(controller.uid, direction)}
+                              key={direction}
+                            >
+                              <PipeFlowArrows direction={direction} mode={mode} />
+                              <strong>{pipeDirectionOffsets[direction].label}</strong>
+                              <span className="pipe-side-mode">{mode === 'blocked' ? 'Off' : mode === 'input' ? 'In' : mode === 'output' ? 'Out' : 'I/O'}</span>
+                            </button>
+                          )
+                        }))}
+                      </div>
+                    )
+                  })()
                 ) : isFluidOutletConfigurableMachine(selectedPipeConfig.machineId) ? (
                   (() => {
                     const faces = fluidOutputFacesForInstance(selectedPipeConfig)
@@ -9400,30 +10155,34 @@ function App() {
                     )}
                   </div>
                 ) : selectedMachine.machineId === 'well' ? (
-                  <div className="well-interface water-source-interface utility-hmi">
-                    <button type="button" className={`utility-vessel water-vessel native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
-                      <MachineGlyph id="well" active />
-                    </button>
-                    <div className="utility-readout-grid well-instrument-stack">
-                      <div className="well-buffer-instrument" aria-label={`Water buffer ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
-                        <div className="well-buffer-gauge">
-                          <StoredMediumFill
-                            id="water"
-                            fillPercent={metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128)}
-                          />
-                        </div>
-                        <span><small>Water buffer</small><strong>{formatLitres(selectedMachine.process.fluids.water ?? 0)}L</strong><em>{formatLitres(selectedMachine.process.fluidCapacityLitres || 128)}L max</em></span>
+                  (() => {
+                    const waterFlow = selectedMachine.process.fluidFlowLitresPerSecond ?? 0
+                    const waterLineLimit = currentWellWaterFlowLitresPerSecond(state, selectedMachine)
+                    return <div className="well-interface water-source-interface utility-hmi">
+                      <div className="utility-vessel water-vessel" aria-hidden="true">
+                        <MachineGlyph id="well" active />
                       </div>
-                      <span><small>Recovery</small><strong>{formatAmount(wellWaterProductionLitresPerSecond)}L/s</strong><em>Ground water</em></span>
-                      <span><small>Output</small><strong>{formatAmount(currentWellWaterFlowLitresPerSecond(state, selectedMachine))}L/s</strong><em>{currentWellWaterFlowLitresPerSecond(state, selectedMachine) > 0 ? 'Supplying network' : 'No demand'}</em></span>
+                      <div className="utility-readout-grid well-instrument-stack">
+                        <button type="button" className={`well-buffer-instrument native-fluid-control ${nativeFluidControlReady('water', 'output') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('water', 'output')} onClick={() => handleNativeFluidControl('water', 'output')} aria-label={`Fill selected container from water buffer: ${formatLitres(selectedMachine.process.fluids.water ?? 0)} of ${formatLitres(selectedMachine.process.fluidCapacityLitres || 128)} litres`}>
+                          <div className="well-buffer-gauge">
+                            <StoredMediumFill
+                              id="water"
+                              fillPercent={metricFill(selectedMachine.process.fluids.water ?? 0, selectedMachine.process.fluidCapacityLitres || 128)}
+                            />
+                          </div>
+                          <span><small>Water buffer</small><strong>{formatLitres(selectedMachine.process.fluids.water ?? 0)}L</strong><em>{formatLitres(selectedMachine.process.fluidCapacityLitres || 128)}L max</em></span>
+                        </button>
+                        <span><small>Recovery</small><strong>{formatAmount(wellWaterProductionLitresPerSecond)}L/s</strong><em>Ground water</em></span>
+                        <span><small>Flow</small><strong>{formatAmount(waterFlow)}L/s</strong><em>{waterLineLimit > 0 ? `${formatAmount(waterLineLimit)}L/s line limit` : 'No demand'}</em></span>
+                      </div>
                     </div>
-                  </div>
+                  })()
                 ) : selectedMachine.machineId === 'steamBoiler' ? (
                   <div className="boiler-hmi steam-boiler-hmi">
                     <div className="boiler-system-strip">
                       <span><small>Water feed</small><strong>{boilerHasWater(state, selectedMachine) ? 'Connected' : 'No water'}</strong></span>
-                      <span><small>Steam out</small><strong>{formatAmount(boilerSteamProductionLitresPerSecond)}L/s</strong></span>
-                      <span><small>Pressure</small><strong>{Math.floor(metricFill(selectedMachine.process.steamStoredMs, boilerSteamCapacityMs))}%</strong></span>
+                      <span><small>Steam rate</small><strong>{formatAmount(selectedMachine.process.activeRecipeId === 'make_steam' ? boilerSteamProductionLitresPerSecond : 0)}L/s</strong></span>
+                      <span><small>Boiler buffer</small><strong>{formatSteamLitres(selectedMachine.process.steamStoredMs)}L</strong></span>
                     </div>
                     <div className="boiler-stage">
                       <div className={selectedMachine.process.activeRecipeId ? 'boiler-firebox active' : 'boiler-firebox'}>
@@ -9452,6 +10211,34 @@ function App() {
                     </div>
                     <div className="boiler-load-rail"><span style={{ width: `${selectedMachine.process.fuelDurationMs > 0 ? metricFill(selectedMachine.process.fuelRemainingMs, selectedMachine.process.fuelDurationMs) : 0}%` }} /><strong>Load</strong><em>{selectedMachine.process.activeRecipeId ? 'Making steam' : machineStatus(state, selectedMachine)}</em></div>
                   </div>
+                ) : isFluidSinkMachine(selectedMachine.machineId) ? (
+                  (() => {
+                    const fluid = selectedMachineStoredFluids[0]
+                    const storedSteamLitres = formatSteamLitres(selectedMachine.process.steamStoredMs)
+                    const storedLitres = fluid?.amount ?? storedSteamLitres
+                    const contents = fluid ? fluidLabel(fluid.id) : storedSteamLitres > 0 ? 'Steam' : 'Empty'
+                    const liveRates = wasteOutletLiveRates(selectedMachine)
+                    const activeMedium = liveRates.fluidId ? fluidLabel(liveRates.fluidId) : liveRates.steamLitresPerSecond > 0 ? 'Steam' : 'None'
+                    return <div className={`waste-outlet-interface utility-hmi ${liveRates.totalLitresPerSecond > 0 ? 'is-disposing' : 'is-idle'}`}>
+                      <button
+                        type="button"
+                        className={`utility-vessel waste-outlet-vessel native-fluid-control ${nativeFluidControlReady('waste', 'input') ? 'ready' : ''}`}
+                        disabled={!nativeFluidControlReady('waste', 'input')}
+                        onClick={() => handleNativeFluidControl('waste', 'input')}
+                        aria-label={`Waste intake ${formatLitres(storedLitres)} of ${formatLitres(wasteOutletCapacityLitres)} litres`}
+                      >
+                        <MachineGlyph id="wasteOutlet" active={liveRates.totalLitresPerSecond > 0} />
+                        <span className="waste-outlet-drain" aria-hidden="true"><Droplet /><Trash2 /></span>
+                        {(fluid || storedSteamLitres > 0) && <FluidIcon id={fluid?.id ?? 'steam'} className="waste-outlet-fluid-icon" />}
+                      </button>
+                      <div className="utility-readout-grid">
+                        <span><small>Status</small><strong>{liveRates.totalLitresPerSecond > 0 ? 'Disposing' : 'Ready'}</strong><em>{activeMedium}</em></span>
+                        <span><small>Intake</small><strong>{contents}</strong><em>{formatLitres(storedLitres)}L buffered</em></span>
+                        <span><small>Disposal</small><strong>{formatAmount(liveRates.totalLitresPerSecond)}L/s</strong><em>{formatAmount(wasteOutletDisposalLitresPerSecond)}L/s max</em></span>
+                        <span><small>Buffer</small><strong>{formatLitres(storedLitres)}L</strong><em>{formatLitres(wasteOutletCapacityLitres)}L max</em></span>
+                      </div>
+                    </div>
+                  })()
                 ) : isTankStorageMachine(selectedMachine.machineId) ? (
                   <div className="well-interface tank-terminal-interface utility-hmi iron-tank-hmi">
                     {(() => {
@@ -9460,7 +10247,9 @@ function App() {
                       const contents = isSteam ? 'Steam' : fluid ? fluidLabel(fluid.id) : 'Empty'
                       const amount = isSteam ? formatSteamLitres(selectedMachine.process.steamStoredMs) : fluid?.amount ?? 0
                       const capacity = isSteam ? formatSteamLitres(selectedSteamTankCapacityMs) : selectedSteamTankFluidCapacityLitres
-                      const outputFaces = pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output').map((direction) => pipeDirectionOffsets[direction].label)
+                      const routeFaces = pipeDirections
+                        .filter((direction) => pipeSideMode(selectedMachine, direction) !== 'blocked')
+                        .map((direction) => `${pipeDirectionOffsets[direction].label} ${pipeSideModeLabels[pipeSideMode(selectedMachine, direction)]}`)
                       const fluidOutflow = currentFluidOutputFlows(state, selectedMachine).reduce((sum, flow) => sum + flow.litresPerSecond, 0)
                       return <>
                         <button type="button" className={`utility-vessel storage-buffer-vessel native-fluid-control ${nativeFluidControlReady('storage') ? 'ready' : ''}`} disabled={!nativeFluidControlReady('storage')} onClick={() => handleNativeFluidControl('storage')}>
@@ -9492,15 +10281,17 @@ function App() {
                             <strong>
                               {isSteam
                                 ? selectedSteamNetworkMetrics && selectedSteamNetworkMetrics.networkSize > 1
-                                  ? `${formatAmount(selectedSteamNetworkMetrics.generationLitresPerSecond)} in / ${formatAmount(selectedSteamNetworkMetrics.demandLitresPerSecond)} out`
+                                  ? `${formatAmount(selectedSteamTankLiveRates?.inputLitresPerSecond ?? 0)} in / ${formatAmount(selectedSteamTankLiveRates?.outputLitresPerSecond ?? 0)} out`
                                   : 'Isolated'
-                                : outputFaces.join(', ') || 'Closed'}
+                                : routeFaces.join(', ') || 'Closed'}
                             </strong>
-                            <em>{selectedMachine.level > 1 ? `${selectedMachine.level} block structure` : 'Single tank'} | {outputFaces.join(', ') || 'closed'} faces</em>
+                            <em>{selectedMachine.level > 1 ? `${selectedMachine.level} block structure` : 'Single tank'} | {routeFaces.join(', ') || 'closed'} faces</em>
                           </span>
                           <span>
                             <small>{isSteam ? 'Pressure' : 'Flow'}</small>
-                            <strong>{isSteam && selectedSteamNetworkMetrics ? `${selectedSteamNetworkMetrics.netLitresPerSecond >= 0 ? '+' : ''}${formatAmount(selectedSteamNetworkMetrics.netLitresPerSecond)}L/s` : `${formatAmount(fluidOutflow)}L/s`}</strong>
+                            <strong>{isSteam && selectedSteamTankLiveRates
+                              ? `${selectedSteamTankLiveRates.inputLitresPerSecond - selectedSteamTankLiveRates.outputLitresPerSecond >= 0 ? '+' : ''}${formatAmount(selectedSteamTankLiveRates.inputLitresPerSecond - selectedSteamTankLiveRates.outputLitresPerSecond)}L/s`
+                              : `${formatAmount(fluidOutflow)}L/s`}</strong>
                             <em>
                               {isSteam
                                 ? selectedSteamNetworkMetrics?.networkSize === 1
@@ -10780,9 +11571,9 @@ function App() {
                         )}
                         {(selectedMachinePopupRecipe.fluidInputs ?? (selectedMachinePopupRecipe.fluidInput ? [selectedMachinePopupRecipe.fluidInput] : [])).map((amount) => (
                           <div className={`machine-recipe-popup-fluid fluid-${amount.id}`} key={amount.id}>
-                            <Droplet size={15} />
+                            <FluidIcon id={amount.id} />
                             <strong>{fluidLabels[amount.id]}</strong>
-                            <span>{formatLitres(amount.amount)}L</span>
+                            <span className="machine-recipe-popup-fluid-amount">{formatLitres(amount.amount)}L</span>
                           </div>
                         ))}
                       </div>
@@ -10812,9 +11603,9 @@ function App() {
                         )}
                         {(selectedMachinePopupRecipe.fluidOutputs ?? (selectedMachinePopupRecipe.fluidOutput ? [selectedMachinePopupRecipe.fluidOutput] : [])).map((amount) => (
                           <div className={`machine-recipe-popup-fluid fluid-${amount.id}`} key={amount.id}>
-                            <Droplet size={15} />
+                            <FluidIcon id={amount.id} />
                             <strong>{fluidLabels[amount.id]}</strong>
-                            <span>{formatLitres(amount.amount)}L</span>
+                            <span className="machine-recipe-popup-fluid-amount">{formatLitres(amount.amount)}L</span>
                           </div>
                         ))}
                       </div>

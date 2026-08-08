@@ -162,6 +162,7 @@ const authoredResourceRegistry = {
   redAlloyIngot: { id: 'redAlloyIngot', label: 'Red Alloy Ingot', category: 'ingot', tier: 'steam' },
   redAlloyPlate: { id: 'redAlloyPlate', label: 'Red Alloy Plate', category: 'plate', tier: 'steam' },
   mechanicalPiston: { id: 'mechanicalPiston', label: 'Mechanical Piston', category: 'component', tier: 'steam' },
+  mechanicalPump: { id: 'mechanicalPump', label: 'Mechanical Pump', category: 'component', tier: 'steam' },
   redAlloyWire: { id: 'redAlloyWire', label: 'Red Alloy Wire', category: 'wire', tier: 'steam' },
   redAlloyCable: { id: 'redAlloyCable', label: 'Red Alloy Cable', category: 'wire', tier: 'lv' },
   steelItemCasing: { id: 'steelItemCasing', label: 'Steel Item Casing', category: 'component', tier: 'steam' },
@@ -674,6 +675,17 @@ const authoredMachineRegistry = {
     placeable: true,
     processKind: 'itemHopper',
   },
+  wasteOutlet: {
+    id: 'wasteOutlet',
+    name: 'Waste Outlet',
+    description: 'Accepts one routed liquid or excess Steam and permanently disposes of it at up to 24L/s.',
+    tier: 'steam',
+    placeable: true,
+    processKind: 'fluidSink',
+    steamCapacityLitres: 96,
+    fluidCapacityLitres: 96,
+    fluidBuffers: [{ id: 'waste', label: 'Waste intake', capacityLitres: 96, access: 'input', fluidRule: 'any' }],
+  },
   copperPipe: {
     id: 'copperPipe',
     name: 'Copper Fluid Pipe',
@@ -809,6 +821,7 @@ const authoredMachineRegistry = {
     tier: 'lv',
     placeable: true,
     processKind: 'steamToEu',
+    steamCapacityLitres: 32,
     euCapacity: 256,
     euOutputPerSecond: 32,
     euAmps: 1,
@@ -1581,6 +1594,10 @@ export function isItemHopperMachine(machineId: MachineId) {
   return machineRegistry[machineId].processKind === 'itemHopper'
 }
 
+export function isFluidSinkMachine(machineId: MachineId) {
+  return machineRegistry[machineId].processKind === 'fluidSink'
+}
+
 export function isItemAutomationMachine(machineId: MachineId) {
   return isItemStorageMachine(machineId) || isItemHopperMachine(machineId) || machines[machineId].processKind === 'itemBus'
 }
@@ -1644,7 +1661,7 @@ export function isTankStorageMachine(machineId: MachineId) {
 }
 
 export function isSteamNetworkMachine(machineId: MachineId) {
-  return isSteamStorageMachine(machineId) || isSteamPipeMachine(machineId) || isSteamPoweredMachine(machineId) || machineRegistry[machineId].processKind === 'steamToEu'
+  return isSteamStorageMachine(machineId) || isSteamPipeMachine(machineId) || isSteamPoweredMachine(machineId) || isFluidSinkMachine(machineId) || machineRegistry[machineId].processKind === 'steamToEu'
 }
 
 export function machinePipeTransferLitresPerSecond(machineId: MachineId) {
@@ -2187,6 +2204,25 @@ export const recipes: Recipe[] = [
     pattern: ['ironPlate', 'bronzePlate', 'ironPlate', 'bronzePlate', 'mechanicalPiston', 'bronzePlate', 'ironPlate', 'bronzeWrench', 'ironPlate'],
     outputs: [],
     machineOutputs: [{ id: 'hopper', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'build_waste_outlet',
+    name: 'Build Waste Outlet',
+    description: 'A pump-driven floor drain for automatically disposing of unwanted routed liquids and excess Steam.',
+    tier: 'steam',
+    durationMs: 6200,
+    inputs: [
+      { id: 'ironPlate', amount: 4 },
+      { id: 'bronzePlate', amount: 2 },
+      { id: 'bucket', amount: 1 },
+      { id: 'mechanicalPump', amount: 1 },
+    ],
+    catalysts: [{ id: 'bronzeWrench', amount: 1 }],
+    durabilityCosts: [{ id: 'bronzeWrench', amount: 1 }],
+    pattern: ['ironPlate', 'bronzePlate', 'ironPlate', 'bronzePlate', 'mechanicalPump', 'bucket', 'ironPlate', 'bronzeWrench', 'ironPlate'],
+    outputs: [],
+    machineOutputs: [{ id: 'wasteOutlet', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },
   {
@@ -3321,6 +3357,25 @@ export const recipes: Recipe[] = [
     ],
     pattern: ['ironPlate', 'bronzeRod', 'ironPlate', 'plank', 'redAlloyPlate', 'plank', null, 'bronzeRod', null],
     outputs: [{ id: 'mechanicalPiston', amount: 1 }],
+    unlockedBy: 'steelPlateQuest',
+  },
+  {
+    id: 'craft_mechanical_pump',
+    name: 'Craft Mechanical Pump',
+    description: 'Bronze rings, an iron housing, and a red alloy plate make a compact pump for Steam-age fluid automation.',
+    tier: 'steam',
+    durationMs: 5400,
+    inputs: [
+      { id: 'ironPlate', amount: 2 },
+      { id: 'bronzeRing', amount: 2 },
+      { id: 'bronzeRod', amount: 1 },
+      { id: 'bucket', amount: 1 },
+      { id: 'redAlloyPlate', amount: 1 },
+    ],
+    catalysts: [{ id: 'bronzeWrench', amount: 1 }],
+    durabilityCosts: [{ id: 'bronzeWrench', amount: 1 }],
+    pattern: ['bronzeRing', 'ironPlate', 'bronzeRing', 'bucket', 'redAlloyPlate', 'bronzeRod', null, 'bronzeWrench', 'ironPlate'],
+    outputs: [{ id: 'mechanicalPump', amount: 1 }],
     unlockedBy: 'steelPlateQuest',
   },
   {
@@ -7008,6 +7063,20 @@ export const quests: Quest[] = [
     requirements: { resources: [{ id: 'plank', amount: 1 }] },
     rewards: {},
     workshopNote: 'Guessing is traditional. Reading the recipe first is cheaper.',
+  },
+  {
+    id: 'bulkCalculatorTipQuest',
+    chapterId: 'gettingStarted',
+    chapter: 'First Tools',
+    title: 'Plan the whole build',
+    description: 'Open Recipes and tap the calculator. Choose an item or machine and a target amount to see the base materials for the full chain. Star recipe variants to choose each subcraft, then bookmark the plan to keep its quantity.',
+    kind: 'tip',
+    position: { x: 1180, y: 170 },
+    icon: { type: 'resource', id: 'woodenPickaxe' },
+    prerequisites: ['recipeBrowserTipQuest'],
+    requirements: { resources: [{ id: 'woodenPickaxe', amount: 1 }] },
+    rewards: {},
+    workshopNote: 'A production chain is easier to build once you know what belongs at the bottom.',
   },
   {
     id: 'chopFaster',

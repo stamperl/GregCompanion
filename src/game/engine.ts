@@ -21,6 +21,7 @@ import {
   isItemBusMachine,
   isConductorMachine,
   isFluidConductorMachine,
+  isFluidSinkMachine,
   isItemConductorMachine,
   isItemHopperMachine,
   isItemStorageMachine,
@@ -187,8 +188,10 @@ export const lvBatteryBufferOutputEuPerSecond = lvEuPerAmpSecond
 export const tinCableLossEuPerTile = machineEuCableLossPerTile('tinCable')
 export const liquidSteamBoilerCapacityMs = machineSteamCapacityLitres('liquidSteamBoiler') * steamMsPerLitre
 export const liquidSteamBoilerFluidCapacityLitres = machineFluidCapacityLitres('liquidSteamBoiler')
+export const wasteOutletCapacityLitres = machineFluidCapacityLitres('wasteOutlet')
+export const wasteOutletDisposalLitresPerSecond = 24
 export const liquidSteamBoilerSteamProductionLitresPerSecond = 24
-export const liquidSteamBoilerCreosoteUseLitresPerSecond = 3
+export const liquidSteamBoilerCreosoteUseLitresPerSecond = 0.4
 export const bucketFluidTransferLitres = 1
 export const fluidContainerCapacities: Record<FluidContainerKind, number> = { bucket: 1, steelCell: 8 }
 export const steamAutoMinerActionDamage = 10
@@ -212,6 +215,8 @@ let activeSteamTransferBudgets: Map<string, number> | null = null
 let activeEuTransferBudgets: Map<string, number> | null = null
 let activeFluidTransferBudgets: Map<string, number> | null = null
 let activeSteamSegmentFlows: Map<string, number> | null = null
+let activeSteamInputFlows: Map<string, number> | null = null
+let activeSteamOutputFlows: Map<string, number> | null = null
 let activeEuSegmentFlows: Map<string, number> | null = null
 let activeEuTransformerFlows: Map<string, number> | null = null
 let activeEuInputFlows: Map<string, number> | null = null
@@ -416,6 +421,8 @@ function cloneProcessState(process: MachineProcessState): MachineProcessState {
     steamStoredMs: process.steamStoredMs,
     steamCapacityMs: process.steamCapacityMs,
     steamFlowLitresPerSecond: process.steamFlowLitresPerSecond,
+    steamInputLitresPerSecond: process.steamInputLitresPerSecond,
+    steamOutputLitresPerSecond: process.steamOutputLitresPerSecond,
     euStored: process.euStored,
     euCapacity: process.euCapacity,
     euFlowPerSecond: process.euFlowPerSecond,
@@ -631,6 +638,8 @@ function normalizeProcessState(process?: Partial<MachineProcessState>): MachineP
     steamStoredMs: Math.max(0, Math.floor(process.steamStoredMs ?? 0)),
     steamCapacityMs: Math.max(0, Math.floor(process.steamCapacityMs ?? 0)),
     steamFlowLitresPerSecond: typeof process.steamFlowLitresPerSecond === 'number' ? Math.max(0, process.steamFlowLitresPerSecond) : undefined,
+    steamInputLitresPerSecond: typeof process.steamInputLitresPerSecond === 'number' ? Math.max(0, process.steamInputLitresPerSecond) : undefined,
+    steamOutputLitresPerSecond: typeof process.steamOutputLitresPerSecond === 'number' ? Math.max(0, process.steamOutputLitresPerSecond) : undefined,
     euStored: Math.max(0, process.euStored ?? 0),
     euCapacity: Math.max(0, Math.floor(process.euCapacity ?? 0)),
     euFlowPerSecond: typeof process.euFlowPerSecond === 'number' ? Math.max(0, process.euFlowPerSecond) : undefined,
@@ -845,6 +854,28 @@ function normalizeMachineInstances(
     })
   }
   return normalized
+}
+
+function ensureUniqueMachineInstanceUids(instances: MachineInstance[]) {
+  const reservedUids = new Set(instances.map((instance) => instance.uid))
+  const usedUids = new Set<string>()
+
+  return instances.map((instance, index) => {
+    if (!usedUids.has(instance.uid)) {
+      usedUids.add(instance.uid)
+      return instance
+    }
+
+    let suffix = index + 1
+    let uid = `${instance.machineId}-${suffix}`
+    while (reservedUids.has(uid) || usedUids.has(uid)) {
+      suffix += 1
+      uid = `${instance.machineId}-${suffix}`
+    }
+    reservedUids.add(uid)
+    usedUids.add(uid)
+    return { ...instance, uid }
+  })
 }
 
 export function cloneState(state: GameState): GameState {
@@ -3907,6 +3938,33 @@ function machinesCanFlow(from: MachineInstance, to: MachineInstance) {
   return connectorAllowsFlowOut(from, direction) && connectorAllowsFlowIn(to, oppositePipeDirection[direction])
 }
 
+function tankBoundaryFace(
+  state: GameState,
+  instance: MachineInstance,
+  neighbour: MachineInstance,
+) {
+  const structure = isTankStorageMachine(instance.machineId) ? steamTankStructureForInstance(state, instance) : null
+  if (!structure || structure.positions.some((position) => position.x === neighbour.x && position.y === neighbour.y)) return null
+  const direction = directionBetween(instance, neighbour)
+  return direction ? { controller: structure.controller, direction } : null
+}
+
+function machinesCanConnectInState(state: GameState, from: MachineInstance, to: MachineInstance) {
+  if (!machinesCanConnect(from, to)) return false
+  const fromFace = tankBoundaryFace(state, from, to)
+  if (fromFace && pipeSideMode(fromFace.controller, fromFace.direction) === 'blocked') return false
+  const toFace = tankBoundaryFace(state, to, from)
+  return !toFace || pipeSideMode(toFace.controller, toFace.direction) !== 'blocked'
+}
+
+function machinesCanFlowInState(state: GameState, from: MachineInstance, to: MachineInstance) {
+  if (!machinesCanFlow(from, to)) return false
+  const fromFace = tankBoundaryFace(state, from, to)
+  if (fromFace && !connectorAllowsFlowOut(fromFace.controller, fromFace.direction)) return false
+  const toFace = tankBoundaryFace(state, to, from)
+  return !toFace || connectorAllowsFlowIn(toFace.controller, toFace.direction)
+}
+
 function multiblockControllerSpecs() {
   return (Object.keys(machines) as MachineId[])
     .map((machineId) => machines[machineId].multiblock)
@@ -4427,7 +4485,7 @@ function connectedFluidNetwork(state: GameState, start: MachineInstance, flowOnl
       const next = machineAt(state, position.x, position.y)
       if (
         next &&
-        (flowOnly ? machinesCanFlow(instance, next) : machinesCanConnect(instance, next)) &&
+        (flowOnly ? machinesCanFlowInState(state, instance, next) : machinesCanConnectInState(state, instance, next)) &&
         (isSteamPipeMachine(next.machineId) || machineFluidCapacity(next.machineId) > 0 || next.machineId === 'well' || Boolean(fluidMultiblockControllerForInstance(state, next))) &&
         !visited.has(next.uid)
       ) {
@@ -4462,7 +4520,7 @@ function connectedSteamNetwork(state: GameState, start: MachineInstance, flowOnl
 
     for (const position of adjacentPositions(state, instance.x, instance.y)) {
       const next = machineAt(state, position.x, position.y)
-      if (next && (flowOnly ? machinesCanFlow(instance, next) : machinesCanConnect(instance, next)) && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
+      if (next && (flowOnly ? machinesCanFlowInState(state, instance, next) : machinesCanConnectInState(state, instance, next)) && isSteamNetworkMachine(next.machineId) && !visited.has(next.uid)) queue.push(next)
     }
   }
   context?.cache.steamNetworks.set(cacheKey, network.map((instance) => instance.uid))
@@ -4584,6 +4642,10 @@ function connectedFluidNetworkForInstance(state: GameState, start: MachineInstan
   return network
 }
 
+function connectedSteamNetworkForInstance(state: GameState, start: MachineInstance, flowOnly = false) {
+  return uniqueMachineInstances(flowCellsForInstance(state, start).flatMap((cell) => connectedSteamNetwork(state, cell, flowOnly)))
+}
+
 function canSteamFlowBetween(state: GameState, source: MachineInstance, target: MachineInstance) {
   const targetUids = new Set(flowCellsForInstance(state, target).map((cell) => cell.uid))
   return flowCellsForInstance(state, source).some((sourceCell) => connectedSteamNetwork(state, sourceCell, true).some((instance) => targetUids.has(instance.uid)))
@@ -4642,7 +4704,7 @@ function fluidRouteBetween(state: GameState, source: MachineInstance, target: Ma
       if (allowedStartDirections && !allowedStartDirections.has(direction)) continue
       const offset = pipeDirectionOffsets[direction]
       const next = machineAt(state, current.x + offset.dx, current.y + offset.dy)
-      if (!next || previous.has(next.uid) || !machinesCanFlow(current, next)) continue
+      if (!next || previous.has(next.uid) || !machinesCanFlowInState(state, current, next)) continue
       if (!isSteamPipeMachine(next.machineId) && !targetUids.has(next.uid)) continue
       previous.set(next.uid, current.uid)
       queue.push(next)
@@ -4897,7 +4959,7 @@ function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance)
       const adjacent = machineAt(state, position.x, position.y)
       return Boolean(
         adjacent &&
-          machinesCanConnect(cell, adjacent) &&
+          machinesCanConnectInState(state, cell, adjacent) &&
           (adjacent.machineId === 'steamBoiler' || isLiquidSteamBoilerMachine(adjacent.machineId) || isSteamPipeMachine(adjacent.machineId)),
       )
     })
@@ -4907,7 +4969,7 @@ function canSteamTankReceiveFromNetwork(state: GameState, tank: MachineInstance)
 function connectedSteamStorage(state: GameState, start: MachineInstance) {
   const startStorage = isTankStorageMachine(start.machineId) ? steamTankStorageForInstance(state, start) : start
   return uniqueMachineInstances(
-    connectedSteamNetwork(state, start)
+    connectedSteamNetworkForInstance(state, start)
       .filter((instance) => instance.uid !== start.uid && isSteamStorageMachine(instance.machineId))
       .map((instance) => (isTankStorageMachine(instance.machineId) ? steamTankStorageForInstance(state, instance) : instance))
       .filter((instance) => instance.uid !== startStorage.uid && canSteamFlowBetween(state, instance, startStorage)),
@@ -4915,7 +4977,7 @@ function connectedSteamStorage(state: GameState, start: MachineInstance) {
 }
 
 function connectedSteamTransferRateMs(state: GameState, start: MachineInstance) {
-  const pipeRates = connectedSteamNetwork(state, start)
+  const pipeRates = connectedSteamNetworkForInstance(state, start)
     .map((instance) => steamPipeTransferLitresPerSecond[instance.machineId])
     .filter((rate): rate is number => typeof rate === 'number')
   const litresPerSecond = pipeRates.length > 0 ? Math.min(...pipeRates) : 24
@@ -4938,7 +5000,7 @@ export type SteamNetworkMetrics = {
 
 export function steamNetworkMetrics(state: GameState, instance: MachineInstance): SteamNetworkMetrics {
   const network = uniqueMachineInstances([
-    ...connectedSteamNetwork(state, instance),
+    ...connectedSteamNetworkForInstance(state, instance),
     ...connectedSteamConductorMachines(state, instance),
   ])
   const storage = uniqueMachineInstances(
@@ -5103,6 +5165,25 @@ function recordEuTransfer(source: MachineInstance, target: MachineInstance, sour
   }
   if (activeEuInputFlows && isEuStorageMachine(target.machineId) && delivered > 0) {
     activeEuInputFlows.set(target.uid, (activeEuInputFlows.get(target.uid) ?? 0) + delivered)
+  }
+}
+
+function recordSteamTransfer(source: MachineInstance, target: MachineInstance, amountMs: number) {
+  if (amountMs <= 0) return
+  if (activeSteamOutputFlows && isTankStorageMachine(source.machineId)) {
+    activeSteamOutputFlows.set(source.uid, (activeSteamOutputFlows.get(source.uid) ?? 0) + amountMs)
+  }
+  if (activeSteamInputFlows && isTankStorageMachine(target.machineId)) {
+    activeSteamInputFlows.set(target.uid, (activeSteamInputFlows.get(target.uid) ?? 0) + amountMs)
+  }
+}
+
+export function steamTankLiveSteamRates(state: GameState, instance: MachineInstance) {
+  if (!isTankStorageMachine(instance.machineId)) return { inputLitresPerSecond: 0, outputLitresPerSecond: 0 }
+  const storage = steamTankStorageForInstance(state, instance)
+  return {
+    inputLitresPerSecond: Math.max(0, storage.process.steamInputLitresPerSecond ?? 0),
+    outputLitresPerSecond: Math.max(0, storage.process.steamOutputLitresPerSecond ?? 0),
   }
 }
 
@@ -5445,6 +5526,10 @@ function tickPipeDisplayBuffers(state: GameState) {
       instance.process.euInputPerSecond = (activeEuInputFlows?.get(instance.uid) ?? 0) / elapsedSeconds
       instance.process.euOutputPerSecond = (activeEuOutputFlows?.get(instance.uid) ?? 0) / elapsedSeconds
     }
+    if (isTankStorageMachine(instance.machineId)) {
+      instance.process.steamInputLitresPerSecond = ((activeSteamInputFlows?.get(instance.uid) ?? 0) / steamMsPerLitre) / elapsedSeconds
+      instance.process.steamOutputLitresPerSecond = ((activeSteamOutputFlows?.get(instance.uid) ?? 0) / steamMsPerLitre) / elapsedSeconds
+    }
   }
 }
 
@@ -5502,9 +5587,59 @@ function consumeConnectedSteam(state: GameState, instance: MachineInstance, amou
     storage.process.steamStoredMs -= spend
     spendTickBudget(activeSteamTransferBudgets, sourceBudgetKey, spend)
     spendSteamRoute(route, spend)
+    recordSteamTransfer(storage, instance, spend)
     remaining -= spend
   }
   return amount - remaining
+}
+
+export function wasteOutletLiveRates(instance: MachineInstance) {
+  const liquidLitresPerSecond = instance.process.fluidFlowLitresPerSecond ?? 0
+  const steamLitresPerSecond = instance.process.steamFlowLitresPerSecond ?? 0
+  return {
+    liquidLitresPerSecond,
+    steamLitresPerSecond,
+    totalLitresPerSecond: liquidLitresPerSecond + steamLitresPerSecond,
+    fluidId: instance.process.fluidFlowFluidId,
+  }
+}
+
+function tickWasteOutlet(state: GameState, instance: MachineInstance, elapsedMs: number) {
+  if (!isFluidSinkMachine(instance.machineId)) return
+
+  const elapsedSeconds = Math.max(0, elapsedMs / 1000)
+  let remainingLitres = wasteOutletDisposalLitresPerSecond * elapsedSeconds
+  let disposedLiquidLitres = 0
+  let disposedSteamLitres = 0
+  let primaryFluidId: FluidId | undefined
+
+  for (const fluidId of storedFluidTypes(instance.process).sort()) {
+    if (remainingLitres <= 0) break
+    const disposedLitres = normalizeLitres(Math.min(instance.process.fluids[fluidId] ?? 0, remainingLitres))
+    if (disposedLitres <= 0) continue
+    primaryFluidId ??= fluidId
+    instance.process.fluids[fluidId] = normalizeLitres((instance.process.fluids[fluidId] ?? 0) - disposedLitres)
+    disposedLiquidLitres = normalizeLitres(disposedLiquidLitres + disposedLitres)
+    remainingLitres = normalizeLitres(remainingLitres - disposedLitres)
+  }
+
+  if (remainingLitres > 0 && instance.process.steamStoredMs > 0) {
+    const disposedInternalSteamMs = Math.min(instance.process.steamStoredMs, remainingLitres * steamMsPerLitre)
+    instance.process.steamStoredMs -= disposedInternalSteamMs
+    disposedSteamLitres = normalizeLitres(disposedInternalSteamMs / steamMsPerLitre)
+    remainingLitres = normalizeLitres(remainingLitres - disposedSteamLitres)
+  }
+  if (remainingLitres > 0) {
+    const disposedConnectedSteamMs = consumeConnectedSteam(state, instance, remainingLitres * steamMsPerLitre)
+    disposedSteamLitres = normalizeLitres(disposedSteamLitres + disposedConnectedSteamMs / steamMsPerLitre)
+  }
+
+  instance.process.fluidCapacityLitres = wasteOutletCapacityLitres
+  instance.process.steamCapacityMs = wasteOutletCapacityLitres * steamMsPerLitre
+  instance.process.fluidFlowFluidId = primaryFluidId
+  instance.process.fluidFlowLitresPerSecond = elapsedSeconds > 0 ? disposedLiquidLitres / elapsedSeconds : 0
+  instance.process.steamFlowLitresPerSecond = elapsedSeconds > 0 ? disposedSteamLitres / elapsedSeconds : 0
+  instance.process.activeRecipeId = disposedLiquidLitres + disposedSteamLitres > 0 ? 'dispose_fluid' : null
 }
 
 function steamTransferAllowanceMs(state: GameState, instance: MachineInstance, elapsedMs: number) {
@@ -5523,7 +5658,7 @@ function steamTransferAllowanceMs(state: GameState, instance: MachineInstance, e
 }
 
 function fillInternalSteamFromConnectedStorage(state: GameState, instance: MachineInstance, transferLimitMs: number) {
-  const capacity = isSteamPoweredMachine(instance.machineId) ? machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre : 0
+  const capacity = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
   if (capacity < 1) return 0
   instance.process.steamCapacityMs = capacity
   instance.process.steamStoredMs = Math.min(instance.process.steamStoredMs, capacity)
@@ -6049,7 +6184,10 @@ export function setPipeSideMode(state: GameState, uid: string, direction: PipeDi
   }
 
   const next = cloneState(state)
-  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  const tankControllerUid = isTankStorageMachine(instance.machineId)
+    ? steamTankStructureForInstance(state, instance)?.controller.uid
+    : undefined
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === (tankControllerUid ?? uid))
   if (!nextInstance) return state
   const modes = { ...nextInstance.pipeSideModes }
   const disabledSides = { ...nextInstance.pipeDisabledSides }
@@ -6073,9 +6211,13 @@ export function setFluidOutputDirection(state: GameState, uid: string, direction
   const instance = state.machineInstances.find((candidate) => candidate.uid === uid)
   if (!instance || (!isFluidOutletConfigurableMachine(instance.machineId) && !isTankStorageMachine(instance.machineId))) return state
 
-  const nextMode: PipeSideMode = pipeSideMode(instance, direction) === 'output' ? 'blocked' : 'output'
+  const routedInstance = isTankStorageMachine(instance.machineId)
+    ? steamTankStructureForInstance(state, instance)?.controller ?? instance
+    : instance
+
+  const nextMode: PipeSideMode = pipeSideMode(routedInstance, direction) === 'output' ? 'blocked' : 'output'
   const next = cloneState(state)
-  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === uid)
+  const nextInstance = next.machineInstances.find((candidate) => candidate.uid === routedInstance.uid)
   if (!nextInstance) return state
 
   setConnectorSideModeInPlace(nextInstance, direction, nextMode)
@@ -6628,31 +6770,33 @@ function tickSteamTurbine(state: GameState, instance: MachineInstance, elapsedMs
   const process = instance.process
   process.euCapacity = steamTurbineEuCapacity
   process.euStored = Math.min(process.euStored, steamTurbineEuCapacity)
-  process.steamCapacityMs = steamMachineInternalCapacityMs
-  process.steamStoredMs = Math.min(process.steamStoredMs, steamMachineInternalCapacityMs)
+  const steamCapacityMs = machineSteamCapacityLitres(instance.machineId) * steamMsPerLitre
+  process.steamCapacityMs = steamCapacityMs
+  process.steamStoredMs = Math.min(process.steamStoredMs, steamCapacityMs)
   const freeEu = steamTurbineEuCapacity - process.euStored
+  const steamByRateMs = steamTurbineSteamUseLitresPerSecond * steamMsPerLitre * (elapsedMs / 1000)
+  const steamByEuCapacityMs = (freeEu / euPerSteamLitre) * steamMsPerLitre
+  const maximumConsumptionMs = Math.min(steamByRateMs, steamByEuCapacityMs)
+  const intakeLimitMs = steamCapacityMs - process.steamStoredMs + maximumConsumptionMs
+  const transferredSteam = consumeConnectedSteam(
+    state,
+    instance,
+    Math.min(steamTransferAllowanceMs(state, instance, elapsedMs), intakeLimitMs),
+  )
+  process.steamStoredMs += transferredSteam
+
   if (freeEu <= 0) {
     process.activeRecipeId = null
     return
   }
 
-  const steamByRateMs = steamTurbineSteamUseLitresPerSecond * steamMsPerLitre * (elapsedMs / 1000)
-  const steamByEuCapacityMs = (freeEu / euPerSteamLitre) * steamMsPerLitre
-  const steamByPipeMs = steamTransferAllowanceMs(state, instance, elapsedMs)
-  const requestedSteam = Math.min(steamByRateMs, steamByEuCapacityMs, process.steamStoredMs + steamByPipeMs)
-  if (requestedSteam <= 0) {
-    process.activeRecipeId = null
-    return
-  }
-
-  const consumedInternalSteam = Math.min(process.steamStoredMs, requestedSteam)
-  process.steamStoredMs -= consumedInternalSteam
-  const consumedSteam = consumedInternalSteam + consumeConnectedSteam(state, instance, requestedSteam - consumedInternalSteam)
+  const consumedSteam = Math.min(maximumConsumptionMs, process.steamStoredMs)
   if (consumedSteam <= 0) {
     process.activeRecipeId = null
     return
   }
 
+  process.steamStoredMs -= consumedSteam
   process.euStored = Math.min(steamTurbineEuCapacity, process.euStored + (consumedSteam / steamMsPerLitre) * euPerSteamLitre)
   process.activeRecipeId = 'generate_lv_eu'
   process.progressMs = 0
@@ -7841,6 +7985,8 @@ function conductorSteamTarget(state: GameState, endpoint: ConductorEndpoint) {
     ? steamTankCapacityMsForInstance(state, target)
     : target.machineId === 'steamTurbine'
       ? steamMachineInternalCapacityMs
+      : isFluidSinkMachine(target.machineId)
+        ? wasteOutletCapacityLitres * steamMsPerLitre
       : isSteamPoweredMachine(target.machineId)
       ? machineSteamCapacityLitres(target.machineId) * steamMsPerLitre
       : 0
@@ -7866,7 +8012,7 @@ function connectedSteamConductorMachines(state: GameState, start: MachineInstanc
     for (const endpoint of endpoints) {
       if (!channels.has(endpoint.settings.channel)) continue
       const adjacent = conductorSteamStorage(state, endpoint.adjacent)
-      if (isSteamStorageMachine(adjacent.machineId) || isSteamPoweredMachine(adjacent.machineId) || adjacent.machineId === 'steamTurbine') {
+      if (isSteamStorageMachine(adjacent.machineId) || isSteamPoweredMachine(adjacent.machineId) || isFluidSinkMachine(adjacent.machineId) || adjacent.machineId === 'steamTurbine') {
         result.set(adjacent.uid, adjacent)
       }
     }
@@ -7920,6 +8066,7 @@ function tickFluidConductorNetwork(state: GameState, network: MachineInstance[],
       steamSource.process.steamStoredMs -= transferMs
       steam.target.process.steamStoredMs += transferMs
       steam.target.process.steamCapacityMs = steam.capacityMs
+      recordSteamTransfer(steamSource, steam.target, transferMs)
       remaining = normalizeLitres(remaining - transferLitres)
       cursor += 1
       if (source.settings.roundRobin) break
@@ -8259,6 +8406,8 @@ function tickMachineInstancesInPlace(next: GameState, elapsedMs: number, now = D
     activeEuTransferBudgets = new Map()
     activeFluidTransferBudgets = new Map()
     activeSteamSegmentFlows = new Map()
+    activeSteamInputFlows = new Map()
+    activeSteamOutputFlows = new Map()
     activeEuSegmentFlows = new Map()
     activeEuTransformerFlows = new Map()
     activeEuInputFlows = new Map()
@@ -8379,6 +8528,7 @@ function tickMachineInstancesInPlace(next: GameState, elapsedMs: number, now = D
   tickFabricationJobs(next, elapsedMs)
   tickFabricationBuses(next, elapsedMs)
   tickConductorNetworks(next, elapsedMs)
+  for (const instance of next.machineInstances) tickWasteOutlet(next, instance, elapsedMs)
   for (const instance of next.machineInstances) tickLvItemAutomation(next, instance, elapsedMs)
   tickPipeDisplayBuffers(next)
   next.lastSavedAt = now
@@ -8388,6 +8538,8 @@ function tickMachineInstancesInPlace(next: GameState, elapsedMs: number, now = D
     activeEuTransferBudgets = null
     activeFluidTransferBudgets = null
     activeSteamSegmentFlows = null
+    activeSteamInputFlows = null
+    activeSteamOutputFlows = null
     activeEuSegmentFlows = null
     activeEuTransformerFlows = null
     activeEuInputFlows = null
@@ -9070,7 +9222,7 @@ function migrateMachineInstances(
       machinesState.brickedBlastFurnace -= unplacedLegacyBlastFurnaces
       machinesState.brickedBlastFurnacePart += unplacedLegacyBlastFurnaces * 4
     }
-    return migratedInstances
+    return ensureUniqueMachineInstanceUids(migratedInstances)
   }
 
   const migrated = [...migratedInstances]
@@ -9089,7 +9241,7 @@ function migrateMachineInstances(
       process: emptyProcessState(),
     })
   }
-  return migrated.filter((instance) => isInsideGridSize(grid, instance.x, instance.y))
+  return ensureUniqueMachineInstanceUids(migrated.filter((instance) => isInsideGridSize(grid, instance.x, instance.y)))
 }
 
 function coalesceConductorInstances(instances: Partial<MachineInstance>[]) {

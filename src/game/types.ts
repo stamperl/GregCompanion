@@ -120,6 +120,7 @@ export type ResourceId =
   | 'redAlloyIngot'
   | 'redAlloyPlate'
   | 'mechanicalPiston'
+  | 'mechanicalPump'
   | 'redAlloyWire'
   | 'redAlloyCable'
   | 'steelItemCasing'
@@ -201,6 +202,7 @@ export type MachineId =
   | 'steelTank'
   | 'standardChest'
   | 'hopper'
+  | 'wasteOutlet'
   | 'copperPipe'
   | 'bronzePipe'
   | 'ironPipe'
@@ -296,6 +298,7 @@ export type QuestId =
   | 'craftAxe'
   | 'equipToolTipQuest'
   | 'recipeBrowserTipQuest'
+  | 'bulkCalculatorTipQuest'
   | 'chopFaster'
   | 'mineStone'
   | 'craftShovelQuest'
@@ -513,6 +516,7 @@ export type MachineProcessKind =
   | 'steamStorage'
   | 'itemStorage'
   | 'itemHopper'
+  | 'fluidSink'
   | 'steamPipe'
   | 'steamProcess'
   | 'steamToEu'
@@ -735,6 +739,7 @@ export type Recipe = {
   steamCostLitres?: number
   euCost?: number
   inputs: ResourceAmount[]
+  fuelInputs?: ResourceAmount[]
   outputs: ResourceAmount[]
   catalysts?: ResourceAmount[]
   durabilityCosts?: ResourceAmount[]
@@ -1019,6 +1024,8 @@ export type MachineProcessState = {
   steamStoredMs: number
   steamCapacityMs: number
   steamFlowLitresPerSecond?: number
+  steamInputLitresPerSecond?: number
+  steamOutputLitresPerSecond?: number
   euStored: number
   euCapacity: number
   euFlowPerSecond?: number

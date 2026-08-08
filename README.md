@@ -17,7 +17,7 @@ npm run lint
 npm run check
 npm run check:changed
 npm run check:fast
-npm run dev:bump
+npm run dev:bump -- --note "Short player-facing summary"
 npm run icons:check
 npm run icons:extract
 npm run icons:lv
@@ -30,7 +30,7 @@ npm run test:content
 npm run test:save
 ```
 
-`npm run dev` starts the normal hot Vite server. `npm run dev:host` exposes that hot server on the local network for phone testing. `npm run dev:bump` increments the dev-only home-screen revision in `src/dev-manifest.json`; it does not change the public release revision.
+`npm run dev` starts the normal hot Vite server. `npm run dev:host` exposes that hot server on the local network for phone testing. `npm run dev:bump -- --note "Short player-facing summary"` increments the dev-only home-screen revision and records the timestamp and remote-dev release note in `src/dev-manifest.json`; it does not change the public release revision.
 
 `npm run release:home-dev` builds the app as a home-dev production preview and hosts it locally on port 4173. It prints both localhost and LAN URLs, and the local save API is available in this preview server.
 
@@ -38,7 +38,7 @@ npm run test:save
 
 `npm run icons:check` validates committed PNG assets against content IDs. `npm run icons:extract` and `npm run icons:lv` run the existing PowerShell extraction/recolor pipelines after icon candidates are approved.
 
-`npm run release:remote-dev` is the remote test lane. Run it from a clean committed worktree; it runs lint, tests, and build, then pushes the current commit to `origin/remote-dev` and watches the Pages workflow when the GitHub CLI is available. GitHub Pages publishes that build under the repository Pages site at `/remote-dev/` without changing the public release.
+`npm run release:remote-dev` is the remote test lane. Run it from a clean committed worktree after bumping with a short note; it validates the dev metadata, runs lint, tests, and build, then pushes the current commit to `origin/remote-dev` and watches the Pages workflow when the GitHub CLI is available. GitHub Pages publishes that build under the repository Pages site at `/remote-dev/` without changing the public release.
 
 `npm run release:notes` generates the in-game release manifest, branded HTML release notes, and a PDF/public PDF copy when Chrome or Edge is available.
 
@@ -54,7 +54,7 @@ The older `npm run deploy:test` and `npm run deploy:release` commands remain as 
 | Remote test dev | `npm run release:remote-dev` | GitHub Pages `/remote-dev/` path | `Remote dev` |
 | Full release | `npm run release:full -- --revision 0.2.0 --title "Patch title" --note "Patch note"` | Main GitHub Pages URL | `Full release` |
 
-Patch notes and public revision numbers are shown on the home screen through `src/release-manifest.json`. Home-dev uses `src/dev-manifest.json` for a separate `dev.x` revision, and remote-dev builds override the revision at build time so testers can immediately see they are not on the public release.
+Patch notes and public revision numbers are shown on the home screen through `src/release-manifest.json`. Home-dev and remote-dev use `src/dev-manifest.json` for a separate `dev.x` revision and short update note. Remote-dev also stamps the exact Pages publish time into the deployed manifest so testers can confirm when a build landed.
 
 ## iOS App
 

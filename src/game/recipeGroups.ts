@@ -253,3 +253,11 @@ export function expandRecipeGroupCollections(
       : collection.groups.slice(0, 1)
   ))
 }
+
+export function partitionRecipeGroupsByBookmarks(groups: RecipeGroup[], bookmarkedKeys: Iterable<string>) {
+  const bookmarks = new Set(bookmarkedKeys)
+  return {
+    bookmarkedGroups: groups.filter((group) => bookmarks.has(group.key)),
+    remainingGroups: groups.filter((group) => !bookmarks.has(group.key)),
+  }
+}

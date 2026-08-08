@@ -62,12 +62,27 @@ export function processRecipeToCatalogRecipe(recipe: ProcessRecipe, stationType:
       ...(recipe.extraInputs ?? []),
       ...(recipe.fuelInput ? [recipe.fuelInput] : []),
     ].filter((input): input is ResourceAmount => Boolean(input && input.amount > 0)),
+    fuelInputs: recipe.fuelInput ? [recipe.fuelInput] : undefined,
     fluidInputs: recipe.fluidInputs ?? (recipe.fluidInput ? [recipe.fluidInput] : undefined),
     outputs: [recipe.output, recipe.secondaryOutput].filter((output): output is ResourceAmount => Boolean(output && output.amount > 0)),
     machineOutputs: recipe.machineOutput ? [recipe.machineOutput] : undefined,
     fluidOutputs: recipe.fluidOutputs ?? (recipe.fluidOutput ? [recipe.fluidOutput] : undefined),
     requiredMachine: recipe.machineId,
   }
+}
+
+export function recipeNonFuelInputs(recipe: Recipe): ResourceAmount[] {
+  const remainingFuel = new Map<ResourceId, number>()
+  for (const fuel of recipe.fuelInputs ?? []) {
+    remainingFuel.set(fuel.id, (remainingFuel.get(fuel.id) ?? 0) + fuel.amount)
+  }
+
+  return recipe.inputs.flatMap((input) => {
+    const fuelAmount = Math.min(input.amount, remainingFuel.get(input.id) ?? 0)
+    if (fuelAmount > 0) remainingFuel.set(input.id, (remainingFuel.get(input.id) ?? 0) - fuelAmount)
+    const materialAmount = input.amount - fuelAmount
+    return materialAmount > 0 ? [{ ...input, amount: materialAmount }] : []
+  })
 }
 
 export function minimumMachineForProcessRecipe(
