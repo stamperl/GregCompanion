@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Steam Waste Outlet Icon Review</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #101314; color: #eef1ed; }
+      main { width: min(760px, calc(100% - 24px)); margin: 24px auto 48px; }
+      h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: 0; }
+      header p { margin: 0 0 20px; color: #aeb9b6; }
+      .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      article { border: 1px solid #525b57; background: #1b2021; padding: 14px; }
+      h2 { margin: 0 0 12px; font-size: 17px; letter-spacing: 0; }
+      .preview { align-items: end; background: #080b0c; display: flex; gap: 22px; justify-content: center; min-height: 176px; padding: 16px; }
+      .large { height: 128px; width: 128px; }
+      .slot { height: 40px; width: 40px; }
+      img { object-fit: contain; }
+      .actions { display: grid; gap: 8px; grid-template-columns: repeat(2, 1fr); margin-top: 12px; }
+      button, textarea { border: 1px solid #68736e; border-radius: 0; color: #eef1ed; font: inherit; }
+      button { background: #293130; min-height: 40px; }
+      button[data-choice="approve"] { border-color: #67aa7d; }
+      button[data-choice="reject"] { border-color: #bd655c; }
+      button.active { background: #7d6730; border-color: #e0bf61; }
+      textarea { background: #111718; grid-column: 1 / -1; min-height: 70px; padding: 8px; resize: vertical; width: 100%; }
+      output { color: #d7c77e; display: block; font-size: 13px; min-height: 18px; margin-top: 8px; }
+      @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Steam Waste Outlet</h1>
+        <p>Separate transparent candidates shown at runtime size and terminal slot size.</p>
+      </header>
+      <section class="grid">
+        <article data-id="mechanicalPump">
+          <h2>Mechanical Pump</h2>
+          <div class="preview">
+            <img class="large" src="mechanicalPump-candidate.png" alt="Mechanical Pump icon candidate" />
+            <img class="slot" src="mechanicalPump-candidate.png" alt="Mechanical Pump at slot size" />
+          </div>
+          <div class="actions">
+            <button type="button" data-choice="approve">Approve</button>
+            <button type="button" data-choice="reject">Reject</button>
+            <textarea aria-label="Mechanical Pump review comment" placeholder="Comment"></textarea>
+          </div>
+          <output></output>
+        </article>
+        <article data-id="wasteOutlet">
+          <h2>Waste Outlet</h2>
+          <div class="preview">
+            <img class="large" src="wasteOutlet-candidate.png" alt="Waste Outlet icon candidate" />
+            <img class="slot" src="wasteOutlet-candidate.png" alt="Waste Outlet at slot size" />
+          </div>
+          <div class="actions">
+            <button type="button" data-choice="approve">Approve</button>
+            <button type="button" data-choice="reject">Reject</button>
+            <textarea aria-label="Waste Outlet review comment" placeholder="Comment"></textarea>
+          </div>
+          <output></output>
+        </article>
+      </section>
+    </main>
+    <script>
+      for (const card of document.querySelectorAll('article')) {
+        const id = card.dataset.id
+        const key = `click-foundry-icon-review:${id}`
+        const output = card.querySelector('output')
+        const comment = card.querySelector('textarea')
+        const saved = JSON.parse(localStorage.getItem(key) || '{}')
+        comment.value = saved.comment || ''
+        const render = () => {
+          for (const button of card.querySelectorAll('button')) button.classList.toggle('active', button.dataset.choice === saved.status)
+          output.textContent = saved.status ? `${saved.status}${saved.comment ? `: ${saved.comment}` : ''}` : 'Pending review'
+        }
+        for (const button of card.querySelectorAll('button')) {
+          button.addEventListener('click', () => {
+            saved.status = button.dataset.choice
+            saved.comment = comment.value.trim()
+            localStorage.setItem(key, JSON.stringify(saved))
+            render()
+          })
+        }
+        comment.addEventListener('change', () => {
+          saved.comment = comment.value.trim()
+          localStorage.setItem(key, JSON.stringify(saved))
+          render()
+        })
+        render()
+      }
+    </script>
+  </body>
+</html>
