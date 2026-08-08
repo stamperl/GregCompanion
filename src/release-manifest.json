@@ -1,15 +1,14 @@
 {
-  "revision": "1.2.0",
-  "date": "2026-07-31",
-  "title": "The Medium Voltage Era",
+  "revision": "1.2.1",
+  "date": "2026-08-08",
+  "title": "Bulk Planning Patch",
   "notes": [
-    "The Medium Voltage era is open: build the complete MV machine fleet for faster processing at a higher EU demand, backed by aluminium infrastructure, MV circuits, motors, pumps, pistons, batteries, transformers, cables, and expanded factory floors.",
-    "Shape metal at scale with the MV Extruder. Reusable molds now form plates, rods, rings, bolts, and gears, replacing the old Assembler shortcuts and rewarding dedicated production lines.",
-    "Fabrication networks now deliver end-to-end automated crafting through powered controllers, network cabling, physical encoded patterns, machine interfaces, planning racks, crafting requests, and live job tracking.",
-    "Grow and refine renewable fuel through Powered Farms, Pyrolysis Ovens, Distilleries, and LV or MV Combustion Generators, with benzene production and useful byproducts designed for complete factory routing.",
-    "The new Polymer Works line turns sugar cane into ethanol, ethylene, liquid polyethylene, cast plates, pipes, and the four-million-litre LV Super Tank while recovery recipes put process byproducts back to work.",
-    "Power networks gain multi-amp tin and aluminium cables plus lossless LV and MV superconductors. Live buffer flow, corrected cable delivery, and clearer factory graphics make bottlenecks easier to diagnose.",
-    "Machine terminals, boilers, tanks, fluid textures, slots, progress bars, and automation controls now share a cleaner mobile layout, with long-press inspection and numerous fluid, power, output, and routing fixes.",
-    "The quest book has been reorganised into clearer connected journeys, while the recipe browser now expands item families directly from their icons and orders tools, materials, machines, tanks, and fluids consistently."
+    "The Bulk Calculator now provides a complete production-planning workflow with item, quality, and quantity targets; recursive favourite recipes; base-material totals; required setup; and bookmarkable plans with amounts.",
+    "Planner icons now open their matching recipes or raw-resource views, while recipe choices show the selected method, station, variant number, and favourite status.",
+    "Changing a favourite recipe now immediately recalculates the plan and confirms whether its base materials changed or the selected variant follows the same material route.",
+    "The calculator is fully scrollable on phones, uses item icons throughout for faster scanning, includes missing intermediates such as Steel Rods, and treats Sticky Resin as a gathered raw resource.",
+    "Owned fluids remain outside calculator stock checks for now, avoiding misleading shortages while fluid inventory planning is refined.",
+    "Multiblock tanks now accept and route fluids through configured input and output faces across the formed structure instead of limiting input to one corner.",
+    "Steam Turbines now fill and display their 32 L Steam buffer correctly, including while their EU buffer is full, and Well and boiler terminal readings and fluid handling have been corrected."
   ]
 }
