@@ -14295,6 +14295,85 @@ button.button-primary:disabled,
   width: 26px;
 }
 
+.farm-automation-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 54px repeat(2, minmax(0, 1fr)) 54px;
+  grid-template-rows: 52px repeat(2, 68px) 52px;
+}
+
+.farm-automation-face,
+.farm-automation-cell {
+  align-items: center;
+  background: rgba(10, 20, 21, 0.94);
+  border: 1px solid #38575a;
+  color: #85b8bb;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.farm-automation-face {
+  cursor: pointer;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px;
+}
+
+.farm-automation-face.north { grid-column: 2 / 4; grid-row: 1; }
+.farm-automation-face.east { grid-column: 4; grid-row: 2 / 4; }
+.farm-automation-face.south { grid-column: 2 / 4; grid-row: 4; }
+.farm-automation-face.west { grid-column: 1; grid-row: 2 / 4; }
+
+.farm-automation-face.selected {
+  border: 2px solid #65c7d1;
+  box-shadow: inset 0 0 9px rgba(101, 199, 209, 0.2), 0 0 5px rgba(101, 199, 209, 0.24);
+  color: #bceff2;
+}
+
+.farm-automation-face b,
+.farm-automation-face small {
+  font-size: 0.4rem;
+  line-height: 1;
+}
+
+.farm-face-neighbours {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 27px;
+}
+
+.farm-face-neighbours .machine-glyph {
+  height: 27px;
+  margin: 0 -2px;
+  width: 27px;
+}
+
+.farm-face-neighbours .lv-automation-empty {
+  display: block;
+  height: 22px;
+  width: 22px;
+}
+
+.farm-automation-cell {
+  border-color: #8b7138;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.farm-automation-cell .machine-glyph {
+  height: 42px;
+  width: 42px;
+}
+
+.farm-automation-cell small {
+  font-size: 0.38rem;
+  line-height: 1;
+  text-align: center;
+}
+
 .machine-tinCable.machine-connector-glyph .pipe-coupling,
 .machine-tinCable.machine-connector-glyph .pipe-cap,
 .machine-tinCable2A.machine-connector-glyph .pipe-coupling,

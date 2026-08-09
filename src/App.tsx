@@ -4710,14 +4710,19 @@ function App() {
     isLvItemAutomationMachine(selectedMachine.machineId) &&
     machineHasAutomatableItemOutputs(selectedMachine.machineId),
   )
-  const selectedMachineCanAutomateFluids = Boolean(
+  const selectedMachineCanAutomateFluidOutputs = Boolean(
     selectedMachine &&
     machines[selectedMachine.machineId].tier === 'lv' &&
     isFluidOutletConfigurableMachine(selectedMachine.machineId),
   )
+  const selectedMachineCanAutomateFluidInputs = selectedMachine?.machineId === 'poweredFarm'
+  const selectedMachineCanAutomateFluids = selectedMachineCanAutomateFluidOutputs || selectedMachineCanAutomateFluidInputs
   const selectedMachineCanAutomate = selectedMachineCanAutomateItems || selectedMachineCanAutomateFluids || selectedMachine?.machineId === 'jobInterface' || Boolean(selectedMachine && isEuStorageMachine(selectedMachine.machineId))
-  const selectedMachineFluidOutputDirections = selectedMachine && selectedMachineCanAutomateFluids
+  const selectedMachineFluidOutputDirections = selectedMachine && selectedMachineCanAutomateFluidOutputs
     ? pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'output')
+    : []
+  const selectedMachineFluidInputDirections = selectedMachine && selectedMachineCanAutomateFluidInputs
+    ? pipeDirections.filter((direction) => pipeSideMode(selectedMachine, direction) === 'input' || pipeSideMode(selectedMachine, direction) === 'both')
     : []
   const showSelectedMachineFluidAutomation = selectedMachineCanAutomateFluids && (
     !selectedMachineCanAutomateItems || machineTerminalMode === 'fluids'
@@ -9945,6 +9950,8 @@ function App() {
                       ? `${pipeDirectionOffsets[batteryBufferOutputDirection(selectedMachine) ?? 'north'].label} out`
                       : selectedMachine.machineId === 'jobInterface'
                       ? selectedMachine.fabricationFace ? pipeDirectionOffsets[selectedMachine.fabricationFace].label : 'Auto'
+                      : selectedMachine.machineId === 'poweredFarm' && showSelectedMachineFluidAutomation
+                      ? selectedMachineFluidInputDirections.length > 0 ? `${selectedMachineFluidInputDirections.length} inputs` : 'Disabled'
                       : showSelectedMachineFluidAutomation
                       ? selectedMachineFluidOutputDirections.length > 0 ? 'Ready' : 'Disabled'
                       : selectedMachineAutomationStatus?.label}</strong>
@@ -10036,6 +10043,76 @@ function App() {
                       }).length}</strong></span>
                     </div>
                   </div>
+                ) : isMachineAutomationOpen && selectedMachine.machineId === 'poweredFarm' && selectedMachineMultiblock ? (
+                  (() => {
+                    const multiblock = selectedMachineMultiblock
+                    const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+                    const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+                    const maxX = originX + multiblock.spec.width - 1
+                    const maxY = originY + multiblock.spec.height - 1
+                    const farmCells = multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
+                    const faceNeighbours = (direction: PipeDirection) => {
+                      const offset = pipeDirectionOffsets[direction]
+                      return farmCells
+                        .filter((position) => (
+                          (direction === 'north' && position.y === originY) ||
+                          (direction === 'east' && position.x === maxX) ||
+                          (direction === 'south' && position.y === maxY) ||
+                          (direction === 'west' && position.x === originX)
+                        ))
+                        .map((position) => state.machineInstances.find((candidate) => candidate.x === position.x + offset.dx && candidate.y === position.y + offset.dy))
+                        .filter((candidate): candidate is MachineInstance => Boolean(candidate))
+                    }
+                    const isFluidMode = machineTerminalMode === 'fluids'
+                    const activeDirections = isFluidMode ? selectedMachineFluidInputDirections : selectedMachine.itemOutputDirection ? [selectedMachine.itemOutputDirection] : []
+                    return <div className="lv-item-automation-hmi farm-multiblock-automation">
+                      <div className="lv-automation-head">
+                        <span><small>{isFluidMode ? 'Fluid inputs' : 'Item output'}</small><strong>{activeDirections.length > 0 ? activeDirections.map((direction) => pipeDirectionOffsets[direction].label).join(', ') : 'Disabled'}</strong></span>
+                        <span className={`lv-automation-state state-${activeDirections.length > 0 ? 'ready' : 'disabled'}`}><small>Structure</small><strong>2x2 formed</strong></span>
+                      </div>
+                      <div className="farm-automation-grid" aria-label={`Powered Farm multiblock ${isFluidMode ? 'fluid input' : 'item output'} faces`}>
+                        {pipeDirections.map((direction) => {
+                          const neighbours = faceNeighbours(direction)
+                          const selected = isFluidMode
+                            ? selectedMachineFluidInputDirections.includes(direction)
+                            : selectedMachine.itemOutputDirection === direction
+                          return <button
+                            type="button"
+                            className={['farm-automation-face', direction, selected ? 'selected' : ''].filter(Boolean).join(' ')}
+                            aria-label={`${selected ? 'Disable' : 'Set'} Powered Farm ${isFluidMode ? 'fluid input' : 'item output'} ${pipeDirectionOffsets[direction].label} face`}
+                            aria-pressed={selected}
+                            onClick={() => setState((current) => isFluidMode
+                              ? setPipeSideMode(current, selectedMachine.uid, direction, selected ? 'blocked' : 'input')
+                              : setLvItemOutputDirection(current, selectedMachine.uid, direction))}
+                            key={direction}
+                          >
+                            <span className="farm-face-neighbours">
+                              {neighbours.length > 0 ? neighbours.map((neighbour) => <MachineGlyph id={neighbour.machineId} key={neighbour.uid} />) : <i className="lv-automation-empty" />}
+                            </span>
+                            <b>{pipeDirectionOffsets[direction].label}</b>
+                            <small>{selected ? (isFluidMode ? 'IN' : 'OUT') : 'CLOSED'}</small>
+                          </button>
+                        })}
+                        {farmCells.map((position) => {
+                          const cell = state.machineInstances.find((candidate) => candidate.x === position.x && candidate.y === position.y)
+                          return <span
+                            className="farm-automation-cell"
+                            style={{ gridColumn: position.x - originX + 2, gridRow: position.y - originY + 2 }}
+                            key={`${position.x},${position.y}`}
+                          >
+                            {cell && <MachineGlyph id={cell.machineId} active={Boolean(selectedMachine.process.activeRecipeId)} />}
+                            <small>{position.x === multiblock.x && position.y === multiblock.y ? 'Controller' : 'Farm block'}</small>
+                          </span>
+                        })}
+                      </div>
+                      <div className="lv-automation-route-readout">
+                        <span><small>{isFluidMode ? 'Input faces' : 'Destination'}</small><strong>{isFluidMode
+                          ? `${selectedMachineFluidInputDirections.length} enabled`
+                          : selectedMachineAutomationStatus?.target ? machines[selectedMachineAutomationStatus.target.machineId].name : 'None'}</strong></span>
+                        <span><small>{isFluidMode ? 'Accepts' : 'Rate'}</small><strong>{isFluidMode ? 'Water + fertilizer' : '1 item/s'}</strong></span>
+                      </div>
+                    </div>
+                  })()
                 ) : isMachineAutomationOpen && selectedMachineCanAutomate && showSelectedMachineFluidAutomation ? (
                   <div className="lv-item-automation-hmi fluid-automation-hmi">
                     <div className="lv-automation-head">

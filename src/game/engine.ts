@@ -3803,6 +3803,7 @@ function isConfigurableConnector(machineId: MachineId) {
     isEuCableMachine(machineId) ||
     isEuStorageMachine(machineId) ||
     isItemHopperMachine(machineId) ||
+    machineId === 'poweredFarm' ||
     isFluidOutletConfigurableMachine(machineId) ||
     machineId === 'lvEnergyHatch2A' ||
     machineId === 'mvEnergyHatch2A' ||
@@ -3860,6 +3861,7 @@ export function pipeSideMode(instance: MachineInstance, direction: PipeDirection
   }
   if (isEuStorageMachine(instance.machineId)) return direction === 'north' ? 'output' : 'input'
   if (isTankStorageMachine(instance.machineId)) return 'both'
+  if (instance.machineId === 'poweredFarm') return 'input'
   if (instance.pipeDisabledSides?.[direction]) return 'blocked'
   if (isFluidOutletConfigurableMachine(instance.machineId)) return machineAcceptsFluidInput(instance.machineId) ? 'input' : 'blocked'
   return 'both'
@@ -3938,30 +3940,52 @@ function machinesCanFlow(from: MachineInstance, to: MachineInstance) {
   return connectorAllowsFlowOut(from, direction) && connectorAllowsFlowIn(to, oppositePipeDirection[direction])
 }
 
-function tankBoundaryFace(
+function routedFluidBoundaryFace(
   state: GameState,
   instance: MachineInstance,
   neighbour: MachineInstance,
 ) {
   const structure = isTankStorageMachine(instance.machineId) ? steamTankStructureForInstance(state, instance) : null
-  if (!structure || structure.positions.some((position) => position.x === neighbour.x && position.y === neighbour.y)) return null
+  if (structure) {
+    if (structure.positions.some((position) => position.x === neighbour.x && position.y === neighbour.y)) return null
+    const direction = directionBetween(instance, neighbour)
+    return direction ? { controller: structure.controller, direction } : null
+  }
+
+  const multiblock = multiblockCenterForInstance(state, instance)
+  if (!multiblock || multiblock.spec.controller !== 'poweredFarm') return null
+  const positions = multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
+  if (positions.some((position) => position.x === neighbour.x && position.y === neighbour.y)) return null
   const direction = directionBetween(instance, neighbour)
-  return direction ? { controller: structure.controller, direction } : null
+  if (!direction) return null
+  const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+  const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+  const maxX = originX + multiblock.spec.width - 1
+  const maxY = originY + multiblock.spec.height - 1
+  const onSelectedFace = (
+    (direction === 'north' && instance.y === originY) ||
+    (direction === 'east' && instance.x === maxX) ||
+    (direction === 'south' && instance.y === maxY) ||
+    (direction === 'west' && instance.x === originX)
+  )
+  if (!onSelectedFace) return null
+  const controller = machineAt(state, multiblock.x, multiblock.y)
+  return controller ? { controller, direction } : null
 }
 
 function machinesCanConnectInState(state: GameState, from: MachineInstance, to: MachineInstance) {
   if (!machinesCanConnect(from, to)) return false
-  const fromFace = tankBoundaryFace(state, from, to)
+  const fromFace = routedFluidBoundaryFace(state, from, to)
   if (fromFace && pipeSideMode(fromFace.controller, fromFace.direction) === 'blocked') return false
-  const toFace = tankBoundaryFace(state, to, from)
+  const toFace = routedFluidBoundaryFace(state, to, from)
   return !toFace || pipeSideMode(toFace.controller, toFace.direction) !== 'blocked'
 }
 
 function machinesCanFlowInState(state: GameState, from: MachineInstance, to: MachineInstance) {
   if (!machinesCanFlow(from, to)) return false
-  const fromFace = tankBoundaryFace(state, from, to)
+  const fromFace = routedFluidBoundaryFace(state, from, to)
   if (fromFace && !connectorAllowsFlowOut(fromFace.controller, fromFace.direction)) return false
-  const toFace = tankBoundaryFace(state, to, from)
+  const toFace = routedFluidBoundaryFace(state, to, from)
   return !toFace || connectorAllowsFlowIn(toFace.controller, toFace.direction)
 }
 
@@ -7541,11 +7565,30 @@ function lvAutomationAcceptsResource(machineId: MachineId, resourceId: ResourceI
   return slotIds.some((slotId) => canResourceEnterProcessSlot(machineId, slotId, resourceId))
 }
 
-function lvAutomationDestination(state: GameState, source: MachineInstance) {
+function lvAutomationDestinations(state: GameState, source: MachineInstance) {
   const direction = source.itemOutputDirection
-  if (!direction) return null
+  if (!direction) return []
   const offset = pipeDirectionOffsets[direction]
-  return machineAt(state, source.x + offset.dx, source.y + offset.dy)
+  const multiblock = source.machineId === 'poweredFarm' ? multiblockCenterForInstance(state, source) : null
+  if (!multiblock) {
+    const destination = machineAt(state, source.x + offset.dx, source.y + offset.dy)
+    return destination ? [destination] : []
+  }
+
+  const originX = multiblock.x - (multiblock.spec.controllerOffsetX ?? 0)
+  const originY = multiblock.y - (multiblock.spec.controllerOffsetY ?? 0)
+  const maxX = originX + multiblock.spec.width - 1
+  const maxY = originY + multiblock.spec.height - 1
+  const destinations = multiblockPositions(state, multiblock.x, multiblock.y, multiblock.spec)
+    .filter((position) => (
+      (direction === 'north' && position.y === originY) ||
+      (direction === 'east' && position.x === maxX) ||
+      (direction === 'south' && position.y === maxY) ||
+      (direction === 'west' && position.x === originX)
+    ))
+    .map((position) => machineAt(state, position.x + offset.dx, position.y + offset.dy))
+    .filter((destination): destination is MachineInstance => Boolean(destination))
+  return uniqueMachineInstances(destinations)
 }
 
 function lvAutomationCanReceive(target: MachineInstance, incomingDirection: PipeDirection, resourceId: ResourceId) {
@@ -7569,22 +7612,21 @@ export type LvItemAutomationStatusCode = 'disabled' | 'ready' | 'transferring' |
 
 export function lvItemAutomationStatus(state: GameState, source: MachineInstance): { code: LvItemAutomationStatusCode; label: string; target: MachineInstance | null } {
   if (!isLvItemAutomationMachine(source.machineId) || !source.itemOutputDirection) return { code: 'disabled', label: 'Disabled', target: null }
-  const target = lvAutomationDestination(state, source)
-  if (!target) return { code: 'no-neighbour', label: 'No neighbour', target: null }
+  const targets = lvAutomationDestinations(state, source)
+  if (targets.length < 1) return { code: 'no-neighbour', label: 'No neighbour', target: null }
   const incomingDirection = oppositePipeDirection[source.itemOutputDirection]
-  if (isLvItemAutomationMachine(target.machineId) && target.itemOutputDirection === incomingDirection) {
-    return { code: 'output-conflict', label: 'Output face conflict', target }
-  }
+  const availableTargets = targets.filter((target) => !(isLvItemAutomationMachine(target.machineId) && target.itemOutputDirection === incomingDirection))
+  if (availableTargets.length < 1) return { code: 'output-conflict', label: 'Output face conflict', target: targets[0] }
   const output = processOutputSlotIds.map((slotId) => source.process[slotId]).find(Boolean) ?? null
-  if (!output) return { code: 'ready', label: 'Ready', target }
-  if (target.machineId !== 'standardChest' && !isLvItemAutomationMachine(target.machineId)) return { code: 'invalid-item', label: 'Invalid destination', target }
-  if (!lvAutomationCanReceive(target, incomingDirection, output.id)) {
-    const acceptsResource = target.machineId === 'standardChest'
+  if (!output) return { code: 'ready', label: 'Ready', target: availableTargets[0] }
+  const receivingTarget = availableTargets.find((target) => lvAutomationCanReceive(target, incomingDirection, output.id))
+  if (!receivingTarget) {
+    const acceptsResource = availableTargets.some((target) => target.machineId === 'standardChest'
       ? target.process.storageSlots.some((slot) => !slot || slot.id === output.id)
-      : isLvItemAutomationMachine(target.machineId) && lvAutomationAcceptsResource(target.machineId, output.id)
-    return { code: acceptsResource ? 'destination-full' : 'invalid-item', label: acceptsResource ? 'Destination full' : 'Invalid item', target }
+      : isLvItemAutomationMachine(target.machineId) && lvAutomationAcceptsResource(target.machineId, output.id))
+    return { code: acceptsResource ? 'destination-full' : 'invalid-item', label: acceptsResource ? 'Destination full' : 'Invalid item', target: availableTargets[0] }
   }
-  return { code: (source.itemTransferProgressMs ?? 0) > 0 ? 'transferring' : 'ready', label: (source.itemTransferProgressMs ?? 0) > 0 ? 'Transferring' : 'Ready', target }
+  return { code: (source.itemTransferProgressMs ?? 0) > 0 ? 'transferring' : 'ready', label: (source.itemTransferProgressMs ?? 0) > 0 ? 'Transferring' : 'Ready', target: receivingTarget }
 }
 
 export function setLvItemOutputDirection(state: GameState, uid: string, direction?: PipeDirection) {
@@ -7635,12 +7677,12 @@ function tickLvItemAutomation(state: GameState, source: MachineInstance, elapsed
     return
   }
   source.itemTransferProgressMs = (source.itemTransferProgressMs ?? 0) + elapsedMs
-  const target = lvAutomationDestination(state, source)
   const incomingDirection = oppositePipeDirection[source.itemOutputDirection]
   while (source.itemTransferProgressMs >= 1000 && processOutputSlotIds.some((slotId) => source.process[slotId])) {
     const outputSlotId = processOutputSlotIds.find((slotId) => source.process[slotId])!
     const output = source.process[outputSlotId]!
-    if (!target || !lvAutomationCanReceive(target, incomingDirection, output.id)) {
+    const target = lvAutomationDestinations(state, source).find((candidate) => lvAutomationCanReceive(candidate, incomingDirection, output.id))
+    if (!target) {
       source.itemTransferProgressMs = 1000
       return
     }

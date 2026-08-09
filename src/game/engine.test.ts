@@ -8279,6 +8279,58 @@ describe('game engine', () => {
     }
   })
 
+  it('exports Powered Farm items through either block on the selected multiblock face', () => {
+    let state = createFactoryState()
+    state.machines.poweredFarmPart = 4
+    state.machines.standardChest = 1
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, 'poweredFarmPart', x, y)
+    }
+    state = placeMachineInstance(state, 'standardChest', 2, 1)
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!
+    controller.process.output = { id: 'log', amount: 2 }
+    state = setLvItemOutputDirection(state, controller.uid, 'east')
+
+    expect(lvItemAutomationStatus(state, state.machineInstances.find((instance) => instance.uid === controller.uid)!)).toEqual(expect.objectContaining({
+      code: 'ready',
+      target: expect.objectContaining({ machineId: 'standardChest', x: 2, y: 1 }),
+    }))
+
+    state = tickGame(state, 1000).state
+
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.output).toEqual({ id: 'log', amount: 1 })
+    expect(state.machineInstances.find((instance) => instance.machineId === 'standardChest')!.process.storageSlots).toContainEqual({ id: 'log', amount: 1 })
+  })
+
+  it('accepts Powered Farm fluids only through enabled multiblock faces', () => {
+    let state = createFactoryState()
+    state.machines.poweredFarmPart = 4
+    state.machines.copperPipe = 1
+    state.machines.lvWaterSource = 1
+    for (let y = 0; y < 2; y += 1) {
+      for (let x = 0; x < 2; x += 1) state = placeMachineInstance(state, 'poweredFarmPart', x, y)
+    }
+    state = placeMachineInstance(state, 'copperPipe', 2, 1)
+    state = placeMachineInstance(state, 'lvWaterSource', 3, 1)
+    const controller = state.machineInstances.find((instance) => instance.machineId === 'poweredFarm')!
+    const pipe = state.machineInstances.find((instance) => instance.machineId === 'copperPipe')!
+    const waterSource = state.machineInstances.find((instance) => instance.machineId === 'lvWaterSource')!
+    waterSource.process.fluids.water = 48
+    state = setFluidOutputDirection(state, waterSource.uid, 'west')
+    state = setPipeSideMode(state, pipe.uid, 'east', 'input')
+    state = setPipeSideMode(state, pipe.uid, 'west', 'output')
+    state = setPipeSideMode(state, controller.uid, 'east', 'blocked')
+
+    state = tickGame(state, 1000).state
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.fluids.water ?? 0).toBe(0)
+
+    state = setPipeSideMode(state, controller.uid, 'east', 'input')
+    state = tickGame(state, 1000).state
+
+    expect(pipeSideMode(state.machineInstances.find((instance) => instance.uid === controller.uid)!, 'east')).toBe('input')
+    expect(state.machineInstances.find((instance) => instance.uid === controller.uid)!.process.fluids.water).toBeGreaterThan(0)
+  })
+
   it('requires and consumes fertilizer for enriched sugar cane', () => {
     let state = createFactoryState()
     state.machines.poweredFarmPart = 4
