@@ -3747,31 +3747,26 @@ export const recipes: Recipe[] = [
     outputs: [{ id: 'surveyKit', amount: 1 }],
     unlockedBy: 'buildLvAutoMinerQuest',
   },
-  ...([
-    ['coalSeam', 'coal'],
-    ['redstoneVein', 'redstoneDust'],
-    ['diamondVein', 'diamond'],
-    ['nickelVein', 'nickelOre'],
-    ['bauxiteVein', 'bauxiteOre'],
-    ['leadVein', 'leadOre'],
-    ['saltDeposit', 'sodiumSalt'],
-    ['obsidianDeposit', 'obsidian'],
-    ['sulfurVent', 'sulfurOre'],
-  ] as const).map(([targetId, resourceId]): Recipe => ({
-    id: `encode_${targetId}_survey_card`,
-    name: `${gatherTargets[targetId].name} Survey Card`,
-    description: `Consume one Survey Kit and eight samples to encode a reusable ${gatherTargets[targetId].name} mining profile.`,
-    tier: 'lv',
-    durationMs: 3600,
-    inputs: [
-      { id: resourceId, amount: 8 },
-      { id: 'surveyKit', amount: 1 },
-    ],
-    pattern: [resourceId, resourceId, resourceId, resourceId, 'surveyKit', resourceId, resourceId, resourceId, resourceId],
-    outputs: [],
-    surveyCardOutput: targetId,
-    unlockedBy: 'craftSurveyKitQuest',
-  })),
+  ...Object.values(gatherTargets)
+    .filter((target) => canAutoMinerTarget('lvAutoMiner', target.id) && !canAutoMinerTarget('steamAutoMiner', target.id))
+    .map((target): Recipe => {
+      const resourceId = target.drops[0].id
+      return {
+        id: `encode_${target.id}_survey_card`,
+        name: `${target.name} Survey Card`,
+        description: `Consume one Survey Kit and eight samples to encode a reusable ${target.name} mining profile.`,
+        tier: 'lv',
+        durationMs: 3600,
+        inputs: [
+          { id: resourceId, amount: 8 },
+          { id: 'surveyKit', amount: 1 },
+        ],
+        pattern: [resourceId, resourceId, resourceId, resourceId, 'surveyKit', resourceId, resourceId, resourceId, resourceId],
+        outputs: [],
+        surveyCardOutput: target.id,
+        unlockedBy: 'craftSurveyKitQuest',
+      }
+    }),
   {
     id: 'craft_reach_gate_casing',
     name: 'Reach Gate Casings',

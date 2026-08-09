@@ -262,6 +262,32 @@ describe('content validation', () => {
     }
   })
 
+  it('gives every surveyed Auto Miner target one complete Survey Card recipe', () => {
+    const surveyedTargets = Object.values(gatherTargets)
+      .filter((target) => canAutoMinerTarget('lvAutoMiner', target.id) && !canAutoMinerTarget('steamAutoMiner', target.id))
+    const surveyRecipes = recipes.filter((recipe) => recipe.surveyCardOutput)
+
+    expect(surveyRecipes.map((recipe) => recipe.surveyCardOutput).sort()).toEqual(surveyedTargets.map((target) => target.id).sort())
+
+    for (const target of surveyedTargets) {
+      const matchingRecipes = surveyRecipes.filter((recipe) => recipe.surveyCardOutput === target.id)
+      expect(matchingRecipes, `${target.id} should have exactly one Survey Card recipe`).toHaveLength(1)
+      const recipe = matchingRecipes[0]
+      const sampleId = target.drops[0].id
+      expect(recipe.id).toBe(`encode_${target.id}_survey_card`)
+      expect(recipe.inputs).toEqual([
+        { id: sampleId, amount: 8 },
+        { id: 'surveyKit', amount: 1 },
+      ])
+      expect(recipe.pattern).toEqual([
+        sampleId, sampleId, sampleId,
+        sampleId, 'surveyKit', sampleId,
+        sampleId, sampleId, sampleId,
+      ])
+      expect(recipe.outputs).toEqual([])
+    }
+  })
+
   it('keeps crafting recipes valid', () => {
     for (const recipe of recipes) {
       expect(recipe.name.trim(), `${recipe.id} should have a name`).not.toBe('')
