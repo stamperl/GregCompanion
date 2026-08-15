@@ -470,6 +470,24 @@ describe('game engine', () => {
     expect(hitGatherTarget(state, 'bauxiteVein').state.gatherProgress.bauxiteVein).toBe(5)
   })
 
+  it('selects every gather target preferred tool when it is equipped', () => {
+    for (const target of Object.values(gatherTargets)) {
+      let state = createFactoryState(1000)
+      const toolId = target.preferredTool as ResourceId
+      const slot = toolId === 'treeTap' || toolId.endsWith('Axe')
+        ? 'axe'
+        : toolId.endsWith('Shovel')
+          ? 'shovel'
+          : 'pickaxe'
+      state.resources[toolId] = 1
+      state = equipResource(state, slot, toolId)
+
+      const selectedTool = getBestToolForTarget(state, target.id)
+      expect(selectedTool.id, `${target.id} should select its equipped preferred tool`).toBe(toolId)
+      expect(selectedTool.damageByTarget[target.id], `${target.id} preferred tool should deal damage`).toBeGreaterThan(0)
+    }
+  })
+
   it('auto-completes ready guide quests and leaves rewards unclaimed', () => {
     let state = createFactoryState(1000)
     state.resources.log = 1

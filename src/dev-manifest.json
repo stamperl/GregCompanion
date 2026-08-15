@@ -1,5 +1,5 @@
 {
-  "revision": 243,
-  "updatedAt": "2026-08-09T20:04:26.513Z",
-  "summary": "Added missing Survey Cards for Gold, Resonant Quartz, Void Quartz, Sphalerite, and Realgar deposits."
+  "revision": 244,
+  "updatedAt": "2026-08-15T08:18:59.628Z",
+  "summary": "Diamond Pickaxes can now mine Sphalerite and Realgar deposits in the Shattered Reach."
 }

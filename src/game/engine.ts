@@ -1292,7 +1292,7 @@ export function getBestToolForTarget(state: GameState, targetId: GatherTargetId)
     if (state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
     return tools.ironPickaxe
   }
-  if ((targetId === 'leadVein' || targetId === 'saltDeposit' || targetId === 'goldVein' || targetId === 'resonantQuartzSeam' || targetId === 'voidQuartzOutcrop') && state.equipment.pickaxe === 'diamondPickaxe') {
+  if ((targetId === 'leadVein' || targetId === 'saltDeposit' || targetId === 'goldVein' || targetId === 'resonantQuartzSeam' || targetId === 'voidQuartzOutcrop' || targetId === 'sphaleriteDeposit' || targetId === 'realgarDeposit') && state.equipment.pickaxe === 'diamondPickaxe') {
     return tools.diamondPickaxe
   }
   if (targetId === 'obsidianDeposit' && state.equipment.pickaxe === 'diamondPickaxe') return tools.diamondPickaxe
