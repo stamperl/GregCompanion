@@ -51,6 +51,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react'
 import './App.css'
+import FieldLab from './components/FieldLab'
 import { fluidIconSrc } from './components/gameIconAssets'
 import { machineUiPanelSrc } from './components/machineUiAssets'
 import { mvMachineIds } from './game/mvIds'
@@ -3290,6 +3291,7 @@ function QuestBook({
 }
 
 function App() {
+  const [isFieldLabOpen, setIsFieldLabOpen] = useState(false)
   const reviewParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const reviewFluids = import.meta.env.DEV && reviewParams.get('reviewFluids') === '1'
   const reviewMachineId = reviewParams.get('reviewMachine') as MachineId | null
@@ -6851,6 +6853,8 @@ function App() {
   const showAndroidApkDownload = Boolean(androidApkUrl && !isNativeClient)
   const showInstallCard = canPromptInstall || showIosInstallHelp || showAndroidApkDownload
 
+  if (isFieldLabOpen) return <FieldLab onExit={() => setIsFieldLabOpen(false)} />
+
   const handleInstallApp = async () => {
     if (!installPromptEvent) return
     try {
@@ -7151,6 +7155,9 @@ function App() {
             <button type="submit">Rename</button>
           </form>
           <div className="home-actions">
+            <button type="button" className="home-action field-lab-entry" onClick={() => setIsFieldLabOpen(true)}>
+              Play FieldScript Lab
+            </button>
             <button type="button" className="home-action primary" disabled={!hasLoadedSave || isEnteringGame || isUpdateAvailable} onClick={handleContinueFromHome}>
               {isUpdateAvailable ? 'Update Required' : isEnteringGame ? 'Loading save...' : `Continue ${selectedSaveLabel}`}
             </button>

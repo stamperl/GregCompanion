@@ -72,6 +72,7 @@ For the GitHub Pages version on iPhone, open the site in Safari, use Share, then
 
 ## Prototype Scope
 
+- FieldScript side lab with a phone-friendly code editor, programmable field drone, and an original harvest-and-replant puzzle.
 - Tree breaking with per-block hit progress, log drops, planks, sticks, and a wooden axe speed upgrade.
 - Unlimited inventory stacks shown as item counts.
 - Minecraft-like inventory crafting: a 2x2 starter grid, a craftable crafting table, and an unlocked 3x3 table grid.
