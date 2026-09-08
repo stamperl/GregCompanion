@@ -7532,6 +7532,13 @@ button.craft-output:disabled {
   }
 }
 
+.home-action.field-lab-entry {
+  background: #b9e769;
+  border-color: #315e46;
+  color: #19382e;
+  box-shadow: inset 0 -3px 0 rgb(25 56 46 / 22%);
+}
+
 .game-shell {
   gap: 8px;
   max-width: 760px;
